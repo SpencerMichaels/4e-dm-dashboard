@@ -9,7 +9,7 @@
 
 import { readFileSync, writeFileSync, mkdirSync } from 'fs'
 import { join } from 'path'
-import { parseMonsterHtml } from '../importer'
+import { parseMonsterHtml } from '../html-parser'
 
 function main() {
   const rawPath = join(__dirname, 'raw', 'monsters.json')
