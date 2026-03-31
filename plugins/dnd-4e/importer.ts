@@ -1,56 +1,26 @@
-// D&D 4e creature importer — fetches from iws.mx compendium HTML data files
-// Uses the HTML-formatted data files (data0.js...data19.js) which have structural
-// markup: <p class='flavor alt'> for ability headers, <p class=flavorIndent> for bodies.
-// This is much more reliable than parsing the plain-text _index.js.
+// D&D 4e creature importer — parses embedded HTML monster data.
+// Data is pre-downloaded from iws.mx into data/monsters.json (5,326 creatures).
+// Uses structural HTML markup: <p class='flavor alt'> for ability headers,
+// <p class=flavorIndent> for bodies.
 
 import { generateId } from '../../src/common/utils/id'
 import type { Creature } from '../../src/common/types'
 import { allDamageTypes, attackTraits } from './known-values'
-
-const DATA_BASE = 'https://iws.mx/dnd/4e_database_files/monster/'
-const NUM_DATA_FILES = 20
+import monsterData from './data/monsters.json'
 
 export function parseIwsCreatureId(url: string): string | null {
   const match = url.match(/view=(monster\d+)/)
   return match ? match[1] : null
 }
 
-// Cache: maps monsterId → HTML string
-let htmlCache: Record<string, string> | null = null
-
-async function fetchHtmlData(): Promise<Record<string, string>> {
-  if (htmlCache) return htmlCache
-  htmlCache = {}
-
-  // Load all data files in parallel
-  const promises = []
-  for (let i = 0; i < NUM_DATA_FILES; i++) {
-    promises.push(
-      fetch(`${DATA_BASE}data${i}.js`, { headers: { 'User-Agent': 'TabletopDashboard/1.0' } })
-        .then(r => r.ok ? r.text() : '')
-        .catch(() => '')
-    )
-  }
-  const results = await Promise.all(promises)
-
-  for (const text of results) {
-    if (!text) continue
-    // Each file is JSONP: od.reader.jsonp_data(date, "monster", { "monster123": "html...", ... })
-    const jsonMatch = text.match(/\{[\s\S]+\}/)
-    if (!jsonMatch) continue
-    try {
-      const data = JSON.parse(jsonMatch[0])
-      Object.assign(htmlCache, data)
-    } catch {}
-  }
-
-  return htmlCache
+function getMonsterData(): Record<string, string> {
+  return monsterData as Record<string, string>
 }
 
 export async function importDnd4eCreature(url: string, warnings: string[] = []): Promise<Creature> {
   const monsterId = parseIwsCreatureId(url)
   if (!monsterId) throw new Error('Could not parse monster ID from URL: ' + url)
-  const data = await fetchHtmlData()
+  const data = getMonsterData()
   const html = data[monsterId]
   if (!html) throw new Error('Monster not found: ' + monsterId)
   return parseMonsterHtml(html, warnings)
