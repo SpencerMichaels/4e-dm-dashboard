@@ -420,6 +420,12 @@ function parseOneAbility(headerHtml: string, bodyBlocks: string[], sectionDefaul
       const em = afterAtk.match(/^(.+?)\s*(?:Effect:|Miss:)/i)
       if (em) afterAtk = em[1].trim()
 
+      // Strip crit/critical parentheticals before damage splitting — they contain
+      // effect text that would otherwise leak into damage parts
+      afterAtk = afterAtk.replace(/\s*\((?:on\s+)?crit(?:ical)?[^)]*\)/gi, '').trim()
+      // Also strip "(plus ...on a critical hit)" style parens
+      afterAtk = afterAtk.replace(/\s*\([^)]*critical hit[^)]*\)/gi, '').trim()
+
       const hasDamageExpr = /\d+d\d+|\d+\s+damage\b/i.test(afterAtk)
       if (hasDamageExpr) {
         const split = splitDamageFromHit(afterAtk)
@@ -613,8 +619,8 @@ function parseDamageParts(raw: string, knownTypes: string[]): DamagePart[] {
 
     // Clean up leftover punctuation, commas, "and" between stripped types
     seg = seg.replace(/\s*,\s*/g, ' ').replace(/\s+and\s+/gi, ' ').trim()
-    // Compact spaces around arithmetic operators
-    seg = seg.replace(/\s*([+\-])\s*/g, '$1').trim()
+    // Compact spaces around arithmetic operators and normalize dice (3D10 → 3d10)
+    seg = seg.replace(/\s*([+\-])\s*/g, '$1').replace(/(\d+)D(\d+)/g, '$1d$2').trim()
     // Strip any remaining non-expression characters (parens with bonus info, etc.)
     seg = seg.replace(/\s*\([^)]*\)\s*/g, '').trim()
     if (!seg) continue
