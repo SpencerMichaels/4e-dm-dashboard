@@ -1,0 +1,100 @@
+/* CSS custom properties — theming layer.
+   System plugins can override these (v2) via SystemTheme.cssVariables */
+
+:root {
+  /* Colors — neutral palette */
+  --color-bg-primary: #1a1a2e;
+  --color-bg-secondary: #16213e;
+  --color-bg-tertiary: #0f3460;
+  --color-bg-surface: #1e2746;
+  --color-bg-hover: #263052;
+  --color-bg-active: #2e3a5e;
+
+  --color-text-primary: #e0e0e0;
+  --color-text-secondary: #a0a0b8;
+  --color-text-muted: #6c6c8a;
+  --color-text-inverse: #1a1a2e;
+
+  --color-border: #2e3a5e;
+  --color-border-focus: #5c7cfa;
+
+  --color-accent: #5c7cfa;
+  --color-accent-hover: #748ffc;
+  --color-accent-text: #fff;
+
+  --color-danger: #e03131;
+  --color-danger-hover: #c92a2a;
+  --color-success: #2f9e44;
+  --color-warning: #f08c00;
+
+  /* Combat-specific */
+  --color-hp-full: #2f9e44;
+  --color-hp-high: #74b816;
+  --color-hp-mid: #f08c00;
+  --color-hp-low: #e03131;
+  --color-hp-down: #868e96;
+
+  --color-turn-active: #ffd43b;
+  --color-turn-delayed: #868e96;
+
+  /* Typography */
+  --font-body: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
+  --font-heading: var(--font-body);
+
+  --font-size-xs: 0.75rem;
+  --font-size-sm: 0.8125rem;
+  --font-size-base: 0.875rem;
+  --font-size-lg: 1rem;
+  --font-size-xl: 1.25rem;
+  --font-size-2xl: 1.5rem;
+
+  /* Spacing */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-6: 1.5rem;
+  --space-8: 2rem;
+
+  /* Layout */
+  --sidebar-width: 260px;
+  --header-height: 40px;
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+
+  /* Shadows */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 4px 8px rgba(0, 0, 0, 0.3);
+  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.4);
+
+  /* Transitions */
+  --transition-fast: 100ms ease;
+  --transition-normal: 200ms ease;
+}
+
+/* Light mode */
+:root[data-theme='light'] {
+  --color-bg-primary: #f8f9fa;
+  --color-bg-secondary: #ffffff;
+  --color-bg-tertiary: #e9ecef;
+  --color-bg-surface: #ffffff;
+  --color-bg-hover: #f1f3f5;
+  --color-bg-active: #e9ecef;
+
+  --color-text-primary: #212529;
+  --color-text-secondary: #495057;
+  --color-text-muted: #868e96;
+  --color-text-inverse: #ffffff;
+
+  --color-border: #dee2e6;
+  --color-border-focus: #4263eb;
+
+  --color-accent: #4263eb;
+  --color-accent-hover: #3b5bdb;
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.08);
+  --shadow-md: 0 4px 8px rgba(0, 0, 0, 0.1);
+  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.12);
+}

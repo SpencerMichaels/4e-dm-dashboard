@@ -1,0 +1,118 @@
+import { ipcMain } from 'electron'
+import { CMD, SYNC } from '@common/ipc-channels'
+import type { EntityType } from '@common/types'
+import * as store from '../data/campaign-store'
+import { broadcastToDm } from '../windows'
+import { setActiveSystemId } from './combat-handlers'
+
+export function registerCampaignHandlers(): void {
+  ipcMain.handle(CMD.CAMPAIGN_CREATE, async (_e, name: string, systemId: string) => {
+    const campaign = await store.createCampaign(name, systemId)
+    setActiveSystemId(systemId)
+    broadcastCampaignState()
+    return campaign
+  })
+
+  ipcMain.handle(CMD.CAMPAIGN_OPEN, async (_e, campaignId: string) => {
+    const campaign = await store.openCampaign(campaignId)
+    if (campaign) {
+      setActiveSystemId(campaign.systemId)
+    }
+    broadcastCampaignState()
+    return campaign
+  })
+
+  ipcMain.handle(CMD.CAMPAIGN_LIST, async () => {
+    return store.listCampaigns()
+  })
+
+  ipcMain.handle(CMD.CAMPAIGN_GET_META, async () => {
+    const id = store.getActiveCampaignId()
+    if (!id) return null
+    return store.getEntity('note', id) // Will be fetched from campaign.json via openCampaign
+  })
+
+  ipcMain.handle(CMD.ENTITY_SAVE, async (_e, entityType: EntityType, entity: { id: string }) => {
+    await store.saveEntity(entityType, entity)
+    broadcastCampaignState()
+    return entity
+  })
+
+  ipcMain.handle(CMD.ENTITY_DELETE, async (_e, entityType: EntityType, entityId: string) => {
+    await store.deleteEntity(entityType, entityId)
+    broadcastCampaignState()
+  })
+
+  ipcMain.handle(CMD.ENTITY_GET, async (_e, entityType: EntityType, entityId: string) => {
+    return store.getEntity(entityType, entityId)
+  })
+
+  ipcMain.handle(CMD.ENTITY_LIST, async (_e, entityType: EntityType) => {
+    return store.listEntities(entityType)
+  })
+
+  // Notes
+  ipcMain.handle(CMD.NOTE_SAVE, async (_e, note: { id: string }) => {
+    await store.saveEntity('note', note)
+    broadcastCampaignState()
+    return note
+  })
+
+  ipcMain.handle(CMD.NOTE_DELETE, async (_e, noteId: string) => {
+    await store.deleteEntity('note', noteId)
+    broadcastCampaignState()
+  })
+
+  ipcMain.handle(CMD.NOTE_GET, async (_e, noteId: string) => {
+    return store.getEntity('note', noteId)
+  })
+
+  ipcMain.handle(CMD.NOTE_TREE_GET, async () => {
+    return store.getNoteTree()
+  })
+
+  ipcMain.handle(CMD.NOTE_TREE_SAVE, async (_e, tree: unknown) => {
+    await store.saveNoteTree(tree as any)
+  })
+
+  // Links
+  ipcMain.handle(CMD.LINKS_GET, async () => {
+    return store.getLinks()
+  })
+
+  // Images
+  ipcMain.handle(CMD.IMAGE_IMPORT, async (_e, sourcePath: string) => {
+    const campaignId = store.getActiveCampaignId()
+    if (!campaignId) throw new Error('No active campaign')
+    return store.importImage(campaignId, sourcePath)
+  })
+}
+
+async function broadcastCampaignState(): Promise<void> {
+  const campaignId = store.getActiveCampaignId()
+  if (!campaignId) return
+
+  // Broadcast a summary of current state to DM renderer
+  const [creatures, encounters, locations, items, pcs, notes, noteTree, links] = await Promise.all([
+    store.listEntities('creature'),
+    store.listEntities('encounter'),
+    store.listEntities('location'),
+    store.listEntities('item'),
+    store.listEntities('player-character'),
+    store.listEntities('note'),
+    store.getNoteTree(),
+    store.getLinks(),
+  ])
+
+  broadcastToDm(SYNC.CAMPAIGN_STATE, {
+    campaignId,
+    creatures,
+    encounters,
+    locations,
+    items,
+    playerCharacters: pcs,
+    notes,
+    noteTree,
+    links,
+  })
+}

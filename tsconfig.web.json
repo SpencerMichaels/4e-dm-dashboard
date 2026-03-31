@@ -1,0 +1,27 @@
+{
+  "compilerOptions": {
+    "composite": true,
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "target": "ESNext",
+    "lib": ["ESNext", "DOM", "DOM.Iterable"],
+    "jsx": "react-jsx",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "outDir": "./out/tsconfig.web",
+    "declaration": true,
+    "declarationMap": true,
+    "paths": {
+      "@common/*": ["./src/common/*"]
+    }
+  },
+  "include": [
+    "src/renderer/**/*",
+    "src/player/**/*",
+    "src/common/**/*"
+  ]
+}

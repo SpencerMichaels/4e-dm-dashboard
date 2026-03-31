@@ -1,0 +1,83 @@
+import { useState, useEffect, useRef } from 'react'
+
+interface Props {
+  mode: 'damage' | 'heal'
+  combatantName: string
+  onSubmit: (amount: number) => void
+  onClose: () => void
+}
+
+export function DamageHealDialog({ mode, combatantName, onSubmit, onClose }: Props) {
+  const [amount, setAmount] = useState('')
+  const inputRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    inputRef.current?.focus()
+  }, [])
+
+  useEffect(() => {
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose()
+    }
+    window.addEventListener('keydown', handleKey)
+    return () => window.removeEventListener('keydown', handleKey)
+  }, [onClose])
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    const num = Number(amount)
+    if (!isNaN(num) && num > 0) {
+      onSubmit(num)
+    }
+  }
+
+  return (
+    <div style={{
+      position: 'fixed',
+      inset: 0,
+      background: 'rgba(0,0,0,0.5)',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      zIndex: 100,
+    }}>
+      <form
+        onSubmit={handleSubmit}
+        style={{
+          background: 'var(--color-bg-primary)',
+          border: '1px solid var(--color-border)',
+          borderRadius: 'var(--radius-md)',
+          padding: 'var(--space-6)',
+          minWidth: 300,
+        }}
+      >
+        <h3 style={{ marginBottom: 'var(--space-3)' }}>
+          {mode === 'damage' ? 'Damage' : 'Heal'} {combatantName}
+        </h3>
+        <input
+          ref={inputRef}
+          type="number"
+          min={1}
+          value={amount}
+          onChange={(e) => setAmount(e.target.value)}
+          placeholder="Amount"
+          style={{ width: '100%', marginBottom: 'var(--space-3)', fontSize: 'var(--font-size-lg)', textAlign: 'center' }}
+        />
+        <div style={{ display: 'flex', gap: 'var(--space-2)', justifyContent: 'flex-end' }}>
+          <button type="button" onClick={onClose}>Cancel</button>
+          <button
+            type="submit"
+            style={{
+              background: mode === 'damage' ? '#c00' : '#0a0',
+              color: '#fff',
+              padding: '4px 16px',
+              borderRadius: 'var(--radius-sm)',
+            }}
+          >
+            {mode === 'damage' ? 'Damage' : 'Heal'}
+          </button>
+        </div>
+      </form>
+    </div>
+  )
+}

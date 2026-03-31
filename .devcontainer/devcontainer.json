@@ -1,0 +1,36 @@
+{
+  "name": "Tabletop Dashboard Dev",
+  "build": {
+    "dockerfile": "Dockerfile",
+    "args": {
+      "TZ": "${localEnv:TZ:America/Los_Angeles}",
+      "CLAUDE_CODE_VERSION": "latest",
+      "ZSH_IN_DOCKER_VERSION": "1.2.0"
+    }
+  },
+  "runArgs": [
+    "--cap-add=NET_ADMIN",
+    "--cap-add=NET_RAW",
+    "--device=/dev/dri"
+  ],
+  "remoteUser": "node",
+  "mounts": [
+    "source=tabletop-bashhistory-${devcontainerId},target=/commandhistory,type=volume",
+    "source=tabletop-claude-config-${devcontainerId},target=/home/node/.claude,type=volume",
+    "source=${localEnv:XDG_RUNTIME_DIR}/${localEnv:WAYLAND_DISPLAY},target=/tmp/wayland-0,type=bind"
+  ],
+  "containerEnv": {
+    "NODE_OPTIONS": "--max-old-space-size=4096",
+    "CLAUDE_CONFIG_DIR": "/home/node/.claude",
+    "WAYLAND_DISPLAY": "wayland-0",
+    "XDG_RUNTIME_DIR": "/tmp",
+    "ELECTRON_OZONE_PLATFORM_HINT": "auto",
+    "ELECTRON_DISABLE_SANDBOX": "1",
+    "LIBGL_ALWAYS_SOFTWARE": "1",
+    "ELECTRON_ENABLE_LOGGING": "1"
+  },
+  "workspaceMount": "source=${localWorkspaceFolder},target=/workspace,type=bind,consistency=delegated",
+  "workspaceFolder": "/workspace",
+  "postStartCommand": "sudo /usr/local/bin/init-firewall.sh",
+  "waitFor": "postStartCommand"
+}
