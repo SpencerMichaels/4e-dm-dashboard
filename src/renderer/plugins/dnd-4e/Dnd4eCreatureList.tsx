@@ -91,6 +91,8 @@ function CompendiumBrowser({ comp, onNavigate }: { comp: ReturnType<typeof useCo
     setAdding(monsterId)
     try {
       const creature = await window.api.compendium.get('dnd-4e', monsterId)
+      // Save through the normal entity channel so the campaign store broadcasts
+      await window.api.entity.save('creature', creature)
       onNavigate(creature.id)
     } finally {
       setAdding(null)

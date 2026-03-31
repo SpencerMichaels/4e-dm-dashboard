@@ -360,6 +360,8 @@ function FullPowerRow({ entry: e, idx, config, level, statBlock, atkBonusTables,
         {/* Attack bonus quick-fill buttons — context-dependent on selected defense */}
         {level != null && atkBonusTables.length > 0 && (() => {
           const role = config.useSharedRole ? (statBlock?.role as string) : undefined
+          // Role-based system without a role set yet — don't show buttons
+          if (config.useSharedRole && !role) return null
           // For role-based systems: pick the table matching the defense (AC vs other)
           const isAC = e.defense === 'AC'
           const relevantTables = atkBonusTables.length > 1

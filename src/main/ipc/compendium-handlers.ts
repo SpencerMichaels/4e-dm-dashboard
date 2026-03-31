@@ -2,7 +2,6 @@ import { ipcMain } from 'electron'
 import { CMD } from '@common/ipc-channels'
 import type { CompendiumEntry } from '@common/types'
 import { allParsedMonsters, creatureFromCompendium } from '../../../plugins/dnd-4e/importer'
-import * as store from '../data/campaign-store'
 
 let indexCache: CompendiumEntry[] | null = null
 
@@ -41,8 +40,6 @@ export function registerCompendiumHandlers(): void {
 
   ipcMain.handle(CMD.COMPENDIUM_GET, async (_e, systemId: string, monsterId: string) => {
     if (systemId !== 'dnd-4e') throw new Error('Unsupported system: ' + systemId)
-    const creature = creatureFromCompendium(monsterId)
-    await store.saveEntity('creature', creature)
-    return creature
+    return creatureFromCompendium(monsterId)
   })
 }
