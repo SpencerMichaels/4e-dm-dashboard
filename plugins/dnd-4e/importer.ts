@@ -1,29 +1,39 @@
-// D&D 4e creature importer — parses embedded HTML monster data.
-// Data is pre-downloaded from iws.mx into data/monsters.json (5,326 creatures).
-// Uses structural HTML markup: <p class='flavor alt'> for ability headers,
-// <p class=flavorIndent> for bodies.
+// D&D 4e creature importer
+// At runtime: reads pre-parsed structured JSON from data/parsed/monsters.json
+// At build time: parseMonsterHtml() parses raw HTML (used by data/build-parsed.ts)
 
 import { generateId } from '../../src/common/utils/id'
 import type { Creature } from '../../src/common/types'
 import { allDamageTypes, attackTraits } from './known-values'
-import monsterData from './data/monsters.json'
 
 export function parseIwsCreatureId(url: string): string | null {
   const match = url.match(/view=(monster\d+)/)
   return match ? match[1] : null
 }
 
-function getMonsterData(): Record<string, string> {
-  return monsterData as Record<string, string>
-}
+import parsedMonsters from './data/parsed/monsters.json'
 
 export async function importDnd4eCreature(url: string, warnings: string[] = []): Promise<Creature> {
   const monsterId = parseIwsCreatureId(url)
   if (!monsterId) throw new Error('Could not parse monster ID from URL: ' + url)
-  const data = getMonsterData()
-  const html = data[monsterId]
-  if (!html) throw new Error('Monster not found: ' + monsterId)
-  return parseMonsterHtml(html, warnings)
+  const data = parsedMonsters as Record<string, any>
+  const entry = data[monsterId]
+  if (!entry) throw new Error('Monster not found: ' + monsterId)
+
+  // Pre-parsed data has everything except generated fields
+  const now = new Date().toISOString()
+  if (entry._importWarnings) warnings.push(...entry._importWarnings)
+  return {
+    id: generateId(),
+    createdAt: now,
+    updatedAt: now,
+    ...entry,
+  }
+}
+
+/** Parse raw HTML into a Creature. Used by the build script to pre-parse the corpus. */
+export function parseMonsterHtml(html: string, warnings: string[]): Creature {
+  return _parseMonsterHtml(html, warnings)
 }
 
 // ─── Strip HTML tags, keeping text content ───
@@ -37,7 +47,7 @@ function extractBold(html: string): string[] {
 }
 
 // ─── Main HTML parser ───
-function parseMonsterHtml(html: string, warnings: string[]): Creature {
+function _parseMonsterHtml(html: string, warnings: string[]): Creature {
   const now = new Date().toISOString()
 
   // ── Header: <h1 class=monster> ──

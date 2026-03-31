@@ -23,6 +23,7 @@
     "src/preload/**/*",
     "src/common/**/*",
     "electron.vite.config.ts",
-    "plugins/**/*"
+    "plugins/**/*",
+    "plugins/dnd-4e/data/parsed/*.json"
   ]
 }
