@@ -55,7 +55,7 @@ export function CreatureEditor({ creatureId }: Props) {
   const PluginDetails = pluginUI?.CreatureDetails
 
   return (
-    <div style={{ maxWidth: 600, margin: '0 auto' }}>
+    <div style={{ padding: '0 var(--space-4)' }}>
       {/* Name */}
       <input
         value={creature.name}

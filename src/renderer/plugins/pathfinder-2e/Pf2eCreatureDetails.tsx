@@ -41,7 +41,9 @@ export function Pf2eCreatureDetails({ creature, onSave: save, config }: Props) {
   }
 
   return (
-    <>
+    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-4)' }}>
+    {/* ─── Left column: Stats ─── */}
+    <div style={{ flex: '1 1 340px', minWidth: 300 }}>
       {/* Size */}
       {config.sizes && (
         <div style={{ display: 'flex', gap: 'var(--space-2)', alignItems: 'center', marginBottom: 'var(--space-3)' }}>
@@ -287,43 +289,49 @@ export function Pf2eCreatureDetails({ creature, onSave: save, config }: Props) {
           )
         })()}
 
-        {/* Abilities */}
-        <div style={{ marginBottom: 'var(--space-3)' }}>
-          <span style={{ display: 'block', fontSize: 'var(--font-size-sm)', color: 'var(--color-text-secondary)', marginBottom: 'var(--space-1)' }}>Abilities</span>
-          <ActionEntryEditor
-            entries={Array.isArray(creature.statBlock.actions) ? creature.statBlock.actions : []}
-            onChange={(actions) => save({ ...creature, statBlock: { ...creature.statBlock, actions } })}
-            config={actionConfig}
-            level={(creature.statBlock.level as number) ?? 1}
-            statBlock={creature.statBlock}
-          />
-        </div>
-
-        {/* Spells */}
-        <label style={{ display: 'block', marginBottom: 'var(--space-3)' }}>
-          <span style={{ display: 'block', fontSize: 'var(--font-size-sm)', color: 'var(--color-text-secondary)', marginBottom: 'var(--space-1)' }}>Spells</span>
-          <textarea value={(creature.statBlock.spells as string) ?? ''}
-            onChange={e => save({ ...creature, statBlock: { ...creature.statBlock, spells: e.target.value } })}
-            rows={3} style={{ width: '100%', resize: 'vertical' }} />
-        </label>
-
-        {/* Description & Source */}
-        <div style={{ marginBottom: 'var(--space-3)' }}>
-          <span style={{ display: 'block', fontSize: 'var(--font-size-sm)', color: 'var(--color-text-secondary)', marginBottom: 'var(--space-1)' }}>Description</span>
-          <textarea value={(creature.statBlock.description as string) ?? ''}
-            onChange={(e) => save({ ...creature, statBlock: { ...creature.statBlock, description: e.target.value } })}
-            placeholder="Creature description..."
-            style={{ width: '100%', fieldSizing: 'content' } as React.CSSProperties} />
-        </div>
-        <div style={{ display: 'flex', gap: 'var(--space-3)', fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)' }}>
-          {(creature.statBlock.rarity && creature.statBlock.rarity !== 'common') && (
-            <span>Rarity: {creature.statBlock.rarity as string}</span>
-          )}
-          {creature.statBlock.source && (
-            <span>Source: {creature.statBlock.source as string}</span>
-          )}
-        </div>
       </div>
-    </>
+    </div>
+
+    {/* ─── Right column: Abilities & Spells ─── */}
+    <div style={{ flex: '1 1 400px', minWidth: 340 }}>
+      {/* Abilities */}
+      <div style={{ marginBottom: 'var(--space-3)' }}>
+        <h3 style={{ fontSize: 'var(--font-size-lg)', marginBottom: 'var(--space-3)' }}>Abilities</h3>
+        <ActionEntryEditor
+          entries={Array.isArray(creature.statBlock.actions) ? creature.statBlock.actions : []}
+          onChange={(actions) => save({ ...creature, statBlock: { ...creature.statBlock, actions } })}
+          config={actionConfig}
+          level={(creature.statBlock.level as number) ?? 1}
+          statBlock={creature.statBlock}
+        />
+      </div>
+
+      {/* Spells */}
+      <label style={{ display: 'block', marginBottom: 'var(--space-3)' }}>
+        <span style={{ display: 'block', fontSize: 'var(--font-size-sm)', color: 'var(--color-text-secondary)', marginBottom: 'var(--space-1)' }}>Spells</span>
+        <textarea value={(creature.statBlock.spells as string) ?? ''}
+          onChange={e => save({ ...creature, statBlock: { ...creature.statBlock, spells: e.target.value } })}
+          rows={3} style={{ width: '100%', resize: 'vertical' }} />
+      </label>
+
+      {/* Description & Source */}
+      <div style={{ marginBottom: 'var(--space-3)' }}>
+        <span style={{ display: 'block', fontSize: 'var(--font-size-sm)', color: 'var(--color-text-secondary)', marginBottom: 'var(--space-1)' }}>Description</span>
+        <textarea value={(creature.statBlock.description as string) ?? ''}
+          onChange={(e) => save({ ...creature, statBlock: { ...creature.statBlock, description: e.target.value } })}
+          placeholder="Creature description..."
+          style={{ width: '100%', fieldSizing: 'content' } as React.CSSProperties} />
+      </div>
+      <div style={{ display: 'flex', gap: 'var(--space-3)', fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)' }}>
+        {(creature.statBlock.rarity && creature.statBlock.rarity !== 'common') && (
+          <span>Rarity: {creature.statBlock.rarity as string}</span>
+        )}
+        {creature.statBlock.source && (
+          <span>Source: {creature.statBlock.source as string}</span>
+        )}
+      </div>
+    </div>
+
+    </div>
   )
 }
