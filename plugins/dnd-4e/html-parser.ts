@@ -422,26 +422,20 @@ function parseOneAbility(headerHtml: string, bodyBlocks: string[], sectionDefaul
 
       const hasDamageExpr = /\d+d\d+|\d+\s+damage\b/i.test(afterAtk)
       if (hasDamageExpr) {
-        const ds = afterAtk.replace(/\.\s*$/, '').match(/^(.+?damage(?:\s*\([^)]*\))?(?:\s+plus\s+.+?damage(?:\s*\([^)]*\))?)*)(?:[.,]\s+(.+))?$/is)
-        if (ds && ds[2]) { damageRaw = ds[1]; hit = ds[2] }
-        else damageRaw = afterAtk
+        const split = splitDamageFromHit(afterAtk)
+        damageRaw = split.damage
+        if (split.hit) hit = split.hit
       } else {
         effect = effect || afterAtk.replace(/^[;,.\s]+/, '').replace(/\.\s*$/, '')
       }
     }
   }
 
-  // Parse Hit field
+  // Parse Hit field — extract leading damage expression, rest is hit effect
   if (fields.hit) {
-    const rawHit = fields.hit
-    const hasDmg = /\d+d\d+|\d+\s+damage\b/i.test(rawHit)
-    if (hasDmg) {
-      const ds = rawHit.match(/^(.+?damage(?:\s*\([^)]*\))?)(?:[.,]\s*(?:and\s+|if\s+|the\s+target\s+)(.+))?$/is)
-      if (ds && ds[2]) { damageRaw = ds[1]; hit = ds[2] }
-      else damageRaw = rawHit
-    } else {
-      hit = rawHit
-    }
+    const split = splitDamageFromHit(fields.hit)
+    damageRaw = split.damage
+    hit = split.hit
   }
 
   // If no attack/damage/hit found, entire body is the effect
@@ -493,10 +487,99 @@ function parseAurasFromStatsHtml(statsHtml: string): any[] {
 // ─── Parse damage text into structured DamagePart[] ───
 interface DamagePart { expr: string; type: string; ongoing: boolean }
 
+// ─── Split a Hit/damage text into damage expression(s) and hit effect ───
+// Scans tokens from the start, consuming while they look like damage components.
+// Stops at the first token that can't be part of a damage expression.
+//
+// Damage tokens: digits, dice (1d8), operators (+/-), damage type words,
+// "damage", "ongoing", "plus", "and" (between types), "(crit ...)" parens.
+// Everything after the last damage token is hit effect text.
+
+const DAMAGE_TYPES_SET = new Set(['acid', 'cold', 'fire', 'force', 'lightning', 'necrotic', 'poison', 'psychic', 'radiant', 'thunder'])
+
+function splitDamageFromHit(text: string): { damage: string; hit: string } {
+  const trimmed = text.trim()
+  // Tokenize: split on whitespace but keep parenthesized groups together
+  const tokens: string[] = []
+  let i = 0
+  while (i < trimmed.length) {
+    // Skip whitespace
+    while (i < trimmed.length && /\s/.test(trimmed[i])) i++
+    if (i >= trimmed.length) break
+    // Parenthesized group
+    if (trimmed[i] === '(') {
+      const start = i
+      let depth = 1
+      i++
+      while (i < trimmed.length && depth > 0) {
+        if (trimmed[i] === '(') depth++
+        else if (trimmed[i] === ')') depth--
+        i++
+      }
+      tokens.push(trimmed.substring(start, i))
+    } else {
+      // Regular token: up to next whitespace or paren
+      const start = i
+      while (i < trimmed.length && !/[\s(]/.test(trimmed[i])) i++
+      tokens.push(trimmed.substring(start, i))
+    }
+  }
+
+  function isDamageToken(tok: string, nextTok?: string): boolean {
+    const lower = tok.toLowerCase().replace(/[.,;:]+$/, '')
+    // Pure punctuation — skip
+    if (!lower) return true
+    // Dice expression: 1d8, 2d12+6, 4, 10
+    if (/^\d+d\d+([+\-]\d+)?$/.test(lower)) return true
+    // Flat number (but only if not followed by prose — "4 damage" ok, "4 squares" not)
+    if (/^\d+$/.test(lower)) {
+      if (!nextTok) return true
+      const nextLower = nextTok.toLowerCase().replace(/[.,;:]+$/, '')
+      return DAMAGE_TYPES_SET.has(nextLower) || nextLower === 'damage' || nextLower === 'plus'
+        || nextLower === 'ongoing' || /^\d/.test(nextLower) || nextTok.startsWith('(')
+    }
+    // Known damage type words
+    if (DAMAGE_TYPES_SET.has(lower)) return true
+    // "damage" keyword
+    if (lower === 'damage') return true
+    // "ongoing" — only if followed by a number
+    if (lower === 'ongoing' && nextTok && /^\d/.test(nextTok)) return true
+    // "plus" — only if followed by another damage token
+    if (lower === 'plus' && nextTok && isDamageToken(nextTok, tokens[tokens.indexOf(nextTok) + 1])) return true
+    // "and" between damage types: "fire and necrotic damage"
+    if (lower === 'and' && nextTok && DAMAGE_TYPES_SET.has(nextTok.toLowerCase().replace(/[.,;:]+$/, ''))) return true
+    // Crit parens: "(crit ...)" or "(critical ...)" — may be unclosed in source
+    if (tok.startsWith('(') && /crit/i.test(tok)) return true
+    return false
+  }
+
+  // Consume damage tokens from the front
+  let lastDmgIdx = -1
+  for (let t = 0; t < tokens.length; t++) {
+    if (isDamageToken(tokens[t], tokens[t + 1])) {
+      lastDmgIdx = t
+    } else {
+      break
+    }
+  }
+
+  if (lastDmgIdx < 0) {
+    return { damage: '', hit: trimmed }
+  }
+
+  const dmgTokens = tokens.slice(0, lastDmgIdx + 1)
+  const hitTokens = tokens.slice(lastDmgIdx + 1)
+  const damage = dmgTokens.join(' ')
+  let hit = hitTokens.join(' ')
+  // Strip leading punctuation and conjunctions from hit text
+  hit = hit.replace(/^[.,;:]+\s*/, '').replace(/^and\s+/i, '').replace(/^or\s+/i, '')
+  return { damage, hit }
+}
+
 function parseDamageParts(raw: string, knownTypes: string[]): DamagePart[] {
   if (!raw || !raw.trim()) return []
 
-  const segments = raw.split(/\s+(?:plus|and)\s+/i)
+  const segments = raw.split(/\s+(?:plus|and)\s+|,\s+(?=(?:ongoing\s+)?\d)/i)
   const typePat = knownTypes.length > 0 ? new RegExp('\\b(' + knownTypes.join('|') + ')\\b', 'i') : null
   const parts: DamagePart[] = []
 
@@ -506,7 +589,8 @@ function parseDamageParts(raw: string, knownTypes: string[]): DamagePart[] {
 
     seg = seg.replace(/\s*damage\b/gi, '').trim()
     seg = seg.replace(/[.,;]+$/, '').trim()
-    seg = seg.replace(/\s*\(crit[^)]*\)/i, '').trim()
+    // Strip crit parens — may be unclosed in source data
+    seg = seg.replace(/\s*\(crit(?:ical)?[^)]*\)?/i, '').trim()
 
     if (!seg) continue
 
@@ -514,16 +598,25 @@ function parseDamageParts(raw: string, knownTypes: string[]): DamagePart[] {
     const ongoing = !!ongoingMatch
     if (ongoingMatch) seg = ongoingMatch[1].trim()
 
+    // Extract all damage types (may be comma-separated: "cold, fire, lightning")
     let type = ''
     if (typePat) {
-      const tm = seg.match(typePat)
-      if (tm) {
-        type = tm[1].toLowerCase()
-        seg = seg.replace(typePat, '').trim()
+      const foundTypes: string[] = []
+      let m
+      const globalPat = new RegExp('\\b(' + knownTypes.join('|') + ')\\b', 'gi')
+      while ((m = globalPat.exec(seg)) !== null) foundTypes.push(m[1].toLowerCase())
+      if (foundTypes.length > 0) {
+        type = foundTypes.join(', ')
+        seg = seg.replace(globalPat, '').trim()
       }
     }
 
-    seg = seg.replace(/\s+/g, '').trim()
+    // Clean up leftover punctuation, commas, "and" between stripped types
+    seg = seg.replace(/\s*,\s*/g, ' ').replace(/\s+and\s+/gi, ' ').trim()
+    // Compact spaces around arithmetic operators
+    seg = seg.replace(/\s*([+\-])\s*/g, '$1').trim()
+    // Strip any remaining non-expression characters (parens with bonus info, etc.)
+    seg = seg.replace(/\s*\([^)]*\)\s*/g, '').trim()
     if (!seg) continue
 
     parts.push({ expr: seg, type, ongoing })
