@@ -274,7 +274,7 @@ function parseOneAbility(headerHtml: string, bodyBlocks: string[], sectionDefaul
     const labelMatch = blockHtml.match(/<i>([^<]+)<\/i>\s*/)
     if (labelMatch) {
       const label = labelMatch[1].replace(/:$/, '').trim().toLowerCase()
-      const value = stripHtml(blockHtml.substring(labelMatch[0].length)).trim()
+      const value = stripHtml(blockHtml.substring(labelMatch.index! + labelMatch[0].length)).trim()
       if (label.startsWith('attack')) fields.attack = (fields.attack ? fields.attack + ' ' : '') + value
       else if (label.startsWith('hit')) fields.hit = value
       else if (label.startsWith('miss')) fields.miss = value
