@@ -47,7 +47,10 @@ function _parseMonsterHtml(html: string, warnings: string[]): Creature {
   let eliteSolo: string | undefined
   if (roleRaw.includes('solo')) eliteSolo = 'solo'
   else if (roleRaw.includes('elite')) eliteSolo = 'elite'
-  const cleanRole = roleRaw.replace(/\s*(elite|solo|standard|minion)\s*/gi, '').replace(/\s*\([^)]*\)\s*/g, '').trim()
+  // Extract role by matching known 4e roles — avoids picking up origin words like "fey", "natural"
+  const knownRoles = ['artillery', 'brute', 'controller', 'lurker', 'skirmisher', 'soldier']
+  const roleMatch = knownRoles.find(r => roleRaw.includes(r))
+  const cleanRole = roleMatch ?? ''
 
   // ── Stats block: either <table class=bodytable> (newer) or <p class=flavor> (older) ──
   const tableMatch = html.match(/<table class=bodytable>([\s\S]*?)<\/table>/)
