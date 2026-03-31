@@ -53,6 +53,10 @@ export const CMD = {
   // Import
   IMPORT_CREATURE: 'import:creature',
 
+  // Compendium
+  COMPENDIUM_INDEX: 'compendium:index',
+  COMPENDIUM_GET: 'compendium:get',
+
   // Scene
   SCENE_SET: 'scene:set',
 } as const

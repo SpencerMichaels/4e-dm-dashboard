@@ -6,20 +6,14 @@ import { generateId } from '../../src/common/utils/id'
 import type { Creature } from '../../src/common/types'
 import parsedMonsters from './data/parsed/monsters.json'
 
-export function parseIwsCreatureId(url: string): string | null {
-  const match = url.match(/view=(monster\d+)/)
-  return match ? match[1] : null
-}
+/** All parsed monster data — used by the compendium handler to build indexes */
+export const allParsedMonsters = parsedMonsters as Record<string, any>
 
-export async function importDnd4eCreature(url: string, warnings: string[] = []): Promise<Creature> {
-  const monsterId = parseIwsCreatureId(url)
-  if (!monsterId) throw new Error('Could not parse monster ID from URL: ' + url)
-  const data = parsedMonsters as Record<string, any>
-  const entry = data[monsterId]
+/** Create a Creature from a compendium entry, generating fresh id/timestamps */
+export function creatureFromCompendium(monsterId: string): Creature {
+  const entry = allParsedMonsters[monsterId]
   if (!entry) throw new Error('Monster not found: ' + monsterId)
-
   const now = new Date().toISOString()
-  if (entry._importWarnings) warnings.push(...entry._importWarnings)
   return {
     id: generateId(),
     createdAt: now,

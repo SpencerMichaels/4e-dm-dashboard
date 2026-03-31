@@ -77,6 +77,12 @@ const api = {
     creature: (url: string) => ipcRenderer.invoke(CMD.IMPORT_CREATURE, url),
   },
 
+  // Compendium
+  compendium: {
+    index: (systemId: string) => ipcRenderer.invoke(CMD.COMPENDIUM_INDEX, systemId),
+    get: (systemId: string, monsterId: string) => ipcRenderer.invoke(CMD.COMPENDIUM_GET, systemId, monsterId),
+  },
+
   // Scene
   scene: {
     set: (scene: any) => ipcRenderer.invoke(CMD.SCENE_SET, scene),

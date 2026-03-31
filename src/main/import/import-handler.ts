@@ -1,7 +1,6 @@
 import { ipcMain } from 'electron'
 import { CMD } from '@common/ipc-channels'
 import { importPf2eCreature } from '../../../plugins/pathfinder-2e/importer'
-import { importDnd4eCreature } from '../../../plugins/dnd-4e/importer'
 import * as store from '../data/campaign-store'
 
 export interface ImportResult {
@@ -16,10 +15,8 @@ export function registerImportHandlers(): void {
 
     if (url.includes('aonprd.com')) {
       creature = await importPf2eCreature(url)
-    } else if (url.includes('iws.mx')) {
-      creature = await importDnd4eCreature(url, warnings)
     } else {
-      throw new Error('Unsupported import URL. Use aonprd.com (PF2e) or iws.mx (4e).')
+      throw new Error('Unsupported import URL. Use aonprd.com (PF2e). For D&D 4e, use the built-in compendium browser.')
     }
     await store.saveEntity('creature', creature)
     return { creature, warnings }

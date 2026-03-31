@@ -4,6 +4,7 @@ import { registerCampaignHandlers } from './ipc/campaign-handlers'
 import { registerCombatHandlers } from './ipc/combat-handlers'
 import { registerSystemHandlers } from './ipc/system-handlers'
 import { registerImportHandlers } from './import/import-handler'
+import { registerCompendiumHandlers } from './ipc/compendium-handlers'
 import { loadBuiltinPlugins, loadUserPlugins } from './plugins/plugin-loader'
 
 app.whenReady().then(async () => {
@@ -16,6 +17,7 @@ app.whenReady().then(async () => {
   registerCombatHandlers()
   registerSystemHandlers()
   registerImportHandlers()
+  registerCompendiumHandlers()
 
   // Create windows
   createDmWindow()

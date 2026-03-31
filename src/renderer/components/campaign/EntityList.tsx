@@ -1,8 +1,10 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useCampaignStore } from '../../stores/campaign-store'
 import { useUiStore } from '../../stores/ui-store'
 import { useCampaignActions } from '../../hooks/use-campaign'
 import { useHotkeys } from '../../hooks/use-hotkeys'
+import { getPluginUI } from '../../plugins/registry'
+import type { PluginUIComponents } from '../../plugins/plugin-types'
 import type { EntityType } from '@common/types'
 
 interface Props {
@@ -27,6 +29,14 @@ export function EntityList({ entityType }: Props) {
   const [importing, setImporting] = useState(false)
   const [importError, setImportError] = useState('')
   const [importWarnings, setImportWarnings] = useState<string[]>([])
+  const [pluginUI, setPluginUI] = useState<PluginUIComponents | null>(null)
+  const systemPlugin = useUiStore((s) => s.systemPlugin)
+
+  // Load plugin UI for creature list delegation
+  useEffect(() => {
+    if (entityType !== 'creature') return
+    if (systemPlugin?.id) getPluginUI(systemPlugin.id).then(setPluginUI)
+  }, [entityType, systemPlugin?.id])
 
   const entitiesMap: Record<string, { id: string; name?: string; title?: string }[]> = {
     note: notes,
@@ -84,6 +94,12 @@ export function EntityList({ entityType }: Props) {
       case 'item': setView({ type: 'item', itemId: id }); break
       case 'player-character': setView({ type: 'player-character', pcId: id }); break
     }
+  }
+
+  // Delegate to plugin's creature list if available
+  if (entityType === 'creature' && pluginUI?.CreatureList) {
+    const PluginCreatureList = pluginUI.CreatureList
+    return <PluginCreatureList creatures={creatures} onNavigate={(id) => navigateTo(id)} onCreate={handleCreate} />
   }
 
   return (
