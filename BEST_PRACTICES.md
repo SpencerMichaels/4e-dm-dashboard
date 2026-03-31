@@ -35,6 +35,17 @@ If a regex keeps causing over-capture across multiple fixes, the regex approach 
 
 ## UI
 
+### Stat blocks and info displays should be dense and inline
+Follow the formatting conventions of official game sources (e.g. the 4e stat block format on iws.mx, PF2e stat blocks on AoN). Key principles:
+- **Labels inline with values**, not on separate lines. `Initiative +10  Perception +11; low-light vision` — not three separate labeled rows.
+- **Group related stats on one line**: AC + defenses together, alignment + languages together, initiative + perception + senses together.
+- **Use separator lines** (border-bottom) between logical groups, not section headers or whitespace.
+- **No section headers** for obvious groupings — the labels are self-documenting.
+- **Flavor text (description) near the top** — it provides context for the stats below.
+- **Two-column responsive layout**: stats on the left, powers/abilities on the right. Use `flex-wrap` so columns stack on narrow windows.
+- **No max-width constraints** — let the layout fill available space and respond to window size.
+- The goal is to fit as much information as possible on screen without scrolling, matching the density a DM expects from a printed stat block.
+
 ### Freeform text fields should be textareas, not inputs
 Any field that might contain more than ~40 characters of text (effect descriptions, trigger text, ability descriptions) should use `<textarea>` so the content wraps visually. Use CSS `field-sizing: content` for auto-expansion.
 
