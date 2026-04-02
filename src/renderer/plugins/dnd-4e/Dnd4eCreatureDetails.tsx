@@ -279,23 +279,23 @@ export function Dnd4eCreatureDetails({ creature, onSave: save, config }: Props) 
 
       {/* ── FOOTER ── */}
 
-      {/* Alignment + Languages */}
+      {/* Alignment */}
       <div className="sb-row sb-row-sep">
-        <span>
-          <b className="sb-label">Alignment</b>{' '}
-          <select className="ghost" value={(sb.alignment as string) ?? ''} onChange={e => u('alignment', e.target.value)}
-            style={{ fontSize: 'inherit' }}>
-            <option value="">—</option>
-            {DND4E_ALIGNMENTS.map(a => <option key={a} value={a}>{a}</option>)}
-          </select>
-        </span>
-        <span style={{ marginLeft: 'auto', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-          <b className="sb-label">Languages</b>
-          <TagInput compact
-            values={Array.isArray(sb.languages) ? sb.languages : ((sb.languages as string) ?? '').split(',').map((s: string) => s.trim()).filter(Boolean)}
-            onChange={languages => u('languages', languages)}
-            suggestions={DND4E_LANGUAGES} placeholder="+ language" />
-        </span>
+        <b className="sb-label">Alignment</b>{' '}
+        <select className="ghost" value={(sb.alignment as string) ?? ''} onChange={e => u('alignment', e.target.value)}
+          style={{ fontSize: 'inherit' }}>
+          <option value="">—</option>
+          {DND4E_ALIGNMENTS.map(a => <option key={a} value={a}>{a}</option>)}
+        </select>
+      </div>
+
+      {/* Languages */}
+      <div className="sb-row sb-row-sep">
+        <b className="sb-label">Languages</b>
+        <TagInput compact
+          values={Array.isArray(sb.languages) ? sb.languages : ((sb.languages as string) ?? '').split(',').map((s: string) => s.trim()).filter(Boolean)}
+          onChange={languages => u('languages', languages)}
+          suggestions={DND4E_LANGUAGES} placeholder="+ language" />
       </div>
 
       {/* Skills */}
@@ -466,7 +466,7 @@ function InlineEntryChips({ label, entries, onChange, suggestions, showValue }: 
                 ref={justAdded ? focusRef : undefined}
                 onChange={ev => updateVal(i, Number(ev.target.value))}
                 onBlur={ev => { if (ev.target.value === '') updateVal(i, 0) }}
-                style={{ width: 26, fontWeight: 600 }} />
+                style={{ width: 30, fontWeight: 600, borderBottom: '1px solid var(--color-border)' }} />
             </>}
             <button onClick={() => remove(i)}
               style={{ fontSize: '9px', color: 'var(--color-text-muted)', padding: '0 1px' }}>x</button>

@@ -70,6 +70,15 @@
   font-style: italic;
 }
 
+/* Override theme colors inside the dark subheader */
+.stat-block-4e .sb-subheader {
+  --color-text-primary: var(--sb-header-text);
+  --color-text-secondary: var(--sb-header-text);
+  --color-text-muted: rgba(255, 255, 255, 0.6);
+  --color-bg-hover: rgba(255, 255, 255, 0.18);
+  --color-border: rgba(255, 255, 255, 0.3);
+}
+
 /* Stat rows */
 .stat-block-4e .sb-row {
   display: flex;
