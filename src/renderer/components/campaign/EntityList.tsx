@@ -34,7 +34,7 @@ export function EntityList({ entityType }: Props) {
 
   // Load plugin UI for creature list delegation
   useEffect(() => {
-    if (entityType !== 'creature') return
+    if (entityType !== 'creature' && entityType !== 'item') return
     if (systemPlugin?.id) getPluginUI(systemPlugin.id).then(setPluginUI)
   }, [entityType, systemPlugin?.id])
 
@@ -100,6 +100,12 @@ export function EntityList({ entityType }: Props) {
   if (entityType === 'creature' && pluginUI?.CreatureList) {
     const PluginCreatureList = pluginUI.CreatureList
     return <PluginCreatureList creatures={creatures} onNavigate={(id) => navigateTo(id)} onCreate={handleCreate} />
+  }
+
+  // Delegate to plugin's item list if available
+  if (entityType === 'item' && pluginUI?.ItemList) {
+    const PluginItemList = pluginUI.ItemList
+    return <PluginItemList items={items} onNavigate={(id) => navigateTo(id)} onCreate={handleCreate} />
   }
 
   return (

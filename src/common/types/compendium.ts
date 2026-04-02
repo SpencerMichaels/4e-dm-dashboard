@@ -1,13 +1,24 @@
-/** Compact index entry for compendium browsing — ~150 bytes per creature */
+/** Compact index entry for creature compendium browsing */
 export interface CompendiumEntry {
-  id: string          // e.g. "monster5320"
+  id: string
   name: string
   level: number
-  role: string        // "skirmisher", "brute", etc.
-  modifier: string    // "elite" | "solo" | ""
-  size: string        // "Small", "Medium", etc.
-  type: string        // "humanoid" (creature type)
-  origin: string      // "natural" (creature origin)
-  alignment: string   // "Unaligned"
+  role: string
+  modifier: string
+  size: string
+  type: string
+  origin: string
+  alignment: string
   xp: number
+}
+
+/** Compact index entry for item compendium browsing */
+export interface ItemIndexEntry {
+  id: string
+  name: string
+  category: string    // item, weapon, armor, implement, ritual
+  level: number
+  rarity: string
+  price: string
+  slot: string
 }

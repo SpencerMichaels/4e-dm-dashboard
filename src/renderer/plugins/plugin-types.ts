@@ -15,8 +15,16 @@ export interface PluginCreatureListProps {
   onCreate: () => void
 }
 
+/** Props for plugin item list (replaces EntityList for items) */
+export interface PluginItemListProps {
+  items: any[]
+  onNavigate: (itemId: string) => void
+  onCreate: () => void
+}
+
 /** What a plugin UI module exports */
 export interface PluginUIComponents {
   CreatureDetails?: ComponentType<PluginCreatureDetailsProps>
   CreatureList?: ComponentType<PluginCreatureListProps>
+  ItemList?: ComponentType<PluginItemListProps>
 }

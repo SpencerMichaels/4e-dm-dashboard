@@ -81,6 +81,8 @@ const api = {
   compendium: {
     index: (systemId: string) => ipcRenderer.invoke(CMD.COMPENDIUM_INDEX, systemId),
     get: (systemId: string, monsterId: string) => ipcRenderer.invoke(CMD.COMPENDIUM_GET, systemId, monsterId),
+    itemIndex: (systemId: string) => ipcRenderer.invoke(CMD.COMPENDIUM_ITEM_INDEX, systemId),
+    itemGet: (systemId: string, itemId: string) => ipcRenderer.invoke(CMD.COMPENDIUM_ITEM_GET, systemId, itemId),
   },
 
   // Scene

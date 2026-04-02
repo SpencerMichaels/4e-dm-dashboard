@@ -56,6 +56,8 @@ export const CMD = {
   // Compendium
   COMPENDIUM_INDEX: 'compendium:index',
   COMPENDIUM_GET: 'compendium:get',
+  COMPENDIUM_ITEM_INDEX: 'compendium:item-index',
+  COMPENDIUM_ITEM_GET: 'compendium:item-get',
 
   // Scene
   SCENE_SET: 'scene:set',
