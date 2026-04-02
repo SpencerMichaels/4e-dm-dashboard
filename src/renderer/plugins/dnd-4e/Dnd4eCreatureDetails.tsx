@@ -6,6 +6,18 @@ import { TagInput } from '@renderer/components/shared/TagInput'
 import { DamageEntryList } from '@renderer/components/shared/DamageEntryList'
 import './statblock.css'
 
+// XP by level (DMG p.56) — derived from level + modifier, not editable
+const XP_BY_LEVEL: Record<number, number> = {
+  1:100,2:125,3:150,4:175,5:200,6:250,7:300,8:350,9:400,10:500,
+  11:600,12:700,13:800,14:1000,15:1200,16:1400,17:1600,18:2000,19:2400,20:2800,
+  21:3200,22:4150,23:5100,24:6050,25:7000,26:9000,27:11000,28:13000,29:15000,30:19000,
+}
+const XP_MULT: Record<string, number> = { elite: 2, solo: 5 }
+function xpForCreature(level: number, modifier?: string): number {
+  const base = XP_BY_LEVEL[level] ?? XP_BY_LEVEL[30]
+  return Math.round(base * (XP_MULT[modifier || ''] ?? 1))
+}
+
 // 4e-specific constants
 const DND4E_ACTION_TYPES = [
   { value: 'standard', label: 'Standard Action', icon: 'Std' },
@@ -139,8 +151,7 @@ export function Dnd4eCreatureDetails({ creature, onSave: save, config }: Props) 
           <TagInput compact values={subtypes} onChange={st => setTraits(origin, creatureType, st)}
             suggestions={CREATURE_SUBTYPES} placeholder="(subtypes)" />
         </span>
-        <span style={{ whiteSpace: 'nowrap' }}>XP <input className="ghost" type="number" value={(sb.xp as number) ?? 0}
-          onChange={e => u('xp', Number(e.target.value))} style={{ color: 'inherit', width: 50 }} /></span>
+        <span style={{ whiteSpace: 'nowrap' }}>XP {xpForCreature(level, modifier)}</span>
       </div>
 
       {/* ── STATS ── */}
