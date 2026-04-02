@@ -339,12 +339,14 @@ export function Dnd4eCreatureDetails({ creature, onSave: save, config }: Props) 
         const imm = Array.isArray(sb.immunities) ? sb.immunities as any[] : []
         const res = Array.isArray(sb.resistances) ? sb.resistances as any[] : []
         const vul = Array.isArray(sb.weaknesses) ? sb.weaknesses as any[] : []
-        // All empty → one line with all three labels + dropdowns
+        // All empty → one line with all three labels + dropdowns, semicolons between
         if (imm.length === 0 && res.length === 0 && vul.length === 0) {
           return (
             <div className="sb-row sb-row-sep">
               <InlineEntryChips label="Immune" entries={imm} onChange={v => u('immunities', v)} suggestions={config.damageTypes} />
+              <span>;</span>
               <InlineEntryChips label="Resist" entries={res} onChange={v => u('resistances', v)} suggestions={config.damageTypes} showValue />
+              <span>;</span>
               <InlineEntryChips label="Vulnerable" entries={vul} onChange={v => u('weaknesses', v)} suggestions={config.damageTypes} showValue />
             </div>
           )
@@ -361,14 +363,19 @@ export function Dnd4eCreatureDetails({ creature, onSave: save, config }: Props) 
             {vul.length > 0 && <div className="sb-row">
               <InlineEntryChips label="Vulnerable" entries={vul} onChange={v => u('weaknesses', v)} suggestions={config.damageTypes} showValue />
             </div>}
-            {/* Empty ones on one line */}
-            {(imm.length === 0 || res.length === 0 || vul.length === 0) && (
-              <div className="sb-row sb-row-sep">
-                {imm.length === 0 && <InlineEntryChips label="Immune" entries={imm} onChange={v => u('immunities', v)} suggestions={config.damageTypes} />}
-                {res.length === 0 && <InlineEntryChips label="Resist" entries={res} onChange={v => u('resistances', v)} suggestions={config.damageTypes} showValue />}
-                {vul.length === 0 && <InlineEntryChips label="Vulnerable" entries={vul} onChange={v => u('weaknesses', v)} suggestions={config.damageTypes} showValue />}
-              </div>
-            )}
+            {/* Empty ones on one line with semicolons */}
+            {(imm.length === 0 || res.length === 0 || vul.length === 0) && (() => {
+              const empties = [
+                imm.length === 0 && <InlineEntryChips key="imm" label="Immune" entries={imm} onChange={v => u('immunities', v)} suggestions={config.damageTypes} />,
+                res.length === 0 && <InlineEntryChips key="res" label="Resist" entries={res} onChange={v => u('resistances', v)} suggestions={config.damageTypes} showValue />,
+                vul.length === 0 && <InlineEntryChips key="vul" label="Vulnerable" entries={vul} onChange={v => u('weaknesses', v)} suggestions={config.damageTypes} showValue />,
+              ].filter(Boolean)
+              return (
+                <div className="sb-row sb-row-sep">
+                  {empties.map((el, idx) => <>{idx > 0 && <span>;</span>}{el}</>)}
+                </div>
+              )
+            })()}
             {imm.length > 0 && res.length > 0 && vul.length > 0 && <div className="sb-row-sep" />}
           </>
         )
@@ -416,7 +423,7 @@ export function Dnd4eCreatureDetails({ creature, onSave: save, config }: Props) 
                 if (justAdded) lastAddedSkill.current = null
                 return (
                   <span key={name} style={{ display: 'inline-flex', alignItems: 'center', gap: 3, padding: '0 3px', background: 'var(--color-bg-hover)', borderRadius: 'var(--radius-sm)', fontSize: 'var(--font-size-xs)' }}>
-                    {cap(name)}<input className="ghost" type="number" value={mod ?? ''}
+                    {cap(name)} +<input className="ghost" type="number" value={mod ?? ''}
                       ref={justAdded ? focusRef : undefined}
                       onChange={ev => u('skills', { ...skills, [name]: ev.target.value === '' ? '' : Number(ev.target.value) })}
                       onBlur={ev => { if (ev.target.value === '') u('skills', { ...skills, [name]: 0 }) }} />
@@ -497,7 +504,7 @@ export function Dnd4eCreatureDetails({ creature, onSave: save, config }: Props) 
       })()}
 
       {/* Equipment */}
-      <div className="sb-row sb-row-sep">
+      <div className="sb-row">
         <b className="sb-label">Equipment</b>
         <input className="ghost" value={
           Array.isArray(sb.equipment) ? (sb.equipment as string[]).join(', ') : ((sb.equipment as string) ?? '')}
@@ -524,8 +531,13 @@ export function Dnd4eCreatureDetails({ creature, onSave: save, config }: Props) 
         }
         const addEntry = (type: ActionEntry['entryType']) => u('actions', [emptyEntry(actionConfig, type), ...actions])
         const gutterBtn = { color: 'var(--color-text-muted)', padding: '0', lineHeight: 1, fontSize: '10px', display: 'block' as const }
+        const addBtn = { color: 'var(--color-text-muted)', border: '1px dashed var(--color-border)', borderRadius: 'var(--radius-sm)', padding: '0 4px', background: 'transparent', cursor: 'pointer' }
         return (
           <>
+            <div style={{ display: 'flex', gap: 4, padding: '4px 8px' }}>
+              <button onClick={() => addEntry('trait')} style={addBtn}>+ trait</button>
+              <button onClick={() => addEntry('aura')} style={addBtn}>+ aura</button>
+            </div>
             {traitEntries.length > 0 && (
               <div style={{ marginTop: 4 }}>
                 {traitEntries.map(({ e, i }) => (
@@ -558,12 +570,6 @@ export function Dnd4eCreatureDetails({ creature, onSave: save, config }: Props) 
                 ))}
               </div>
             )}
-            <div style={{ display: 'flex', gap: 4, padding: '4px 8px' }}>
-              <button onClick={() => addEntry('trait')}
-                style={{ color: 'var(--color-text-muted)', border: '1px dashed var(--color-border)', borderRadius: 'var(--radius-sm)', padding: '0 4px', background: 'transparent', cursor: 'pointer' }}>+ trait</button>
-              <button onClick={() => addEntry('aura')}
-                style={{ color: 'var(--color-text-muted)', border: '1px dashed var(--color-border)', borderRadius: 'var(--radius-sm)', padding: '0 4px', background: 'transparent', cursor: 'pointer' }}>+ aura</button>
-            </div>
           </>
         )
       })()}
