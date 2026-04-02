@@ -335,51 +335,16 @@ export function Dnd4eCreatureDetails({ creature, onSave: save, config }: Props) 
           </div>
         )
       })()}
-      {(() => {
-        const imm = Array.isArray(sb.immunities) ? sb.immunities as any[] : []
-        const res = Array.isArray(sb.resistances) ? sb.resistances as any[] : []
-        const vul = Array.isArray(sb.weaknesses) ? sb.weaknesses as any[] : []
-        // All empty → one line with all three labels + dropdowns, semicolons between
-        if (imm.length === 0 && res.length === 0 && vul.length === 0) {
-          return (
-            <div className="sb-row sb-row-sep">
-              <InlineEntryChips label="Immune" entries={imm} onChange={v => u('immunities', v)} suggestions={config.damageTypes} />
-              <span>;</span>
-              <InlineEntryChips label="Resist" entries={res} onChange={v => u('resistances', v)} suggestions={config.damageTypes} showValue />
-              <span>;</span>
-              <InlineEntryChips label="Vulnerable" entries={vul} onChange={v => u('weaknesses', v)} suggestions={config.damageTypes} showValue />
-            </div>
-          )
-        }
-        // Any have items → each non-empty one on its own line, empty ones together on one line
-        return (
-          <>
-            {imm.length > 0 && <div className="sb-row">
-              <InlineEntryChips label="Immune" entries={imm} onChange={v => u('immunities', v)} suggestions={config.damageTypes} />
-            </div>}
-            {res.length > 0 && <div className="sb-row">
-              <InlineEntryChips label="Resist" entries={res} onChange={v => u('resistances', v)} suggestions={config.damageTypes} showValue />
-            </div>}
-            {vul.length > 0 && <div className="sb-row">
-              <InlineEntryChips label="Vulnerable" entries={vul} onChange={v => u('weaknesses', v)} suggestions={config.damageTypes} showValue />
-            </div>}
-            {/* Empty ones on one line with semicolons */}
-            {(imm.length === 0 || res.length === 0 || vul.length === 0) && (() => {
-              const empties = [
-                imm.length === 0 && <InlineEntryChips key="imm" label="Immune" entries={imm} onChange={v => u('immunities', v)} suggestions={config.damageTypes} />,
-                res.length === 0 && <InlineEntryChips key="res" label="Resist" entries={res} onChange={v => u('resistances', v)} suggestions={config.damageTypes} showValue />,
-                vul.length === 0 && <InlineEntryChips key="vul" label="Vulnerable" entries={vul} onChange={v => u('weaknesses', v)} suggestions={config.damageTypes} showValue />,
-              ].filter(Boolean)
-              return (
-                <div className="sb-row sb-row-sep">
-                  {empties.map((el, idx) => <>{idx > 0 && <span>;</span>}{el}</>)}
-                </div>
-              )
-            })()}
-            {imm.length > 0 && res.length > 0 && vul.length > 0 && <div className="sb-row-sep" />}
-          </>
-        )
-      })()}
+      <div className="sb-row sb-row-sep">
+        <InlineEntryChips label="Immune" entries={Array.isArray(sb.immunities) ? sb.immunities as any[] : []}
+          onChange={v => u('immunities', v)} suggestions={config.damageTypes} />
+        <span>;</span>
+        <InlineEntryChips label="Resist" entries={Array.isArray(sb.resistances) ? sb.resistances as any[] : []}
+          onChange={v => u('resistances', v)} suggestions={config.damageTypes} showValue />
+        <span>;</span>
+        <InlineEntryChips label="Vulnerable" entries={Array.isArray(sb.weaknesses) ? sb.weaknesses as any[] : []}
+          onChange={v => u('weaknesses', v)} suggestions={config.damageTypes} showValue />
+      </div>
 
       {/* ── GROUP 4: Alignment, Languages, Skills, Equipment ── */}
 
@@ -504,7 +469,7 @@ export function Dnd4eCreatureDetails({ creature, onSave: save, config }: Props) 
       })()}
 
       {/* Equipment */}
-      <div className="sb-row">
+      <div className="sb-row sb-row-sep">
         <b className="sb-label">Equipment</b>
         <input className="ghost" value={
           Array.isArray(sb.equipment) ? (sb.equipment as string[]).join(', ') : ((sb.equipment as string) ?? '')}
@@ -535,8 +500,8 @@ export function Dnd4eCreatureDetails({ creature, onSave: save, config }: Props) 
         return (
           <>
             <div style={{ display: 'flex', gap: 4, padding: '4px 8px' }}>
-              <button onClick={() => addEntry('trait')} style={addBtn}>+ trait</button>
-              <button onClick={() => addEntry('aura')} style={addBtn}>+ aura</button>
+              <button onClick={() => addEntry('trait')} style={addBtn}>+ Trait</button>
+              <button onClick={() => addEntry('aura')} style={addBtn}>+ Aura</button>
             </div>
             {traitEntries.length > 0 && (
               <div style={{ marginTop: 4 }}>
