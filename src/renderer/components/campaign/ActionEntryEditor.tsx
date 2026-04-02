@@ -330,8 +330,19 @@ function FullPowerRow({ entry: e, idx, config, level, statBlock, atkBonusTables,
   } as React.CSSProperties
   const addBtn = { color: 'var(--color-text-muted)', border: '1px dashed var(--color-border)', borderRadius: 'var(--radius-sm)', padding: '0 4px', background: 'transparent', cursor: 'pointer' }
 
+  const dragBtnStyle = { color: 'var(--color-text-muted)', padding: '0', lineHeight: 1, fontSize: '10px', display: 'block' }
+
   return (
-    <div style={{ fontSize: 'var(--font-size-xs)', lineHeight: 1.5, marginBottom: 2 }}>
+    <div style={{ display: 'flex', fontSize: 'var(--font-size-xs)', lineHeight: 1.5, marginBottom: 2 }}>
+      {/* Reorder controls — left gutter */}
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '0 3px', gap: 1, opacity: 0.5, minWidth: 14 }}>
+        <button onClick={() => onMove(idx, -1)} style={dragBtnStyle} title="Move up">▲</button>
+        <span style={{ cursor: 'grab', fontSize: '8px', color: 'var(--color-text-muted)', letterSpacing: 1 }} title="Drag to reorder">⠿</span>
+        <button onClick={() => onMove(idx, 1)} style={dragBtnStyle} title="Move down">▼</button>
+      </div>
+
+      {/* Card content */}
+      <div style={{ flex: 1, minWidth: 0 }}>
       {/* Header line 1: Name (action; usage) ✦ Keywords */}
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 4, padding: '2px 8px',
         background: usageColor, color: '#fff', ...hdrColors }}>
@@ -353,8 +364,7 @@ function FullPowerRow({ entry: e, idx, config, level, statBlock, atkBonusTables,
           ✦ <TagInput compact values={Array.isArray(e.keywords) ? e.keywords : []} onChange={(kw) => onUpdate(idx, { keywords: kw })}
             suggestions={config.attackTraits} placeholder="keywords..." />
         </span>
-        <span style={{ marginLeft: 'auto', display: 'flex', gap: 2 }}>
-          <button onClick={() => onMove(idx, -1)} style={{ color: 'var(--color-text-muted)', padding: '0 2px', lineHeight: 1 }}>↑</button>
+        <span style={{ marginLeft: 'auto' }}>
           <button onClick={() => onRemove(idx)} style={{ color: 'var(--color-text-muted)', padding: '0 2px', lineHeight: 1 }}>×</button>
         </span>
       </div>
@@ -437,6 +447,7 @@ function FullPowerRow({ entry: e, idx, config, level, statBlock, atkBonusTables,
           {!e.effect && <button onClick={() => addField('effect', ' ')} style={addBtn}>+ effect</button>}
           {!e.requirement && <button onClick={() => addField('requirement', ' ')} style={addBtn}>+ requirement</button>}
         </div>
+      </div>
       </div>
     </div>
   )
