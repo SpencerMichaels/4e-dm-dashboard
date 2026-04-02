@@ -18,6 +18,7 @@ export interface ParsedItem {
   range?: string
   weight?: string
   group?: string
+  groupDescription?: string
   componentCost?: string
   keySkill?: string
   castTime?: string
@@ -130,9 +131,12 @@ function parseMagicalItem(html: string, category: ParsedItem['category']): Parse
     })
   }
 
-  // Group — from <b>Group</b>: inline text
-  const groupMatch = html.match(/<b>Group<\/b>\s*:?\s*<br\s*\/?>([\s\S]*?)(?=<b>|<p class=['"]?publishedIn|<br>\s*<br>|$)/i)
-  const group = groupMatch ? stripHtml(groupMatch[1]).split('\n')[0].replace(/\s*\(.*/, '').trim() : undefined
+  // Group — from <b>Group</b>: inline text. Name is before (, description is inside ()
+  const groupMatch = html.match(/<b>Group<\/b>\s*:?\s*<br\s*\/?>([\s\S]*?)(?=<p class=['"]?publishedIn|$)/i)
+  const groupFull = groupMatch ? stripHtml(groupMatch[1]) : ''
+  const group = groupFull ? groupFull.replace(/\s*\([\s\S]*/, '').trim() : undefined
+  const groupDescMatch = groupFull.match(/\(\s*([\s\S]*?)\s*\)\s*\.?\s*$/)
+  const groupDescription = groupDescMatch ? groupDescMatch[1].trim() : undefined
 
   // Source
   const source = extractText(html, /<p class=['"]?publishedIn['"]?>([\s\S]*?)<\/p>/)
@@ -144,7 +148,7 @@ function parseMagicalItem(html: string, category: ParsedItem['category']): Parse
   return {
     name, category, level: lvlNum, rarity, price, flavor, slot, enhancement,
     properties, powers, levels: levels.length > 1 ? levels : undefined,
-    group, source, description,
+    group, groupDescription, source, description,
   }
 }
 
@@ -160,11 +164,14 @@ function parseMundaneItem(html: string, category: ParsedItem['category']): Parse
   const proficiency = text.match(/Proficient?:\s*([^\n]+)/i)?.[1]?.trim()
   const range = text.match(/Range:\s*([^\n]+)/i)?.[1]?.trim()
   const weight = text.match(/Weight:\s*([^\n]+)/i)?.[1]?.trim()
-  // Group — from HTML <b>Group</b>: or plain text
-  const groupHtmlMatch = html.match(/<b>Group<\/b>\s*:?\s*<br\s*\/?>([\s\S]*?)(?=<b>|<p class=['"]?publishedIn|<br>\s*<br>|$)/i)
-  const group = groupHtmlMatch
-    ? stripHtml(groupHtmlMatch[1]).split('\n')[0].replace(/\s*\(.*/, '').trim()
+  // Group — from HTML <b>Group</b>: or plain text. Name before (, description inside ()
+  const groupHtmlMatch = html.match(/<b>Group<\/b>\s*:?\s*<br\s*\/?>([\s\S]*?)(?=<p class=['"]?publishedIn|$)/i)
+  const groupFull = groupHtmlMatch ? stripHtml(groupHtmlMatch[1]) : ''
+  const group = groupFull
+    ? groupFull.replace(/\s*\([\s\S]*/, '').trim()
     : text.match(/Group:\s*([^\n]+)/i)?.[1]?.trim()
+  const groupDescMatch = groupFull.match(/\(\s*([\s\S]*?)\s*\)\s*\.?\s*$/)
+  const groupDescription = groupDescMatch ? groupDescMatch[1].trim() : undefined
 
   // Category line (e.g. "Superior two-handed melee weapon")
   const catLine = text.match(/\n((?:Simple|Military|Superior|Improvised)?\s*(?:one-handed|two-handed|double)?\s*(?:melee|ranged)?\s*weapon)/i)?.[1]?.trim()
@@ -198,7 +205,7 @@ function parseMundaneItem(html: string, category: ParsedItem['category']): Parse
   return {
     name, category, level: 0, rarity: '', price, flavor: '', slot,
     enhancement: '', properties, powers: [],
-    damage, proficiency, range, weight, group,
+    damage, proficiency, range, weight, group, groupDescription,
     source, description,
   }
 }

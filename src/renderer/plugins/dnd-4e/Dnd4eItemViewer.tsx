@@ -16,6 +16,7 @@ interface ParsedItem {
   range?: string
   weight?: string
   group?: string
+  groupDescription?: string
   componentCost?: string
   keySkill?: string
   castTime?: string
@@ -71,8 +72,13 @@ export function Dnd4eItemViewer({ item }: { item: ParsedItem }) {
             </div>
           )}
           {item.group && (
-            <div className="sb-row">
-              <b className="sb-label">Group</b> {item.group}
+            <div className="sb-row" style={{ flexDirection: item.groupDescription ? 'column' : undefined }}>
+              <span><b className="sb-label">Group</b> {item.group}</span>
+              {item.groupDescription && (
+                <span style={{ fontSize: 11, color: 'var(--color-text-secondary)', fontStyle: 'italic', paddingLeft: 8 }}>
+                  {item.groupDescription}
+                </span>
+              )}
             </div>
           )}
         </div>
