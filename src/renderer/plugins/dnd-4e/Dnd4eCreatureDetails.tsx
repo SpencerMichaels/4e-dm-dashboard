@@ -118,11 +118,12 @@ export function Dnd4eCreatureDetails({ creature, onSave: save, config }: Props) 
   const benchmarks: Record<string, number | undefined> = {}
   if (role) {
     for (const def of config.statDefs) {
+      if (def.key === 'initiative') continue // initiative is Dex-based, not role-based
       const row = def.table[level]
       if (row && row[role] != null) {
         let val = row[role]
         if (def.key === 'hp') {
-          // Elite: 2× standard HP + Con; Solo: complex formula
+          // Elite: 2× standard HP + Con; Solo: (8×level+1+Con) × multiplier
           const con = abilities.con ?? 14
           if (modifier === 'elite') val = val * 2 + con
           else if (modifier === 'solo') {
@@ -130,22 +131,25 @@ export function Dnd4eCreatureDetails({ creature, onSave: save, config }: Props) 
             val = baseHp * (level >= 11 ? 5 : 4)
           }
         } else if (def.key === 'ac') {
-          // Elite/Solo: up to +2 to AC
+          // Elite/Solo: +2 to AC
           if (modifier === 'elite' || modifier === 'solo') val += 2
         }
         benchmarks[def.key] = val
       }
     }
   }
-  // Defense benchmarks from ability scores — elite/solo get +2 to defenses
+  // Initiative benchmark = Dex mod + half level
+  const dexMod = Math.floor(((abilities.dex ?? 10) - 10) / 2)
+  benchmarks.initiative = dexMod + halfLvl
+  // Defense benchmarks: base = level + 12, elite/solo get +2
+  // (DMG p.184: "Other defenses = Level + 12" — no ability modifier added;
+  // the DM adjusts ±1 per 2 points of ability deviation from average, but
+  // the benchmark is just the flat baseline)
   const defBenchmarks: Record<string, number> = {}
   if (abConfig?.defensePairs) {
     const defBonus = (modifier === 'elite' || modifier === 'solo') ? 2 : 0
-    for (const { defense, abilities: [a1, a2], baseOffset } of abConfig.defensePairs) {
-      const s1 = abilities[a1] ?? 10
-      const s2 = abilities[a2] ?? 10
-      const bestMod = Math.floor((Math.max(s1, s2) - 10) / 2)
-      defBenchmarks[defense.toLowerCase()] = (baseOffset ?? 12) + level + bestMod + defBonus
+    for (const { defense, baseOffset } of abConfig.defensePairs) {
+      defBenchmarks[defense.toLowerCase()] = (baseOffset ?? 12) + level + defBonus
     }
   }
 
