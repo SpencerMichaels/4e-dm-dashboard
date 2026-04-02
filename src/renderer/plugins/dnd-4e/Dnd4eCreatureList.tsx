@@ -89,6 +89,7 @@ function CompendiumBrowser({ comp, onNavigate }: { comp: ReturnType<typeof useCo
   const [adding, setAdding] = useState<string | null>(null)
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [previewCreature, setPreviewCreature] = useState<Creature | null>(null)
+  const previewRef = useRef<HTMLDivElement>(null)
 
   const handleAdd = useCallback(async (monsterId: string) => {
     setAdding(monsterId)
@@ -106,6 +107,7 @@ function CompendiumBrowser({ comp, onNavigate }: { comp: ReturnType<typeof useCo
     setSelectedId(monsterId)
     const creature = await window.api.compendium.get('dnd-4e', monsterId)
     setPreviewCreature(creature)
+    previewRef.current?.scrollTo(0, 0)
   }, [selectedId])
 
   if (loading) return <p style={{ color: 'var(--color-text-muted)' }}>Loading compendium...</p>
@@ -174,7 +176,7 @@ function CompendiumBrowser({ comp, onNavigate }: { comp: ReturnType<typeof useCo
       </div>
 
       {/* Right: creature preview */}
-      <div style={{ flex: '1 1 400px', minWidth: 300, overflow: 'auto', minHeight: 0 }}>
+      <div ref={previewRef} style={{ flex: '1 1 400px', minWidth: 300, overflow: 'auto', minHeight: 0 }}>
         {previewCreature ? (
           <Dnd4eCreatureViewer creature={previewCreature} />
         ) : (
