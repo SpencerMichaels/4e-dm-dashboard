@@ -440,10 +440,9 @@ function FullPowerRow({ entry: e, idx, config, level, statBlock, atkBonusTables,
         {/* Add buttons */}
         <div style={{ display: 'flex', gap: 4, marginTop: 2 }}>
           {e.attackBonus == null && !e.target && !e.rangeValue && (
-            <button onClick={() => onUpdate(idx, { attackBonus: 0, target: 'One creature', rangeType: 'melee', rangeValue: '1' })} style={addBtn}>+ attack</button>
+            <button onClick={() => onUpdate(idx, { attackBonus: 0, target: 'One creature', rangeType: 'melee', rangeValue: '1', hit: ' ' })} style={addBtn}>+ attack</button>
           )}
-          {!e.hit && <button onClick={() => addField('hit', ' ')} style={addBtn}>+ hit</button>}
-          {!e.miss && <button onClick={() => addField('miss', ' ')} style={addBtn}>+ miss</button>}
+          {e.attackBonus != null && !e.miss && <button onClick={() => addField('miss', ' ')} style={addBtn}>+ miss</button>}
           {!e.effect && <button onClick={() => addField('effect', ' ')} style={addBtn}>+ effect</button>}
           {!e.requirement && <button onClick={() => addField('requirement', ' ')} style={addBtn}>+ requirement</button>}
         </div>
