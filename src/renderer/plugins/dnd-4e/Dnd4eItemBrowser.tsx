@@ -67,7 +67,7 @@ export function Dnd4eItemBrowser() {
   const selectStyle = { ...xs, padding: '2px 4px', background: 'var(--color-bg-surface)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-sm)' }
 
   return (
-    <div style={{ display: 'flex', flex: 1, minHeight: 0, gap: 'var(--space-3)' }}>
+    <div style={{ display: 'flex', flex: 1, minHeight: 0, gap: 'var(--space-3)', alignItems: 'flex-start' }}>
       {/* Left: search + list */}
       <div style={{ display: 'flex', flexDirection: 'column', flex: '1 1 280px', minWidth: 220, minHeight: 0 }}>
         <div style={{ marginBottom: 'var(--space-2)', flexShrink: 0 }}>
@@ -109,7 +109,7 @@ export function Dnd4eItemBrowser() {
       </div>
 
       {/* Right: preview */}
-      <div ref={previewRef} style={{ flex: '1 1 400px', minWidth: 300, overflow: 'auto', minHeight: 0 }}>
+      <div ref={previewRef} style={{ flex: '1 1 400px', minWidth: 300, overflow: 'auto', position: 'sticky', top: 0, maxHeight: '100vh' }}>
         {previewItem ? (
           <Dnd4eItemViewer item={previewItem} />
         ) : (

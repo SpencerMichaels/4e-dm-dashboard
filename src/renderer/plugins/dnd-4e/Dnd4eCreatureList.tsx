@@ -116,7 +116,7 @@ function CompendiumBrowser({ comp, onNavigate }: { comp: ReturnType<typeof useCo
   const selectStyle = { ...xs, padding: '2px 4px', background: 'var(--color-bg-surface)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-sm)' }
 
   return (
-    <div style={{ display: 'flex', flex: 1, minHeight: 0, gap: 'var(--space-3)' }}>
+    <div style={{ display: 'flex', flex: 1, minHeight: 0, gap: 'var(--space-3)', alignItems: 'flex-start' }}>
       {/* Left: search + list */}
       <div style={{ display: 'flex', flexDirection: 'column', flex: '1 1 300px', minWidth: 250, minHeight: 0 }}>
         {/* Search */}
@@ -176,7 +176,7 @@ function CompendiumBrowser({ comp, onNavigate }: { comp: ReturnType<typeof useCo
       </div>
 
       {/* Right: creature preview */}
-      <div ref={previewRef} style={{ flex: '1 1 400px', minWidth: 300, overflow: 'auto', minHeight: 0 }}>
+      <div ref={previewRef} style={{ flex: '1 1 400px', minWidth: 300, overflow: 'auto', position: 'sticky', top: 0, maxHeight: '100vh' }}>
         {previewCreature ? (
           <Dnd4eCreatureViewer creature={previewCreature} />
         ) : (
