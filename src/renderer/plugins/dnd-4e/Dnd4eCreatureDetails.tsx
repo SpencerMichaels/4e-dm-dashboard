@@ -448,7 +448,7 @@ function InlineEntryChips({ label, entries, onChange, suggestions, showValue }: 
   const updateVal = (i: number, val: number) => onChange(entries.map((e, j) => j === i ? { ...e, value: val } : e))
 
   return (
-    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
+    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, flexWrap: 'wrap' }}>
       <b className="sb-label">{label}</b>
       {entries.map((e, i) => {
         const justAdded = lastAdded.current === e.type

@@ -107,7 +107,8 @@ export function TagInput({ values, onChange, suggestions = [], placeholder, comp
           placeholder={values.length === 0 ? placeholder : (compact ? '+' : '')}
           style={{
             flex: compact ? '0 1 auto' : 1,
-            minWidth: compact ? 20 : 80,
+            minWidth: compact ? (values.length > 0 ? 8 : 20) : 80,
+            width: compact ? (input ? undefined : 8) : undefined,
             border: compact ? undefined : 'none',
             background: compact ? undefined : 'transparent',
             outline: 'none',
