@@ -149,9 +149,10 @@ export function Dnd4eCreatureDetails({ creature, onSave: save, config }: Props) 
             <option value="">type</option>
             {CREATURE_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
           </select>
-          {' '}
+          {subtypes.length > 0 && <> (</>}
           <TagInput compact values={subtypes} onChange={st => setTraits(origin, creatureType, st)}
-            suggestions={CREATURE_SUBTYPES} placeholder="(subtypes)" />
+            suggestions={CREATURE_SUBTYPES} placeholder={subtypes.length > 0 ? '' : '(subtypes)'} />
+          {subtypes.length > 0 && <>)</>}
         </span>
         <span style={{ whiteSpace: 'nowrap' }}>XP {xpForCreature(level, modifier)}</span>
       </div>
@@ -167,52 +168,49 @@ export function Dnd4eCreatureDetails({ creature, onSave: save, config }: Props) 
             placeholder="darkvision" />
         </span>
       </div>
-      <div className={`sb-row${!(((sb.savingThrowBonus as number) ?? 0) > 0 || ((sb.actionPoints as number) ?? 0) > 0) ? ' sb-row-sep' : ''}`}>
-        <b className="sb-label">Speed</b>
-        {config.speedTypes.map(({ key, label: speedLabel }) => {
-          const speeds = (sb.speeds as Record<string, number> | undefined) ?? {}
-          const val = key === 'land' ? ((sb.speed as number) ?? 0) : (speeds[key] ?? null)
-          if (val === null) return null
-          const justAdded = lastAddedSpeed.current === key
-          if (justAdded) lastAddedSpeed.current = null
-          return (
-            <span key={key}>
-              {key !== 'land' && <>{speedLabel.toLowerCase()} </>}
-              <input className="ghost" type="number" min={0} value={val ?? ''}
-                ref={justAdded ? focusRef : undefined}
-                onChange={e => {
-                  const v = e.target.value === '' ? 0 : Number(e.target.value)
-                  if (key === 'land') u('speed', v)
-                  else u('speeds', { ...speeds, [key]: v })
-                }}
-                onBlur={e => {
-                  if (e.target.value === '') {
-                    if (key === 'land') u('speed', 0)
-                    else u('speeds', { ...speeds, [key]: 0 })
-                  }
-                }} />
-              {key !== 'land' && (
-                <button onClick={() => { const { [key]: _, ...rest } = speeds; u('speeds', rest) }}
-                  style={{ color: 'var(--color-text-muted)', padding: '0 2px', lineHeight: 1 }}>×</button>
-              )}
+      {(() => {
+        const speeds = (sb.speeds as Record<string, number> | undefined) ?? {}
+        const landSpeed = (sb.speed as number) ?? 0
+        const hasSaves = ((sb.savingThrowBonus as number) ?? 0) > 0 || ((sb.actionPoints as number) ?? 0) > 0
+        const available = config.speedTypes.filter(({ key }) => key !== 'land' && !(key in speeds))
+        return (
+          <div className={`sb-row${!hasSaves ? ' sb-row-sep' : ''}`}>
+            <b className="sb-label">Speed</b>
+            {/* Land speed chip */}
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, padding: '0 3px', background: 'var(--color-bg-hover)', borderRadius: 'var(--radius-sm)', fontSize: 'var(--font-size-xs)' }}>
+              {Object.keys(speeds).length > 0 && <>land </>}
+              <input className="ghost" type="number" min={0} value={landSpeed ?? ''}
+                onChange={e => u('speed', e.target.value === '' ? 0 : Number(e.target.value))}
+                onBlur={e => { if (e.target.value === '') u('speed', 0) }} />
             </span>
-          )
-        })}
-        {/* Add speed — dropdown that adds on select */}
-        {(() => {
-          const speeds = (sb.speeds as Record<string, number> | undefined) ?? {}
-          const available = config.speedTypes.filter(({ key }) => key !== 'land' && !(key in speeds))
-          if (available.length === 0) return null
-          return (
-            <select className="ghost" value=""
-              onChange={e => { if (e.target.value) { lastAddedSpeed.current = e.target.value; u('speeds', { ...speeds, [e.target.value]: 0 }) } }}
-              style={{ color: 'var(--color-text-muted)' }}>
-              <option value="">+</option>
-              {available.map(({ key, label: l }) => <option key={key} value={key}>{l}</option>)}
-            </select>
-          )
-        })()}
-      </div>
+            {/* Other speed chips */}
+            {config.speedTypes.filter(({ key }) => key !== 'land' && key in speeds).map(({ key, label: speedLabel }) => {
+              const val = speeds[key] ?? 0
+              const justAdded = lastAddedSpeed.current === key
+              if (justAdded) lastAddedSpeed.current = null
+              return (
+                <span key={key} style={{ display: 'inline-flex', alignItems: 'center', gap: 3, padding: '0 3px', background: 'var(--color-bg-hover)', borderRadius: 'var(--radius-sm)', fontSize: 'var(--font-size-xs)' }}>
+                  {speedLabel.toLowerCase()}
+                  <input className="ghost" type="number" min={0} value={val ?? ''}
+                    ref={justAdded ? focusRef : undefined}
+                    onChange={e => u('speeds', { ...speeds, [key]: e.target.value === '' ? 0 : Number(e.target.value) })}
+                    onBlur={e => { if (e.target.value === '') u('speeds', { ...speeds, [key]: 0 }) }} />
+                  <button onClick={() => { const { [key]: _, ...rest } = speeds; u('speeds', rest) }}
+                    style={{ color: 'var(--color-text-muted)', padding: '0 1px', lineHeight: 1 }}>×</button>
+                </span>
+              )
+            })}
+            {available.length > 0 && (
+              <select className="ghost" value=""
+                onChange={e => { if (e.target.value) { lastAddedSpeed.current = e.target.value; u('speeds', { ...speeds, [e.target.value]: 0 }) } }}
+                style={{ color: 'var(--color-text-muted)' }}>
+                <option value="">+</option>
+                {available.map(({ key, label: l }) => <option key={key} value={key}>{l}</option>)}
+              </select>
+            )}
+          </div>
+        )
+      })()}
       {(((sb.savingThrowBonus as number) ?? 0) > 0 || ((sb.actionPoints as number) ?? 0) > 0) && (
         <div className="sb-row sb-row-sep">
           {((sb.savingThrowBonus as number) ?? 0) > 0 && (
@@ -269,11 +267,18 @@ export function Dnd4eCreatureDetails({ creature, onSave: save, config }: Props) 
       {/* Alignment */}
       <div className="sb-row">
         <b className="sb-label">Alignment</b>{' '}
-        <select className="ghost" value={(sb.alignment as string) ?? ''} onChange={e => u('alignment', e.target.value)}
-          style={{ fontSize: 'inherit' }}>
-          <option value="">—</option>
-          {DND4E_ALIGNMENTS.map(a => <option key={a} value={a}>{a}</option>)}
-        </select>
+        {(() => {
+          // Normalize alignment to title case for matching
+          const raw = (sb.alignment as string) ?? 'Unaligned'
+          const normalized = raw.split(/\s+/).map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ')
+          const value = DND4E_ALIGNMENTS.includes(normalized) ? normalized : raw
+          return (
+            <select className="ghost" value={value} onChange={e => u('alignment', e.target.value)}
+              style={{ fontSize: 'inherit' }}>
+              {DND4E_ALIGNMENTS.map(a => <option key={a} value={a}>{a}</option>)}
+            </select>
+          )
+        })()}
       </div>
 
       {/* Languages */}
