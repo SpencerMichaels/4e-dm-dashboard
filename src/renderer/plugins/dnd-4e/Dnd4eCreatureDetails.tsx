@@ -47,7 +47,10 @@ interface Props {
 const lbl = { fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)', whiteSpace: 'nowrap' as const }
 const sep = { borderBottom: '1px solid var(--color-border)', marginBottom: 'var(--space-2)', paddingBottom: 'var(--space-2)' }
 const row = { display: 'flex', gap: 'var(--space-2)', alignItems: 'center', flexWrap: 'wrap' as const, marginBottom: 'var(--space-2)' }
-const numInput = { width: 45, textAlign: 'center' as const }
+// Compact ghost-style number input for stat values
+function N({ value, onChange, style, ...rest }: React.InputHTMLAttributes<HTMLInputElement> & { value: number; onChange: (e: React.ChangeEvent<HTMLInputElement>) => void }) {
+  return <input type="number" className="ghost" value={value} onChange={onChange} style={{ width: 45, textAlign: 'center', fontSize: 'var(--font-size-xs)', ...style }} {...rest} />
+}
 
 export function Dnd4eCreatureDetails({ creature, onSave: save, config }: Props) {
   const actionConfig: CreatureBuilderConfig = {
@@ -111,20 +114,20 @@ export function Dnd4eCreatureDetails({ creature, onSave: save, config }: Props) 
           ))}
         </div>
         <span style={lbl}>XP</span>
-        <input type="number" value={(sb.xp as number) ?? 0}
-          onChange={(e) => save({ ...creature, statBlock: { ...sb, xp: Number(e.target.value) } })} style={numInput} />
+        <N value={(sb.xp as number) ?? 0}
+          onChange={(e) => save({ ...creature, statBlock: { ...sb, xp: Number(e.target.value) } })} />
       </div>
 
       {/* Row: Initiative + Perception + Senses */}
       <div style={{ ...row, ...sep }}>
         <span style={lbl}>Initiative</span>
-        <input type="number" value={(sb.initiative as number) ?? 0}
-          onChange={(e) => save({ ...creature, statBlock: { ...sb, initiative: Number(e.target.value) } })} style={numInput} />
+        <N value={(sb.initiative as number) ?? 0}
+          onChange={(e) => save({ ...creature, statBlock: { ...sb, initiative: Number(e.target.value) } })} />
         <span style={lbl}>Perception</span>
-        <input type="number" value={(sb.perception as number) ?? 0}
-          onChange={(e) => save({ ...creature, statBlock: { ...sb, perception: Number(e.target.value) } })} style={numInput} />
+        <N value={(sb.perception as number) ?? 0}
+          onChange={(e) => save({ ...creature, statBlock: { ...sb, perception: Number(e.target.value) } })} />
         <span style={lbl}>Senses</span>
-        <input value={(sb.senses as string) ?? ''} onChange={(e) => save({ ...creature, statBlock: { ...sb, senses: e.target.value } })}
+        <input className="ghost" value={(sb.senses as string) ?? ''} onChange={(e) => save({ ...creature, statBlock: { ...sb, senses: e.target.value } })}
           placeholder="darkvision" style={{ flex: 1, minWidth: 80, fontSize: 'var(--font-size-xs)' }} />
       </div>
 
@@ -141,11 +144,11 @@ export function Dnd4eCreatureDetails({ creature, onSave: save, config }: Props) 
       {(sb.savingThrowBonus || sb.actionPoints || sb.monsterModifier) && (
         <div style={{ ...row, ...sep }}>
           <span style={lbl}>Saving Throws</span>
-          <input type="number" value={(sb.savingThrowBonus as number) ?? 0}
-            onChange={(e) => save({ ...creature, statBlock: { ...sb, savingThrowBonus: Number(e.target.value) } })} style={numInput} />
+          <N value={(sb.savingThrowBonus as number) ?? 0}
+            onChange={(e) => save({ ...creature, statBlock: { ...sb, savingThrowBonus: Number(e.target.value) } })} />
           <span style={lbl}>Action Points</span>
-          <input type="number" value={(sb.actionPoints as number) ?? 0}
-            onChange={(e) => save({ ...creature, statBlock: { ...sb, actionPoints: Number(e.target.value) } })} style={numInput} />
+          <N value={(sb.actionPoints as number) ?? 0}
+            onChange={(e) => save({ ...creature, statBlock: { ...sb, actionPoints: Number(e.target.value) } })} />
         </div>
       )}
 
@@ -197,11 +200,11 @@ export function Dnd4eCreatureDetails({ creature, onSave: save, config }: Props) 
           return (
             <label key={key} style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
               <span style={{ fontSize: '10px', color: 'var(--color-text-muted)' }}>{speedLabel}</span>
-              <input type="number" min={0} value={val}
+              <input type="number" className="ghost" min={0} value={val}
                 onChange={(e) => {
                   if (key === 'land') save({ ...creature, statBlock: { ...sb, speed: Number(e.target.value) } })
                   else save({ ...creature, statBlock: { ...sb, speeds: { ...speeds, [key]: Number(e.target.value) } } })
-                }} style={{ width: 40, fontSize: 'var(--font-size-xs)' }} />
+                }} style={{ width: 40, fontSize: 'var(--font-size-xs)', textAlign: 'center' }} />
               {key !== 'land' && <button onClick={() => { const { [key]: _, ...rest } = speeds; save({ ...creature, statBlock: { ...sb, speeds: rest } }) }}
                 style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-muted)', fontSize: '10px', padding: 0 }}>x</button>}
             </label>
@@ -264,7 +267,7 @@ export function Dnd4eCreatureDetails({ creature, onSave: save, config }: Props) 
                 return (
                   <label key={ab} style={{ textAlign: 'center', flex: '0 0 auto' }}>
                     <span style={{ display: 'block', fontSize: '10px', textTransform: 'uppercase', color: ab === primaryAbility ? 'var(--color-accent)' : 'var(--color-text-muted)', fontWeight: ab === primaryAbility ? 700 : 400 }}>{ab}</span>
-                    <input type="number" value={score} onChange={(e) => save({ ...creature, statBlock: { ...sb, abilities: { ...abilities, [ab]: Number(e.target.value) } } })}
+                    <input type="number" className="ghost" value={score} onChange={(e) => save({ ...creature, statBlock: { ...sb, abilities: { ...abilities, [ab]: Number(e.target.value) } } })}
                       style={{ width: 40, textAlign: 'center', fontSize: 'var(--font-size-xs)' }} />
                     <span style={{ display: 'block', fontSize: '10px', color: 'var(--color-text-muted)' }}>{mod >= 0 ? '+' : ''}{mod}</span>
                   </label>
@@ -305,9 +308,9 @@ export function Dnd4eCreatureDetails({ creature, onSave: save, config }: Props) 
               {skillEntries.map(([name, mod]) => (
                 <span key={name} style={{ display: 'inline-flex', alignItems: 'center', gap: 1, padding: '1px 4px', background: 'var(--color-bg-hover)', borderRadius: 'var(--radius-sm)', fontSize: 'var(--font-size-xs)' }}>
                   {name}
-                  <input type="number" value={mod}
+                  <input type="number" className="ghost" value={mod}
                     onChange={(ev) => save({ ...creature, statBlock: { ...sb, skills: { ...skills, [name]: Number(ev.target.value) } } })}
-                    style={{ width: 35, textAlign: 'center', border: 'none', background: 'transparent', fontWeight: 600, fontSize: 'var(--font-size-xs)' }} />
+                    style={{ width: 35, textAlign: 'center', fontWeight: 600, fontSize: 'var(--font-size-xs)' }} />
                   <button onClick={() => { const { [name]: _, ...rest } = skills; save({ ...creature, statBlock: { ...sb, skills: rest } }) }}
                     style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-muted)', fontSize: '10px', padding: 0 }}>x</button>
                 </span>
@@ -325,13 +328,13 @@ export function Dnd4eCreatureDetails({ creature, onSave: save, config }: Props) 
       {/* Row: Alignment + Languages */}
       <div style={{ ...row, ...sep }}>
         <span style={lbl}>Align</span>
-        <select value={(sb.alignment as string) ?? ''} onChange={(e) => save({ ...creature, statBlock: { ...sb, alignment: e.target.value } })}
-          style={{ fontSize: 'var(--font-size-xs)', padding: '1px 2px' }}>
+        <select className="ghost" value={(sb.alignment as string) ?? ''} onChange={(e) => save({ ...creature, statBlock: { ...sb, alignment: e.target.value } })}
+          style={{ fontSize: 'var(--font-size-xs)' }}>
           <option value="">—</option>
           {DND4E_ALIGNMENTS.map((a) => <option key={a} value={a}>{a}</option>)}
         </select>
         <span style={lbl}>Languages</span>
-        <input value={(sb.languages as string) ?? ''} onChange={(e) => save({ ...creature, statBlock: { ...sb, languages: e.target.value } })}
+        <input className="ghost" value={(sb.languages as string) ?? ''} onChange={(e) => save({ ...creature, statBlock: { ...sb, languages: e.target.value } })}
           style={{ flex: 1, minWidth: 80, fontSize: 'var(--font-size-xs)' }} />
       </div>
 

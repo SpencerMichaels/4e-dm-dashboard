@@ -92,6 +92,22 @@ input[type="number"] {
   -moz-appearance: textfield;
 }
 
+/* Ghost inputs — transparent until hovered, for inline stat editing */
+input.ghost, textarea.ghost, select.ghost {
+  background: transparent;
+  border: 1px solid transparent;
+  padding: 1px 4px;
+  border-radius: var(--radius-sm);
+  transition: border-color 0.15s;
+}
+input.ghost:hover, textarea.ghost:hover, select.ghost:hover {
+  border-color: var(--color-border);
+}
+input.ghost:focus, textarea.ghost:focus, select.ghost:focus {
+  border-color: var(--color-border-focus);
+  background: var(--color-bg-surface);
+}
+
 /* Utility classes */
 .truncate {
   overflow: hidden;

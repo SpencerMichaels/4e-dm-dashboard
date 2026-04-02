@@ -25,7 +25,7 @@ function tierShort(tier: string, config: CreatureBuilderConfig): string {
 
 // Shared inline styles
 const lbl = { fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)', whiteSpace: 'nowrap' as const }
-const numInput = { width: 45, textAlign: 'center' as const, fontSize: 'var(--font-size-xs)' }
+const numStyle = { width: 45, textAlign: 'center' as const, fontSize: 'var(--font-size-xs)' }
 
 export function CreatureBuilder({ statBlock, hp, maxHp, onUpdate, config }: Props) {
   const { statDefs, minLevel, maxLevel, useSharedRole, roles } = config
@@ -128,9 +128,9 @@ export function CreatureBuilder({ statBlock, hp, maxHp, onUpdate, config }: Prop
       {/* Level + Role — inline */}
       <div style={{ display: 'flex', gap: 'var(--space-2)', alignItems: 'center', flexWrap: 'wrap', marginBottom: 'var(--space-2)' }}>
         <span style={lbl}>Level</span>
-        <input type="number" min={minLevel} max={maxLevel} value={level}
+        <input type="number" className="ghost" min={minLevel} max={maxLevel} value={level}
           onChange={(e) => onUpdate({ ...statBlock, level: Number(e.target.value) }, hp, maxHp)}
-          style={{ ...numInput, fontWeight: 600 }} />
+          style={{ ...numStyle, fontWeight: 600 }} />
         {useSharedRole && roles && (
           <>
             <span style={lbl}>Role</span>
@@ -162,9 +162,9 @@ export function CreatureBuilder({ statBlock, hp, maxHp, onUpdate, config }: Prop
             return (
               <label key={def.key} style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
                 <span style={lbl}>{def.label}</span>
-                <input type="number" value={currentValue ?? roleValue ?? ''}
+                <input type="number" className="ghost" value={currentValue ?? roleValue ?? ''}
                   onChange={(e) => handleDirectValueChange(def, Number(e.target.value))}
-                  style={{ ...numInput, fontWeight: 600, color: tierColor(sharedRole, config) }} />
+                  style={{ ...numStyle, fontWeight: 600, color: tierColor(sharedRole, config) }} />
                 {roleValue != null && currentValue !== roleValue && (
                   <button onClick={() => handleDirectValueChange(def, roleValue)}
                     title={`Reset to ${roleValue}`}
@@ -180,8 +180,8 @@ export function CreatureBuilder({ statBlock, hp, maxHp, onUpdate, config }: Prop
           return (
             <div key={def.key} style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
               <span style={lbl}>{def.label}</span>
-              <input type="number" value={currentValue ?? ''} onChange={(e) => handleDirectValueChange(def, Number(e.target.value))}
-                style={numInput} />
+              <input type="number" className="ghost" value={currentValue ?? ''} onChange={(e) => handleDirectValueChange(def, Number(e.target.value))}
+                style={numStyle} />
               <div style={{ display: 'flex', gap: 1 }}>
                 {def.tiers.map((tier) => {
                   const tierVal = lookup(def.table, level, tier)
