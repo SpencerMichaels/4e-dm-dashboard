@@ -253,7 +253,6 @@ export function Dnd4eCreatureDetails({ creature, onSave: save, config }: Props) 
             {/* Land speed chip — deletable when other speeds exist */}
             {(landSpeed > 0 || Object.keys(speeds).length === 0) && (
               <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, padding: '0 3px', background: 'var(--color-bg-hover)', borderRadius: 'var(--radius-sm)', fontSize: 'var(--font-size-xs)' }}>
-                {Object.keys(speeds).length > 0 && <>run</>}
                 <input className="ghost" type="number" min={0} value={landSpeed ?? ''}
                   onChange={e => u('speed', e.target.value === '' ? 0 : Number(e.target.value))}
                   onBlur={e => { if (e.target.value === '') u('speed', 0) }} />
@@ -337,18 +336,44 @@ export function Dnd4eCreatureDetails({ creature, onSave: save, config }: Props) 
           </div>
         )
       })()}
-      <div className="sb-row">
-        <InlineEntryChips label="Immune" entries={Array.isArray(sb.immunities) ? sb.immunities as any[] : []}
-          onChange={v => u('immunities', v)} suggestions={config.damageTypes} />
-      </div>
-      <div className="sb-row">
-        <InlineEntryChips label="Resist" entries={Array.isArray(sb.resistances) ? sb.resistances as any[] : []}
-          onChange={v => u('resistances', v)} suggestions={config.damageTypes} showValue />
-      </div>
-      <div className="sb-row sb-row-sep">
-        <InlineEntryChips label="Vulnerable" entries={Array.isArray(sb.weaknesses) ? sb.weaknesses as any[] : []}
-          onChange={v => u('weaknesses', v)} suggestions={config.damageTypes} showValue />
-      </div>
+      {(() => {
+        const imm = Array.isArray(sb.immunities) ? sb.immunities as any[] : []
+        const res = Array.isArray(sb.resistances) ? sb.resistances as any[] : []
+        const vul = Array.isArray(sb.weaknesses) ? sb.weaknesses as any[] : []
+        // All empty → one line with all three labels + dropdowns
+        if (imm.length === 0 && res.length === 0 && vul.length === 0) {
+          return (
+            <div className="sb-row sb-row-sep">
+              <InlineEntryChips label="Immune" entries={imm} onChange={v => u('immunities', v)} suggestions={config.damageTypes} />
+              <InlineEntryChips label="Resist" entries={res} onChange={v => u('resistances', v)} suggestions={config.damageTypes} showValue />
+              <InlineEntryChips label="Vulnerable" entries={vul} onChange={v => u('weaknesses', v)} suggestions={config.damageTypes} showValue />
+            </div>
+          )
+        }
+        // Any have items → each non-empty one on its own line, empty ones together on one line
+        return (
+          <>
+            {imm.length > 0 && <div className="sb-row">
+              <InlineEntryChips label="Immune" entries={imm} onChange={v => u('immunities', v)} suggestions={config.damageTypes} />
+            </div>}
+            {res.length > 0 && <div className="sb-row">
+              <InlineEntryChips label="Resist" entries={res} onChange={v => u('resistances', v)} suggestions={config.damageTypes} showValue />
+            </div>}
+            {vul.length > 0 && <div className="sb-row">
+              <InlineEntryChips label="Vulnerable" entries={vul} onChange={v => u('weaknesses', v)} suggestions={config.damageTypes} showValue />
+            </div>}
+            {/* Empty ones on one line */}
+            {(imm.length === 0 || res.length === 0 || vul.length === 0) && (
+              <div className="sb-row sb-row-sep">
+                {imm.length === 0 && <InlineEntryChips label="Immune" entries={imm} onChange={v => u('immunities', v)} suggestions={config.damageTypes} />}
+                {res.length === 0 && <InlineEntryChips label="Resist" entries={res} onChange={v => u('resistances', v)} suggestions={config.damageTypes} showValue />}
+                {vul.length === 0 && <InlineEntryChips label="Vulnerable" entries={vul} onChange={v => u('weaknesses', v)} suggestions={config.damageTypes} showValue />}
+              </div>
+            )}
+            {imm.length > 0 && res.length > 0 && vul.length > 0 && <div className="sb-row-sep" />}
+          </>
+        )
+      })()}
 
       {/* ── GROUP 4: Alignment, Languages, Skills, Equipment ── */}
 

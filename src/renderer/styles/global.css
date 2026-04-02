@@ -97,7 +97,7 @@ input[type="number"] {
 input.ghost, textarea.ghost, select.ghost {
   background: transparent;
   border: none;
-  border-bottom: 1px solid transparent;
+  border-bottom: 1px dotted rgba(160, 160, 180, 0.5);
   padding: 0;
   border-radius: 0;
   field-sizing: content;
@@ -105,6 +105,7 @@ input.ghost, textarea.ghost, select.ghost {
 }
 input.ghost:hover, textarea.ghost:hover, select.ghost:hover {
   border-bottom-color: var(--color-border);
+  border-bottom-style: solid;
 }
 input.ghost:focus, textarea.ghost:focus, select.ghost:focus {
   border-bottom-color: var(--color-border-focus);
