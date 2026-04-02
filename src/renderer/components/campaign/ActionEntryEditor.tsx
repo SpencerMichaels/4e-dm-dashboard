@@ -130,8 +130,8 @@ export function ActionEntryEditor({ entries, onChange, config, level, statBlock 
     <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
       {/* Add buttons at top */}
       <div style={{ display: 'flex', gap: 4, marginBottom: 'var(--space-2)' }}>
-        {['trait', 'aura', 'action'].map((type) => (
-          <AddButton key={type} label={type} onClick={() => onChange([...entries, emptyEntry(config, type as ActionEntry['entryType'])])} />
+        {([['trait', 'trait'], ['aura', 'aura'], ['action', config.usageTypes ? 'power' : 'action']] as const).map(([type, label]) => (
+          <AddButton key={type} label={label} onClick={() => onChange([...entries, emptyEntry(config, type as ActionEntry['entryType'])])} />
         ))}
       </div>
 
@@ -538,15 +538,14 @@ function DamagePartsEditor({ parts, config, level, onChange }: {
     else updatePart(i, { ongoing: false, type: val })
   }
 
-  const labelWidth = 48 // width for "Damage" / "plus" alignment
-
   return (
     <div style={{ marginBottom: 2 }}>
       {parts.map((p, i) => (
         <div key={i} style={{ display: 'flex', gap: 4, alignItems: 'center', flexWrap: 'wrap' }}>
-          <span style={{ ...xs, color: 'var(--color-text-secondary)', display: 'inline-block', width: labelWidth, textAlign: 'right', fontWeight: i === 0 ? 700 : 400 }}>
-            {i === 0 ? 'Damage' : 'plus'}
-          </span>
+          {i === 0
+            ? <b style={{ ...xs, color: 'var(--color-text-secondary)' }}>Damage</b>
+            : <span style={{ ...xs, color: 'var(--color-text-secondary)', paddingLeft: 24 }}>plus</span>
+          }
           {p.ongoing && <span style={{ ...xs, color: 'var(--color-text-secondary)' }}>{ongoingLabel}</span>}
           <input className="ghost" value={p.expr} onChange={(ev) => updatePart(i, { expr: ev.target.value })} placeholder="2d8+6" />
           <select className="ghost" value={p.ongoing ? 'ongoing' : p.type} onChange={(ev) => {
