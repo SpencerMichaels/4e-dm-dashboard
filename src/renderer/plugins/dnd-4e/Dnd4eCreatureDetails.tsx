@@ -3,7 +3,6 @@ import type { Creature, CreatureBuilderConfig } from '@common/types'
 import { CreatureBuilder } from '@renderer/components/campaign/CreatureBuilder'
 import { ActionEntryEditor } from '@renderer/components/campaign/ActionEntryEditor'
 import { TagInput } from '@renderer/components/shared/TagInput'
-import { DamageEntryList } from '@renderer/components/shared/DamageEntryList'
 import './statblock.css'
 
 // XP by level (DMG p.56) — derived from level + modifier, not editable
@@ -207,35 +206,28 @@ export function Dnd4eCreatureDetails({ creature, onSave: save, config }: Props) 
       {/* Saving throw bonus + action points (elite/solo) */}
       {(sb.savingThrowBonus || sb.actionPoints || modifier) && (
         <div className="sb-row sb-row-sep" style={{ fontSize: '11px' }}>
-          {(sb.savingThrowBonus as number) > 0 && (
-            <span><b className="sb-label">Saving Throws</b> +{(sb.savingThrowBonus as number) ?? 0}</span>
+          {((sb.savingThrowBonus as number) ?? 0) > 0 && (
+            <span><b className="sb-label">Saving Throws</b>{' +'}
+              <input className="ghost" type="number" value={(sb.savingThrowBonus as number) ?? 0}
+                onChange={e => u('savingThrowBonus', Number(e.target.value))} style={{ width: 24 }} /></span>
           )}
-          {(sb.actionPoints as number) > 0 && (
-            <span><b className="sb-label">Action Points</b> {(sb.actionPoints as number) ?? 0}</span>
+          {((sb.actionPoints as number) ?? 0) > 0 && (
+            <span><b className="sb-label">Action Points</b>{' '}
+              <input className="ghost" type="number" value={(sb.actionPoints as number) ?? 0}
+                onChange={e => u('actionPoints', Number(e.target.value))} style={{ width: 24 }} /></span>
           )}
         </div>
       )}
 
-      {/* Immune / Resist / Vulnerable — always visible */}
-      {(() => {
-        const defVal = config.resistWeakDefault?.[level]
-        return (
-          <div className="sb-row-sep" style={{ padding: '2px 8px' }}>
-            <div><b className="sb-label">Immune</b>{' '}
-              <DamageEntryList entries={Array.isArray(sb.immunities) ? sb.immunities as any : []}
-                onChange={v => u('immunities', v)}
-                suggestions={config.damageTypes} showValue={false} placeholder="+ immunity" /></div>
-            <div><b className="sb-label">Resist</b>{' '}
-              <DamageEntryList entries={Array.isArray(sb.resistances) ? sb.resistances as any : []}
-                onChange={v => u('resistances', v)}
-                suggestions={config.damageTypes} showValue={true} placeholder="+ resistance" defaultValue={defVal} /></div>
-            <div><b className="sb-label">Vulnerable</b>{' '}
-              <DamageEntryList entries={Array.isArray(sb.weaknesses) ? sb.weaknesses as any : []}
-                onChange={v => u('weaknesses', v)}
-                suggestions={config.damageTypes} showValue={true} placeholder="+ vulnerability" defaultValue={defVal} /></div>
-          </div>
-        )
-      })()}
+      {/* Immune / Resist / Vulnerable — chip-based inline */}
+      <div className="sb-row sb-row-sep">
+        <InlineEntryChips label="Immune" entries={Array.isArray(sb.immunities) ? sb.immunities as any[] : []}
+          onChange={v => u('immunities', v)} suggestions={config.damageTypes} />
+        <InlineEntryChips label="Resist" entries={Array.isArray(sb.resistances) ? sb.resistances as any[] : []}
+          onChange={v => u('resistances', v)} suggestions={config.damageTypes} showValue />
+        <InlineEntryChips label="Vulnerable" entries={Array.isArray(sb.weaknesses) ? sb.weaknesses as any[] : []}
+          onChange={v => u('weaknesses', v)} suggestions={config.damageTypes} showValue />
+      </div>
 
       {/* Speed */}
       <div className="sb-row sb-row-sep">
@@ -443,5 +435,58 @@ export function Dnd4eCreatureDetails({ creature, onSave: save, config }: Props) 
     </div>
 
     </div>
+  )
+}
+
+/** Compact inline chips for immunities/resistances/vulnerabilities */
+function InlineEntryChips({ label, entries, onChange, suggestions, showValue }: {
+  label: string
+  entries: { type: string; value?: number }[]
+  onChange: (entries: { type: string; value?: number }[]) => void
+  suggestions: string[]
+  showValue?: boolean
+}) {
+  const lastAdded = useRef<string | null>(null)
+  const focusRef = useCallback((el: HTMLInputElement | null) => { if (el) { el.focus(); el.select() } }, [])
+  const available = suggestions.filter(s => !entries.some(e => e.type === s))
+  const remove = (i: number) => onChange(entries.filter((_, j) => j !== i))
+  const updateVal = (i: number, val: number) => onChange(entries.map((e, j) => j === i ? { ...e, value: val } : e))
+
+  return (
+    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
+      <b className="sb-label">{label}</b>
+      {entries.map((e, i) => {
+        const justAdded = lastAdded.current === e.type
+        if (justAdded) lastAdded.current = null
+        return (
+          <span key={e.type} style={{ display: 'inline-flex', alignItems: 'center', gap: 1, padding: '0 3px', background: 'var(--color-bg-hover)', borderRadius: 'var(--radius-sm)', fontSize: 'var(--font-size-xs)' }}>
+            {e.type}
+            {showValue && <>
+              {' '}<input className="ghost" type="number" value={e.value ?? ''}
+                ref={justAdded ? focusRef : undefined}
+                onChange={ev => updateVal(i, Number(ev.target.value))}
+                onBlur={ev => { if (ev.target.value === '') updateVal(i, 0) }}
+                style={{ width: 26, fontWeight: 600 }} />
+            </>}
+            <button onClick={() => remove(i)}
+              style={{ fontSize: '9px', color: 'var(--color-text-muted)', padding: '0 1px' }}>x</button>
+          </span>
+        )
+      })}
+      {available.length > 0 && (
+        <select className="ghost" value=""
+          onChange={e => {
+            if (e.target.value) {
+              lastAdded.current = e.target.value
+              onChange([...entries, { type: e.target.value, ...(showValue ? { value: 0 } : {}) }])
+            }
+          }}
+          style={{ fontSize: '9px', color: 'var(--color-text-muted)', width: 16 }}>
+          <option value="">+</option>
+          {available.map(s => <option key={s} value={s}>{s}</option>)}
+        </select>
+      )}
+      {entries.length === 0 && available.length === 0 && <span style={{ fontSize: '9px', color: 'var(--color-text-muted)' }}>—</span>}
+    </span>
   )
 }
