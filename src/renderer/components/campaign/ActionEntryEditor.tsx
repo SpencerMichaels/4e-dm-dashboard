@@ -383,6 +383,8 @@ function FullPowerRow({ entry: e, idx, config, level, statBlock, atkBonusTables,
           ) : e.attackBonus != null ? (
             <button onClick={() => onUpdate(idx, { attackNotes: ' ' })} style={{ color: 'rgba(255,255,255,0.5)', padding: '0 2px', lineHeight: 1 }}>+</button>
           ) : null}
+          <button onClick={() => onUpdate(idx, { attackBonus: null, attackNotes: '', rangeType: '', rangeValue: '', target: '', defense: 'AC', damage: [] })}
+            style={{ marginLeft: 'auto', color: 'rgba(255,255,255,0.5)', padding: '0 2px', lineHeight: 1 }}>×</button>
         </div>
       )}
 
