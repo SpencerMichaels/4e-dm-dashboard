@@ -1,5 +1,5 @@
 import type { SystemPlugin } from '../../src/common/types/system-plugin'
-import { statDefs, normalDamageDice, resistWeakDefault, attackVsAC, attackVsOther, dcTable } from './benchmarks'
+import { statDefs, normalDamageDice, limitedDamageDice, resistWeakDefault, attackVsAC, attackVsOther, dcTable } from './benchmarks'
 import { allDamageTypes, creatureTraits, attackTraits, speedTypes } from './known-values'
 
 const dnd4e: SystemPlugin = {
@@ -118,6 +118,7 @@ const dnd4e: SystemPlugin = {
     maxLevel: 30,
     statDefs,
     strikeDamageDice: normalDamageDice,
+    limitedDamageDice: limitedDamageDice,
     attackBonusTables: [
       { key: 'attackVsAC', label: 'vs AC', table: attackVsAC },
       { key: 'attackVsOther', label: 'vs Other', table: attackVsOther },

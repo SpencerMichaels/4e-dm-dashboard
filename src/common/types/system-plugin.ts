@@ -96,7 +96,8 @@ export interface CreatureBuilderConfig {
   minLevel: number
   maxLevel: number
   statDefs: CreatureBuilderStatDef[]
-  strikeDamageDice?: { [level: number]: Record<string, string> }  // level -> tier -> dice expr
+  strikeDamageDice?: { [level: number]: Record<string, string> }  // level -> tier -> dice expr (normal/at-will)
+  limitedDamageDice?: { [level: number]: Record<string, string> }  // level -> tier -> dice expr (encounter/recharge)
   // Attack bonus tables for inline quick-fill on powers (not shown as top-level rows)
   attackBonusTables?: { key: string; label: string; table: { [level: number]: Record<string, number> } }[]
   resistWeakRange?: { [level: number]: { min: number; max: number } }  // PF2e: range

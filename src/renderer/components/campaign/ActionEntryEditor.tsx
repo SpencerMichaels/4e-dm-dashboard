@@ -382,11 +382,27 @@ function FullPowerRow({ entry: e, idx, config, level, statBlock, atkBonusTables,
           )}
           (<input className="ghost" value={e.target} onChange={(ev) => onUpdate(idx, { target: ev.target.value })}
             placeholder="target" style={{ minWidth: 30, color: 'inherit' }} />);{' '}
-          <span style={{ display: 'inline-flex', alignItems: 'baseline' }}>+<input className="ghost" type="number" value={e.attackBonus ?? ''} onChange={(ev) => onUpdate(idx, { attackBonus: ev.target.value === '' ? null : Number(ev.target.value) })}
-            placeholder="—" style={{ color: 'inherit' }} /></span> vs{' '}
-          <select className="ghost" style={hdrSelect} value={e.defense} onChange={(ev) => onUpdate(idx, { defense: ev.target.value })}>
-            {(config.targetDefenses ?? ['AC']).map((d) => <option key={d} value={d}>{d}</option>)}
-          </select>
+          {(() => {
+            // Attack benchmark based on defense type and role
+            const role = config.useSharedRole ? (statBlock?.role as string) : undefined
+            const isAC = e.defense === 'AC'
+            const table = atkBonusTables.find(t => isAC ? t.key.toLowerCase().includes('ac') : !t.key.toLowerCase().includes('ac'))
+            const atkBenchmark = role && table ? table.table[level ?? 0]?.[role] : undefined
+            const allAtk = table?.table[level ?? 0]
+            const atkTooltip = allAtk ? Object.entries(allAtk).map(([r, v]) => `${r}: +${v}`).join('\n') : ''
+            return <>
+              <span style={{ display: 'inline-flex', alignItems: 'baseline' }}>+<input className="ghost" type="number" value={e.attackBonus ?? ''} onChange={(ev) => onUpdate(idx, { attackBonus: ev.target.value === '' ? null : Number(ev.target.value) })}
+                placeholder="—" style={{ color: 'inherit' }} /></span>
+              {atkBenchmark != null && e.attackBonus != null && e.attackBonus !== atkBenchmark && (
+                <span onClick={() => onUpdate(idx, { attackBonus: atkBenchmark })} title={atkTooltip}
+                  style={{ color: 'rgba(255,255,255,0.5)', cursor: 'pointer', fontSize: '0.85em' }}>({atkBenchmark})</span>
+              )}
+              {' '}vs{' '}
+              <select className="ghost" style={hdrSelect} value={e.defense} onChange={(ev) => onUpdate(idx, { defense: ev.target.value })}>
+                {(config.targetDefenses ?? ['AC']).map((d) => <option key={d} value={d}>{d}</option>)}
+              </select>
+            </>
+          })()}
           {e.attackNotes ? (
             <input className="ghost" value={e.attackNotes} onChange={(ev) => onUpdate(idx, { attackNotes: ev.target.value })}
               style={{ color: 'rgba(255,255,255,0.6)', minWidth: 30 }} />
@@ -415,7 +431,7 @@ function FullPowerRow({ entry: e, idx, config, level, statBlock, atkBonusTables,
 
         {/* Damage */}
         {(normalizeDamage(e.damage).length > 0 || e.attackBonus != null) && (
-          <DamagePartsEditor parts={normalizeDamage(e.damage)} config={config} level={level}
+          <DamagePartsEditor parts={normalizeDamage(e.damage)} config={config} level={level} usage={e.usage}
             onChange={(parts) => onUpdate(idx, { damage: parts })} />
         )}
 
@@ -517,8 +533,8 @@ function formatDamage(damage: DamagePart[] | string | undefined): string {
 }
 
 /** Inline editor for DamagePart[] — each part is a row with expr, type dropdown, ongoing toggle */
-function DamagePartsEditor({ parts, config, level, onChange }: {
-  parts: DamagePart[]; config: CreatureBuilderConfig; level?: number
+function DamagePartsEditor({ parts, config, level, usage, onChange }: {
+  parts: DamagePart[]; config: CreatureBuilderConfig; level?: number; usage?: string
   onChange: (parts: DamagePart[]) => void
 }) {
   const updatePart = (i: number, patch: Partial<DamagePart>) => onChange(parts.map((p, j) => j === i ? { ...p, ...patch } : p))
@@ -527,6 +543,16 @@ function DamagePartsEditor({ parts, config, level, onChange }: {
 
   const xs = { fontSize: 'var(--font-size-xs)' }
   const ongoingLabel = config.damageTypes.includes('persistent') ? 'persistent' : 'ongoing'
+
+  // Pick the right damage table based on usage (at-will → normal, encounter/recharge → limited)
+  const isLimited = usage === 'encounter' || usage === 'recharge'
+  const dmgTable = isLimited ? (config.limitedDamageDice ?? config.strikeDamageDice) : config.strikeDamageDice
+  const dmgRow = level != null && dmgTable ? dmgTable[level] : undefined
+  const dmgTooltip = dmgRow
+    ? (isLimited ? 'Limited' : 'Normal') + ' damage:\n' + Object.entries(dmgRow).map(([t, v]) => `${t}: ${v}`).join('\n')
+    : ''
+  // Infer default tier: medium
+  const suggestedDmg = dmgRow?.medium ?? dmgRow?.[Object.keys(dmgRow ?? {})[Math.floor(Object.keys(dmgRow ?? {}).length / 2)]]
 
   // damage type select uses ghost class from global CSS
 
@@ -562,9 +588,11 @@ function DamagePartsEditor({ parts, config, level, onChange }: {
               {config.damageTypes.map((dt) => <option key={dt} value={dt}>{dt}</option>)}
             </select>
           )}
-          {i === 0 && level != null && config.strikeDamageDice?.[level] && (
-            <DiceTierButtons table={config.strikeDamageDice} level={level} currentDice={p.expr} config={config}
-              onSelect={(dice) => updatePart(0, { expr: dice })} />
+          {i === 0 && level != null && dmgRow && (
+            <span title={dmgTooltip}>
+              <DiceTierButtons table={dmgTable!} level={level} currentDice={p.expr} config={config}
+                onSelect={(dice) => updatePart(0, { expr: dice })} />
+            </span>
           )}
           <button onClick={() => removePart(i)} style={{ color: 'var(--color-text-muted)', padding: '0 2px', lineHeight: 1 }}>×</button>
         </div>

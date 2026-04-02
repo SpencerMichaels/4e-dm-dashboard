@@ -65,6 +65,28 @@ interface Props {
   config: CreatureBuilderConfig
 }
 
+/** Clickable benchmark hint — shows expected value when actual differs */
+function Hint({ value, benchmark, onClick, tooltip }: {
+  value: number | undefined; benchmark: number | undefined
+  onClick?: () => void; tooltip?: string
+}) {
+  if (benchmark == null || value === benchmark) return null
+  return (
+    <span onClick={onClick} title={tooltip ?? `Expected: ${benchmark}. Click to set.`}
+      style={{ color: 'var(--color-text-muted)', cursor: onClick ? 'pointer' : 'default', fontSize: '0.85em', marginLeft: 2 }}>
+      ({benchmark})
+    </span>
+  )
+}
+
+/** Tooltip showing a full tier table for a level */
+function tierTooltip(table: { [level: number]: Record<string, string | number> } | undefined, level: number): string {
+  if (!table) return ''
+  const row = table[level]
+  if (!row) return ''
+  return Object.entries(row).map(([tier, val]) => `${tier}: ${val}`).join('\n')
+}
+
 export function Dnd4eCreatureDetails({ creature, onSave: save, config }: Props) {
   const actionConfig: CreatureBuilderConfig = {
     ...config,
@@ -91,6 +113,25 @@ export function Dnd4eCreatureDetails({ creature, onSave: save, config }: Props) 
   const origin = traits[0] ?? ''
   const creatureType = traits[1] ?? ''
   const subtypes = traits.slice(2)
+
+  // Benchmark lookups — role-based tables from statDefs
+  const benchmarks: Record<string, number | undefined> = {}
+  if (role) {
+    for (const def of config.statDefs) {
+      const row = def.table[level]
+      if (row && row[role] != null) benchmarks[def.key] = row[role]
+    }
+  }
+  // Defense benchmarks from ability scores
+  const defBenchmarks: Record<string, number> = {}
+  if (abConfig?.defensePairs) {
+    for (const { defense, abilities: [a1, a2], baseOffset } of abConfig.defensePairs) {
+      const s1 = abilities[a1] ?? 10
+      const s2 = abilities[a2] ?? 10
+      const bestMod = Math.floor((Math.max(s1, s2) - 10) / 2)
+      defBenchmarks[defense.toLowerCase()] = (baseOffset ?? 12) + level + bestMod
+    }
+  }
 
   const u = (key: string, val: unknown) => save({ ...creature, statBlock: { ...sb, [key]: val } })
   const setTraits = (newOrigin: string, newType: string, newSubtypes: string[]) => {
@@ -159,8 +200,10 @@ export function Dnd4eCreatureDetails({ creature, onSave: save, config }: Props) 
 
       {/* ── GROUP 1: Initiative, Senses, Speed, Saves/AP ── */}
       <div className="sb-row">
-        <span><b className="sb-label">Initiative</b> <input className="ghost" type="number" value={(sb.initiative as number) ?? 0}
-          onChange={e => u('initiative', Number(e.target.value))} />;</span>
+        <span title={tierTooltip(config.statDefs.find(d => d.key === 'initiative')?.table, level)}>
+          <b className="sb-label">Initiative</b> <input className="ghost" type="number" value={(sb.initiative as number) ?? 0}
+          onChange={e => u('initiative', Number(e.target.value))} />
+          <Hint value={(sb.initiative as number)} benchmark={benchmarks.initiative} onClick={() => benchmarks.initiative != null && u('initiative', benchmarks.initiative)} />;</span>
         <span>
           <b className="sb-label">Senses</b> Perception <input className="ghost" type="number" value={(sb.perception as number) ?? 0}
             onChange={e => u('perception', Number(e.target.value))} />;{' '}
@@ -234,9 +277,12 @@ export function Dnd4eCreatureDetails({ creature, onSave: save, config }: Props) 
 
       {/* ── GROUP 2: HP, AC, Defenses, Immunities, Resistances, Weaknesses ── */}
       <div className="sb-row">
-        <span><b className="sb-label">HP</b>{' '}
-        <input className="ghost" type="number" value={creature.hp}
-          onChange={e => save({ ...creature, hp: Number(e.target.value), maxHp: Number(e.target.value) })} />;</span>
+        <span title={tierTooltip(config.statDefs.find(d => d.key === 'hp')?.table, level)}>
+          <b className="sb-label">HP</b>{' '}
+          <input className="ghost" type="number" value={creature.hp}
+            onChange={e => save({ ...creature, hp: Number(e.target.value), maxHp: Number(e.target.value) })} />
+          <Hint value={creature.hp} benchmark={benchmarks.hp}
+            onClick={() => benchmarks.hp != null && save({ ...creature, hp: benchmarks.hp!, maxHp: benchmarks.hp! })} />;</span>
         <span><b className="sb-label">Bloodied</b> {Math.floor(creature.hp / 2)}</span>
       </div>
       {(() => {
@@ -244,14 +290,19 @@ export function Dnd4eCreatureDetails({ creature, onSave: save, config }: Props) 
         const uDef = (key: string, val: number) => u('defenses', { ...defs, [key]: val })
         return (
           <div className="sb-row">
-            <span><b className="sb-label">AC</b> <input className="ghost" type="number" value={(sb.ac as number) ?? 10}
-              onChange={e => u('ac', Number(e.target.value))} />;</span>
+            <span title={tierTooltip(config.statDefs.find(d => d.key === 'ac')?.table, level)}>
+              <b className="sb-label">AC</b> <input className="ghost" type="number" value={(sb.ac as number) ?? 10}
+              onChange={e => u('ac', Number(e.target.value))} />
+              <Hint value={(sb.ac as number)} benchmark={benchmarks.ac} onClick={() => benchmarks.ac != null && u('ac', benchmarks.ac)} /></span>;{' '}
             <span><b className="sb-label">Fortitude</b> <input className="ghost" type="number" value={defs.fortitude ?? 10}
-              onChange={e => uDef('fortitude', Number(e.target.value))} />,</span>
+              onChange={e => uDef('fortitude', Number(e.target.value))} />
+              <Hint value={defs.fortitude} benchmark={defBenchmarks.fortitude} onClick={() => uDef('fortitude', defBenchmarks.fortitude)} />,</span>
             <span><b className="sb-label">Reflex</b> <input className="ghost" type="number" value={defs.reflex ?? 10}
-              onChange={e => uDef('reflex', Number(e.target.value))} />,</span>
+              onChange={e => uDef('reflex', Number(e.target.value))} />
+              <Hint value={defs.reflex} benchmark={defBenchmarks.reflex} onClick={() => uDef('reflex', defBenchmarks.reflex)} />,</span>
             <span><b className="sb-label">Will</b> <input className="ghost" type="number" value={defs.will ?? 10}
-              onChange={e => uDef('will', Number(e.target.value))} /></span>
+              onChange={e => uDef('will', Number(e.target.value))} />
+              <Hint value={defs.will} benchmark={defBenchmarks.will} onClick={() => uDef('will', defBenchmarks.will)} /></span>
           </div>
         )
       })()}
