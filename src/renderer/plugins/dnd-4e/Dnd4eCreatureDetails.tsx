@@ -159,7 +159,7 @@ export function Dnd4eCreatureDetails({ creature, onSave: save, config }: Props) 
       {/* ── GROUP 1: Initiative, Senses, Speed, Saves/AP ── */}
       <div className="sb-row">
         <span><b className="sb-label">Initiative</b> <input className="ghost" type="number" value={(sb.initiative as number) ?? 0}
-          onChange={e => u('initiative', Number(e.target.value))} /></span>
+          onChange={e => u('initiative', Number(e.target.value))} />;</span>
         <span>
           <b className="sb-label">Senses</b> Perception <input className="ghost" type="number" value={(sb.perception as number) ?? 0}
             onChange={e => u('perception', Number(e.target.value))} />;{' '}
@@ -167,7 +167,7 @@ export function Dnd4eCreatureDetails({ creature, onSave: save, config }: Props) 
             placeholder="darkvision" />
         </span>
       </div>
-      <div className="sb-row">
+      <div className={`sb-row${!(((sb.savingThrowBonus as number) ?? 0) > 0 || ((sb.actionPoints as number) ?? 0) > 0) ? ' sb-row-sep' : ''}`}>
         <b className="sb-label">Speed</b>
         {config.speedTypes.map(({ key, label: speedLabel }) => {
           const speeds = (sb.speeds as Record<string, number> | undefined) ?? {}
@@ -214,7 +214,7 @@ export function Dnd4eCreatureDetails({ creature, onSave: save, config }: Props) 
         })()}
       </div>
       {(((sb.savingThrowBonus as number) ?? 0) > 0 || ((sb.actionPoints as number) ?? 0) > 0) && (
-        <div className="sb-row">
+        <div className="sb-row sb-row-sep">
           {((sb.savingThrowBonus as number) ?? 0) > 0 && (
             <span><b className="sb-label">Saving Throws</b>{' +'}
               <input className="ghost" type="number" value={(sb.savingThrowBonus as number) ?? 0}
@@ -305,7 +305,6 @@ export function Dnd4eCreatureDetails({ creature, onSave: save, config }: Props) 
                       onBlur={ev => { if (ev.target.value === '') u('skills', { ...skills, [name]: 0 }) }} />
                     <button onClick={() => { const { [name]: _, ...rest } = skills; u('skills', rest) }}
                       style={{ color: 'var(--color-text-muted)', padding: '0 1px', lineHeight: 1 }}>×</button>
-                    {i < skillEntries.length - 1 && ','}
                   </span>
                 )
               })}

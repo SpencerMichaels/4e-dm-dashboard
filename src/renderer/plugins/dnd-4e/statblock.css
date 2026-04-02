@@ -77,6 +77,10 @@
   --color-text-muted: rgba(255, 255, 255, 0.6);
   --color-bg-hover: rgba(255, 255, 255, 0.18);
   --color-border: rgba(255, 255, 255, 0.3);
+  color: var(--sb-header-text);
+}
+.stat-block-4e .sb-subheader * {
+  color: inherit;
 }
 
 /* Stat rows */
@@ -149,8 +153,8 @@
 /* Footer section — ability scores in 3-column layout */
 .stat-block-4e .sb-abilities {
   display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
-  gap: 2px 12px;
+  grid-template-columns: auto auto auto;
+  gap: 2px 8px;
   padding: 2px 8px;
 }
 
