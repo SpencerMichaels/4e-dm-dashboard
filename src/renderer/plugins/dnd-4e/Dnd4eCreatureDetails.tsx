@@ -156,7 +156,7 @@ export function Dnd4eCreatureDetails({ creature, onSave: save, config }: Props) 
         <span style={{ whiteSpace: 'nowrap' }}>XP {xpForCreature(level, modifier)}</span>
       </div>
 
-      {/* ── GROUP 1: Initiative, Senses, Speed ── */}
+      {/* ── GROUP 1: Initiative, Senses, Saves/AP, Speed ── */}
       <div className="sb-row">
         <span><b className="sb-label">Initiative</b> <input className="ghost" type="number" value={(sb.initiative as number) ?? 0}
           onChange={e => u('initiative', Number(e.target.value))} /></span>
@@ -167,6 +167,20 @@ export function Dnd4eCreatureDetails({ creature, onSave: save, config }: Props) 
             placeholder="darkvision" />
         </span>
       </div>
+      {(((sb.savingThrowBonus as number) ?? 0) > 0 || ((sb.actionPoints as number) ?? 0) > 0) && (
+        <div className="sb-row">
+          {((sb.savingThrowBonus as number) ?? 0) > 0 && (
+            <span><b className="sb-label">Saving Throws</b>{' +'}
+              <input className="ghost" type="number" value={(sb.savingThrowBonus as number) ?? 0}
+                onChange={e => u('savingThrowBonus', Number(e.target.value))} /></span>
+          )}
+          {((sb.actionPoints as number) ?? 0) > 0 && (
+            <span><b className="sb-label">Action Points</b>{' '}
+              <input className="ghost" type="number" value={(sb.actionPoints as number) ?? 0}
+                onChange={e => u('actionPoints', Number(e.target.value))} /></span>
+          )}
+        </div>
+      )}
       <div className="sb-row sb-row-sep">
         <b className="sb-label">Speed</b>
         {config.speedTypes.map(({ key, label: speedLabel }) => {
@@ -214,23 +228,7 @@ export function Dnd4eCreatureDetails({ creature, onSave: save, config }: Props) 
         })()}
       </div>
 
-      {/* ── GROUP 2: Saving Throws, Action Points ── */}
-      {(((sb.savingThrowBonus as number) ?? 0) > 0 || ((sb.actionPoints as number) ?? 0) > 0) && (
-        <div className="sb-row sb-row-sep">
-          {((sb.savingThrowBonus as number) ?? 0) > 0 && (
-            <span><b className="sb-label">Saving Throws</b>{' +'}
-              <input className="ghost" type="number" value={(sb.savingThrowBonus as number) ?? 0}
-                onChange={e => u('savingThrowBonus', Number(e.target.value))} /></span>
-          )}
-          {((sb.actionPoints as number) ?? 0) > 0 && (
-            <span><b className="sb-label">Action Points</b>{' '}
-              <input className="ghost" type="number" value={(sb.actionPoints as number) ?? 0}
-                onChange={e => u('actionPoints', Number(e.target.value))} /></span>
-          )}
-        </div>
-      )}
-
-      {/* ── GROUP 3: AC, HP, Defenses, Immunities, Resistances, Weaknesses ── */}
+      {/* ── GROUP 2: AC, HP, Defenses, Immunities, Resistances, Weaknesses ── */}
       {(() => {
         const defs = (sb.defenses as Record<string, number>) ?? {}
         const uDef = (key: string, val: number) => u('defenses', { ...defs, [key]: val })
@@ -296,12 +294,11 @@ export function Dnd4eCreatureDetails({ creature, onSave: save, config }: Props) 
                 const justAdded = lastAddedSkill.current === name
                 if (justAdded) lastAddedSkill.current = null
                 return (
-                  <span key={name} style={{ display: 'inline-flex', alignItems: 'center', gap: 1 }}>
+                  <span key={name} style={{ display: 'inline-flex', alignItems: 'center', gap: 1, padding: '0 3px', background: 'var(--color-bg-hover)', borderRadius: 'var(--radius-sm)', fontSize: 'var(--font-size-xs)' }}>
                     {cap(name)} <input className="ghost" type="number" value={mod ?? ''}
                       ref={justAdded ? focusRef : undefined}
                       onChange={ev => u('skills', { ...skills, [name]: ev.target.value === '' ? 0 : Number(ev.target.value) })}
-                      onBlur={ev => { if (ev.target.value === '') u('skills', { ...skills, [name]: 0 }) }}
-                      style={{ fontWeight: 600 }} />
+                      onBlur={ev => { if (ev.target.value === '') u('skills', { ...skills, [name]: 0 }) }} />
                     <button onClick={() => { const { [name]: _, ...rest } = skills; u('skills', rest) }}
                       style={{ fontSize: '9px', color: 'var(--color-text-muted)', padding: '0 1px' }}>x</button>
                     {i < skillEntries.length - 1 && ','}
@@ -450,7 +447,7 @@ function InlineEntryChips({ label, entries, onChange, suggestions, showValue }: 
                 ref={justAdded ? focusRef : undefined}
                 onChange={ev => updateVal(i, Number(ev.target.value))}
                 onBlur={ev => { if (ev.target.value === '') updateVal(i, 0) }}
-                style={{ fontWeight: 600, marginLeft: 3, borderBottom: '1px solid var(--color-border)' }} />
+                style={{ marginLeft: 3, borderBottom: '1px solid var(--color-border)' }} />
             )}
             <button onClick={() => remove(i)}
               style={{ fontSize: '9px', color: 'var(--color-text-muted)', padding: '0 1px' }}>x</button>

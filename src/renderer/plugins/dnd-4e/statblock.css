@@ -132,6 +132,15 @@
   field-sizing: content;
   min-width: 3ch;
 }
+.stat-block-4e select.ghost {
+  field-sizing: content;
+  -webkit-appearance: none;
+  appearance: none;
+  padding-right: 0;
+  cursor: pointer;
+  text-decoration: underline dotted;
+  text-underline-offset: 2px;
+}
 
 /* Footer section — ability scores in 3-column layout */
 .stat-block-4e .sb-abilities {
