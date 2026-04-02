@@ -109,7 +109,6 @@ function convertToCreature(src: AonCreature): Creature {
     name: src.name,
     hp: src.hp,
     maxHp: src.hp,
-    tags: [],
     statBlock: {
       level: src.level,
       ac: src.ac,

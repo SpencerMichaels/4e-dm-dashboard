@@ -143,7 +143,6 @@ function _parseMonsterHtml(html: string, warnings: string[]): Creature {
     name,
     hp,
     maxHp: hp,
-    tags: [],
     statBlock: {
       size, level, role: cleanRole, monsterModifier: eliteSolo, ac,
       defenses: { fortitude: fort, reflex: ref, will },

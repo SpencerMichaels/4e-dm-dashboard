@@ -35,7 +35,6 @@ export function CreatureEditor({ creatureId }: Props) {
         name: 'New Creature',
         hp: 10,
         maxHp: 10,
-        tags: [],
         statBlock: {},
         createdAt: now,
         updatedAt: now,
