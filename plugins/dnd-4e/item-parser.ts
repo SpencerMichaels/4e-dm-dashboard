@@ -132,21 +132,21 @@ function parseMagicalItem(html: string, category: ParsedItem['category']): Parse
     }
   }
 
-  // Powers
+  // Powers — capture h2 header + all following <p> blocks until next h2 or end
   const powers: ParsedItem['powers'] = []
-  const powerRegex = /<h2[^>]*>([\s\S]*?)<\/h2>\s*<p[^>]*>([\s\S]*?)<\/p>/gi
+  const powerHeaderRegex = /<h2[^>]*>([\s\S]*?)<\/h2>([\s\S]*?)(?=<h2|<br>\s*<br>\s*\n*<p class=['"]?publishedIn|$)/gi
   let pwm
-  while ((pwm = powerRegex.exec(html)) !== null) {
+  while ((pwm = powerHeaderRegex.exec(html)) !== null) {
     const header = stripHtml(pwm[1])
     if (!header.toLowerCase().includes('power') && !header.toLowerCase().includes('utility')) continue
-    const text = stripHtml(pwm[2])
-    const usageMatch = header.match(/(At-Will|Encounter|Daily)/i)
-    const actionMatch = header.match(/\(([^)]*Action[^)]*)\)/i)
+    const body = stripHtml(pwm[2])
+    const usageMatch = header.match(/(At-Will|Encounter|Daily|Consumable)/i)
+    const actionMatch = header.match(/\(([^)]*(?:Action|Interrupt|Reaction)[^)]*)\)/i)
     powers.push({
-      name: header.replace(/✦/g, '').replace(/\(.*\)/, '').trim(),
+      name: header.replace(/\s*✦[\s\S]*/, '').replace(/\(.*\)/, '').trim(),
       usage: usageMatch?.[1] ?? '',
       action: actionMatch?.[1] ?? '',
-      text,
+      text: body,
     })
   }
 
