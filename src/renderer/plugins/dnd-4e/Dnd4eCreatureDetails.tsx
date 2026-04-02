@@ -3,7 +3,6 @@ import type { Creature, CreatureBuilderConfig } from '@common/types'
 import { CreatureBuilder } from '@renderer/components/campaign/CreatureBuilder'
 import { ActionEntryEditor } from '@renderer/components/campaign/ActionEntryEditor'
 import { TagInput } from '@renderer/components/shared/TagInput'
-import { Autocomplete } from '@renderer/components/shared/Autocomplete'
 import { DamageEntryList } from '@renderer/components/shared/DamageEntryList'
 import './statblock.css'
 
@@ -155,10 +154,10 @@ export function Dnd4eCreatureDetails({ creature, onSave: save, config }: Props) 
 
       {/* HP + Bloodied */}
       <div className="sb-row sb-row-sep">
-        <b className="sb-label">HP</b>{' '}
+        <span><b className="sb-label">HP</b>{' '}
         <input className="ghost" type="number" value={creature.hp}
-          onChange={e => save({ ...creature, hp: Number(e.target.value), maxHp: Number(e.target.value) })} />
-        ; <b className="sb-label">Bloodied</b> {Math.floor(creature.hp / 2)}
+          onChange={e => save({ ...creature, hp: Number(e.target.value), maxHp: Number(e.target.value) })} />;</span>
+        <span><b className="sb-label">Bloodied</b> {Math.floor(creature.hp / 2)}</span>
       </div>
 
       {/* AC + Defenses — from CreatureBuilder */}
@@ -229,15 +228,20 @@ export function Dnd4eCreatureDetails({ creature, onSave: save, config }: Props) 
             </span>
           )
         })}
-        {config.speedTypes.filter(({ key }) => {
-          if (key === 'land') return false
-          return !((sb.speeds as Record<string, number> | undefined) ?? {})[key]
-        }).map(({ key, label: speedLabel }) => (
-          <button key={key} onClick={() => { lastAddedSpeed.current = key; u('speeds', { ...((sb.speeds as Record<string, number>) ?? {}), [key]: 0 }) }}
-            style={{ fontSize: '9px', padding: '0 3px', border: '1px dashed var(--sb-separator)', borderRadius: 'var(--radius-sm)', color: 'var(--color-text-muted)', background: 'transparent', cursor: 'pointer' }}>
-            +{speedLabel}
-          </button>
-        ))}
+        {/* Add speed — dropdown that adds on select */}
+        {(() => {
+          const speeds = (sb.speeds as Record<string, number> | undefined) ?? {}
+          const available = config.speedTypes.filter(({ key }) => key !== 'land' && !speeds[key])
+          if (available.length === 0) return null
+          return (
+            <select className="ghost" value=""
+              onChange={e => { if (e.target.value) { lastAddedSpeed.current = e.target.value; u('speeds', { ...speeds, [e.target.value]: 0 }) } }}
+              style={{ fontSize: '9px', color: 'var(--color-text-muted)' }}>
+              <option value="">+ speed</option>
+              {available.map(({ key, label: l }) => <option key={key} value={key}>{l}</option>)}
+            </select>
+          )
+        })()}
       </div>
 
       {/* ── FOOTER ── */}
@@ -284,9 +288,12 @@ export function Dnd4eCreatureDetails({ creature, onSave: save, config }: Props) 
                 )
               })}
               {availableSkills.length > 0 && (
-                <Autocomplete options={availableSkills.map(s => ({ value: s.toLowerCase(), label: s }))} value=""
-                  onChange={val => { if (val) { lastAddedSkill.current = val; u('skills', { ...skills, [val]: 0 }) } }}
-                  placeholder="+ skill" />
+                <select className="ghost" value=""
+                  onChange={ev => { if (ev.target.value) { lastAddedSkill.current = ev.target.value.toLowerCase(); u('skills', { ...skills, [ev.target.value.toLowerCase()]: 0 }) } }}
+                  style={{ fontSize: '9px', color: 'var(--color-text-muted)' }}>
+                  <option value="">+ skill</option>
+                  {availableSkills.map(s => <option key={s} value={s}>{s}</option>)}
+                </select>
               )}
             </>
           )

@@ -77,9 +77,9 @@ function _parseMonsterHtml(html: string, warnings: string[]): Creature {
   const savingThrowBonus = parseInt(statsText.match(/Saving Throws\s+\+(\d+)/)?.[1] ?? '0')
   const actionPoints = parseInt(statsText.match(/Action Points?\s+(\d+)/)?.[1] ?? '0')
 
-  // Speed — only capture numeric speed values and movement types, stop at non-speed text
-  const speedMatch = statsText.match(/Speed\s+([\d]+(?:\s*,\s*(?:fly|swim|climb|burrow|teleport|phasing|earth walk|forest walk|ice walk|spider climb)\s+\d+(?:\s*\([^)]*\))?)*(?:\s*\([^)]*\))?)/i)
-  const { land, speeds } = parseSpeeds(speedMatch?.[1] ?? '6')
+  // Speed — capture all speed entries including notes like (hover)
+  const speedMatch = statsText.match(/Speed\s+(.+?)(?=\n|$)/i)
+  const { land, speeds, speedNotes } = parseSpeeds(speedMatch?.[1] ?? '6')
 
   // Immune/Resist/Vulnerable from stats text
   const immuneMatch = statsText.match(/Immune\s+(.+?)(?=\n|Resist|Vulnerable|Saving|$)/i)
@@ -131,6 +131,11 @@ function _parseMonsterHtml(html: string, warnings: string[]): Creature {
   const pubMatch = html.match(/<p class=publishedIn>([\s\S]*?)<\/p>/i)
   const source = pubMatch ? stripHtml(pubMatch[1]).replace(/^Published in\s*/i, '').trim() : ''
 
+  // Infer primary ability from highest score
+  const primaryAbility = Object.keys(abilities).length > 0
+    ? Object.entries(abilities).sort((a, b) => b[1] - a[1])[0][0]
+    : undefined
+
   if (actions.length === 0) warnings.push('No powers or abilities were parsed')
 
   return {
@@ -143,7 +148,8 @@ function _parseMonsterHtml(html: string, warnings: string[]): Creature {
       size, level, role: cleanRole, monsterModifier: eliteSolo, ac,
       defenses: { fortitude: fort, reflex: ref, will },
       initiative, perception, senses,
-      speed: land, speeds, abilities, traits,
+      speed: land, speeds, speedNotes: speedNotes || undefined,
+      abilities, primaryAbility, traits,
       immunities, resistances, weaknesses,
       skills, alignment, languages, equipment,
       xp, savingThrowBonus, actionPoints,
@@ -642,13 +648,22 @@ function parseTypeLine(typeStr: string): { origin: string; type: string; keyword
   return { origin: words[0] ?? '', type: words[1] ?? '', keywords: [] }
 }
 
-function parseSpeeds(speedStr: string): { land: number; speeds: Record<string, number> } {
+function parseSpeeds(speedStr: string): { land: number; speeds: Record<string, number>; speedNotes: string } {
   const land = parseInt(speedStr.match(/^(\d+)/)?.[1] ?? '0')
   const speeds: Record<string, number> = {}
-  for (const m of speedStr.matchAll(/(fly|swim|climb|burrow|teleport)\s+(\d+)/gi)) {
-    speeds[m[1].toLowerCase()] = parseInt(m[2])
+  const notes: string[] = []
+  // Match known movement types with optional parenthetical notes
+  const typePattern = /(fly|swim|climb|burrow|teleport|phasing|overland flight|earth walk|forest walk|ice walk|spider climb)\s+(\d+)(?:\s*\(([^)]+)\))?/gi
+  let m
+  while ((m = typePattern.exec(speedStr)) !== null) {
+    const key = m[1].toLowerCase().replace(/\s+/g, '_')
+    speeds[key] = parseInt(m[2])
+    if (m[3]) notes.push(key + ': ' + m[3])
   }
-  return { land, speeds }
+  // Check for land speed note like "6 (clumsy)"
+  const landNote = speedStr.match(/^(\d+)\s*\(([^)]+)\)/)
+  if (landNote) notes.push('land: ' + landNote[2])
+  return { land, speeds, speedNotes: notes.join('; ') }
 }
 
 function parseResistValues(str: string): { type: string; value: number }[] {

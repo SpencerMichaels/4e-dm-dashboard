@@ -96,7 +96,7 @@ input[type="number"] {
 input.ghost, textarea.ghost, select.ghost {
   background: transparent;
   border: 1px solid transparent;
-  padding: 1px 4px;
+  padding: 1px 2px;
   border-radius: var(--radius-sm);
   transition: border-color 0.15s;
 }

@@ -41,8 +41,10 @@ export const attackTraits = [
 export const speedTypes = [
   { key: 'land', label: 'Land' },
   { key: 'fly', label: 'Fly' },
+  { key: 'overland_flight', label: 'Overland Flight' },
   { key: 'swim', label: 'Swim' },
   { key: 'climb', label: 'Climb' },
   { key: 'burrow', label: 'Burrow' },
   { key: 'teleport', label: 'Teleport' },
+  { key: 'phasing', label: 'Phasing' },
 ] as const
