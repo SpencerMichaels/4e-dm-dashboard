@@ -372,8 +372,8 @@ function FullPowerRow({ entry: e, idx, config, level, statBlock, atkBonusTables,
           )}
           (<input className="ghost" value={e.target} onChange={(ev) => onUpdate(idx, { target: ev.target.value })}
             placeholder="target" style={{ minWidth: 30, color: 'inherit' }} />);{' '}
-          +<input className="ghost" type="number" value={e.attackBonus ?? ''} onChange={(ev) => onUpdate(idx, { attackBonus: ev.target.value === '' ? null : Number(ev.target.value) })}
-            placeholder="—" style={{ color: 'inherit' }} /> vs{' '}
+          <span style={{ display: 'inline-flex', alignItems: 'baseline' }}>+<input className="ghost" type="number" value={e.attackBonus ?? ''} onChange={(ev) => onUpdate(idx, { attackBonus: ev.target.value === '' ? null : Number(ev.target.value) })}
+            placeholder="—" style={{ color: 'inherit' }} /></span> vs{' '}
           <select className="ghost" style={hdrSelect} value={e.defense} onChange={(ev) => onUpdate(idx, { defense: ev.target.value })}>
             {(config.targetDefenses ?? ['AC']).map((d) => <option key={d} value={d}>{d}</option>)}
           </select>
