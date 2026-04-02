@@ -1,3 +1,4 @@
+import { useRef, useCallback } from 'react'
 import type { CreatureBuilderConfig } from '@common/types'
 import { TagInput } from '../shared/TagInput'
 
@@ -118,6 +119,10 @@ export function ActionEntryEditor({ entries, onChange, config, level, statBlock 
 
   // Grouped layout (traits, auras, actions)
   const sepStyle = { borderBottom: '1px solid var(--sb-separator, var(--color-border))', marginBottom: 2 }
+  const newEntryRef = useCallback((el: HTMLDivElement | null) => {
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+  }, [entries.length])
+  const lastIdx = entries.length - 1
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
@@ -131,7 +136,9 @@ export function ActionEntryEditor({ entries, onChange, config, level, statBlock 
       {traits.length > 0 && (
         <>
           {traits.map(({ e, i }) => (
-            <TraitRow key={i} entry={e} idx={i} onUpdate={update} onRemove={remove} />
+            <div key={i} ref={i === lastIdx ? newEntryRef : undefined}>
+              <TraitRow entry={e} idx={i} onUpdate={update} onRemove={remove} />
+            </div>
           ))}
           {(auras.length > 0 || actions.length > 0) && <div style={sepStyle} />}
         </>
@@ -140,16 +147,20 @@ export function ActionEntryEditor({ entries, onChange, config, level, statBlock 
       {auras.length > 0 && (
         <>
           {auras.map(({ e, i }) => (
-            <AuraRow key={i} entry={e} idx={i} onUpdate={update} onRemove={remove} />
+            <div key={i} ref={i === lastIdx ? newEntryRef : undefined}>
+              <AuraRow entry={e} idx={i} onUpdate={update} onRemove={remove} />
+            </div>
           ))}
           {actions.length > 0 && <div style={sepStyle} />}
         </>
       )}
 
       {actions.map(({ e, i }) => (
-        <FullPowerRow key={i} entry={e} idx={i} config={config} level={level} statBlock={statBlock}
-          atkBonusTables={atkBonusTables}
-          onUpdate={update} onRemove={remove} onMove={move} />
+        <div key={i} ref={i === lastIdx ? newEntryRef : undefined}>
+          <FullPowerRow entry={e} idx={i} config={config} level={level} statBlock={statBlock}
+            atkBonusTables={atkBonusTables}
+            onUpdate={update} onRemove={remove} onMove={move} />
+        </div>
       ))}
     </div>
   )
@@ -298,7 +309,8 @@ function FullPowerRow({ entry: e, idx, config, level, statBlock, atkBonusTables,
 
   const xs = { fontSize: 'var(--font-size-xs)' }
   const lbl = { ...xs, color: 'var(--color-text-secondary)', whiteSpace: 'nowrap' as const }
-  const ghostSelect = { ...xs, appearance: 'none' as const, WebkitAppearance: 'none' as const, background: 'transparent', border: 'none', padding: 0, cursor: 'pointer', color: 'inherit', textDecoration: 'underline dotted', textUnderlineOffset: '2px' }
+  // Inline ghost select style for use inside colored headers (inherits white text)
+  const hdrSelect = { color: 'inherit' }
 
   // Build the header paren text: "(standard; at-will)" or "(immediate interrupt; encounter)"
   const actionLabel = config.actionTypes?.find(a => a.value === e.actionType)?.label?.toLowerCase() ?? e.actionType
@@ -315,7 +327,7 @@ function FullPowerRow({ entry: e, idx, config, level, statBlock, atkBonusTables,
         <input className="ghost" value={e.name} onChange={(ev) => onUpdate(idx, { name: ev.target.value })}
           placeholder="Power name" style={{ fontWeight: 700, fontSize: 'var(--font-size-sm)', flex: '0 1 auto', minWidth: 60, color: 'inherit' }} />
         <span style={{ color: 'rgba(255,255,255,0.8)' }}>(
-          <select style={ghostSelect} value={e.actionType} onChange={(ev) => onUpdate(idx, { actionType: ev.target.value })}>
+          <select className="ghost" style={hdrSelect} value={e.actionType} onChange={(ev) => onUpdate(idx, { actionType: ev.target.value })}>
             {config.actionTypes?.map((at) => <option key={at.value} value={at.value}>{at.label.toLowerCase()}</option>)}
           </select>
           {hasUsage && <>; <select style={ghostSelect} value={e.usage} onChange={(ev) => onUpdate(idx, { usage: ev.target.value })}>
@@ -493,7 +505,7 @@ function DamagePartsEditor({ parts, config, level, onChange }: {
   const xs = { fontSize: 'var(--font-size-xs)' }
   const ongoingLabel = config.damageTypes.includes('persistent') ? 'persistent' : 'ongoing'
 
-  const ghostSel = { ...xs, appearance: 'none' as const, WebkitAppearance: 'none' as const, background: 'transparent', border: 'none', padding: 0, cursor: 'pointer', textDecoration: 'underline dotted', textUnderlineOffset: '2px' }
+  // damage type select uses ghost class from global CSS
 
   return (
     <div style={{ marginBottom: 2 }}>
@@ -502,7 +514,7 @@ function DamagePartsEditor({ parts, config, level, onChange }: {
           {i === 0 && <b style={{ ...xs, color: 'var(--color-text-secondary)' }}>Damage</b>}
           {i > 0 && <span style={{ ...xs, color: 'var(--color-text-secondary)' }}>plus</span>}
           <input className="ghost" value={p.expr} onChange={(ev) => updatePart(i, { expr: ev.target.value })} placeholder="2d8+6" />
-          <select style={ghostSel} value={p.type} onChange={(ev) => updatePart(i, { type: ev.target.value })}>
+          <select className="ghost" value={p.type} onChange={(ev) => updatePart(i, { type: ev.target.value })}>
             <option value="">untyped</option>
             {config.damageTypes.map((dt) => <option key={dt} value={dt}>{dt}</option>)}
           </select>
@@ -510,10 +522,10 @@ function DamagePartsEditor({ parts, config, level, onChange }: {
             <DiceTierButtons table={config.strikeDamageDice} level={level} currentDice={p.expr} config={config}
               onSelect={(dice) => updatePart(0, { expr: dice })} />
           )}
-          {p.ongoing && <span style={{ ...xs, color: 'var(--color-text-secondary)' }}>({ongoingLabel})</span>}
           <label style={{ display: 'inline-flex', alignItems: 'center', gap: 2, ...xs, color: 'var(--color-text-muted)', cursor: 'pointer' }}>
             <input type="checkbox" checked={p.ongoing} onChange={(ev) => updatePart(i, { ongoing: ev.target.checked })}
               style={{ width: 11, height: 11 }} />
+            {ongoingLabel}
           </label>
           <button onClick={() => removePart(i)} style={{ color: 'var(--color-text-muted)', padding: '0 2px', lineHeight: 1 }}>×</button>
         </div>

@@ -95,17 +95,34 @@ input[type="number"] {
 /* Ghost inputs — transparent until hovered, for inline stat editing */
 input.ghost, textarea.ghost, select.ghost {
   background: transparent;
-  border: 1px solid transparent;
-  padding: 1px 2px;
-  border-radius: var(--radius-sm);
+  border: none;
+  border-bottom: 1px solid transparent;
+  padding: 0;
+  border-radius: 0;
+  field-sizing: content;
   transition: border-color 0.15s;
 }
 input.ghost:hover, textarea.ghost:hover, select.ghost:hover {
-  border-color: var(--color-border);
+  border-bottom-color: var(--color-border);
 }
 input.ghost:focus, textarea.ghost:focus, select.ghost:focus {
-  border-color: var(--color-border-focus);
-  background: var(--color-bg-surface);
+  border-bottom-color: var(--color-border-focus);
+  background: transparent;
+}
+select.ghost {
+  -webkit-appearance: none;
+  appearance: none;
+  cursor: pointer;
+  text-decoration: underline dotted;
+  text-underline-offset: 2px;
+}
+select.ghost option {
+  background: var(--color-bg-primary);
+  color: var(--color-text-primary);
+}
+input.ghost[type="number"] {
+  min-width: 1ch;
+  -moz-appearance: textfield;
 }
 
 /* Utility classes */
