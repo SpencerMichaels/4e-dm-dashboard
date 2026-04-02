@@ -236,10 +236,18 @@ function TraitRow({ entry: e, idx, onUpdate, onRemove, alt }: {
   onUpdate: (i: number, p: Partial<ActionEntry>) => void; onRemove: (i: number) => void
 }) {
   return (
-    <div style={{ display: 'flex', gap: 'var(--space-2)', alignItems: 'center', padding: '4px var(--space-2)', background: alt ? 'var(--sb-power-alt, var(--color-bg-surface))' : 'transparent' }}>
-      <input value={e.name} onChange={(ev) => onUpdate(idx, { name: ev.target.value })} placeholder="Trait name" style={{ width: 140, fontWeight: 600, fontSize: 'var(--font-size-sm)' }} />
-      <textarea value={e.effect} onChange={(ev) => onUpdate(idx, { effect: ev.target.value })} placeholder="Effect description" style={{ flex: 1, fontSize: 'var(--font-size-xs)' }} />
-      <button onClick={() => onRemove(idx)} style={{ color: 'var(--color-danger)', fontSize: 'var(--font-size-xs)', padding: '2px 4px' }}>x</button>
+    <div style={{ padding: '4px 8px', background: alt ? 'var(--sb-power-alt, var(--color-bg-surface))' : 'transparent', fontSize: 'var(--font-size-xs)', lineHeight: 1.5 }}>
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: 4 }}>
+        <input className="ghost" value={e.name} onChange={(ev) => onUpdate(idx, { name: ev.target.value })}
+          placeholder="Trait name" style={{ fontWeight: 700, fontSize: 'var(--font-size-sm)', minWidth: 60 }} />
+        <span style={{ marginLeft: 'auto' }}>
+          <button onClick={() => onRemove(idx)} style={{ color: 'var(--color-text-muted)', padding: '0 2px', lineHeight: 1 }}>×</button>
+        </span>
+      </div>
+      <div style={{ paddingLeft: 12 }}>
+        <textarea className="ghost" value={e.effect} onChange={(ev) => onUpdate(idx, { effect: ev.target.value })}
+          placeholder="Effect description" style={{ width: '100%' }} />
+      </div>
     </div>
   )
 }
@@ -249,15 +257,20 @@ function AuraRow({ entry: e, idx, onUpdate, onRemove, alt }: {
   onUpdate: (i: number, p: Partial<ActionEntry>) => void; onRemove: (i: number) => void
 }) {
   return (
-    <div style={{ padding: '4px var(--space-2)', background: alt ? 'var(--sb-power-alt, var(--color-bg-surface))' : 'transparent' }}>
-      <div style={{ display: 'flex', gap: 'var(--space-2)', alignItems: 'center', marginBottom: 'var(--space-1)' }}>
-        <input value={e.name} onChange={(ev) => onUpdate(idx, { name: ev.target.value })} placeholder="Aura name" style={{ flex: 1, fontWeight: 600, fontSize: 'var(--font-size-sm)' }} />
-        <label style={{ display: 'flex', alignItems: 'center', gap: 2, fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)' }}>
-          <input type="number" min={1} value={e.auraRange ?? 1} onChange={(ev) => onUpdate(idx, { auraRange: Number(ev.target.value) })} style={{ width: 35 }} />sq
-        </label>
-        <button onClick={() => onRemove(idx)} style={{ color: 'var(--color-danger)', fontSize: 'var(--font-size-xs)', padding: '2px 4px' }}>x</button>
+    <div style={{ padding: '4px 8px', background: alt ? 'var(--sb-power-alt, var(--color-bg-surface))' : 'transparent', fontSize: 'var(--font-size-xs)', lineHeight: 1.5 }}>
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: 4 }}>
+        <input className="ghost" value={e.name} onChange={(ev) => onUpdate(idx, { name: ev.target.value })}
+          placeholder="Aura name" style={{ fontWeight: 700, fontSize: 'var(--font-size-sm)', minWidth: 60 }} />
+        <span style={{ color: 'var(--color-text-secondary)' }}>aura <input className="ghost" type="number" min={1} value={e.auraRange ?? 1}
+          onChange={(ev) => onUpdate(idx, { auraRange: Number(ev.target.value) })} /></span>
+        <span style={{ marginLeft: 'auto' }}>
+          <button onClick={() => onRemove(idx)} style={{ color: 'var(--color-text-muted)', padding: '0 2px', lineHeight: 1 }}>×</button>
+        </span>
       </div>
-      <textarea value={e.effect} onChange={(ev) => onUpdate(idx, { effect: ev.target.value })} placeholder="Aura effect" style={{ width: '100%', fontSize: 'var(--font-size-xs)' }} />
+      <div style={{ paddingLeft: 12 }}>
+        <textarea className="ghost" value={e.effect} onChange={(ev) => onUpdate(idx, { effect: ev.target.value })}
+          placeholder="Aura effect" style={{ width: '100%' }} />
+      </div>
     </div>
   )
 }
@@ -273,171 +286,120 @@ function FullPowerRow({ entry: e, idx, config, level, statBlock, atkBonusTables,
   const usageColor = hasUsage ? (USAGE_COLORS[e.usage] ?? '#868e96') : 'var(--color-border)'
   const isTriggered = (config.triggeredActionTypes ?? ['reaction']).includes(e.actionType)
 
+  const xs = { fontSize: 'var(--font-size-xs)' }
+  const lbl = { ...xs, color: 'var(--color-text-secondary)', whiteSpace: 'nowrap' as const }
+  const ghostSelect = { ...xs, appearance: 'none' as const, WebkitAppearance: 'none' as const, background: 'transparent', border: 'none', borderBottom: '1px solid transparent', padding: 0, cursor: 'pointer', color: 'inherit' }
+
+  // Build the header paren text: "(standard; at-will)" or "(immediate interrupt; encounter)"
+  const actionLabel = config.actionTypes?.find(a => a.value === e.actionType)?.label?.toLowerCase() ?? e.actionType
+  const usageLabel = config.usageTypes?.find(u => u.value === e.usage)?.label ?? e.usage
+
   return (
-    <div style={{ padding: 'var(--space-2)', background: alt ? 'var(--sb-power-alt, var(--color-bg-surface))' : 'transparent', borderLeft: hasUsage ? `3px solid ${usageColor}` : undefined }}>
-      {/* Name + action type + usage */}
-      <div style={{ display: 'flex', gap: 'var(--space-2)', alignItems: 'center', marginBottom: 'var(--space-2)' }}>
-        <input value={e.name} onChange={(ev) => onUpdate(idx, { name: ev.target.value })} placeholder={hasUsage ? 'Power name' : 'Ability name'} style={{ flex: 1, fontWeight: 600, fontSize: 'var(--font-size-sm)' }} />
-        {config.actionTypes && (
-          <select value={e.actionType} onChange={(ev) => onUpdate(idx, { actionType: ev.target.value })} style={{ fontSize: 'var(--font-size-xs)' }}>
-            {config.actionTypes.map((at) => <option key={at.value} value={at.value}>{at.label}</option>)}
+    <div style={{ padding: '4px 8px', background: alt ? 'var(--sb-power-alt, var(--color-bg-surface))' : 'transparent', fontSize: 'var(--font-size-xs)', lineHeight: 1.5 }}>
+      {/* Header: Name (action; usage) ✦ Keywords — dense single line */}
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: 4, marginBottom: 2 }}>
+        <input className="ghost" value={e.name} onChange={(ev) => onUpdate(idx, { name: ev.target.value })}
+          placeholder="Power name" style={{ fontWeight: 700, fontSize: 'var(--font-size-sm)', flex: '0 1 auto', minWidth: 60 }} />
+        <span style={{ color: 'var(--color-text-secondary)' }}>(
+          <select style={ghostSelect} value={e.actionType} onChange={(ev) => onUpdate(idx, { actionType: ev.target.value })}>
+            {config.actionTypes?.map((at) => <option key={at.value} value={at.value}>{at.label.toLowerCase()}</option>)}
           </select>
+          {hasUsage && <>; <select style={ghostSelect} value={e.usage} onChange={(ev) => onUpdate(idx, { usage: ev.target.value })}>
+            {config.usageTypes!.map((u) => <option key={u.value} value={u.value}>{u.label.toLowerCase()}</option>)}
+          </select></>}
+          {e.usage === 'recharge' && <>{' '}
+            <input className="ghost" value={e.rechargeCondition || ''} onChange={(ev) => onUpdate(idx, { rechargeCondition: ev.target.value })}
+              placeholder="5-6" style={{ minWidth: 20 }} />
+          </>}
+          )</span>
+        {e.keywords?.length > 0 && (
+          <span style={{ color: 'var(--color-text-secondary)' }}>
+            ✦ <TagInput compact values={e.keywords} onChange={(kw) => onUpdate(idx, { keywords: kw })}
+              suggestions={config.attackTraits} placeholder="" />
+          </span>
         )}
-        {hasUsage && (
-          <>
-            <select value={e.usage} onChange={(ev) => onUpdate(idx, { usage: ev.target.value })} style={{ width: 100, fontSize: 'var(--font-size-xs)' }}>
-              {config.usageTypes!.map((u) => <option key={u.value} value={u.value}>{u.label}</option>)}
+        <span style={{ marginLeft: 'auto', display: 'flex', gap: 2 }}>
+          <button onClick={() => onMove(idx, -1)} style={{ color: 'var(--color-text-muted)', padding: '0 2px', lineHeight: 1 }}>↑</button>
+          <button onClick={() => onRemove(idx)} style={{ color: 'var(--color-text-muted)', padding: '0 2px', lineHeight: 1 }}>×</button>
+        </span>
+      </div>
+
+      {/* Body — indented, dense */}
+      <div style={{ paddingLeft: 12 }}>
+        {/* Trigger */}
+        {isTriggered && e.trigger && (
+          <div><b style={lbl}>Trigger</b> <input className="ghost" value={e.trigger} onChange={(ev) => onUpdate(idx, { trigger: ev.target.value })}
+            style={{ fontStyle: 'italic', minWidth: 100 }} /></div>
+        )}
+
+        {/* Requirement */}
+        {e.requirement && (
+          <div><b style={lbl}>Requirement</b> <input className="ghost" value={e.requirement} onChange={(ev) => onUpdate(idx, { requirement: ev.target.value })}
+            style={{ fontStyle: 'italic', minWidth: 100 }} />
+            <button onClick={() => onUpdate(idx, { requirement: '' })} style={{ color: 'var(--color-text-muted)', padding: '0 2px', lineHeight: 1 }}>×</button></div>
+        )}
+
+        {/* Attack line: Range; +N vs Defense; target */}
+        {(e.attackBonus != null || e.target || e.rangeValue) && (
+          <div style={{ display: 'flex', gap: 4, alignItems: 'center', flexWrap: 'wrap' }}>
+            <select className="ghost" value={e.rangeType} onChange={(ev) => onUpdate(idx, { rangeType: ev.target.value })} style={xs}>
+              {(config.rangeTypes ?? []).map((rt) => <option key={rt.value} value={rt.value}>{rt.label}</option>)}
             </select>
-            {e.usage === 'recharge' && (
-              <input value={e.rechargeCondition || ''} onChange={(ev) => onUpdate(idx, { rechargeCondition: ev.target.value })}
-                placeholder="5-6, when first bloodied, etc."
-                style={{ width: 160, fontSize: 'var(--font-size-xs)' }} />
+            {e.rangeType !== 'personal' && (
+              <input className="ghost" value={e.rangeValue} onChange={(ev) => onUpdate(idx, { rangeValue: ev.target.value })}
+                placeholder="range" style={{ minWidth: 20 }} />
             )}
-          </>
-        )}
-        <button onClick={() => onMove(idx, -1)} style={{ padding: '1px 4px', fontSize: '10px', color: 'var(--color-text-muted)' }}>^</button>
-        <button onClick={() => onRemove(idx)} style={{ color: 'var(--color-danger)', fontSize: 'var(--font-size-xs)', padding: '2px 4px' }}>x</button>
-      </div>
-
-      {/* Traits/Keywords */}
-      <div style={{ marginBottom: 'var(--space-2)' }}>
-        <TagInput values={Array.isArray(e.keywords) ? e.keywords : []} onChange={(kw) => onUpdate(idx, { keywords: kw })}
-          suggestions={config.attackTraits} placeholder={hasUsage ? 'Keywords...' : 'Traits...'} />
-      </div>
-
-      {/* Trigger (for reactions and triggered actions) */}
-      {isTriggered && (
-        <div style={{ marginBottom: 'var(--space-2)' }}>
-          <input value={e.trigger} onChange={(ev) => onUpdate(idx, { trigger: ev.target.value })} placeholder="Trigger..." style={{ width: '100%', fontSize: 'var(--font-size-xs)', fontStyle: 'italic' }} />
-        </div>
-      )}
-
-      {/* Requirement — show if present, with add button */}
-      {e.requirement ? (
-        <div style={{ display: 'flex', gap: 'var(--space-2)', alignItems: 'center', marginBottom: 'var(--space-2)' }}>
-          <span style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)', minWidth: 32 }}>Req</span>
-          <input value={e.requirement} onChange={(ev) => onUpdate(idx, { requirement: ev.target.value })} placeholder="Requirement..." style={{ flex: 1, fontSize: 'var(--font-size-xs)', fontStyle: 'italic' }} />
-          <button onClick={() => onUpdate(idx, { requirement: '' })} style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)', padding: '2px' }}>x</button>
-        </div>
-      ) : null}
-
-      {/* Frequency (optional, for systems without usage types) */}
-      {!hasUsage && (
-        <div style={{ marginBottom: 'var(--space-2)' }}>
-          <input value={e.sustain} onChange={(ev) => onUpdate(idx, { sustain: ev.target.value })} placeholder="Frequency (optional, e.g. 'once per day', 'can't use again for 1d4 rounds')" style={{ width: '100%', fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)' }} />
-        </div>
-      )}
-
-      {/* Range + Target + Attack — show if this is an attack */}
-      {(e.attackBonus != null || e.target || e.rangeValue) && (<>
-      <div style={{ display: 'flex', gap: 'var(--space-2)', alignItems: 'center', marginBottom: 'var(--space-2)' }}>
-        <select value={e.rangeType} onChange={(ev) => onUpdate(idx, { rangeType: ev.target.value })} style={{ width: 100, fontSize: 'var(--font-size-xs)' }}>
-          {(config.rangeTypes ?? []).map((rt) => <option key={rt.value} value={rt.value}>{rt.label}</option>)}
-        </select>
-        {e.rangeType !== 'personal' && (
-          <input value={e.rangeValue} onChange={(ev) => onUpdate(idx, { rangeValue: ev.target.value })}
-            placeholder={
-              e.rangeType === 'melee' ? 'reach' :
-              e.rangeType === 'ranged' ? 'range' :
-              e.rangeType === 'area-burst' ? 'size within range' :
-              'size'
-            }
-            style={{ width: e.rangeType === 'area-burst' ? 100 : 50, fontSize: 'var(--font-size-xs)' }} />
-        )}
-        <span style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)' }}>Target</span>
-        <input value={e.target} onChange={(ev) => onUpdate(idx, { target: ev.target.value })} placeholder={
-          e.rangeType.includes('burst') ? 'Each creature in burst' :
-          e.rangeType.includes('blast') ? 'Each creature in blast' :
-          'One creature'
-        } style={{ flex: 1, fontSize: 'var(--font-size-xs)' }} />
-      </div>
-
-      {/* Attack + defense */}
-      <div style={{ display: 'flex', gap: 'var(--space-2)', alignItems: 'center', marginBottom: 'var(--space-2)' }}>
-        <span style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)' }}>Attack</span>
-        <input type="number" value={e.attackBonus ?? ''} onChange={(ev) => onUpdate(idx, { attackBonus: ev.target.value === '' ? null : Number(ev.target.value) })}
-          placeholder="—" style={{ width: 55, fontSize: 'var(--font-size-xs)' }} />
-        {/* Attack bonus quick-fill buttons — context-dependent on selected defense */}
-        {level != null && atkBonusTables.length > 0 && (() => {
-          const role = config.useSharedRole ? (statBlock?.role as string) : undefined
-          // Role-based system without a role set yet — don't show buttons
-          if (config.useSharedRole && !role) return null
-          // For role-based systems: pick the table matching the defense (AC vs other)
-          const isAC = e.defense === 'AC'
-          const relevantTables = atkBonusTables.length > 1
-            ? atkBonusTables.filter(t => isAC ? t.key.toLowerCase().includes('ac') : !t.key.toLowerCase().includes('ac'))
-            : atkBonusTables
-
-          return (
-            <div style={{ display: 'flex', gap: 1 }}>
-              {relevantTables.flatMap((t) => {
-                const row = t.table[level]
-                if (!row) return []
-                if (role && row[role] != null) {
-                  const val = row[role]
-                  return [(
-                    <button key={t.key} onClick={() => onUpdate(idx, { attackBonus: val })} title={`+${val}`}
-                      style={{
-                        padding: '1px 5px', fontSize: '10px', borderRadius: 'var(--radius-sm)', cursor: 'pointer',
-                        border: e.attackBonus === val ? 'none' : '1px solid var(--color-border)',
-                        background: e.attackBonus === val ? 'var(--color-accent)' : 'transparent',
-                        color: e.attackBonus === val ? 'var(--color-accent-text)' : 'var(--color-text-muted)',
-                      }}>+{val}</button>
-                  )]
-                }
-                return Object.entries(row).map(([tier, val]) => (
-                  <button key={`${t.key}-${tier}`} onClick={() => onUpdate(idx, { attackBonus: val })} title={`${tier}: +${val}`}
-                    style={{
-                      padding: '1px 4px', fontSize: '10px',
-                      fontWeight: e.attackBonus === val ? 700 : 400,
-                      background: e.attackBonus === val ? (getTierColor(tier, config)) : 'transparent',
-                      color: e.attackBonus === val ? '#fff' : 'var(--color-text-muted)',
-                      border: e.attackBonus === val ? 'none' : '1px solid var(--color-border)',
-                      borderRadius: 'var(--radius-sm)', cursor: 'pointer', lineHeight: 1.4,
-                    }}>{getTierLabel(tier, config)}</button>
-                ))
-              })}
-            </div>
-          )
-        })()}
-        <span style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)' }}>vs</span>
-        <select value={e.defense} onChange={(ev) => onUpdate(idx, { defense: ev.target.value })} style={{ width: 85, fontSize: 'var(--font-size-xs)' }}>
-          {(config.targetDefenses ?? ['AC']).map((d) => <option key={d} value={d}>{d}</option>)}
-        </select>
-      </div>
-      </>)}
-
-      {/* Damage — only show if has damage parts or attack bonus */}
-      {(normalizeDamage(e.damage).length > 0 || e.attackBonus != null) && (
-        <DamagePartsEditor parts={normalizeDamage(e.damage)} config={config} level={level}
-          onChange={(parts) => onUpdate(idx, { damage: parts })} />
-      )}
-      {/* Hit / Miss / Effect — only show fields that have content, plus add buttons for empty ones */}
-      {[
-        { key: 'hit' as const, label: 'Hit', placeholder: 'Additional effect on hit' },
-        { key: 'miss' as const, label: 'Miss', placeholder: 'Half damage, etc.' },
-        { key: 'effect' as const, label: 'Effect', placeholder: 'Regardless of hit/miss' },
-      ].map(({ key, label, placeholder }) => (
-        e[key] ? (
-          <div key={key} style={{ display: 'flex', gap: 'var(--space-2)', alignItems: 'flex-start', marginBottom: 2 }}>
-            <span style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)', minWidth: 32, paddingTop: 4 }}>{label}</span>
-            <textarea value={e[key]} onChange={(ev) => onUpdate(idx, { [key]: ev.target.value })} placeholder={placeholder} style={{ flex: 1, fontSize: 'var(--font-size-xs)' }} />
-            <button onClick={() => onUpdate(idx, { [key]: '' })} style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)', padding: '2px' }}>x</button>
+            (<input className="ghost" value={e.target} onChange={(ev) => onUpdate(idx, { target: ev.target.value })}
+              placeholder="target" style={{ minWidth: 40 }} />);{' '}
+            +<input className="ghost" type="number" value={e.attackBonus ?? ''} onChange={(ev) => onUpdate(idx, { attackBonus: ev.target.value === '' ? null : Number(ev.target.value) })}
+              placeholder="—" /> vs{' '}
+            <select className="ghost" value={e.defense} onChange={(ev) => onUpdate(idx, { defense: ev.target.value })} style={xs}>
+              {(config.targetDefenses ?? ['AC']).map((d) => <option key={d} value={d}>{d}</option>)}
+            </select>
+            {e.attackNotes ? (
+              <input className="ghost" value={e.attackNotes} onChange={(ev) => onUpdate(idx, { attackNotes: ev.target.value })}
+                style={{ color: 'var(--color-text-muted)', minWidth: 40 }} />
+            ) : e.attackBonus != null ? (
+              <button onClick={() => onUpdate(idx, { attackNotes: ' ' })} style={{ color: 'var(--color-text-muted)', padding: '0 2px', lineHeight: 1 }}>+</button>
+            ) : null}
           </div>
-        ) : null
-      ))}
-      {/* Add buttons for empty optional fields */}
-      {(!e.hit || !e.miss || !e.effect || (normalizeDamage(e.damage).length === 0 && e.attackBonus == null)) && (
-        <div style={{ display: 'flex', gap: 'var(--space-2)', marginTop: 2 }}>
+        )}
+
+        {/* Damage */}
+        {(normalizeDamage(e.damage).length > 0 || e.attackBonus != null) && (
+          <DamagePartsEditor parts={normalizeDamage(e.damage)} config={config} level={level}
+            onChange={(parts) => onUpdate(idx, { damage: parts })} />
+        )}
+
+        {/* Hit / Miss / Effect */}
+        {[
+          { key: 'hit' as const, label: 'Hit' },
+          { key: 'miss' as const, label: 'Miss' },
+          { key: 'effect' as const, label: 'Effect' },
+        ].map(({ key, label }) => (
+          e[key] ? (
+            <div key={key} style={{ display: 'flex', gap: 4, alignItems: 'flex-start' }}>
+              <b style={{ ...lbl, paddingTop: 2 }}>{label}</b>
+              <textarea className="ghost" value={e[key]} onChange={(ev) => onUpdate(idx, { [key]: ev.target.value })}
+                style={{ flex: 1 }} />
+              <button onClick={() => onUpdate(idx, { [key]: '' })} style={{ color: 'var(--color-text-muted)', padding: '0 2px', lineHeight: 1 }}>×</button>
+            </div>
+          ) : null
+        ))}
+
+        {/* Add buttons */}
+        <div style={{ display: 'flex', gap: 4, marginTop: 2 }}>
           {e.attackBonus == null && !e.target && !e.rangeValue && (
-            <button onClick={() => onUpdate(idx, { attackBonus: 0, target: 'One creature', rangeType: 'melee', rangeValue: '1' })} style={{ fontSize: '10px', color: 'var(--color-text-muted)', border: '1px dashed var(--color-border)', borderRadius: 'var(--radius-sm)', padding: '1px 6px', background: 'transparent', cursor: 'pointer' }}>+ attack</button>
+            <button onClick={() => onUpdate(idx, { attackBonus: 0, target: 'One creature', rangeType: 'melee', rangeValue: '1' })}
+              style={{ color: 'var(--color-text-muted)', border: '1px dashed var(--color-border)', borderRadius: 'var(--radius-sm)', padding: '0 4px', background: 'transparent', cursor: 'pointer' }}>+ attack</button>
           )}
-          {!e.hit && <button onClick={() => onUpdate(idx, { hit: ' ' })} style={{ fontSize: '10px', color: 'var(--color-text-muted)', border: '1px dashed var(--color-border)', borderRadius: 'var(--radius-sm)', padding: '1px 6px', background: 'transparent', cursor: 'pointer' }}>+ hit</button>}
-          {!e.miss && <button onClick={() => onUpdate(idx, { miss: ' ' })} style={{ fontSize: '10px', color: 'var(--color-text-muted)', border: '1px dashed var(--color-border)', borderRadius: 'var(--radius-sm)', padding: '1px 6px', background: 'transparent', cursor: 'pointer' }}>+ miss</button>}
-          {!e.effect && <button onClick={() => onUpdate(idx, { effect: ' ' })} style={{ fontSize: '10px', color: 'var(--color-text-muted)', border: '1px dashed var(--color-border)', borderRadius: 'var(--radius-sm)', padding: '1px 6px', background: 'transparent', cursor: 'pointer' }}>+ effect</button>}
-          {!e.requirement && <button onClick={() => onUpdate(idx, { requirement: ' ' })} style={{ fontSize: '10px', color: 'var(--color-text-muted)', border: '1px dashed var(--color-border)', borderRadius: 'var(--radius-sm)', padding: '1px 6px', background: 'transparent', cursor: 'pointer' }}>+ req</button>}
+          {!e.hit && <button onClick={() => onUpdate(idx, { hit: ' ' })} style={{ color: 'var(--color-text-muted)', border: '1px dashed var(--color-border)', borderRadius: 'var(--radius-sm)', padding: '0 4px', background: 'transparent', cursor: 'pointer' }}>+ hit</button>}
+          {!e.miss && <button onClick={() => onUpdate(idx, { miss: ' ' })} style={{ color: 'var(--color-text-muted)', border: '1px dashed var(--color-border)', borderRadius: 'var(--radius-sm)', padding: '0 4px', background: 'transparent', cursor: 'pointer' }}>+ miss</button>}
+          {!e.effect && <button onClick={() => onUpdate(idx, { effect: ' ' })} style={{ color: 'var(--color-text-muted)', border: '1px dashed var(--color-border)', borderRadius: 'var(--radius-sm)', padding: '0 4px', background: 'transparent', cursor: 'pointer' }}>+ effect</button>}
+          {!e.requirement && <button onClick={() => onUpdate(idx, { requirement: ' ' })} style={{ color: 'var(--color-text-muted)', border: '1px dashed var(--color-border)', borderRadius: 'var(--radius-sm)', padding: '0 4px', background: 'transparent', cursor: 'pointer' }}>+ req</button>}
+          {!e.keywords?.length && <button onClick={() => onUpdate(idx, { keywords: ['Weapon'] })} style={{ color: 'var(--color-text-muted)', border: '1px dashed var(--color-border)', borderRadius: 'var(--radius-sm)', padding: '0 4px', background: 'transparent', cursor: 'pointer' }}>+ keywords</button>}
         </div>
-      )}
+      </div>
     </div>
   )
 }
@@ -446,7 +408,7 @@ function FullPowerRow({ entry: e, idx, config, level, statBlock, atkBonusTables,
 
 function SectionLabel({ text }: { text: string }) {
   return (
-    <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', marginTop: 'var(--space-2)' }}>
+    <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--sb-header-text, var(--color-text-muted))', background: 'var(--sb-header-bg, transparent)', fontWeight: 700, padding: '2px 8px', marginTop: 'var(--space-1)' }}>
       {text}
     </div>
   )

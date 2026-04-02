@@ -41,10 +41,35 @@ Follow the formatting conventions of official game sources (e.g. the 4e stat blo
 - **Group related stats on one line**: AC + defenses together, alignment + languages together, initiative + perception + senses together.
 - **Use separator lines** (border-bottom) between logical groups, not section headers or whitespace.
 - **No section headers** for obvious groupings — the labels are self-documenting.
-- **Flavor text (description) near the top** — it provides context for the stats below.
+- **Flavor text (description) at the bottom** — after the mechanical stats, before the source citation.
 - **Two-column responsive layout**: stats on the left, powers/abilities on the right. Use `flex-wrap` so columns stack on narrow windows.
 - **No max-width constraints** — let the layout fill available space and respond to window size.
+- **Semicolons between same-line items**: `Initiative 5; Senses Perception 11; darkvision` — not just whitespace.
+- **Readability is paramount**: text must have high contrast on its background. In dark mode, bump `--color-text-secondary` and `--color-text-muted` high enough to be easily legible.
 - The goal is to fit as much information as possible on screen without scrolling, matching the density a DM expects from a printed stat block.
+
+### Inputs should be ghost-styled and content-sized
+Use CSS class `ghost` for inline editable fields — transparent background and no border by default, subtle bottom-border on hover, full input on focus. This makes stat blocks read like printed text while still being editable. Use `field-sizing: content` so inputs auto-size to their value (no fixed widths creating trailing whitespace). Number inputs should have zero padding. Within stat block contexts, override the global ghost padding to 0 and use `border-width: 0` with only a bottom border.
+
+### Use chips for list-valued fields
+Skills, languages, speeds, immunities, resistances, and subtypes should all use the chip pattern: colored background pills with a `×` (Unicode multiplication sign, not ASCII "x") to remove, and a `<select>` dropdown or compact TagInput `+` button to add. Chips should:
+- Have consistent gap (3-4px between chips)
+- Use `var(--color-bg-hover)` background
+- Inherit font size from parent (don't hardcode `9px`)
+- For typed values (resist fire 10), show the number input inline in the chip with a bottom-border underline
+- When inside dark-background headers, override CSS custom properties (`--color-bg-hover`, `--color-text-muted`, etc.) so chips remain visible
+
+### Dropdowns should be native selects, not button stacks
+Use `<select>` with `appearance: none` and dotted underline for inline dropdowns (alignment, origin, creature type, role). This is more compact than a row of toggle buttons and handles long option lists. Set `option { background: var(--color-bg-primary) }` to fix dark mode dropdown backgrounds. Use `field-sizing: content` so selects auto-size to the selected option.
+
+### Derive values that can be computed
+XP is derived from level + modifier. Bloodied = HP/2. Don't make derived values editable — display them as plain text computed from the source fields. If a value mostly follows a formula but has exceptions (e.g. resistances), keep it editable.
+
+### Compact TagInput behavior
+In compact mode (`compact` prop), TagInput should: use `display: inline` on the outer wrapper so it flows with surrounding text, hide the text input when values exist and not focused (show a `+` button instead), and use tiny chip sizes (`font-size-xs`, minimal padding). This prevents the input from taking space and breaking inline layouts like `magical beast (dragon, aquatic)`.
+
+### Match the official rulebook styling
+For system-specific UI, match the official source material's visual language: fonts, colors, layout order, and density. For 4e, the DMG stat block uses a dark warm-brown header bar, serif body font (Mentor), and very dense inline layout. Extract fonts from PDFs if needed (even subsets work for testing). Use CSS custom properties scoped to the stat block class (`.stat-block-4e { --sb-header-bg: ... }`) so the theme doesn't leak.
 
 ### Freeform text fields should be textareas, not inputs
 Any field that might contain more than ~40 characters of text (effect descriptions, trigger text, ability descriptions) should use `<textarea>` so the content wraps visually. Use CSS `field-sizing: content` for auto-expansion.
