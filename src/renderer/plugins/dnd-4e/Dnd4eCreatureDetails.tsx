@@ -1,6 +1,5 @@
 import { useRef, useEffect, useCallback } from 'react'
 import type { Creature, CreatureBuilderConfig } from '@common/types'
-import { CreatureBuilder } from '@renderer/components/campaign/CreatureBuilder'
 import { ActionEntryEditor } from '@renderer/components/campaign/ActionEntryEditor'
 import { TagInput } from '@renderer/components/shared/TagInput'
 import './statblock.css'
@@ -157,79 +156,17 @@ export function Dnd4eCreatureDetails({ creature, onSave: save, config }: Props) 
         <span style={{ whiteSpace: 'nowrap' }}>XP {xpForCreature(level, modifier)}</span>
       </div>
 
-      {/* ── STATS ── */}
-      {/* Initiative + Senses + Perception */}
-      <div className="sb-row sb-row-sep">
+      {/* ── GROUP 1: Initiative, Senses, Speed ── */}
+      <div className="sb-row">
         <span><b className="sb-label">Initiative</b> <input className="ghost" type="number" value={(sb.initiative as number) ?? 0}
           onChange={e => u('initiative', Number(e.target.value))} /></span>
-        <span style={{ marginLeft: 'auto' }}>
+        <span>
           <b className="sb-label">Senses</b> Perception <input className="ghost" type="number" value={(sb.perception as number) ?? 0}
-            onChange={e => u('perception', Number(e.target.value))} />
+            onChange={e => u('perception', Number(e.target.value))} />;{' '}
+          <input className="ghost" value={(sb.senses as string) ?? ''} onChange={e => u('senses', e.target.value)}
+            placeholder="darkvision" />
         </span>
-        <input className="ghost" value={(sb.senses as string) ?? ''} onChange={e => u('senses', e.target.value)}
-          placeholder="darkvision" style={{ width: 120 }} />
       </div>
-
-      {/* HP + Bloodied */}
-      <div className="sb-row sb-row-sep">
-        <span><b className="sb-label">HP</b>{' '}
-        <input className="ghost" type="number" value={creature.hp}
-          onChange={e => save({ ...creature, hp: Number(e.target.value), maxHp: Number(e.target.value) })} />;</span>
-        <span><b className="sb-label">Bloodied</b> {Math.floor(creature.hp / 2)}</span>
-      </div>
-
-      {/* AC, Fortitude, Reflex, Will */}
-      {(() => {
-        const defs = (sb.defenses as Record<string, number>) ?? {}
-        const uDef = (key: string, val: number) => u('defenses', { ...defs, [key]: val })
-        return (
-          <div className="sb-row sb-row-sep">
-            <span><b className="sb-label">AC</b> <input className="ghost" type="number" value={(sb.ac as number) ?? 10}
-              onChange={e => u('ac', Number(e.target.value))} />;</span>
-            <span><b className="sb-label">Fortitude</b> <input className="ghost" type="number" value={defs.fortitude ?? 10}
-              onChange={e => uDef('fortitude', Number(e.target.value))} />,</span>
-            <span><b className="sb-label">Reflex</b> <input className="ghost" type="number" value={defs.reflex ?? 10}
-              onChange={e => uDef('reflex', Number(e.target.value))} />,</span>
-            <span><b className="sb-label">Will</b> <input className="ghost" type="number" value={defs.will ?? 10}
-              onChange={e => uDef('will', Number(e.target.value))} /></span>
-          </div>
-        )
-      })()}
-
-      {/* Other stats from CreatureBuilder (Initiative, etc.) */}
-      <div className="sb-row sb-row-sep">
-        <CreatureBuilder statBlock={sb} hp={creature.hp} maxHp={creature.maxHp}
-          onUpdate={(statBlock, hp, maxHp) => save({ ...creature, statBlock, hp, maxHp })}
-          config={config} />
-      </div>
-
-      {/* Saving throw bonus + action points (elite/solo) */}
-      {(sb.savingThrowBonus || sb.actionPoints || modifier) && (
-        <div className="sb-row sb-row-sep" style={{ fontSize: '11px' }}>
-          {((sb.savingThrowBonus as number) ?? 0) > 0 && (
-            <span><b className="sb-label">Saving Throws</b>{' +'}
-              <input className="ghost" type="number" value={(sb.savingThrowBonus as number) ?? 0}
-                onChange={e => u('savingThrowBonus', Number(e.target.value))} /></span>
-          )}
-          {((sb.actionPoints as number) ?? 0) > 0 && (
-            <span><b className="sb-label">Action Points</b>{' '}
-              <input className="ghost" type="number" value={(sb.actionPoints as number) ?? 0}
-                onChange={e => u('actionPoints', Number(e.target.value))} /></span>
-          )}
-        </div>
-      )}
-
-      {/* Immune / Resist / Vulnerable — chip-based inline */}
-      <div className="sb-row sb-row-sep">
-        <InlineEntryChips label="Immune" entries={Array.isArray(sb.immunities) ? sb.immunities as any[] : []}
-          onChange={v => u('immunities', v)} suggestions={config.damageTypes} />
-        <InlineEntryChips label="Resist" entries={Array.isArray(sb.resistances) ? sb.resistances as any[] : []}
-          onChange={v => u('resistances', v)} suggestions={config.damageTypes} showValue />
-        <InlineEntryChips label="Vulnerable" entries={Array.isArray(sb.weaknesses) ? sb.weaknesses as any[] : []}
-          onChange={v => u('weaknesses', v)} suggestions={config.damageTypes} showValue />
-      </div>
-
-      {/* Speed */}
       <div className="sb-row sb-row-sep">
         <b className="sb-label">Speed</b>
         {config.speedTypes.map(({ key, label: speedLabel }) => {
@@ -277,10 +214,58 @@ export function Dnd4eCreatureDetails({ creature, onSave: save, config }: Props) 
         })()}
       </div>
 
-      {/* ── FOOTER ── */}
+      {/* ── GROUP 2: Saving Throws, Action Points ── */}
+      {(((sb.savingThrowBonus as number) ?? 0) > 0 || ((sb.actionPoints as number) ?? 0) > 0) && (
+        <div className="sb-row sb-row-sep">
+          {((sb.savingThrowBonus as number) ?? 0) > 0 && (
+            <span><b className="sb-label">Saving Throws</b>{' +'}
+              <input className="ghost" type="number" value={(sb.savingThrowBonus as number) ?? 0}
+                onChange={e => u('savingThrowBonus', Number(e.target.value))} /></span>
+          )}
+          {((sb.actionPoints as number) ?? 0) > 0 && (
+            <span><b className="sb-label">Action Points</b>{' '}
+              <input className="ghost" type="number" value={(sb.actionPoints as number) ?? 0}
+                onChange={e => u('actionPoints', Number(e.target.value))} /></span>
+          )}
+        </div>
+      )}
+
+      {/* ── GROUP 3: AC, HP, Defenses, Immunities, Resistances, Weaknesses ── */}
+      {(() => {
+        const defs = (sb.defenses as Record<string, number>) ?? {}
+        const uDef = (key: string, val: number) => u('defenses', { ...defs, [key]: val })
+        return (
+          <div className="sb-row">
+            <span><b className="sb-label">AC</b> <input className="ghost" type="number" value={(sb.ac as number) ?? 10}
+              onChange={e => u('ac', Number(e.target.value))} />;</span>
+            <span><b className="sb-label">Fortitude</b> <input className="ghost" type="number" value={defs.fortitude ?? 10}
+              onChange={e => uDef('fortitude', Number(e.target.value))} />,</span>
+            <span><b className="sb-label">Reflex</b> <input className="ghost" type="number" value={defs.reflex ?? 10}
+              onChange={e => uDef('reflex', Number(e.target.value))} />,</span>
+            <span><b className="sb-label">Will</b> <input className="ghost" type="number" value={defs.will ?? 10}
+              onChange={e => uDef('will', Number(e.target.value))} /></span>
+          </div>
+        )
+      })()}
+      <div className="sb-row">
+        <span><b className="sb-label">HP</b>{' '}
+        <input className="ghost" type="number" value={creature.hp}
+          onChange={e => save({ ...creature, hp: Number(e.target.value), maxHp: Number(e.target.value) })} />;</span>
+        <span><b className="sb-label">Bloodied</b> {Math.floor(creature.hp / 2)}</span>
+      </div>
+      <div className="sb-row sb-row-sep">
+        <InlineEntryChips label="Immune" entries={Array.isArray(sb.immunities) ? sb.immunities as any[] : []}
+          onChange={v => u('immunities', v)} suggestions={config.damageTypes} />
+        <InlineEntryChips label="Resist" entries={Array.isArray(sb.resistances) ? sb.resistances as any[] : []}
+          onChange={v => u('resistances', v)} suggestions={config.damageTypes} showValue />
+        <InlineEntryChips label="Vulnerable" entries={Array.isArray(sb.weaknesses) ? sb.weaknesses as any[] : []}
+          onChange={v => u('weaknesses', v)} suggestions={config.damageTypes} showValue />
+      </div>
+
+      {/* ── GROUP 4: Alignment, Languages, Skills, Equipment ── */}
 
       {/* Alignment */}
-      <div className="sb-row sb-row-sep">
+      <div className="sb-row">
         <b className="sb-label">Alignment</b>{' '}
         <select className="ghost" value={(sb.alignment as string) ?? ''} onChange={e => u('alignment', e.target.value)}
           style={{ fontSize: 'inherit' }}>
@@ -290,7 +275,7 @@ export function Dnd4eCreatureDetails({ creature, onSave: save, config }: Props) 
       </div>
 
       {/* Languages */}
-      <div className="sb-row sb-row-sep">
+      <div className="sb-row">
         <b className="sb-label">Languages</b>
         <TagInput compact
           values={Array.isArray(sb.languages) ? sb.languages : ((sb.languages as string) ?? '').split(',').map((s: string) => s.trim()).filter(Boolean)}
@@ -299,7 +284,7 @@ export function Dnd4eCreatureDetails({ creature, onSave: save, config }: Props) 
       </div>
 
       {/* Skills */}
-      <div className="sb-row sb-row-sep">
+      <div className="sb-row">
         <b className="sb-label">Skills</b>
         {(() => {
           const skills = (sb.skills as Record<string, number>) ?? {}
