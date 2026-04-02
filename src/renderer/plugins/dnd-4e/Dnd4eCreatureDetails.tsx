@@ -461,13 +461,13 @@ function InlineEntryChips({ label, entries, onChange, suggestions, showValue }: 
         return (
           <span key={e.type} style={{ display: 'inline-flex', alignItems: 'center', gap: 1, padding: '0 3px', background: 'var(--color-bg-hover)', borderRadius: 'var(--radius-sm)', fontSize: 'var(--font-size-xs)' }}>
             {e.type}
-            {showValue && <>
-              {' '}<input className="ghost" type="number" value={e.value ?? ''}
+            {showValue && (
+              <input className="ghost" type="number" value={e.value ?? ''}
                 ref={justAdded ? focusRef : undefined}
                 onChange={ev => updateVal(i, Number(ev.target.value))}
                 onBlur={ev => { if (ev.target.value === '') updateVal(i, 0) }}
-                style={{ width: 30, fontWeight: 600, borderBottom: '1px solid var(--color-border)' }} />
-            </>}
+                style={{ width: 22, fontWeight: 600, marginLeft: 3, borderBottom: '1px solid var(--color-border)' }} />
+            )}
             <button onClick={() => remove(i)}
               style={{ fontSize: '9px', color: 'var(--color-text-muted)', padding: '0 1px' }}>x</button>
           </span>
