@@ -44,7 +44,7 @@ interface Props {
 }
 
 // Shared inline styles
-const lbl = { fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)', whiteSpace: 'nowrap' as const }
+const lbl = { fontSize: 'var(--font-size-xs)', color: 'var(--color-text-secondary)', whiteSpace: 'nowrap' as const }
 const sep = { borderBottom: '1px solid var(--color-border)', marginBottom: 'var(--space-2)', paddingBottom: 'var(--space-2)' }
 const row = { display: 'flex', gap: 'var(--space-2)', alignItems: 'center', flexWrap: 'wrap' as const, marginBottom: 'var(--space-2)' }
 // Compact ghost-style number input for stat values

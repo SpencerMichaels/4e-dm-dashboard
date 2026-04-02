@@ -24,7 +24,7 @@ function tierShort(tier: string, config: CreatureBuilderConfig): string {
 }
 
 // Shared inline styles
-const lbl = { fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)', whiteSpace: 'nowrap' as const }
+const lbl = { fontSize: 'var(--font-size-xs)', color: 'var(--color-text-secondary)', whiteSpace: 'nowrap' as const }
 const numStyle = { width: 45, textAlign: 'center' as const, fontSize: 'var(--font-size-xs)' }
 
 export function CreatureBuilder({ statBlock, hp, maxHp, onUpdate, config }: Props) {
