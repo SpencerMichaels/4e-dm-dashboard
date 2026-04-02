@@ -357,14 +357,11 @@ function FullPowerRow({ entry: e, idx, config, level, statBlock, atkBonusTables,
           <div><b style={lbl}>Trigger</b> <input className="ghost" value={e.trigger} onChange={(ev) => onUpdate(idx, { trigger: ev.target.value })}
             style={{ fontStyle: 'italic', minWidth: 100 }} /></div>
         )}
-        {e.requirement ? (
+        {e.requirement && (
           <div><b style={lbl}>Requirement</b> <input className="ghost" value={e.requirement} onChange={(ev) => onUpdate(idx, { requirement: ev.target.value })}
             style={{ fontStyle: 'italic', minWidth: 100 }} />
             <button onClick={() => onUpdate(idx, { requirement: '' })} style={{ color: 'var(--color-text-muted)', padding: '0 2px', lineHeight: 1 }}>×</button></div>
-        ) : isTriggered && !e.requirement ? (
-          <button onClick={() => onUpdate(idx, { requirement: ' ' })}
-            style={{ color: 'var(--color-text-muted)', border: '1px dashed var(--color-border)', borderRadius: 'var(--radius-sm)', padding: '0 4px', background: 'transparent', cursor: 'pointer' }}>+ requirement</button>
-        ) : null}
+        )}
 
         {/* Attack line: Range; +N vs Defense; target */}
         {(e.attackBonus != null || e.target || e.rangeValue) && (
@@ -405,8 +402,8 @@ function FullPowerRow({ entry: e, idx, config, level, statBlock, atkBonusTables,
           { key: 'effect' as const, label: 'Effect' },
         ].map(({ key, label }) => (
           e[key] ? (
-            <div key={key} style={{ display: 'flex', gap: 4, alignItems: 'flex-start' }}>
-              <b style={{ ...lbl, paddingTop: 2 }}>{label}</b>
+            <div key={key} style={{ display: 'flex', gap: 4, alignItems: 'baseline' }}>
+              <b style={lbl}>{label}</b>
               <textarea className="ghost" value={e[key]} onChange={(ev) => onUpdate(idx, { [key]: ev.target.value })}
                 style={{ flex: 1 }} />
               <button onClick={() => onUpdate(idx, { [key]: '' })} style={{ color: 'var(--color-text-muted)', padding: '0 2px', lineHeight: 1 }}>×</button>
@@ -423,8 +420,11 @@ function FullPowerRow({ entry: e, idx, config, level, statBlock, atkBonusTables,
           {!e.hit && <button onClick={() => onUpdate(idx, { hit: ' ' })} style={{ color: 'var(--color-text-muted)', border: '1px dashed var(--color-border)', borderRadius: 'var(--radius-sm)', padding: '0 4px', background: 'transparent', cursor: 'pointer' }}>+ hit</button>}
           {!e.miss && <button onClick={() => onUpdate(idx, { miss: ' ' })} style={{ color: 'var(--color-text-muted)', border: '1px dashed var(--color-border)', borderRadius: 'var(--radius-sm)', padding: '0 4px', background: 'transparent', cursor: 'pointer' }}>+ miss</button>}
           {!e.effect && <button onClick={() => onUpdate(idx, { effect: ' ' })} style={{ color: 'var(--color-text-muted)', border: '1px dashed var(--color-border)', borderRadius: 'var(--radius-sm)', padding: '0 4px', background: 'transparent', cursor: 'pointer' }}>+ effect</button>}
-          {!isTriggered && !e.requirement && (
+          {!e.requirement && (
             <button onClick={() => onUpdate(idx, { requirement: ' ' })} style={{ color: 'var(--color-text-muted)', border: '1px dashed var(--color-border)', borderRadius: 'var(--radius-sm)', padding: '0 4px', background: 'transparent', cursor: 'pointer' }}>+ req</button>
+          )}
+          {normalizeDamage(e.damage).length === 0 && e.attackBonus != null && (
+            <button onClick={() => onUpdate(idx, { damage: [{ expr: '', type: '', ongoing: false }] })} style={{ color: 'var(--color-text-muted)', border: '1px dashed var(--color-border)', borderRadius: 'var(--radius-sm)', padding: '0 4px', background: 'transparent', cursor: 'pointer' }}>+ damage</button>
           )}
         </div>
       </div>
