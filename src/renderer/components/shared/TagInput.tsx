@@ -5,9 +5,10 @@ interface Props {
   onChange: (values: string[]) => void
   suggestions?: string[]
   placeholder?: string
+  compact?: boolean
 }
 
-export function TagInput({ values, onChange, suggestions = [], placeholder }: Props) {
+export function TagInput({ values, onChange, suggestions = [], placeholder, compact }: Props) {
   const [input, setInput] = useState('')
   const [showSuggestions, setShowSuggestions] = useState(false)
   const [highlightIndex, setHighlightIndex] = useState(0)
@@ -61,14 +62,14 @@ export function TagInput({ values, onChange, suggestions = [], placeholder }: Pr
   return (
     <div style={{ position: 'relative' }}>
       <div style={{
-        display: 'flex',
+        display: compact ? 'inline-flex' : 'flex',
         flexWrap: 'wrap',
-        gap: 4,
-        padding: '4px 6px',
-        border: '1px solid var(--color-border)',
+        gap: compact ? 2 : 4,
+        padding: compact ? '0 2px' : '4px 6px',
+        border: compact ? 'none' : '1px solid var(--color-border)',
         borderRadius: 'var(--radius-sm)',
-        background: 'var(--color-bg-surface)',
-        minHeight: 34,
+        background: compact ? 'transparent' : 'var(--color-bg-surface)',
+        minHeight: compact ? undefined : 34,
         alignItems: 'center',
         cursor: 'text',
       }}
@@ -78,11 +79,11 @@ export function TagInput({ values, onChange, suggestions = [], placeholder }: Pr
           <span key={i} style={{
             display: 'inline-flex',
             alignItems: 'center',
-            gap: 4,
-            padding: '2px 8px',
+            gap: compact ? 2 : 4,
+            padding: compact ? '0 4px' : '2px 8px',
             background: 'var(--color-bg-hover)',
             borderRadius: 'var(--radius-sm)',
-            fontSize: 'var(--font-size-sm)',
+            fontSize: compact ? 'var(--font-size-xs)' : 'var(--font-size-sm)',
           }}>
             {val}
             <button
@@ -105,12 +106,12 @@ export function TagInput({ values, onChange, suggestions = [], placeholder }: Pr
           placeholder={values.length === 0 ? placeholder : ''}
           style={{
             flex: 1,
-            minWidth: 80,
+            minWidth: compact ? 50 : 80,
             border: 'none',
             background: 'transparent',
             outline: 'none',
-            fontSize: 'var(--font-size-sm)',
-            padding: '2px 0',
+            fontSize: compact ? 'var(--font-size-xs)' : 'var(--font-size-sm)',
+            padding: compact ? '0' : '2px 0',
           }}
         />
       </div>

@@ -132,7 +132,7 @@ export function Dnd4eCreatureDetails({ creature, onSave: save, config }: Props) 
             {CREATURE_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
           </select>
           {' '}
-          <TagInput values={keywords} onChange={kw => setTraits(origin, creatureType, kw)}
+          <TagInput compact values={keywords} onChange={kw => setTraits(origin, creatureType, kw)}
             suggestions={CREATURE_KEYWORDS} placeholder="(keywords)" />
         </span>
         <span style={{ whiteSpace: 'nowrap' }}>XP <input className="ghost" type="number" value={(sb.xp as number) ?? 0}
