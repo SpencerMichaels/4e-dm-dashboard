@@ -120,19 +120,19 @@ export function ActionEntryEditor({ entries, onChange, config, level, statBlock 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
       {traits.length > 0 && <SectionLabel text="Traits" />}
-      {traits.map(({ e, i }, rowIdx) => (
-        <TraitRow key={i} entry={e} idx={i} onUpdate={update} onRemove={remove} alt={rowIdx % 2 === 1} />
+      {traits.map(({ e, i }) => (
+        <TraitRow key={i} entry={e} idx={i} onUpdate={update} onRemove={remove} />
       ))}
 
       {auras.length > 0 && <SectionLabel text="Auras" />}
-      {auras.map(({ e, i }, rowIdx) => (
-        <AuraRow key={i} entry={e} idx={i} onUpdate={update} onRemove={remove} alt={rowIdx % 2 === 1} />
+      {auras.map(({ e, i }) => (
+        <AuraRow key={i} entry={e} idx={i} onUpdate={update} onRemove={remove} />
       ))}
 
       {actions.length > 0 && <SectionLabel text={config.usageTypes ? 'Powers' : 'Actions'} />}
-      {actions.map(({ e, i }, rowIdx) => (
+      {actions.map(({ e, i }) => (
         <FullPowerRow key={i} entry={e} idx={i} config={config} level={level} statBlock={statBlock}
-          atkBonusTables={atkBonusTables} alt={rowIdx % 2 === 1}
+          atkBonusTables={atkBonusTables}
           onUpdate={update} onRemove={remove} onMove={move} />
       ))}
 
@@ -231,12 +231,12 @@ function SimpleAttackRow({ entry: e, idx, config, level, atkBonusTables, onUpdat
 
 // --- Grouped mode ---
 
-function TraitRow({ entry: e, idx, onUpdate, onRemove, alt }: {
-  entry: ActionEntry; idx: number; alt?: boolean
+function TraitRow({ entry: e, idx, onUpdate, onRemove }: {
+  entry: ActionEntry; idx: number
   onUpdate: (i: number, p: Partial<ActionEntry>) => void; onRemove: (i: number) => void
 }) {
   return (
-    <div style={{ padding: '4px 8px', background: alt ? 'var(--sb-power-alt, var(--color-bg-surface))' : 'transparent', fontSize: 'var(--font-size-xs)', lineHeight: 1.5 }}>
+    <div style={{ padding: '4px 8px', fontSize: 'var(--font-size-xs)', lineHeight: 1.5 }}>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 4 }}>
         <input className="ghost" value={e.name} onChange={(ev) => onUpdate(idx, { name: ev.target.value })}
           placeholder="Trait name" style={{ fontWeight: 700, fontSize: 'var(--font-size-sm)', minWidth: 60 }} />
@@ -252,12 +252,12 @@ function TraitRow({ entry: e, idx, onUpdate, onRemove, alt }: {
   )
 }
 
-function AuraRow({ entry: e, idx, onUpdate, onRemove, alt }: {
-  entry: ActionEntry; idx: number; alt?: boolean
+function AuraRow({ entry: e, idx, onUpdate, onRemove }: {
+  entry: ActionEntry; idx: number
   onUpdate: (i: number, p: Partial<ActionEntry>) => void; onRemove: (i: number) => void
 }) {
   return (
-    <div style={{ padding: '4px 8px', background: alt ? 'var(--sb-power-alt, var(--color-bg-surface))' : 'transparent', fontSize: 'var(--font-size-xs)', lineHeight: 1.5 }}>
+    <div style={{ padding: '4px 8px', fontSize: 'var(--font-size-xs)', lineHeight: 1.5 }}>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 4 }}>
         <input className="ghost" value={e.name} onChange={(ev) => onUpdate(idx, { name: ev.target.value })}
           placeholder="Aura name" style={{ fontWeight: 700, fontSize: 'var(--font-size-sm)', minWidth: 60 }} />
@@ -275,8 +275,8 @@ function AuraRow({ entry: e, idx, onUpdate, onRemove, alt }: {
   )
 }
 
-function FullPowerRow({ entry: e, idx, config, level, statBlock, atkBonusTables, alt, onUpdate, onRemove, onMove }: {
-  entry: ActionEntry; idx: number; config: CreatureBuilderConfig; level?: number; alt?: boolean
+function FullPowerRow({ entry: e, idx, config, level, statBlock, atkBonusTables, onUpdate, onRemove, onMove }: {
+  entry: ActionEntry; idx: number; config: CreatureBuilderConfig; level?: number
   statBlock?: Record<string, unknown>
   atkBonusTables: { key: string; label: string; table: { [level: number]: Record<string, number> } }[]
   onUpdate: (i: number, p: Partial<ActionEntry>) => void
@@ -288,19 +288,23 @@ function FullPowerRow({ entry: e, idx, config, level, statBlock, atkBonusTables,
 
   const xs = { fontSize: 'var(--font-size-xs)' }
   const lbl = { ...xs, color: 'var(--color-text-secondary)', whiteSpace: 'nowrap' as const }
-  const ghostSelect = { ...xs, appearance: 'none' as const, WebkitAppearance: 'none' as const, background: 'transparent', border: 'none', borderBottom: '1px solid transparent', padding: 0, cursor: 'pointer', color: 'inherit' }
+  const ghostSelect = { ...xs, appearance: 'none' as const, WebkitAppearance: 'none' as const, background: 'transparent', border: 'none', padding: 0, cursor: 'pointer', color: 'inherit', textDecoration: 'underline dotted', textUnderlineOffset: '2px' }
 
   // Build the header paren text: "(standard; at-will)" or "(immediate interrupt; encounter)"
   const actionLabel = config.actionTypes?.find(a => a.value === e.actionType)?.label?.toLowerCase() ?? e.actionType
   const usageLabel = config.usageTypes?.find(u => u.value === e.usage)?.label ?? e.usage
 
   return (
-    <div style={{ padding: '4px 8px', background: alt ? 'var(--sb-power-alt, var(--color-bg-surface))' : 'transparent', fontSize: 'var(--font-size-xs)', lineHeight: 1.5 }}>
-      {/* Header: Name (action; usage) ✦ Keywords — dense single line */}
-      <div style={{ display: 'flex', alignItems: 'baseline', gap: 4, marginBottom: 2 }}>
+    <div style={{ fontSize: 'var(--font-size-xs)', lineHeight: 1.5, marginBottom: 2 }}>
+      {/* Header bar — colored by usage */}
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: 4, padding: '2px 8px',
+        background: usageColor, color: '#fff',
+        '--color-text-secondary': 'rgba(255,255,255,0.7)', '--color-text-muted': 'rgba(255,255,255,0.5)',
+        '--color-bg-hover': 'rgba(255,255,255,0.18)', '--color-border': 'rgba(255,255,255,0.3)',
+      } as React.CSSProperties}>
         <input className="ghost" value={e.name} onChange={(ev) => onUpdate(idx, { name: ev.target.value })}
-          placeholder="Power name" style={{ fontWeight: 700, fontSize: 'var(--font-size-sm)', flex: '0 1 auto', minWidth: 60 }} />
-        <span style={{ color: 'var(--color-text-secondary)' }}>(
+          placeholder="Power name" style={{ fontWeight: 700, fontSize: 'var(--font-size-sm)', flex: '0 1 auto', minWidth: 60, color: 'inherit' }} />
+        <span style={{ color: 'rgba(255,255,255,0.8)' }}>(
           <select style={ghostSelect} value={e.actionType} onChange={(ev) => onUpdate(idx, { actionType: ev.target.value })}>
             {config.actionTypes?.map((at) => <option key={at.value} value={at.value}>{at.label.toLowerCase()}</option>)}
           </select>
@@ -325,7 +329,7 @@ function FullPowerRow({ entry: e, idx, config, level, statBlock, atkBonusTables,
       </div>
 
       {/* Body — indented, dense */}
-      <div style={{ paddingLeft: 12 }}>
+      <div style={{ padding: '2px 8px 4px 12px' }}>
         {/* Trigger */}
         {isTriggered && e.trigger && (
           <div><b style={lbl}>Trigger</b> <input className="ghost" value={e.trigger} onChange={(ev) => onUpdate(idx, { trigger: ev.target.value })}
@@ -479,31 +483,32 @@ function DamagePartsEditor({ parts, config, level, onChange }: {
   const xs = { fontSize: 'var(--font-size-xs)' }
   const ongoingLabel = config.damageTypes.includes('persistent') ? 'persistent' : 'ongoing'
 
+  const ghostSel = { ...xs, appearance: 'none' as const, WebkitAppearance: 'none' as const, background: 'transparent', border: 'none', padding: 0, cursor: 'pointer', textDecoration: 'underline dotted', textUnderlineOffset: '2px' }
+
   return (
     <div style={{ marginBottom: 2 }}>
       {parts.map((p, i) => (
-        <div key={i} style={{ display: 'flex', gap: 'var(--space-2)', alignItems: 'center', marginBottom: 2, flexWrap: 'wrap' }}>
-          {i === 0 && <span style={{ ...xs, color: 'var(--color-text-muted)', minWidth: 32 }}>Dmg</span>}
-          {i > 0 && <span style={{ ...xs, color: 'var(--color-text-muted)', minWidth: 32 }}>plus</span>}
-          <label style={{ display: 'flex', alignItems: 'center', gap: 2, ...xs, color: 'var(--color-text-muted)', cursor: 'pointer' }}>
-            <input type="checkbox" checked={p.ongoing} onChange={(ev) => updatePart(i, { ongoing: ev.target.checked })}
-              style={{ width: 13, height: 13 }} />
-            {ongoingLabel}
-          </label>
-          <input value={p.expr} onChange={(ev) => updatePart(i, { expr: ev.target.value })} placeholder="2d8+6"
-            style={{ width: 80, ...xs }} />
+        <div key={i} style={{ display: 'flex', gap: 4, alignItems: 'center', flexWrap: 'wrap' }}>
+          {i === 0 && <b style={{ ...xs, color: 'var(--color-text-secondary)' }}>Damage</b>}
+          {i > 0 && <span style={{ ...xs, color: 'var(--color-text-secondary)' }}>plus</span>}
+          <input className="ghost" value={p.expr} onChange={(ev) => updatePart(i, { expr: ev.target.value })} placeholder="2d8+6" />
+          <select style={ghostSel} value={p.type} onChange={(ev) => updatePart(i, { type: ev.target.value })}>
+            <option value="">untyped</option>
+            {config.damageTypes.map((dt) => <option key={dt} value={dt}>{dt}</option>)}
+          </select>
           {i === 0 && level != null && config.strikeDamageDice?.[level] && (
             <DiceTierButtons table={config.strikeDamageDice} level={level} currentDice={p.expr} config={config}
               onSelect={(dice) => updatePart(0, { expr: dice })} />
           )}
-          <select value={p.type} onChange={(ev) => updatePart(i, { type: ev.target.value })} style={{ width: 100, ...xs }}>
-            <option value="">untyped</option>
-            {config.damageTypes.map((dt) => <option key={dt} value={dt}>{dt}</option>)}
-          </select>
-          <button onClick={() => removePart(i)} style={{ ...xs, color: 'var(--color-text-muted)', padding: '1px 4px' }}>x</button>
+          {p.ongoing && <span style={{ ...xs, color: 'var(--color-text-secondary)' }}>({ongoingLabel})</span>}
+          <label style={{ display: 'inline-flex', alignItems: 'center', gap: 2, ...xs, color: 'var(--color-text-muted)', cursor: 'pointer' }}>
+            <input type="checkbox" checked={p.ongoing} onChange={(ev) => updatePart(i, { ongoing: ev.target.checked })}
+              style={{ width: 11, height: 11 }} />
+          </label>
+          <button onClick={() => removePart(i)} style={{ color: 'var(--color-text-muted)', padding: '0 2px', lineHeight: 1 }}>×</button>
         </div>
       ))}
-      <button onClick={addPart} style={{ fontSize: '10px', color: 'var(--color-text-muted)', border: '1px dashed var(--color-border)', borderRadius: 'var(--radius-sm)', padding: '1px 6px', background: 'transparent', cursor: 'pointer' }}>+ damage</button>
+      <button onClick={addPart} style={{ color: 'var(--color-text-muted)', border: '1px dashed var(--color-border)', borderRadius: 'var(--radius-sm)', padding: '0 4px', background: 'transparent', cursor: 'pointer' }}>+ damage</button>
     </div>
   )
 }
