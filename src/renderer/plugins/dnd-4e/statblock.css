@@ -102,18 +102,17 @@
   white-space: nowrap;
 }
 
-/* Ghost inputs within stat block — even more minimal */
+/* Ghost inputs within stat block — minimal padding, left-aligned numbers */
 .stat-block-4e input.ghost,
 .stat-block-4e select.ghost {
   font-family: inherit;
   font-size: inherit;
-  padding: 0 1px;
+  padding: 0;
 }
 
 .stat-block-4e input.ghost[type="number"] {
   width: 32px;
-  text-align: center;
-  padding: 0;
+  text-align: left;
   -moz-appearance: textfield;
 }
 
