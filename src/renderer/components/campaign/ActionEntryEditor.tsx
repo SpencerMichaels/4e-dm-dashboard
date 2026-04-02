@@ -118,21 +118,21 @@ export function ActionEntryEditor({ entries, onChange, config, level, statBlock 
 
   // Grouped layout (traits, auras, actions)
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
       {traits.length > 0 && <SectionLabel text="Traits" />}
-      {traits.map(({ e, i }) => (
-        <TraitRow key={i} entry={e} idx={i} onUpdate={update} onRemove={remove} />
+      {traits.map(({ e, i }, rowIdx) => (
+        <TraitRow key={i} entry={e} idx={i} onUpdate={update} onRemove={remove} alt={rowIdx % 2 === 1} />
       ))}
 
       {auras.length > 0 && <SectionLabel text="Auras" />}
-      {auras.map(({ e, i }) => (
-        <AuraRow key={i} entry={e} idx={i} onUpdate={update} onRemove={remove} />
+      {auras.map(({ e, i }, rowIdx) => (
+        <AuraRow key={i} entry={e} idx={i} onUpdate={update} onRemove={remove} alt={rowIdx % 2 === 1} />
       ))}
 
       {actions.length > 0 && <SectionLabel text={config.usageTypes ? 'Powers' : 'Actions'} />}
-      {actions.map(({ e, i }) => (
+      {actions.map(({ e, i }, rowIdx) => (
         <FullPowerRow key={i} entry={e} idx={i} config={config} level={level} statBlock={statBlock}
-          atkBonusTables={atkBonusTables}
+          atkBonusTables={atkBonusTables} alt={rowIdx % 2 === 1}
           onUpdate={update} onRemove={remove} onMove={move} />
       ))}
 
@@ -231,12 +231,12 @@ function SimpleAttackRow({ entry: e, idx, config, level, atkBonusTables, onUpdat
 
 // --- Grouped mode ---
 
-function TraitRow({ entry: e, idx, onUpdate, onRemove }: {
-  entry: ActionEntry; idx: number
+function TraitRow({ entry: e, idx, onUpdate, onRemove, alt }: {
+  entry: ActionEntry; idx: number; alt?: boolean
   onUpdate: (i: number, p: Partial<ActionEntry>) => void; onRemove: (i: number) => void
 }) {
   return (
-    <div style={{ display: 'flex', gap: 'var(--space-2)', alignItems: 'center', padding: '4px var(--space-2)', background: 'var(--color-bg-surface)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-sm)' }}>
+    <div style={{ display: 'flex', gap: 'var(--space-2)', alignItems: 'center', padding: '4px var(--space-2)', background: alt ? 'var(--sb-power-alt, var(--color-bg-surface))' : 'transparent' }}>
       <input value={e.name} onChange={(ev) => onUpdate(idx, { name: ev.target.value })} placeholder="Trait name" style={{ width: 140, fontWeight: 600, fontSize: 'var(--font-size-sm)' }} />
       <textarea value={e.effect} onChange={(ev) => onUpdate(idx, { effect: ev.target.value })} placeholder="Effect description" style={{ flex: 1, fontSize: 'var(--font-size-xs)' }} />
       <button onClick={() => onRemove(idx)} style={{ color: 'var(--color-danger)', fontSize: 'var(--font-size-xs)', padding: '2px 4px' }}>x</button>
@@ -244,12 +244,12 @@ function TraitRow({ entry: e, idx, onUpdate, onRemove }: {
   )
 }
 
-function AuraRow({ entry: e, idx, onUpdate, onRemove }: {
-  entry: ActionEntry; idx: number
+function AuraRow({ entry: e, idx, onUpdate, onRemove, alt }: {
+  entry: ActionEntry; idx: number; alt?: boolean
   onUpdate: (i: number, p: Partial<ActionEntry>) => void; onRemove: (i: number) => void
 }) {
   return (
-    <div style={{ padding: '4px var(--space-2)', background: 'var(--color-bg-surface)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-sm)' }}>
+    <div style={{ padding: '4px var(--space-2)', background: alt ? 'var(--sb-power-alt, var(--color-bg-surface))' : 'transparent' }}>
       <div style={{ display: 'flex', gap: 'var(--space-2)', alignItems: 'center', marginBottom: 'var(--space-1)' }}>
         <input value={e.name} onChange={(ev) => onUpdate(idx, { name: ev.target.value })} placeholder="Aura name" style={{ flex: 1, fontWeight: 600, fontSize: 'var(--font-size-sm)' }} />
         <label style={{ display: 'flex', alignItems: 'center', gap: 2, fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)' }}>
@@ -262,8 +262,8 @@ function AuraRow({ entry: e, idx, onUpdate, onRemove }: {
   )
 }
 
-function FullPowerRow({ entry: e, idx, config, level, statBlock, atkBonusTables, onUpdate, onRemove, onMove }: {
-  entry: ActionEntry; idx: number; config: CreatureBuilderConfig; level?: number
+function FullPowerRow({ entry: e, idx, config, level, statBlock, atkBonusTables, alt, onUpdate, onRemove, onMove }: {
+  entry: ActionEntry; idx: number; config: CreatureBuilderConfig; level?: number; alt?: boolean
   statBlock?: Record<string, unknown>
   atkBonusTables: { key: string; label: string; table: { [level: number]: Record<string, number> } }[]
   onUpdate: (i: number, p: Partial<ActionEntry>) => void
@@ -274,7 +274,7 @@ function FullPowerRow({ entry: e, idx, config, level, statBlock, atkBonusTables,
   const isTriggered = (config.triggeredActionTypes ?? ['reaction']).includes(e.actionType)
 
   return (
-    <div style={{ padding: 'var(--space-2)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-sm)', background: 'var(--color-bg-surface)', borderLeft: hasUsage ? `3px solid ${usageColor}` : undefined }}>
+    <div style={{ padding: 'var(--space-2)', background: alt ? 'var(--sb-power-alt, var(--color-bg-surface))' : 'transparent', borderLeft: hasUsage ? `3px solid ${usageColor}` : undefined }}>
       {/* Name + action type + usage */}
       <div style={{ display: 'flex', gap: 'var(--space-2)', alignItems: 'center', marginBottom: 'var(--space-2)' }}>
         <input value={e.name} onChange={(ev) => onUpdate(idx, { name: ev.target.value })} placeholder={hasUsage ? 'Power name' : 'Ability name'} style={{ flex: 1, fontWeight: 600, fontSize: 'var(--font-size-sm)' }} />

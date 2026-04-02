@@ -38,6 +38,13 @@ const DND4E_MONSTER_MODIFIERS = [
 ]
 const DND4E_ALIGNMENTS = ['Lawful Good', 'Good', 'Unaligned', 'Evil', 'Chaotic Evil']
 const SIZES = ['Tiny', 'Small', 'Medium', 'Large', 'Huge', 'Gargantuan']
+const ORIGINS = ['aberrant', 'elemental', 'fey', 'immortal', 'natural', 'shadow']
+const CREATURE_TYPES = ['animate', 'beast', 'humanoid', 'magical beast']
+const CREATURE_KEYWORDS = [
+  'aquatic', 'blind', 'construct', 'demon', 'devil', 'dragon',
+  'giant', 'goblin', 'homunculus', 'living construct',
+  'mount', 'ooze', 'plant', 'reptile', 'shapechanger', 'spider', 'swarm', 'undead',
+]
 
 interface Props {
   creature: Creature
@@ -66,9 +73,16 @@ export function Dnd4eCreatureDetails({ creature, onSave: save, config }: Props) 
   const roleLabel = (modifier ? modifier.charAt(0).toUpperCase() + modifier.slice(1) + ' ' : '') +
     (role ? role.charAt(0).toUpperCase() + role.slice(1) : '')
 
+  // Traits structure: [origin, type, ...keywords]
+  const traits = Array.isArray(sb.traits) ? sb.traits as string[] : []
+  const origin = traits[0] ?? ''
+  const creatureType = traits[1] ?? ''
+  const keywords = traits.slice(2)
+
   const u = (key: string, val: unknown) => save({ ...creature, statBlock: { ...sb, [key]: val } })
-  const gI = (key: string) => <input className="ghost" type="number" value={(sb[key] as number) ?? 0}
-    onChange={e => u(key, Number(e.target.value))} />
+  const setTraits = (newOrigin: string, newType: string, newKw: string[]) => {
+    u('traits', [newOrigin, newType, ...newKw].filter(Boolean))
+  }
 
   return (
     <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-4)' }}>
@@ -78,39 +92,42 @@ export function Dnd4eCreatureDetails({ creature, onSave: save, config }: Props) 
 
       {/* ── HEADER: Name + Level/Role ── */}
       <div className="sb-header">
-        <span className="sb-name">{creature.name || 'Unnamed'}</span>
-        <span>Level {level} {roleLabel}</span>
+        <input className="ghost sb-name" value={creature.name}
+          onChange={e => save({ ...creature, name: e.target.value })}
+          placeholder="Creature Name" style={{ color: 'inherit', flex: 1 }} />
+        <span style={{ whiteSpace: 'nowrap' }}>Level {level} {roleLabel}</span>
       </div>
       <div className="sb-subheader">
         <span>
-          {/* Size + type selectors */}
+          {/* Size origin type (keywords) */}
           <select className="ghost" value={(sb.size as string) ?? 'Medium'} onChange={e => u('size', e.target.value)}
             style={{ color: 'inherit', fontStyle: 'inherit', background: 'transparent' }}>
             {SIZES.map(s => <option key={s} value={s}>{s}</option>)}
+          </select>{' '}
+          <select className="ghost" value={origin} onChange={e => setTraits(e.target.value, creatureType, keywords)}
+            style={{ color: 'inherit', fontStyle: 'inherit', background: 'transparent' }}>
+            <option value="">origin</option>
+            {ORIGINS.map(o => <option key={o} value={o}>{o}</option>)}
+          </select>{' '}
+          <select className="ghost" value={creatureType} onChange={e => setTraits(origin, e.target.value, keywords)}
+            style={{ color: 'inherit', fontStyle: 'inherit', background: 'transparent' }}>
+            <option value="">type</option>
+            {CREATURE_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
           </select>
-          {' '}
-          <TagInput values={Array.isArray(sb.traits) ? sb.traits : []}
-            onChange={traits => u('traits', traits)}
-            suggestions={config.creatureTraits} placeholder="origin type..." />
+          {keywords.length > 0 && <> ({keywords.join(', ')})</>}
         </span>
-        <span>XP {gI('xp')}</span>
+        <span style={{ whiteSpace: 'nowrap' }}>XP <input className="ghost" type="number" value={(sb.xp as number) ?? 0}
+          onChange={e => u('xp', Number(e.target.value))} style={{ color: 'inherit', width: 50 }} /></span>
       </div>
-
-      {/* ── Description (flavor) ── */}
-      {(sb.description as string) && (
-        <div style={{ padding: '4px 8px', fontStyle: 'italic', fontSize: '11px', color: 'var(--color-text-secondary)' }}>
-          <textarea className="ghost" value={(sb.description as string) ?? ''}
-            onChange={e => u('description', e.target.value)}
-            style={{ width: '100%', fontStyle: 'italic', fontSize: '11px', color: 'inherit' }} />
-        </div>
-      )}
 
       {/* ── STATS ── */}
       {/* Initiative + Senses + Perception */}
       <div className="sb-row sb-row-sep">
-        <span><b className="sb-label">Initiative</b> {gI('initiative')}</span>
+        <span><b className="sb-label">Initiative</b> <input className="ghost" type="number" value={(sb.initiative as number) ?? 0}
+          onChange={e => u('initiative', Number(e.target.value))} /></span>
         <span style={{ marginLeft: 'auto' }}>
-          <b className="sb-label">Senses</b> Perception {gI('perception')};{' '}
+          <b className="sb-label">Senses</b> Perception <input className="ghost" type="number" value={(sb.perception as number) ?? 0}
+            onChange={e => u('perception', Number(e.target.value))} />;{' '}
           <input className="ghost" value={(sb.senses as string) ?? ''} onChange={e => u('senses', e.target.value)}
             placeholder="darkvision" style={{ width: 120 }} />
         </span>
@@ -118,11 +135,10 @@ export function Dnd4eCreatureDetails({ creature, onSave: save, config }: Props) 
 
       {/* HP + Bloodied */}
       <div className="sb-row sb-row-sep">
-        <span><b className="sb-label">HP</b>{' '}
-          <input className="ghost" type="number" value={creature.hp}
-            onChange={e => save({ ...creature, hp: Number(e.target.value), maxHp: Number(e.target.value) })} />
-        </span>
-        <span>; <b className="sb-label">Bloodied</b> {Math.floor(creature.hp / 2)}</span>
+        <b className="sb-label">HP</b>{' '}
+        <input className="ghost" type="number" value={creature.hp}
+          onChange={e => save({ ...creature, hp: Number(e.target.value), maxHp: Number(e.target.value) })} />
+        ; <b className="sb-label">Bloodied</b> {Math.floor(creature.hp / 2)}
       </div>
 
       {/* AC + Defenses — from CreatureBuilder */}
@@ -136,18 +152,19 @@ export function Dnd4eCreatureDetails({ creature, onSave: save, config }: Props) 
       {(sb.savingThrowBonus || sb.actionPoints || modifier) && (
         <div className="sb-row sb-row-sep" style={{ fontSize: '11px' }}>
           {(sb.savingThrowBonus as number) > 0 && (
-            <span><b className="sb-label">Saving Throws</b> +{gI('savingThrowBonus')}</span>
+            <span><b className="sb-label">Saving Throws</b> +<input className="ghost" type="number" value={(sb.savingThrowBonus as number) ?? 0}
+              onChange={e => u('savingThrowBonus', Number(e.target.value))} /></span>
           )}
           {(sb.actionPoints as number) > 0 && (
-            <span><b className="sb-label">Action Points</b> {gI('actionPoints')}</span>
+            <span><b className="sb-label">Action Points</b> <input className="ghost" type="number" value={(sb.actionPoints as number) ?? 0}
+              onChange={e => u('actionPoints', Number(e.target.value))} /></span>
           )}
         </div>
       )}
 
       {/* Immune / Resist / Vulnerable */}
       {(() => {
-        const lvl = level
-        const defVal = config.resistWeakDefault?.[lvl]
+        const defVal = config.resistWeakDefault?.[level]
         const hasImmune = Array.isArray(sb.immunities) && sb.immunities.length > 0
         const hasResist = Array.isArray(sb.resistances) && sb.resistances.length > 0
         const hasWeak = Array.isArray(sb.weaknesses) && sb.weaknesses.length > 0
@@ -155,13 +172,13 @@ export function Dnd4eCreatureDetails({ creature, onSave: save, config }: Props) 
         return (
           <div className="sb-row-sep" style={{ padding: '2px 8px' }}>
             {hasImmune && <div><b className="sb-label">Immune</b>{' '}
-              <DamageEntryList entries={sb.immunities as any} onChange={immunities => u('immunities', immunities)}
+              <DamageEntryList entries={sb.immunities as any} onChange={v => u('immunities', v)}
                 suggestions={config.damageTypes} showValue={false} placeholder="+ immunity" /></div>}
             {hasResist && <div><b className="sb-label">Resist</b>{' '}
-              <DamageEntryList entries={sb.resistances as any} onChange={resistances => u('resistances', resistances)}
+              <DamageEntryList entries={sb.resistances as any} onChange={v => u('resistances', v)}
                 suggestions={config.damageTypes} showValue={true} placeholder="+ resistance" defaultValue={defVal} /></div>}
             {hasWeak && <div><b className="sb-label">Vulnerable</b>{' '}
-              <DamageEntryList entries={sb.weaknesses as any} onChange={weaknesses => u('weaknesses', weaknesses)}
+              <DamageEntryList entries={sb.weaknesses as any} onChange={v => u('weaknesses', v)}
                 suggestions={config.damageTypes} showValue={true} placeholder="+ vulnerability" defaultValue={defVal} /></div>}
           </div>
         )
@@ -189,29 +206,25 @@ export function Dnd4eCreatureDetails({ creature, onSave: save, config }: Props) 
             </span>
           )
         })}
-        {/* Add speed buttons for unused types */}
         {config.speedTypes.filter(({ key }) => {
           if (key === 'land') return false
-          const speeds = (sb.speeds as Record<string, number> | undefined) ?? {}
-          return !speeds[key]
-        }).map(({ key, label: speedLabel }) => {
-          const speeds = (sb.speeds as Record<string, number> | undefined) ?? {}
-          return (
-            <button key={key} onClick={() => u('speeds', { ...speeds, [key]: 6 })}
-              style={{ fontSize: '9px', padding: '0 3px', border: '1px dashed var(--color-border)', borderRadius: 'var(--radius-sm)', color: 'var(--color-text-muted)', background: 'transparent', cursor: 'pointer' }}>
-              +{speedLabel}
-            </button>
-          )
-        })}
+          return !((sb.speeds as Record<string, number> | undefined) ?? {})[key]
+        }).map(({ key, label: speedLabel }) => (
+          <button key={key} onClick={() => u('speeds', { ...((sb.speeds as Record<string, number>) ?? {}), [key]: 6 })}
+            style={{ fontSize: '9px', padding: '0 3px', border: '1px dashed var(--sb-separator)', borderRadius: 'var(--radius-sm)', color: 'var(--color-text-muted)', background: 'transparent', cursor: 'pointer' }}>
+            +{speedLabel}
+          </button>
+        ))}
       </div>
 
-      {/* Modifier buttons (standard/elite/solo) */}
+      {/* ── FOOTER ── */}
+
+      {/* Modifier buttons */}
       <div className="sb-row sb-row-sep">
         <b className="sb-label">Type</b>
         <div style={{ display: 'flex', gap: 1 }}>
           {DND4E_MONSTER_MODIFIERS.map(t => (
-            <button key={t.value}
-              onClick={() => u('monsterModifier', t.value === 'standard' ? undefined : t.value)}
+            <button key={t.value} onClick={() => u('monsterModifier', t.value === 'standard' ? undefined : t.value)}
               style={{
                 padding: '1px 5px', fontSize: '10px',
                 fontWeight: (modifier || 'standard') === t.value ? 700 : 400,
@@ -222,9 +235,12 @@ export function Dnd4eCreatureDetails({ creature, onSave: save, config }: Props) 
               }}>{t.label}</button>
           ))}
         </div>
+        <span style={{ marginLeft: 8, fontSize: '10px', color: 'var(--color-text-muted)' }}>
+          Keywords:
+        </span>
+        <TagInput values={keywords} onChange={kw => setTraits(origin, creatureType, kw)}
+          suggestions={CREATURE_KEYWORDS} placeholder="+ keyword" />
       </div>
-
-      {/* ── FOOTER: Alignment, Languages, Skills, Abilities, Equipment ── */}
 
       {/* Alignment + Languages */}
       <div className="sb-row sb-row-sep">
@@ -252,14 +268,14 @@ export function Dnd4eCreatureDetails({ creature, onSave: save, config }: Props) 
           const availableSkills = (config.skills ?? []).filter(s => !skills[s.toLowerCase()])
           return (
             <>
-              {skillEntries.map(([name, mod]) => (
+              {skillEntries.map(([name, mod], i) => (
                 <span key={name} style={{ display: 'inline-flex', alignItems: 'center', gap: 1 }}>
                   {name} <input className="ghost" type="number" value={mod}
                     onChange={ev => u('skills', { ...skills, [name]: Number(ev.target.value) })}
                     style={{ width: 30, fontWeight: 600 }} />
                   <button onClick={() => { const { [name]: _, ...rest } = skills; u('skills', rest) }}
                     style={{ fontSize: '9px', color: 'var(--color-text-muted)', padding: '0 1px' }}>x</button>
-                  {','}
+                  {i < skillEntries.length - 1 && ','}
                 </span>
               ))}
               {availableSkills.length > 0 && (
@@ -279,10 +295,8 @@ export function Dnd4eCreatureDetails({ creature, onSave: save, config }: Props) 
         const primaryScore = (abConfig.defaultPrimary ?? 16) + halfLvl
         const lowScore = (abConfig.defaultLow ?? 10) + halfLvl
         const pairs = abConfig.pairs ?? []
-
         return (
           <div className="sb-row-sep" style={{ padding: '2px 8px' }}>
-            {/* Primary picker */}
             <div style={{ display: 'flex', gap: 4, alignItems: 'center', marginBottom: 2, fontSize: '10px' }}>
               <span style={{ color: 'var(--color-text-muted)' }}>Primary:</span>
               {abConfig.names.map(ab => (
@@ -309,14 +323,15 @@ export function Dnd4eCreatureDetails({ creature, onSave: save, config }: Props) 
                   }}>{ab}</button>
               ))}
             </div>
-            {/* Scores in 3-column grid: Str 14 (+2)  Dex 17 (+3)  Wis 19 (+4) */}
             <div className="sb-abilities">
               {abConfig.names.map(ab => {
                 const score = abilities[ab] ?? ((abConfig.defaultLow ?? 10) + halfLvl)
                 const mod = Math.floor((score - 10) / 2)
                 return (
                   <span key={ab}>
-                    <b className="sb-label" style={{ color: ab === primaryAbility ? 'var(--color-accent)' : undefined }}>{ab.charAt(0).toUpperCase() + ab.slice(1)}</b>{' '}
+                    <b className="sb-label" style={{ color: ab === primaryAbility ? 'var(--color-accent)' : undefined }}>
+                      {ab.charAt(0).toUpperCase() + ab.slice(1)}
+                    </b>{' '}
                     <input className="ghost" type="number" value={score}
                       onChange={e => u('abilities', { ...abilities, [ab]: Number(e.target.value) })}
                       style={{ width: 30 }} />
@@ -330,25 +345,34 @@ export function Dnd4eCreatureDetails({ creature, onSave: save, config }: Props) 
       })()}
 
       {/* Equipment */}
-      <div className="sb-row">
+      <div className="sb-row sb-row-sep">
         <b className="sb-label">Equipment</b>
-        <TagInput
-          values={Array.isArray(sb.equipment) ? sb.equipment : ((sb.equipment as string) ?? '').split(',').map((s: string) => s.trim()).filter(Boolean)}
-          onChange={equipment => u('equipment', equipment)}
-          suggestions={[]} placeholder="equipment..." />
+        <input className="ghost" value={
+          Array.isArray(sb.equipment) ? (sb.equipment as string[]).join(', ') : ((sb.equipment as string) ?? '')}
+          onChange={e => u('equipment', e.target.value.split(',').map(s => s.trim()).filter(Boolean))}
+          placeholder="equipment..." style={{ flex: 1 }} />
       </div>
 
-      {/* Source */}
-      {sb.source && (
-        <div style={{ padding: '2px 8px', fontSize: '10px', color: 'var(--color-text-muted)', fontStyle: 'italic' }}>
-          {sb.source as string}
+      {/* Description + Source at bottom */}
+      {((sb.description as string) || sb.source) && (
+        <div style={{ padding: '4px 8px', fontSize: '11px' }}>
+          {(sb.description as string) && (
+            <textarea className="ghost" value={(sb.description as string) ?? ''}
+              onChange={e => u('description', e.target.value)}
+              placeholder="Description..."
+              style={{ width: '100%', fontStyle: 'italic', fontSize: '11px', color: 'var(--color-text-secondary)' }} />
+          )}
+          {sb.source && (
+            <div style={{ color: 'var(--color-text-muted)', fontStyle: 'italic', marginTop: 2 }}>
+              {sb.source as string}
+            </div>
+          )}
         </div>
       )}
     </div>
 
     {/* ─── Right column: Powers ─── */}
     <div style={{ flex: '1 1 400px', minWidth: 340 }}>
-      <h3 style={{ fontSize: 'var(--font-size-lg)', marginBottom: 'var(--space-3)' }}>Powers</h3>
       <ActionEntryEditor
         entries={Array.isArray(sb.actions) ? sb.actions : []}
         onChange={actions => u('actions', actions)}

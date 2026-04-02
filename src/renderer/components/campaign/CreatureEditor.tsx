@@ -56,21 +56,23 @@ export function CreatureEditor({ creatureId }: Props) {
 
   return (
     <div style={{ padding: '0 var(--space-4)' }}>
-      {/* Name */}
-      <input
-        value={creature.name}
-        onChange={e => save({ ...creature, name: e.target.value })}
-        placeholder="Creature name"
-        style={{
-          width: '100%',
-          fontSize: 'var(--font-size-2xl)',
-          fontWeight: 600,
-          border: 'none',
-          background: 'transparent',
-          marginBottom: 'var(--space-4)',
-          padding: 0,
-        }}
-      />
+      {/* Name — hidden when plugin provides its own header */}
+      {!PluginDetails && (
+        <input
+          value={creature.name}
+          onChange={e => save({ ...creature, name: e.target.value })}
+          placeholder="Creature name"
+          style={{
+            width: '100%',
+            fontSize: 'var(--font-size-2xl)',
+            fontWeight: 600,
+            border: 'none',
+            background: 'transparent',
+            marginBottom: 'var(--space-4)',
+            padding: 0,
+          }}
+        />
+      )}
 
       {/* Import warnings */}
       {Array.isArray(creature.statBlock._importWarnings) && creature.statBlock._importWarnings.length > 0 && (

@@ -32,14 +32,12 @@
 
 /* 4e stat block color scheme — matches the official DMG palette */
 .stat-block-4e {
-  --sb-header-bg: #4e5a2f;
-  --sb-header-text: #fff;
-  --sb-subheader-bg: #6b7b3a;
+  --sb-header-bg: #62584a;
+  --sb-header-text: #f0e8d0;
+  --sb-subheader-bg: #7a6f5e;
   --sb-row-alt: rgba(178, 164, 120, 0.08);
-  --sb-row-alt-hover: rgba(178, 164, 120, 0.15);
   --sb-separator: rgba(178, 164, 120, 0.25);
-  --sb-label: #b8b8ce;
-  --sb-power-header: rgba(100, 110, 70, 0.2);
+  --sb-power-alt: rgba(140, 128, 100, 0.12);
 
   font-family: 'Mentor', 'Cambria', 'Georgia', serif;
   font-size: 12px;
