@@ -176,13 +176,19 @@ export function Dnd4eCreatureDetails({ creature, onSave: save, config }: Props) 
         return (
           <div className={`sb-row${!hasSaves ? ' sb-row-sep' : ''}`}>
             <b className="sb-label">Speed</b>
-            {/* Land speed chip */}
-            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, padding: '0 3px', background: 'var(--color-bg-hover)', borderRadius: 'var(--radius-sm)', fontSize: 'var(--font-size-xs)' }}>
-              {Object.keys(speeds).length > 0 && <>land </>}
-              <input className="ghost" type="number" min={0} value={landSpeed ?? ''}
-                onChange={e => u('speed', e.target.value === '' ? 0 : Number(e.target.value))}
-                onBlur={e => { if (e.target.value === '') u('speed', 0) }} />
-            </span>
+            {/* Land speed chip — deletable when other speeds exist */}
+            {(landSpeed > 0 || Object.keys(speeds).length === 0) && (
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, padding: '0 3px', background: 'var(--color-bg-hover)', borderRadius: 'var(--radius-sm)', fontSize: 'var(--font-size-xs)' }}>
+                {Object.keys(speeds).length > 0 && <>run</>}
+                <input className="ghost" type="number" min={0} value={landSpeed ?? ''}
+                  onChange={e => u('speed', e.target.value === '' ? 0 : Number(e.target.value))}
+                  onBlur={e => { if (e.target.value === '') u('speed', 0) }} />
+                {Object.keys(speeds).length > 0 && (
+                  <button onClick={() => u('speed', 0)}
+                    style={{ color: 'var(--color-text-muted)', padding: '0 1px', lineHeight: 1 }}>×</button>
+                )}
+              </span>
+            )}
             {/* Other speed chips */}
             {config.speedTypes.filter(({ key }) => key !== 'land' && key in speeds).map(({ key, label: speedLabel }) => {
               const val = speeds[key] ?? 0
@@ -205,7 +211,7 @@ export function Dnd4eCreatureDetails({ creature, onSave: save, config }: Props) 
                 onChange={e => { if (e.target.value) { lastAddedSpeed.current = e.target.value; u('speeds', { ...speeds, [e.target.value]: 0 }) } }}
                 style={{ color: 'var(--color-text-muted)' }}>
                 <option value="">+</option>
-                {available.map(({ key, label: l }) => <option key={key} value={key}>{l}</option>)}
+                {available.map(({ key, label: l }) => <option key={key} value={key}>{l.toLowerCase()}</option>)}
               </select>
             )}
           </div>
