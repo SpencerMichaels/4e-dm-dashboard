@@ -41,6 +41,11 @@ const DND4E_RANGE_TYPES = [
 ]
 const DND4E_TARGET_DEFENSES = ['AC', 'Fortitude', 'Reflex', 'Will']
 const DND4E_TRIGGERED = ['immediate-interrupt', 'immediate-reaction']
+const DND4E_SENSES = [
+  'Darkvision', 'Low-light vision', 'Blindsight 5', 'Blindsight 10', 'Blindsight 20',
+  'Tremorsense 5', 'Tremorsense 10', 'Tremorsense 20',
+  'Truesight 6', 'Truesight 10', 'All-around vision',
+]
 const DND4E_LANGUAGES = [
   'Common', 'Abyssal', 'Deep Speech', 'Draconic', 'Dwarven',
   'Elven', 'Giant', 'Goblin', 'Primordial', 'Supernal',
@@ -230,8 +235,10 @@ export function Dnd4eCreatureDetails({ creature, onSave: save, config }: Props) 
         <span>
           <b className="sb-label">Senses</b> Perception <input className="ghost" type="number" value={(sb.perception as number) ?? 0}
             onChange={e => u('perception', Number(e.target.value))} />;{' '}
-          <input className="ghost" value={(sb.senses as string) ?? ''} onChange={e => u('senses', e.target.value)}
-            placeholder="darkvision" />
+          <TagInput compact
+            values={Array.isArray(sb.senses) ? sb.senses : ((sb.senses as string) ?? '').split(',').map((s: string) => s.trim()).filter(Boolean)}
+            onChange={senses => u('senses', senses)}
+            suggestions={DND4E_SENSES} placeholder="+ sense" />
         </span>
       </div>
       {(() => {
@@ -451,7 +458,7 @@ export function Dnd4eCreatureDetails({ creature, onSave: save, config }: Props) 
                 const mod = Math.floor((score - 10) / 2)
                 return (
                   <span key={ab}>
-                    <b className="sb-label" style={{ color: ab === primaryAbility ? 'var(--color-accent)' : undefined }}>
+                    <b className="sb-label" style={{ color: !hasAbilities && ab === primaryAbility ? 'var(--color-accent)' : undefined }}>
                       {ab.charAt(0).toUpperCase() + ab.slice(1)}
                     </b>{' '}
                     <input className="ghost" type="number" value={score}
