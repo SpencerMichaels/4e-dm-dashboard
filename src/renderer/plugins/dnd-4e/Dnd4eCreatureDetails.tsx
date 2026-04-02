@@ -419,7 +419,7 @@ export function Dnd4eCreatureDetails({ creature, onSave: save, config }: Props) 
         // Only show the primary picker for new creatures (no existing ability scores)
         const hasAbilities = Object.keys(abilities).length > 0
         return (
-          <div className="sb-row-sep" style={{ padding: '2px 8px' }}>
+          <div style={{ padding: '2px 8px' }}>
             {!hasAbilities && (
               <div style={{ display: 'flex', gap: 4, alignItems: 'center', marginBottom: 2, fontSize: '10px' }}>
                 <span style={{ color: 'var(--color-text-muted)' }}>Primary:</span>
@@ -499,7 +499,7 @@ export function Dnd4eCreatureDetails({ creature, onSave: save, config }: Props) 
         const addBtn = { color: 'var(--color-text-muted)', border: '1px dashed var(--color-border)', borderRadius: 'var(--radius-sm)', padding: '0 4px', background: 'transparent', cursor: 'pointer' }
         return (
           <>
-            <div style={{ display: 'flex', gap: 4, padding: '4px 8px' }}>
+            <div style={{ display: 'flex', gap: 4, padding: '8px 8px 4px' }}>
               <button onClick={() => addEntry('trait')} style={addBtn}>+ Trait</button>
               <button onClick={() => addEntry('aura')} style={addBtn}>+ Aura</button>
             </div>
