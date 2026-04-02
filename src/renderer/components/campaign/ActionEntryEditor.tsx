@@ -517,26 +517,40 @@ function DamagePartsEditor({ parts, config, level, onChange }: {
 
   // damage type select uses ghost class from global CSS
 
+  // Combined value for the type selector: "ongoing" if ongoing+untyped, "ongoing:fire" if ongoing+typed, or just the type
+  const typeSelectValue = (p: DamagePart) => p.ongoing ? (p.type ? `ongoing:${p.type}` : 'ongoing') : p.type
+  const handleTypeChange = (i: number, val: string) => {
+    if (val === 'ongoing') updatePart(i, { ongoing: true, type: '' })
+    else if (val.startsWith('ongoing:')) updatePart(i, { ongoing: true, type: val.substring(8) })
+    else updatePart(i, { ongoing: false, type: val })
+  }
+
   return (
     <div style={{ marginBottom: 2 }}>
       {parts.map((p, i) => (
         <div key={i} style={{ display: 'flex', gap: 4, alignItems: 'center', flexWrap: 'wrap' }}>
           {i === 0 && <b style={{ ...xs, color: 'var(--color-text-secondary)' }}>Damage</b>}
           {i > 0 && <span style={{ ...xs, color: 'var(--color-text-secondary)' }}>plus</span>}
+          {p.ongoing && <span style={{ ...xs, color: 'var(--color-text-secondary)' }}>{ongoingLabel}</span>}
           <input className="ghost" value={p.expr} onChange={(ev) => updatePart(i, { expr: ev.target.value })} placeholder="2d8+6" />
-          <select className="ghost" value={p.type} onChange={(ev) => updatePart(i, { type: ev.target.value })}>
+          <select className="ghost" value={p.ongoing ? 'ongoing' : p.type} onChange={(ev) => {
+            if (ev.target.value === 'ongoing') updatePart(i, { ongoing: true })
+            else updatePart(i, { ongoing: false, type: ev.target.value })
+          }}>
             <option value="">untyped</option>
             {config.damageTypes.map((dt) => <option key={dt} value={dt}>{dt}</option>)}
+            <option value="ongoing">{ongoingLabel}</option>
           </select>
+          {p.ongoing && (
+            <select className="ghost" value={p.type} onChange={(ev) => updatePart(i, { type: ev.target.value })}>
+              <option value="">untyped</option>
+              {config.damageTypes.map((dt) => <option key={dt} value={dt}>{dt}</option>)}
+            </select>
+          )}
           {i === 0 && level != null && config.strikeDamageDice?.[level] && (
             <DiceTierButtons table={config.strikeDamageDice} level={level} currentDice={p.expr} config={config}
               onSelect={(dice) => updatePart(0, { expr: dice })} />
           )}
-          <label style={{ display: 'inline-flex', alignItems: 'center', gap: 2, ...xs, color: 'var(--color-text-muted)', cursor: 'pointer' }}>
-            <input type="checkbox" checked={p.ongoing} onChange={(ev) => updatePart(i, { ongoing: ev.target.checked })}
-              style={{ width: 11, height: 11 }} />
-            {ongoingLabel}
-          </label>
           <button onClick={() => removePart(i)} style={{ color: 'var(--color-text-muted)', padding: '0 2px', lineHeight: 1 }}>×</button>
         </div>
       ))}
