@@ -280,9 +280,8 @@ export function Dnd4eCreatureDetails({ creature, onSave: save, config }: Props) 
               )
             })}
             {available.length > 0 && (
-              <select className="ghost" value=""
-                onChange={e => { if (e.target.value) { lastAddedSpeed.current = e.target.value; u('speeds', { ...speeds, [e.target.value]: 0 }) } }}
-                style={{ color: 'var(--color-text-muted)' }}>
+              <select className="ghost-add" value=""
+                onChange={e => { if (e.target.value) { lastAddedSpeed.current = e.target.value; u('speeds', { ...speeds, [e.target.value]: 0 }) } }}>
                 <option value="" disabled hidden>+</option>
                 {available.map(({ key, label: l }) => <option key={key} value={key}>{l.toLowerCase()}</option>)}
               </select>
@@ -427,9 +426,8 @@ export function Dnd4eCreatureDetails({ creature, onSave: save, config }: Props) 
                 )
               })}
               {availableSkills.length > 0 && (
-                <select className="ghost" value=""
-                  onChange={ev => { if (ev.target.value) { lastAddedSkill.current = ev.target.value.toLowerCase(); u('skills', { ...skills, [ev.target.value.toLowerCase()]: 0 }) } }}
-                  style={{ color: 'var(--color-text-muted)' }}>
+                <select className="ghost-add" value=""
+                  onChange={ev => { if (ev.target.value) { lastAddedSkill.current = ev.target.value.toLowerCase(); u('skills', { ...skills, [ev.target.value.toLowerCase()]: 0 }) } }}>
                   <option value="" disabled hidden>+</option>
                   {availableSkills.map(s => <option key={s} value={s}>{s}</option>)}
                 </select>
@@ -639,14 +637,13 @@ function InlineEntryChips({ label, entries, onChange, suggestions, showValue }: 
         )
       })}
       {available.length > 0 && (
-        <select className="ghost" value=""
+        <select className="ghost-add" value=""
           onChange={e => {
             if (e.target.value) {
               lastAdded.current = e.target.value
               onChange([...entries, { type: e.target.value, ...(showValue ? { value: 0 } : {}) }])
             }
-          }}
-          style={{ color: 'var(--color-text-muted)' }}>
+          }}>
           <option value="" disabled hidden>+</option>
           {available.map(s => <option key={s} value={s}>{s}</option>)}
         </select>

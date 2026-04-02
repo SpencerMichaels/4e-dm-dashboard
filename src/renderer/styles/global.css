@@ -118,7 +118,19 @@ select.ghost {
   text-decoration: underline dotted;
   text-underline-offset: 2px;
 }
-select.ghost option {
+/* Add-button selects: no underlines */
+select.ghost-add {
+  background: transparent;
+  border: none;
+  padding: 0;
+  border-radius: 0;
+  field-sizing: content;
+  -webkit-appearance: none;
+  appearance: none;
+  cursor: pointer;
+  color: var(--color-text-muted);
+}
+select.ghost option, select.ghost-add option {
   background: var(--color-bg-primary);
   color: var(--color-text-primary);
 }
