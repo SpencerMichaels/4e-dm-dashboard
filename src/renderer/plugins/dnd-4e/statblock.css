@@ -161,3 +161,13 @@
 .stat-block-4e .sb-abilities span {
   white-space: nowrap;
 }
+
+/* Sticky left column only when side-by-side (not stacked) */
+@media (min-width: 800px) {
+  .sb-two-col .sb-left {
+    position: sticky;
+    top: 0;
+    max-height: 100vh;
+    overflow-y: auto;
+  }
+}
