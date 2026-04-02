@@ -123,7 +123,7 @@ function _parseMonsterHtml(html: string, warnings: string[]): Creature {
   const equipment = footerText.match(/Equipment\s*:?\s*(.+?)(?=\.\s*$|$)/i)?.[1]?.trim() ?? ''
 
   const sizeNames = ['Tiny', 'Small', 'Medium', 'Large', 'Huge', 'Gargantuan']
-  const traits = [origin, type, ...keywords].filter(s => s && !sizeNames.includes(s))
+  const filteredKeywords = keywords.filter(s => s && !sizeNames.includes(s))
 
   // Description and published source — appear after the footer
   const descMatch = html.match(/<b>Description<\/b>:?\s*([\s\S]*?)<\/p>/i)
@@ -148,7 +148,8 @@ function _parseMonsterHtml(html: string, warnings: string[]): Creature {
       defenses: { fortitude: fort, reflex: ref, will },
       initiative, perception, senses,
       speed: land, speeds, speedNotes: speedNotes || undefined,
-      abilities, primaryAbility, traits,
+      abilities, primaryAbility,
+      origin, creatureType: type, subtypes: filteredKeywords,
       immunities, resistances, weaknesses,
       skills, alignment, languages, equipment,
       xp, savingThrowBonus, actionPoints,
@@ -639,12 +640,17 @@ function parseDamageParts(raw: string, knownTypes: string[]): DamagePart[] {
 // ─── Helpers ───
 
 function parseTypeLine(typeStr: string): { origin: string; type: string; keywords: string[] } {
-  // Format: "origin type (keywords)" or "origin type , keywords" or "origin type keyword"
-  // Types can be two words: "magical beast"
   const knownOrigins = new Set(['aberrant', 'elemental', 'fey', 'immortal', 'natural', 'shadow'])
   const knownTypes = new Set(['animate', 'beast', 'humanoid', 'magical beast'])
 
   let str = typeStr.toLowerCase().trim()
+
+  // Fix known typos
+  str = str.replace(/\bhumanold\b/g, 'humanoid')
+
+  // Strip "or Huge", "Small/Medium" size prefixes that leaked through
+  str = str.replace(/\b(?:or\s+)?(?:tiny|small|medium|large|huge|gargantuan)\s*/gi, '').trim()
+  str = str.replace(/^\/\s*/, '').trim()
 
   // Extract parenthetical keywords
   const keywords: string[] = []
@@ -661,18 +667,38 @@ function parseTypeLine(typeStr: string): { origin: string; type: string; keyword
     str = str.substring(0, commaIdx).trim()
   }
 
-  // Now str should be "origin type" or "origin magical beast"
+  // Parse remaining words into origin + type
+  // e.g. "elemental immortal magical beast" → origin=elemental, type=magical beast, keywords=[immortal]
+  // e.g. "magical beast" (no origin) → origin='', type=magical beast
   const words = str.split(/\s+/)
-  const origin = knownOrigins.has(words[0]) ? words[0] : ''
-  const rest = origin ? words.slice(1).join(' ') : str
+  let origin = ''
+  let type = ''
 
-  // Check for two-word type first
-  const type = knownTypes.has(rest) ? rest : knownTypes.has(words[1] ?? '') ? words[1] : rest
+  // First: check if the whole string or a prefix is a known type (no origin)
+  if (knownTypes.has(str)) {
+    type = str
+  } else if (knownTypes.has(words.slice(0, 2).join(' '))) {
+    type = words.slice(0, 2).join(' ')
+    // Remaining words are keywords
+    keywords.push(...words.slice(2).filter(w => !knownOrigins.has(w)))
+  } else {
+    // First known origin
+    for (const w of words) {
+      if (knownOrigins.has(w)) {
+        if (!origin) origin = w
+        else keywords.push(w) // extra origins become keywords
+      }
+    }
+    // Type from remaining words after removing origins
+    const typeWords = words.filter(w => !knownOrigins.has(w))
+    const rest = typeWords.join(' ')
+    type = knownTypes.has(rest) ? rest : knownTypes.has(typeWords[0] ?? '') ? typeWords[0] : rest
 
-  // If there are extra words after the type that aren't part of a known type, they're keywords
-  if (type && rest !== type && rest.startsWith(type)) {
-    const extra = rest.substring(type.length).trim()
-    if (extra) keywords.push(...extra.split(/\s+/))
+    // Extra words after type become keywords
+    if (type && rest !== type && rest.startsWith(type)) {
+      const extra = rest.substring(type.length).trim()
+      if (extra) keywords.push(...extra.split(/\s+/))
+    }
   }
 
   return { origin, type, keywords }

@@ -12,11 +12,10 @@ function buildMonsterIndex(): CompendiumEntry[] {
   for (const [id, entry] of Object.entries(allParsedMonsters)) {
     const sb = (entry as any).statBlock
     if (!sb) continue
-    const traits: string[] = sb.traits ?? []
     monsterIndexCache.push({
       id, name: (entry as any).name ?? 'Unknown',
       level: sb.level ?? 1, role: sb.role ?? '', modifier: sb.monsterModifier ?? '',
-      size: sb.size ?? 'Medium', origin: traits[0] ?? '', type: traits[1] ?? '',
+      size: sb.size ?? 'Medium', origin: sb.origin ?? '', type: sb.creatureType ?? '',
       alignment: sb.alignment ?? '', xp: sb.xp ?? 0,
     })
   }

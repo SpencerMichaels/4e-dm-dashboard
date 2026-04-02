@@ -117,11 +117,9 @@ export function Dnd4eCreatureDetails({ creature, onSave: save, config }: Props) 
   const roleLabel = (modifier ? modifier.charAt(0).toUpperCase() + modifier.slice(1) + ' ' : '') +
     (role ? role.charAt(0).toUpperCase() + role.slice(1) : '')
 
-  // Traits structure: [origin, type, ...subtypes]
-  const traits = Array.isArray(sb.traits) ? sb.traits as string[] : []
-  const origin = traits[0] ?? ''
-  const creatureType = traits[1] ?? ''
-  const subtypes = traits.slice(2)
+  const origin = (sb.origin as string) ?? ''
+  const creatureType = (sb.creatureType as string) ?? ''
+  const subtypes = Array.isArray(sb.subtypes) ? sb.subtypes as string[] : []
 
   // Benchmark lookups — role-based tables from statDefs, adjusted for elite/solo
   const benchmarks: Record<string, number | undefined> = {}
@@ -164,7 +162,7 @@ export function Dnd4eCreatureDetails({ creature, onSave: save, config }: Props) 
 
   const u = (key: string, val: unknown) => save({ ...creature, statBlock: { ...sb, [key]: val } })
   const setTraits = (newOrigin: string, newType: string, newSubtypes: string[]) => {
-    u('traits', [newOrigin, newType, ...newSubtypes].filter(Boolean))
+    save({ ...creature, statBlock: { ...sb, origin: newOrigin, creatureType: newType, subtypes: newSubtypes } })
   }
 
   // Auto-focus: track last-added skill/speed to focus its input

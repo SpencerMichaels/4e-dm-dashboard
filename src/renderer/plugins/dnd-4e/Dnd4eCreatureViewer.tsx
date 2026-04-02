@@ -39,10 +39,9 @@ export function Dnd4eCreatureViewer({ creature }: Props) {
   const cap = (s: string) => s ? s.charAt(0).toUpperCase() + s.slice(1) : s
 
   const roleLabel = (modifier ? cap(modifier) + ' ' : '') + (role ? cap(role) : '')
-  const traits = Array.isArray(sb.traits) ? sb.traits as string[] : []
-  const origin = traits[0] ?? ''
-  const creatureType = traits[1] ?? ''
-  const subtypes = traits.slice(2)
+  const origin = (sb.origin as string) ?? ''
+  const creatureType = (sb.creatureType as string) ?? ''
+  const subtypes = Array.isArray(sb.subtypes) ? sb.subtypes as string[] : []
   const abilities = (sb.abilities as Record<string, number>) ?? {}
   const defs = (sb.defenses as Record<string, number>) ?? {}
   const skills = (sb.skills as Record<string, number>) ?? {}
