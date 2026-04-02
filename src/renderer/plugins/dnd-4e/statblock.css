@@ -73,7 +73,7 @@
 /* Stat rows */
 .stat-block-4e .sb-row {
   display: flex;
-  gap: 8px;
+  gap: 4px;
   align-items: center;
   flex-wrap: wrap;
   padding: 2px 8px;

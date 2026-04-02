@@ -43,6 +43,10 @@ const DND4E_RANGE_TYPES = [
 ]
 const DND4E_TARGET_DEFENSES = ['AC', 'Fortitude', 'Reflex', 'Will']
 const DND4E_TRIGGERED = ['immediate-interrupt', 'immediate-reaction']
+const DND4E_LANGUAGES = [
+  'Common', 'Abyssal', 'Deep Speech', 'Draconic', 'Dwarven',
+  'Elven', 'Giant', 'Goblin', 'Primordial', 'Supernal',
+]
 const DND4E_ALIGNMENTS = ['Lawful Good', 'Good', 'Unaligned', 'Evil', 'Chaotic Evil']
 const SIZES = ['Tiny', 'Small', 'Medium', 'Large', 'Huge', 'Gargantuan']
 const ORIGINS = ['aberrant', 'elemental', 'fey', 'immortal', 'natural', 'shadow']
@@ -161,10 +165,10 @@ export function Dnd4eCreatureDetails({ creature, onSave: save, config }: Props) 
           onChange={e => u('initiative', Number(e.target.value))} /></span>
         <span style={{ marginLeft: 'auto' }}>
           <b className="sb-label">Senses</b> Perception <input className="ghost" type="number" value={(sb.perception as number) ?? 0}
-            onChange={e => u('perception', Number(e.target.value))} />;{' '}
-          <input className="ghost" value={(sb.senses as string) ?? ''} onChange={e => u('senses', e.target.value)}
-            placeholder="darkvision" style={{ width: 120 }} />
+            onChange={e => u('perception', Number(e.target.value))} />
         </span>
+        <input className="ghost" value={(sb.senses as string) ?? ''} onChange={e => u('senses', e.target.value)}
+          placeholder="darkvision" style={{ width: 120 }} />
       </div>
 
       {/* HP + Bloodied */}
@@ -186,12 +190,10 @@ export function Dnd4eCreatureDetails({ creature, onSave: save, config }: Props) 
       {(sb.savingThrowBonus || sb.actionPoints || modifier) && (
         <div className="sb-row sb-row-sep" style={{ fontSize: '11px' }}>
           {(sb.savingThrowBonus as number) > 0 && (
-            <span><b className="sb-label">Saving Throws</b> +<input className="ghost" type="number" value={(sb.savingThrowBonus as number) ?? 0}
-              onChange={e => u('savingThrowBonus', Number(e.target.value))} /></span>
+            <span><b className="sb-label">Saving Throws</b> +{(sb.savingThrowBonus as number) ?? 0}</span>
           )}
           {(sb.actionPoints as number) > 0 && (
-            <span><b className="sb-label">Action Points</b> <input className="ghost" type="number" value={(sb.actionPoints as number) ?? 0}
-              onChange={e => u('actionPoints', Number(e.target.value))} /></span>
+            <span><b className="sb-label">Action Points</b> {(sb.actionPoints as number) ?? 0}</span>
           )}
         </div>
       )}
@@ -223,18 +225,25 @@ export function Dnd4eCreatureDetails({ creature, onSave: save, config }: Props) 
         <b className="sb-label">Speed</b>
         {config.speedTypes.map(({ key, label: speedLabel }) => {
           const speeds = (sb.speeds as Record<string, number> | undefined) ?? {}
-          const val = key === 'land' ? ((sb.speed as number) ?? 0) : (speeds[key] ?? 0)
-          if (val === 0 && key !== 'land') return null
+          const val = key === 'land' ? ((sb.speed as number) ?? 0) : (speeds[key] ?? null)
+          if (val === null) return null
           const justAdded = lastAddedSpeed.current === key
           if (justAdded) lastAddedSpeed.current = null
           return (
             <span key={key}>
               {key !== 'land' && <>{speedLabel.toLowerCase()} </>}
-              <input className="ghost" type="number" min={0} value={val || ''}
+              <input className="ghost" type="number" min={0} value={val ?? ''}
                 ref={justAdded ? focusRef : undefined}
                 onChange={e => {
-                  if (key === 'land') u('speed', Number(e.target.value))
-                  else u('speeds', { ...speeds, [key]: Number(e.target.value) })
+                  const v = e.target.value === '' ? 0 : Number(e.target.value)
+                  if (key === 'land') u('speed', v)
+                  else u('speeds', { ...speeds, [key]: v })
+                }}
+                onBlur={e => {
+                  if (e.target.value === '') {
+                    if (key === 'land') u('speed', 0)
+                    else u('speeds', { ...speeds, [key]: 0 })
+                  }
                 }} />
               {key !== 'land' && (
                 <button onClick={() => { const { [key]: _, ...rest } = speeds; u('speeds', rest) }}
@@ -246,7 +255,7 @@ export function Dnd4eCreatureDetails({ creature, onSave: save, config }: Props) 
         {/* Add speed — dropdown that adds on select */}
         {(() => {
           const speeds = (sb.speeds as Record<string, number> | undefined) ?? {}
-          const available = config.speedTypes.filter(({ key }) => key !== 'land' && !speeds[key])
+          const available = config.speedTypes.filter(({ key }) => key !== 'land' && !(key in speeds))
           if (available.length === 0) return null
           return (
             <select className="ghost" value=""
@@ -271,10 +280,12 @@ export function Dnd4eCreatureDetails({ creature, onSave: save, config }: Props) 
             {DND4E_ALIGNMENTS.map(a => <option key={a} value={a}>{a}</option>)}
           </select>
         </span>
-        <span style={{ marginLeft: 'auto' }}>
-          <b className="sb-label">Languages</b>{' '}
-          <input className="ghost" value={(sb.languages as string) ?? ''} onChange={e => u('languages', e.target.value)}
-            style={{ width: 160 }} />
+        <span style={{ marginLeft: 'auto', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+          <b className="sb-label">Languages</b>
+          <TagInput compact
+            values={Array.isArray(sb.languages) ? sb.languages : ((sb.languages as string) ?? '').split(',').map((s: string) => s.trim()).filter(Boolean)}
+            onChange={languages => u('languages', languages)}
+            suggestions={DND4E_LANGUAGES} placeholder="+ language" />
         </span>
       </div>
 
@@ -292,9 +303,10 @@ export function Dnd4eCreatureDetails({ creature, onSave: save, config }: Props) 
                 if (justAdded) lastAddedSkill.current = null
                 return (
                   <span key={name} style={{ display: 'inline-flex', alignItems: 'center', gap: 1 }}>
-                    {cap(name)} <input className="ghost" type="number" value={mod || ''}
+                    {cap(name)} <input className="ghost" type="number" value={mod ?? ''}
                       ref={justAdded ? focusRef : undefined}
-                      onChange={ev => u('skills', { ...skills, [name]: Number(ev.target.value) })}
+                      onChange={ev => u('skills', { ...skills, [name]: ev.target.value === '' ? 0 : Number(ev.target.value) })}
+                      onBlur={ev => { if (ev.target.value === '') u('skills', { ...skills, [name]: 0 }) }}
                       style={{ width: 30, fontWeight: 600 }} />
                     <button onClick={() => { const { [name]: _, ...rest } = skills; u('skills', rest) }}
                       style={{ fontSize: '9px', color: 'var(--color-text-muted)', padding: '0 1px' }}>x</button>
@@ -322,34 +334,38 @@ export function Dnd4eCreatureDetails({ creature, onSave: save, config }: Props) 
         const primaryScore = (abConfig.defaultPrimary ?? 16) + halfLvl
         const lowScore = (abConfig.defaultLow ?? 10) + halfLvl
         const pairs = abConfig.pairs ?? []
+        // Only show the primary picker for new creatures (no existing ability scores)
+        const hasAbilities = Object.keys(abilities).length > 0
         return (
           <div className="sb-row-sep" style={{ padding: '2px 8px' }}>
-            <div style={{ display: 'flex', gap: 4, alignItems: 'center', marginBottom: 2, fontSize: '10px' }}>
-              <span style={{ color: 'var(--color-text-muted)' }}>Primary:</span>
-              {abConfig.names.map(ab => (
-                <button key={ab} onClick={() => {
-                  const newAb: Record<string, number> = {}
-                  for (const a of abConfig.names) {
-                    if (a === ab) newAb[a] = primaryScore
-                    else {
-                      const pair = pairs.find(p => p.includes(a))
-                      if (pair && pair.includes(ab)) newAb[a] = avgScore
-                      else if (pair && pair[0] === a) newAb[a] = avgScore
-                      else newAb[a] = lowScore
+            {!hasAbilities && (
+              <div style={{ display: 'flex', gap: 4, alignItems: 'center', marginBottom: 2, fontSize: '10px' }}>
+                <span style={{ color: 'var(--color-text-muted)' }}>Primary:</span>
+                {abConfig.names.map(ab => (
+                  <button key={ab} onClick={() => {
+                    const newAb: Record<string, number> = {}
+                    for (const a of abConfig.names) {
+                      if (a === ab) newAb[a] = primaryScore
+                      else {
+                        const pair = pairs.find(p => p.includes(a))
+                        if (pair && pair.includes(ab)) newAb[a] = avgScore
+                        else if (pair && pair[0] === a) newAb[a] = avgScore
+                        else newAb[a] = lowScore
+                      }
                     }
-                  }
-                  save({ ...creature, statBlock: { ...sb, primaryAbility: ab, abilities: newAb } })
-                }}
-                  style={{
-                    padding: '0 3px', fontSize: '10px', textTransform: 'uppercase',
-                    fontWeight: primaryAbility === ab ? 700 : 400,
-                    background: primaryAbility === ab ? 'var(--sb-header-bg)' : 'transparent',
-                    color: primaryAbility === ab ? '#fff' : 'var(--color-text-muted)',
-                    border: primaryAbility === ab ? 'none' : '1px solid var(--color-border)',
-                    borderRadius: 'var(--radius-sm)', cursor: 'pointer',
-                  }}>{ab}</button>
-              ))}
-            </div>
+                    save({ ...creature, statBlock: { ...sb, primaryAbility: ab, abilities: newAb } })
+                  }}
+                    style={{
+                      padding: '0 3px', fontSize: '10px', textTransform: 'uppercase',
+                      fontWeight: primaryAbility === ab ? 700 : 400,
+                      background: primaryAbility === ab ? 'var(--sb-header-bg)' : 'transparent',
+                      color: primaryAbility === ab ? '#fff' : 'var(--color-text-muted)',
+                      border: primaryAbility === ab ? 'none' : '1px solid var(--color-border)',
+                      borderRadius: 'var(--radius-sm)', cursor: 'pointer',
+                    }}>{ab}</button>
+                ))}
+              </div>
+            )}
             <div className="sb-abilities">
               {abConfig.names.map(ab => {
                 const score = abilities[ab] ?? ((abConfig.defaultLow ?? 10) + halfLvl)
