@@ -80,6 +80,7 @@ textarea {
   field-sizing: content;
   min-height: 1.5em;
   overflow: hidden;
+  resize: none;
 }
 
 /* Hide number input spinners — they overlay on values */

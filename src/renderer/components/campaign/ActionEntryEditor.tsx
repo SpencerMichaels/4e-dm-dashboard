@@ -335,7 +335,7 @@ function FullPowerRow({ entry: e, idx, config, level, statBlock, atkBonusTables,
   return (
     <div style={{ display: 'flex', fontSize: 'var(--font-size-xs)', lineHeight: 1.5, marginBottom: 2 }}>
       {/* Reorder controls — left gutter */}
-      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '0 3px', gap: 1, opacity: 0.5, minWidth: 14 }}>
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-start', padding: '4px 3px 0', gap: 1, opacity: 0.5, minWidth: 14 }}>
         <button onClick={() => onMove(idx, -1)} style={dragBtnStyle} title="Move up">▲</button>
         <span style={{ cursor: 'grab', fontSize: '8px', color: 'var(--color-text-muted)', letterSpacing: 1 }} title="Drag to reorder">⠿</span>
         <button onClick={() => onMove(idx, 1)} style={dragBtnStyle} title="Move down">▼</button>
