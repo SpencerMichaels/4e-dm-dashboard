@@ -152,7 +152,7 @@
 
 /* Footer section — ability scores in 3-column layout */
 .stat-block-4e .sb-abilities {
-  display: grid;
+  display: inline-grid;
   grid-template-columns: auto auto auto;
   gap: 2px 8px;
   padding: 2px 8px;
