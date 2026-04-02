@@ -128,12 +128,19 @@ input.ghost[type="number"] {
 }
 
 /* Entry animations */
-@keyframes entry-appear {
-  from { opacity: 0; max-height: 0; transform: translateY(-8px); }
-  to { opacity: 1; max-height: 500px; transform: translateY(0); }
+@keyframes entry-slide-down {
+  from { transform: translateY(-100%); }
+  to { transform: translateY(0); }
 }
-.entry-animate {
-  animation: entry-appear 0.2s ease-out;
+@keyframes entry-slide-up {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+.entry-slide-down {
+  animation: entry-slide-down 0.15s ease-out;
+}
+.entry-slide-up {
+  animation: entry-slide-up 0.15s ease-out;
 }
 
 /* Utility classes */
