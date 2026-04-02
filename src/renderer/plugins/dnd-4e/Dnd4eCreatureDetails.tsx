@@ -104,10 +104,10 @@ export function Dnd4eCreatureDetails({ creature, onSave: save, config }: Props) 
   const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1)
 
   return (
-    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-4)' }}>
+    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-4)', alignItems: 'flex-start' }}>
 
     {/* ─── Left column: Stat block ─── */}
-    <div className="stat-block-4e" style={{ flex: '1 1 380px', minWidth: 320 }}>
+    <div className="stat-block-4e" style={{ flex: '1 1 380px', minWidth: 320, position: 'sticky', top: 0, maxHeight: '100vh', overflowY: 'auto' }}>
 
       {/* ── HEADER: Name + Level/Modifier/Role ── */}
       <div className="sb-header">
