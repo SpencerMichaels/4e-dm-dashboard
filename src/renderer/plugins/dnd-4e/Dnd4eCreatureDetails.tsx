@@ -35,10 +35,14 @@ const DND4E_ALIGNMENTS = ['Lawful Good', 'Good', 'Unaligned', 'Evil', 'Chaotic E
 const SIZES = ['Tiny', 'Small', 'Medium', 'Large', 'Huge', 'Gargantuan']
 const ORIGINS = ['aberrant', 'elemental', 'fey', 'immortal', 'natural', 'shadow']
 const CREATURE_TYPES = ['animate', 'beast', 'humanoid', 'magical beast']
-const CREATURE_KEYWORDS = [
-  'aquatic', 'blind', 'construct', 'demon', 'devil', 'dragon',
-  'giant', 'goblin', 'homunculus', 'living construct',
-  'mount', 'ooze', 'plant', 'reptile', 'shapechanger', 'spider', 'swarm', 'undead',
+const CREATURE_SUBTYPES = [
+  'air', 'angel', 'aquatic', 'blind', 'cold', 'construct',
+  'demon', 'devil', 'dragon', 'dragonborn', 'drow',
+  'dwarf', 'earth', 'eladrin', 'elf', 'fire',
+  'giant', 'goblin', 'homunculus', 'human',
+  'living construct', 'mount', 'ooze', 'orc',
+  'plant', 'reptile', 'shapechanger', 'spider',
+  'swarm', 'undead', 'water',
 ]
 
 interface Props {
@@ -68,15 +72,15 @@ export function Dnd4eCreatureDetails({ creature, onSave: save, config }: Props) 
   const roleLabel = (modifier ? modifier.charAt(0).toUpperCase() + modifier.slice(1) + ' ' : '') +
     (role ? role.charAt(0).toUpperCase() + role.slice(1) : '')
 
-  // Traits structure: [origin, type, ...keywords]
+  // Traits structure: [origin, type, ...subtypes]
   const traits = Array.isArray(sb.traits) ? sb.traits as string[] : []
   const origin = traits[0] ?? ''
   const creatureType = traits[1] ?? ''
-  const keywords = traits.slice(2)
+  const subtypes = traits.slice(2)
 
   const u = (key: string, val: unknown) => save({ ...creature, statBlock: { ...sb, [key]: val } })
-  const setTraits = (newOrigin: string, newType: string, newKw: string[]) => {
-    u('traits', [newOrigin, newType, ...newKw].filter(Boolean))
+  const setTraits = (newOrigin: string, newType: string, newSubtypes: string[]) => {
+    u('traits', [newOrigin, newType, ...newSubtypes].filter(Boolean))
   }
 
   // Auto-focus: track last-added skill/speed to focus its input
@@ -121,19 +125,19 @@ export function Dnd4eCreatureDetails({ creature, onSave: save, config }: Props) 
             style={{ color: 'inherit', fontStyle: 'inherit', background: 'transparent' }}>
             {SIZES.map(s => <option key={s} value={s}>{s}</option>)}
           </select>{' '}
-          <select className="ghost" value={origin} onChange={e => setTraits(e.target.value, creatureType, keywords)}
+          <select className="ghost" value={origin} onChange={e => setTraits(e.target.value, creatureType, subtypes)}
             style={{ color: 'inherit', fontStyle: 'inherit', background: 'transparent' }}>
             <option value="">origin</option>
             {ORIGINS.map(o => <option key={o} value={o}>{o}</option>)}
           </select>{' '}
-          <select className="ghost" value={creatureType} onChange={e => setTraits(origin, e.target.value, keywords)}
+          <select className="ghost" value={creatureType} onChange={e => setTraits(origin, e.target.value, subtypes)}
             style={{ color: 'inherit', fontStyle: 'inherit', background: 'transparent' }}>
             <option value="">type</option>
             {CREATURE_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
           </select>
           {' '}
-          <TagInput compact values={keywords} onChange={kw => setTraits(origin, creatureType, kw)}
-            suggestions={CREATURE_KEYWORDS} placeholder="(keywords)" />
+          <TagInput compact values={subtypes} onChange={st => setTraits(origin, creatureType, st)}
+            suggestions={CREATURE_SUBTYPES} placeholder="(subtypes)" />
         </span>
         <span style={{ whiteSpace: 'nowrap' }}>XP <input className="ghost" type="number" value={(sb.xp as number) ?? 0}
           onChange={e => u('xp', Number(e.target.value))} style={{ color: 'inherit', width: 50 }} /></span>

@@ -640,12 +640,43 @@ function parseDamageParts(raw: string, knownTypes: string[]): DamagePart[] {
 // ─── Helpers ───
 
 function parseTypeLine(typeStr: string): { origin: string; type: string; keywords: string[] } {
-  const parenMatch = typeStr.match(/^(\w+)\s+(\w+)(?:\s+\(([^)]+)\))?$/)
-  if (parenMatch) return { origin: parenMatch[1], type: parenMatch[2], keywords: parenMatch[3]?.split(',').map(s => s.trim()).filter(Boolean) ?? [] }
-  const commaMatch = typeStr.match(/^(\w+)\s+(\w+)(?:\s+\w+)*?\s*,\s*(.+)$/)
-  if (commaMatch) return { origin: commaMatch[1], type: commaMatch[2], keywords: commaMatch[3].split(',').map(s => s.trim()).filter(Boolean) }
-  const words = typeStr.split(/\s+/)
-  return { origin: words[0] ?? '', type: words[1] ?? '', keywords: [] }
+  // Format: "origin type (keywords)" or "origin type , keywords" or "origin type keyword"
+  // Types can be two words: "magical beast"
+  const knownOrigins = new Set(['aberrant', 'elemental', 'fey', 'immortal', 'natural', 'shadow'])
+  const knownTypes = new Set(['animate', 'beast', 'humanoid', 'magical beast'])
+
+  let str = typeStr.toLowerCase().trim()
+
+  // Extract parenthetical keywords
+  const keywords: string[] = []
+  const parenMatch = str.match(/\(([^)]+)\)/)
+  if (parenMatch) {
+    keywords.push(...parenMatch[1].split(',').map(s => s.trim()).filter(Boolean))
+    str = str.replace(/\s*\([^)]+\)/, '').trim()
+  }
+
+  // Extract comma-separated keywords (older format)
+  const commaIdx = str.indexOf(',')
+  if (commaIdx > 0) {
+    keywords.push(...str.substring(commaIdx + 1).split(',').map(s => s.trim()).filter(Boolean))
+    str = str.substring(0, commaIdx).trim()
+  }
+
+  // Now str should be "origin type" or "origin magical beast"
+  const words = str.split(/\s+/)
+  const origin = knownOrigins.has(words[0]) ? words[0] : ''
+  const rest = origin ? words.slice(1).join(' ') : str
+
+  // Check for two-word type first
+  const type = knownTypes.has(rest) ? rest : knownTypes.has(words[1] ?? '') ? words[1] : rest
+
+  // If there are extra words after the type that aren't part of a known type, they're keywords
+  if (type && rest !== type && rest.startsWith(type)) {
+    const extra = rest.substring(type.length).trim()
+    if (extra) keywords.push(...extra.split(/\s+/))
+  }
+
+  return { origin, type, keywords }
 }
 
 function parseSpeeds(speedStr: string): { land: number; speeds: Record<string, number>; speedNotes: string } {
