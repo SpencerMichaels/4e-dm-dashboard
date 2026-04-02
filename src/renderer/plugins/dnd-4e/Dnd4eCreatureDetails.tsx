@@ -1,3 +1,4 @@
+import { useRef, useEffect, useCallback } from 'react'
 import type { Creature, CreatureBuilderConfig } from '@common/types'
 import { CreatureBuilder } from '@renderer/components/campaign/CreatureBuilder'
 import { ActionEntryEditor } from '@renderer/components/campaign/ActionEntryEditor'
@@ -31,11 +32,6 @@ const DND4E_RANGE_TYPES = [
 ]
 const DND4E_TARGET_DEFENSES = ['AC', 'Fortitude', 'Reflex', 'Will']
 const DND4E_TRIGGERED = ['immediate-interrupt', 'immediate-reaction']
-const DND4E_MONSTER_MODIFIERS = [
-  { value: 'standard', label: 'Std' },
-  { value: 'elite', label: 'Elite' },
-  { value: 'solo', label: 'Solo' },
-]
 const DND4E_ALIGNMENTS = ['Lawful Good', 'Good', 'Unaligned', 'Evil', 'Chaotic Evil']
 const SIZES = ['Tiny', 'Small', 'Medium', 'Large', 'Huge', 'Gargantuan']
 const ORIGINS = ['aberrant', 'elemental', 'fey', 'immortal', 'natural', 'shadow']
@@ -84,18 +80,40 @@ export function Dnd4eCreatureDetails({ creature, onSave: save, config }: Props) 
     u('traits', [newOrigin, newType, ...newKw].filter(Boolean))
   }
 
+  // Auto-focus: track last-added skill/speed to focus its input
+  const lastAddedSkill = useRef<string | null>(null)
+  const lastAddedSpeed = useRef<string | null>(null)
+  const focusRef = useCallback((el: HTMLInputElement | null) => { if (el) { el.focus(); el.select() } }, [])
+  const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1)
+
   return (
     <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-4)' }}>
 
     {/* ─── Left column: Stat block ─── */}
     <div className="stat-block-4e" style={{ flex: '1 1 380px', minWidth: 320 }}>
 
-      {/* ── HEADER: Name + Level/Role ── */}
+      {/* ── HEADER: Name + Level/Modifier/Role ── */}
       <div className="sb-header">
         <input className="ghost sb-name" value={creature.name}
           onChange={e => save({ ...creature, name: e.target.value })}
           placeholder="Creature Name" style={{ color: 'inherit', flex: 1 }} />
-        <span style={{ whiteSpace: 'nowrap' }}>Level {level} {roleLabel}</span>
+        <span style={{ whiteSpace: 'nowrap', display: 'flex', alignItems: 'baseline', gap: 2 }}>
+          Level
+          <input className="ghost" type="number" value={level} min={config.minLevel} max={config.maxLevel}
+            onChange={e => u('level', Number(e.target.value))}
+            style={{ width: 32, textAlign: 'center', color: 'inherit', fontWeight: 600 }} />
+          <select className="ghost" value={modifier} onChange={e => u('monsterModifier', e.target.value || undefined)}
+            style={{ color: 'inherit', background: 'transparent', fontSize: 'inherit' }}>
+            <option value="">—</option>
+            <option value="elite">Elite</option>
+            <option value="solo">Solo</option>
+          </select>
+          <select className="ghost" value={role} onChange={e => { u('role', e.target.value); }}
+            style={{ color: 'inherit', background: 'transparent', fontSize: 'inherit', textTransform: 'capitalize' }}>
+            <option value="">role</option>
+            {(config.roles ?? []).map(r => <option key={r} value={r}>{r}</option>)}
+          </select>
+        </span>
       </div>
       <div className="sb-subheader">
         <span>
@@ -114,7 +132,9 @@ export function Dnd4eCreatureDetails({ creature, onSave: save, config }: Props) 
             <option value="">type</option>
             {CREATURE_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
           </select>
-          {keywords.length > 0 && <> ({keywords.join(', ')})</>}
+          {' '}
+          <TagInput values={keywords} onChange={kw => setTraits(origin, creatureType, kw)}
+            suggestions={CREATURE_KEYWORDS} placeholder="(keywords)" />
         </span>
         <span style={{ whiteSpace: 'nowrap' }}>XP <input className="ghost" type="number" value={(sb.xp as number) ?? 0}
           onChange={e => u('xp', Number(e.target.value))} style={{ color: 'inherit', width: 50 }} /></span>
@@ -191,10 +211,13 @@ export function Dnd4eCreatureDetails({ creature, onSave: save, config }: Props) 
           const speeds = (sb.speeds as Record<string, number> | undefined) ?? {}
           const val = key === 'land' ? ((sb.speed as number) ?? 0) : (speeds[key] ?? 0)
           if (val === 0 && key !== 'land') return null
+          const justAdded = lastAddedSpeed.current === key
+          if (justAdded) lastAddedSpeed.current = null
           return (
             <span key={key}>
               {key !== 'land' && <>{speedLabel.toLowerCase()} </>}
-              <input className="ghost" type="number" min={0} value={val}
+              <input className="ghost" type="number" min={0} value={val || ''}
+                ref={justAdded ? focusRef : undefined}
                 onChange={e => {
                   if (key === 'land') u('speed', Number(e.target.value))
                   else u('speeds', { ...speeds, [key]: Number(e.target.value) })
@@ -210,7 +233,7 @@ export function Dnd4eCreatureDetails({ creature, onSave: save, config }: Props) 
           if (key === 'land') return false
           return !((sb.speeds as Record<string, number> | undefined) ?? {})[key]
         }).map(({ key, label: speedLabel }) => (
-          <button key={key} onClick={() => u('speeds', { ...((sb.speeds as Record<string, number>) ?? {}), [key]: 6 })}
+          <button key={key} onClick={() => { lastAddedSpeed.current = key; u('speeds', { ...((sb.speeds as Record<string, number>) ?? {}), [key]: 0 }) }}
             style={{ fontSize: '9px', padding: '0 3px', border: '1px dashed var(--sb-separator)', borderRadius: 'var(--radius-sm)', color: 'var(--color-text-muted)', background: 'transparent', cursor: 'pointer' }}>
             +{speedLabel}
           </button>
@@ -218,29 +241,6 @@ export function Dnd4eCreatureDetails({ creature, onSave: save, config }: Props) 
       </div>
 
       {/* ── FOOTER ── */}
-
-      {/* Modifier buttons */}
-      <div className="sb-row sb-row-sep">
-        <b className="sb-label">Type</b>
-        <div style={{ display: 'flex', gap: 1 }}>
-          {DND4E_MONSTER_MODIFIERS.map(t => (
-            <button key={t.value} onClick={() => u('monsterModifier', t.value === 'standard' ? undefined : t.value)}
-              style={{
-                padding: '1px 5px', fontSize: '10px',
-                fontWeight: (modifier || 'standard') === t.value ? 700 : 400,
-                background: (modifier || 'standard') === t.value ? 'var(--sb-header-bg)' : 'transparent',
-                color: (modifier || 'standard') === t.value ? '#fff' : 'var(--color-text-muted)',
-                border: (modifier || 'standard') === t.value ? 'none' : '1px solid var(--color-border)',
-                borderRadius: 'var(--radius-sm)', cursor: 'pointer',
-              }}>{t.label}</button>
-          ))}
-        </div>
-        <span style={{ marginLeft: 8, fontSize: '10px', color: 'var(--color-text-muted)' }}>
-          Keywords:
-        </span>
-        <TagInput values={keywords} onChange={kw => setTraits(origin, creatureType, kw)}
-          suggestions={CREATURE_KEYWORDS} placeholder="+ keyword" />
-      </div>
 
       {/* Alignment + Languages */}
       <div className="sb-row sb-row-sep">
@@ -268,19 +268,24 @@ export function Dnd4eCreatureDetails({ creature, onSave: save, config }: Props) 
           const availableSkills = (config.skills ?? []).filter(s => !skills[s.toLowerCase()])
           return (
             <>
-              {skillEntries.map(([name, mod], i) => (
-                <span key={name} style={{ display: 'inline-flex', alignItems: 'center', gap: 1 }}>
-                  {name} <input className="ghost" type="number" value={mod}
-                    onChange={ev => u('skills', { ...skills, [name]: Number(ev.target.value) })}
-                    style={{ width: 30, fontWeight: 600 }} />
-                  <button onClick={() => { const { [name]: _, ...rest } = skills; u('skills', rest) }}
-                    style={{ fontSize: '9px', color: 'var(--color-text-muted)', padding: '0 1px' }}>x</button>
-                  {i < skillEntries.length - 1 && ','}
-                </span>
-              ))}
+              {skillEntries.map(([name, mod], i) => {
+                const justAdded = lastAddedSkill.current === name
+                if (justAdded) lastAddedSkill.current = null
+                return (
+                  <span key={name} style={{ display: 'inline-flex', alignItems: 'center', gap: 1 }}>
+                    {cap(name)} <input className="ghost" type="number" value={mod || ''}
+                      ref={justAdded ? focusRef : undefined}
+                      onChange={ev => u('skills', { ...skills, [name]: Number(ev.target.value) })}
+                      style={{ width: 30, fontWeight: 600 }} />
+                    <button onClick={() => { const { [name]: _, ...rest } = skills; u('skills', rest) }}
+                      style={{ fontSize: '9px', color: 'var(--color-text-muted)', padding: '0 1px' }}>x</button>
+                    {i < skillEntries.length - 1 && ','}
+                  </span>
+                )
+              })}
               {availableSkills.length > 0 && (
                 <Autocomplete options={availableSkills.map(s => ({ value: s.toLowerCase(), label: s }))} value=""
-                  onChange={val => { if (val) u('skills', { ...skills, [val]: 0 }) }}
+                  onChange={val => { if (val) { lastAddedSkill.current = val; u('skills', { ...skills, [val]: 0 }) } }}
                   placeholder="+ skill" />
               )}
             </>

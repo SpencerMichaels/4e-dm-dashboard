@@ -23,23 +23,18 @@ function tierShort(tier: string, config: CreatureBuilderConfig): string {
   return config.tierDisplay?.[tier]?.label ?? tier.charAt(0).toUpperCase() + tier.slice(1)
 }
 
-// Shared inline styles
 const lbl = { fontSize: 'var(--font-size-xs)', color: 'var(--color-text-secondary)', whiteSpace: 'nowrap' as const }
-const numStyle = { width: 45, textAlign: 'center' as const, fontSize: 'var(--font-size-xs)' }
 
 export function CreatureBuilder({ statBlock, hp, maxHp, onUpdate, config }: Props) {
-  const { statDefs, minLevel, maxLevel, useSharedRole, roles } = config
+  const { statDefs, useSharedRole, roles } = config
   const level = (statBlock.level as number) ?? 1
+  const sharedRole = (statBlock.role as string) ?? roles?.[0] ?? ''
   const [tiers, setTiers] = useState<TierSelections>(() => inferTiers(level, statBlock, hp))
-  const [sharedRole, setSharedRole] = useState<string>(() => (statBlock.role as string) ?? roles?.[0] ?? '')
   const initialMount = useRef(true)
 
   useEffect(() => {
     if (initialMount.current) {
       initialMount.current = false
-      if (useSharedRole && sharedRole && !statBlock.role) {
-        onUpdate({ ...statBlock, role: sharedRole }, hp, maxHp)
-      }
       return
     }
     if (useSharedRole && sharedRole) {
@@ -123,87 +118,61 @@ export function CreatureBuilder({ statBlock, hp, maxHp, onUpdate, config }: Prop
 
   const isRoleBased = (def: CreatureBuilderStatDef) => useSharedRole && roles && def.tiers.every(t => roles.includes(t))
 
+  // Render just the stat values inline — level/role are handled by the parent
   return (
-    <div>
-      {/* Level + Role — inline */}
-      <div style={{ display: 'flex', gap: 'var(--space-2)', alignItems: 'center', flexWrap: 'wrap', marginBottom: 'var(--space-2)' }}>
-        <span style={lbl}>Level</span>
-        <input type="number" className="ghost" min={minLevel} max={maxLevel} value={level}
-          onChange={(e) => onUpdate({ ...statBlock, level: Number(e.target.value) }, hp, maxHp)}
-          style={{ ...numStyle, fontWeight: 600 }} />
-        {useSharedRole && roles && (
-          <>
-            <span style={lbl}>Role</span>
-            <div style={{ display: 'flex', gap: 1 }}>
-              {roles.map((role) => (
-                <button key={role} onClick={() => setSharedRole(role)}
-                  style={{
-                    padding: '1px 5px', fontSize: '10px', textTransform: 'capitalize',
-                    fontWeight: sharedRole === role ? 700 : 400,
-                    background: sharedRole === role ? tierColor(role, config) : 'transparent',
-                    color: sharedRole === role ? '#fff' : 'var(--color-text-muted)',
-                    border: sharedRole === role ? 'none' : '1px solid var(--color-border)',
-                    borderRadius: 'var(--radius-sm)', cursor: 'pointer',
-                  }}>{tierShort(role, config)}</button>
-              ))}
-            </div>
-          </>
-        )}
-      </div>
+    <div style={{ display: 'flex', gap: 'var(--space-3)', alignItems: 'center', flexWrap: 'wrap', marginBottom: 'var(--space-2)' }}>
+      {statDefs.map((def) => {
+        // Skip HP — handled separately in the stat block
+        if (def.key === 'hp') return null
+        const currentValue = getStatValue(def, statBlock, hp)
+        const roleBased = isRoleBased(def)
 
-      {/* Stats — inline row, not stacked */}
-      <div style={{ display: 'flex', gap: 'var(--space-3)', alignItems: 'center', flexWrap: 'wrap', marginBottom: 'var(--space-2)' }}>
-        {statDefs.map((def) => {
-          const roleBased = isRoleBased(def)
-          const currentValue = getStatValue(def, statBlock, hp)
-
-          if (roleBased) {
-            const roleValue = lookup(def.table, level, sharedRole)
-            return (
-              <label key={def.key} style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
-                <span style={lbl}>{def.label}</span>
-                <input type="number" className="ghost" value={currentValue ?? roleValue ?? ''}
-                  onChange={(e) => handleDirectValueChange(def, Number(e.target.value))}
-                  style={{ ...numStyle, fontWeight: 600, color: tierColor(sharedRole, config) }} />
-                {roleValue != null && currentValue !== roleValue && (
-                  <button onClick={() => handleDirectValueChange(def, roleValue)}
-                    title={`Reset to ${roleValue}`}
-                    style={{ padding: '0 3px', fontSize: '9px', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-sm)', cursor: 'pointer', background: 'transparent', color: 'var(--color-text-muted)', lineHeight: 1.4 }}>
-                    ={roleValue}
-                  </button>
-                )}
-              </label>
-            )
-          }
-
-          // Non-role stat with tier buttons
+        if (roleBased) {
+          const roleValue = lookup(def.table, level, sharedRole)
           return (
-            <div key={def.key} style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+            <label key={def.key} style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
               <span style={lbl}>{def.label}</span>
-              <input type="number" className="ghost" value={currentValue ?? ''} onChange={(e) => handleDirectValueChange(def, Number(e.target.value))}
-                style={numStyle} />
-              <div style={{ display: 'flex', gap: 1 }}>
-                {def.tiers.map((tier) => {
-                  const tierVal = lookup(def.table, level, tier)
-                  const isMatch = currentValue != null && tierVal === currentValue
-                  return (
-                    <button key={tier} onClick={() => { if (tierVal != null) handleDirectValueChange(def, tierVal) }}
-                      title={tierVal != null ? `${tier}: ${tierVal}` : tier}
-                      style={{
-                        padding: '1px 3px', fontSize: '9px',
-                        fontWeight: isMatch ? 700 : 400,
-                        background: isMatch ? tierColor(tier, config) : 'transparent',
-                        color: isMatch ? '#fff' : 'var(--color-text-muted)',
-                        border: isMatch ? 'none' : '1px solid var(--color-border)',
-                        borderRadius: 'var(--radius-sm)', cursor: 'pointer',
-                      }}>{tierShort(tier, config)}</button>
-                  )
-                })}
-              </div>
-            </div>
+              <input type="number" className="ghost" value={currentValue ?? roleValue ?? ''}
+                onChange={(e) => handleDirectValueChange(def, Number(e.target.value))}
+                style={{ width: 45, textAlign: 'center', fontSize: 'var(--font-size-xs)', fontWeight: 600 }} />
+              {roleValue != null && currentValue !== roleValue && (
+                <button onClick={() => handleDirectValueChange(def, roleValue)}
+                  title={`Reset to ${roleValue}`}
+                  style={{ padding: '0 3px', fontSize: '9px', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-sm)', cursor: 'pointer', background: 'transparent', color: 'var(--color-text-muted)', lineHeight: 1.4 }}>
+                  ={roleValue}
+                </button>
+              )}
+            </label>
           )
-        })}
-      </div>
+        }
+
+        // Non-role stat with tier buttons
+        return (
+          <div key={def.key} style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+            <span style={lbl}>{def.label}</span>
+            <input type="number" className="ghost" value={currentValue ?? ''} onChange={(e) => handleDirectValueChange(def, Number(e.target.value))}
+              style={{ width: 45, textAlign: 'center', fontSize: 'var(--font-size-xs)' }} />
+            <div style={{ display: 'flex', gap: 1 }}>
+              {def.tiers.map((tier) => {
+                const tierVal = lookup(def.table, level, tier)
+                const isMatch = currentValue != null && tierVal === currentValue
+                return (
+                  <button key={tier} onClick={() => { if (tierVal != null) handleDirectValueChange(def, tierVal) }}
+                    title={tierVal != null ? `${tier}: ${tierVal}` : tier}
+                    style={{
+                      padding: '1px 3px', fontSize: '9px',
+                      fontWeight: isMatch ? 700 : 400,
+                      background: isMatch ? tierColor(tier, config) : 'transparent',
+                      color: isMatch ? '#fff' : 'var(--color-text-muted)',
+                      border: isMatch ? 'none' : '1px solid var(--color-border)',
+                      borderRadius: 'var(--radius-sm)', cursor: 'pointer',
+                    }}>{tierShort(tier, config)}</button>
+                )
+              })}
+            </div>
+          </div>
+        )
+      })}
     </div>
   )
 }
