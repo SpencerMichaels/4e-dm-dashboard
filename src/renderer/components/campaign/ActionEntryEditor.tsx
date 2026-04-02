@@ -430,10 +430,22 @@ function FullPowerRow({ entry: e, idx, config, level, statBlock, atkBonusTables,
         )}
 
         {/* Damage */}
-        {(normalizeDamage(e.damage).length > 0 || e.attackBonus != null) && (
-          <DamagePartsEditor parts={normalizeDamage(e.damage)} config={config} level={level} usage={e.usage}
-            onChange={(parts) => onUpdate(idx, { damage: parts })} />
-        )}
+        {(normalizeDamage(e.damage).length > 0 || e.attackBonus != null) && (() => {
+          // Infer damage tier per DMG p.185:
+          // Multi-target → low, brute/lurker single → high, other single → medium
+          const rt = (e.rangeType || '').toLowerCase()
+          const tgt = (e.target || '').toLowerCase()
+          const isMulti = (rt.includes('burst') || rt.includes('blast') || rt.includes('area'))
+            ? !(tgt.includes('one creature') || tgt.includes('one target'))
+            : (tgt.includes('each') || tgt.includes('enemies') || tgt.includes('creatures'))
+          const role = config.useSharedRole ? (statBlock?.role as string) : undefined
+          const isHighDmg = role === 'brute' || role === 'lurker'
+          const inferredTier = isMulti ? 'low' : isHighDmg ? 'high' : 'medium'
+          return (
+            <DamagePartsEditor parts={normalizeDamage(e.damage)} config={config} level={level} usage={e.usage}
+              inferredTier={inferredTier} onChange={(parts) => onUpdate(idx, { damage: parts })} />
+          )
+        })()}
 
         {/* Hit / Miss / Effect */}
         {[
@@ -533,8 +545,8 @@ function formatDamage(damage: DamagePart[] | string | undefined): string {
 }
 
 /** Inline editor for DamagePart[] — each part is a row with expr, type dropdown, ongoing toggle */
-function DamagePartsEditor({ parts, config, level, usage, onChange }: {
-  parts: DamagePart[]; config: CreatureBuilderConfig; level?: number; usage?: string
+function DamagePartsEditor({ parts, config, level, usage, inferredTier, onChange }: {
+  parts: DamagePart[]; config: CreatureBuilderConfig; level?: number; usage?: string; inferredTier?: string
   onChange: (parts: DamagePart[]) => void
 }) {
   const updatePart = (i: number, patch: Partial<DamagePart>) => onChange(parts.map((p, j) => j === i ? { ...p, ...patch } : p))
@@ -548,11 +560,13 @@ function DamagePartsEditor({ parts, config, level, usage, onChange }: {
   const isLimited = usage === 'encounter' || usage === 'recharge'
   const dmgTable = isLimited ? (config.limitedDamageDice ?? config.strikeDamageDice) : config.strikeDamageDice
   const dmgRow = level != null && dmgTable ? dmgTable[level] : undefined
+  // Suggested damage from inferred tier
+  const tier = inferredTier ?? 'medium'
+  const suggestedDmg = dmgRow?.[tier] ?? dmgRow?.medium
   const dmgTooltip = dmgRow
-    ? (isLimited ? 'Limited' : 'Normal') + ' damage:\n' + Object.entries(dmgRow).map(([t, v]) => `${t}: ${v}`).join('\n')
+    ? (isLimited ? 'Limited' : 'Normal') + ' damage (DMG p.185):\n' +
+      Object.entries(dmgRow).map(([t, v]) => `${t === tier ? '→ ' : '  '}${t}: ${v}`).join('\n')
     : ''
-  // Infer default tier: medium
-  const suggestedDmg = dmgRow?.medium ?? dmgRow?.[Object.keys(dmgRow ?? {})[Math.floor(Object.keys(dmgRow ?? {}).length / 2)]]
 
   // damage type select uses ghost class from global CSS
 
@@ -588,10 +602,10 @@ function DamagePartsEditor({ parts, config, level, usage, onChange }: {
               {config.damageTypes.map((dt) => <option key={dt} value={dt}>{dt}</option>)}
             </select>
           )}
-          {i === 0 && level != null && dmgRow && (
-            <span title={dmgTooltip}>
-              <DiceTierButtons table={dmgTable!} level={level} currentDice={p.expr} config={config}
-                onSelect={(dice) => updatePart(0, { expr: dice })} />
+          {i === 0 && level != null && dmgRow && suggestedDmg && p.expr !== suggestedDmg && (
+            <span onClick={() => updatePart(0, { expr: suggestedDmg })} title={dmgTooltip}
+              style={{ color: 'var(--color-text-muted)', cursor: 'pointer', fontSize: '0.85em' }}>
+              ({suggestedDmg})
             </span>
           )}
           <button onClick={() => removePart(i)} style={{ color: 'var(--color-text-muted)', padding: '0 2px', lineHeight: 1 }}>×</button>

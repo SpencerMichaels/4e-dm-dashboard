@@ -79,12 +79,15 @@ function Hint({ value, benchmark, onClick, tooltip }: {
   )
 }
 
-/** Tooltip showing a full tier table for a level */
-function tierTooltip(table: { [level: number]: Record<string, string | number> } | undefined, level: number): string {
-  if (!table) return ''
-  const row = table[level]
-  if (!row) return ''
-  return Object.entries(row).map(([tier, val]) => `${tier}: ${val}`).join('\n')
+/** Tooltip showing benchmark context */
+function tierTooltip(table: { [level: number]: Record<string, string | number> } | undefined, level: number, label?: string, benchmark?: number): string {
+  const parts: string[] = []
+  if (label && benchmark != null) parts.push(`${label}: ${benchmark}`)
+  if (table) {
+    const row = table[level]
+    if (row) parts.push(Object.entries(row).map(([tier, val]) => `${tier}: ${val}`).join(', '))
+  }
+  return parts.join('\n')
 }
 
 export function Dnd4eCreatureDetails({ creature, onSave: save, config }: Props) {
@@ -220,7 +223,7 @@ export function Dnd4eCreatureDetails({ creature, onSave: save, config }: Props) 
 
       {/* ── GROUP 1: Initiative, Senses, Speed, Saves/AP ── */}
       <div className="sb-row">
-        <span title={tierTooltip(config.statDefs.find(d => d.key === 'initiative')?.table, level)}>
+        <span title={`Expected: Dex mod (${dexMod}) + half level (${halfLvl}) = ${benchmarks.initiative}`}>
           <b className="sb-label">Initiative</b> <input className="ghost" type="number" value={(sb.initiative as number) ?? 0}
           onChange={e => u('initiative', Number(e.target.value))} />
           <Hint value={(sb.initiative as number)} benchmark={benchmarks.initiative} onClick={() => benchmarks.initiative != null && u('initiative', benchmarks.initiative)} />;</span>
