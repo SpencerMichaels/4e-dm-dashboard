@@ -2,6 +2,7 @@ import { useState, useRef, useCallback, useEffect } from 'react'
 import type { Creature } from '@common/types'
 import type { PluginCreatureListProps } from '../plugin-types'
 import { useCompendium } from './use-compendium'
+import { Dnd4eCreatureViewer } from './Dnd4eCreatureViewer'
 
 const ROW_HEIGHT = 32
 const OVERSCAN = 10
@@ -74,7 +75,7 @@ function CampaignCreatures({ creatures, onNavigate }: { creatures: Creature[]; o
             title="Delete" style={{
               padding: 'var(--space-2) var(--space-3)', background: 'transparent',
               border: 'none', cursor: 'pointer', color: 'var(--color-text-muted)', fontSize: 'var(--font-size-sm)',
-            }}>x</button>
+            }}>×</button>
         </div>
       ))}
     </div>
@@ -86,12 +87,13 @@ function CampaignCreatures({ creatures, onNavigate }: { creatures: Creature[]; o
 function CompendiumBrowser({ comp, onNavigate }: { comp: ReturnType<typeof useCompendium>; onNavigate: (id: string) => void }) {
   const { filters, filtered, filterOptions, updateFilter, searchRef, totalCount, loading } = comp
   const [adding, setAdding] = useState<string | null>(null)
+  const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [previewCreature, setPreviewCreature] = useState<Creature | null>(null)
 
   const handleAdd = useCallback(async (monsterId: string) => {
     setAdding(monsterId)
     try {
       const creature = await window.api.compendium.get('dnd-4e', monsterId)
-      // Save through the normal entity channel so the campaign store broadcasts
       await window.api.entity.save('creature', creature)
       onNavigate(creature.id)
     } finally {
@@ -99,65 +101,87 @@ function CompendiumBrowser({ comp, onNavigate }: { comp: ReturnType<typeof useCo
     }
   }, [onNavigate])
 
+  const handleSelect = useCallback(async (monsterId: string) => {
+    if (monsterId === selectedId) return
+    setSelectedId(monsterId)
+    const creature = await window.api.compendium.get('dnd-4e', monsterId)
+    setPreviewCreature(creature)
+  }, [selectedId])
+
   if (loading) return <p style={{ color: 'var(--color-text-muted)' }}>Loading compendium...</p>
 
   const xs = { fontSize: 'var(--font-size-xs)' }
   const selectStyle = { ...xs, padding: '2px 4px', background: 'var(--color-bg-surface)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-sm)' }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
-      {/* Search */}
-      <div style={{ marginBottom: 'var(--space-2)', flexShrink: 0 }}>
-        <input ref={searchRef} value={filters.search}
-          onChange={e => updateFilter('search', e.target.value)}
-          placeholder="/ Search by name..."
-          style={{ width: '100%', padding: 'var(--space-2)', ...xs }} />
+    <div style={{ display: 'flex', flex: 1, minHeight: 0, gap: 'var(--space-3)' }}>
+      {/* Left: search + list */}
+      <div style={{ display: 'flex', flexDirection: 'column', flex: '1 1 300px', minWidth: 250, minHeight: 0 }}>
+        {/* Search */}
+        <div style={{ marginBottom: 'var(--space-2)', flexShrink: 0 }}>
+          <input ref={searchRef} value={filters.search}
+            onChange={e => updateFilter('search', e.target.value)}
+            placeholder="/ Search by name..."
+            style={{ width: '100%', padding: 'var(--space-2)', ...xs }} />
+        </div>
+
+        {/* Filters */}
+        <div style={{ display: 'flex', gap: 'var(--space-2)', flexWrap: 'wrap', marginBottom: 'var(--space-2)', alignItems: 'center', flexShrink: 0 }}>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 2, ...xs, color: 'var(--color-text-muted)' }}>
+            Level
+            <input type="number" value={filters.levelMin} min={-1} max={40}
+              onChange={e => updateFilter('levelMin', Number(e.target.value))}
+              style={{ width: 40, ...xs, textAlign: 'center' }} />
+            –
+            <input type="number" value={filters.levelMax} min={-1} max={40}
+              onChange={e => updateFilter('levelMax', Number(e.target.value))}
+              style={{ width: 40, ...xs, textAlign: 'center' }} />
+          </label>
+          <select value={filters.role} onChange={e => updateFilter('role', e.target.value)} style={selectStyle}>
+            <option value="">All roles</option>
+            {filterOptions.roles.map(r => <option key={r} value={r}>{r}</option>)}
+          </select>
+          <select value={filters.size} onChange={e => updateFilter('size', e.target.value)} style={selectStyle}>
+            <option value="">All sizes</option>
+            {filterOptions.sizes.map(s => <option key={s} value={s}>{s}</option>)}
+          </select>
+          <select value={filters.modifier} onChange={e => updateFilter('modifier', e.target.value)} style={selectStyle}>
+            <option value="">All types</option>
+            <option value="standard">Standard</option>
+            <option value="elite">Elite</option>
+            <option value="solo">Solo</option>
+          </select>
+        </div>
+
+        {/* Column headers */}
+        <div style={{
+          display: 'grid', gridTemplateColumns: '1fr 30px 32px',
+          gap: 'var(--space-2)', padding: '4px var(--space-2)',
+          ...xs, color: 'var(--color-text-muted)', fontWeight: 600, borderBottom: '1px solid var(--color-border)',
+          flexShrink: 0,
+        }}>
+          <span>Name</span><span>Lvl</span><span />
+        </div>
+
+        {/* Virtualized list */}
+        <VirtualizedList items={filtered} rowHeight={ROW_HEIGHT} adding={adding} selectedId={selectedId}
+          onAdd={handleAdd} onSelect={handleSelect} />
+
+        {/* Status */}
+        <div style={{ ...xs, color: 'var(--color-text-muted)', padding: 'var(--space-2) 0', flexShrink: 0 }}>
+          Showing {filtered.length.toLocaleString()} of {totalCount.toLocaleString()}
+        </div>
       </div>
 
-      {/* Filters */}
-      <div style={{ display: 'flex', gap: 'var(--space-2)', flexWrap: 'wrap', marginBottom: 'var(--space-2)', alignItems: 'center', flexShrink: 0 }}>
-        <label style={{ display: 'flex', alignItems: 'center', gap: 2, ...xs, color: 'var(--color-text-muted)' }}>
-          Level
-          <input type="number" value={filters.levelMin} min={-1} max={40}
-            onChange={e => updateFilter('levelMin', Number(e.target.value))}
-            style={{ width: 40, ...xs, textAlign: 'center' }} />
-          –
-          <input type="number" value={filters.levelMax} min={-1} max={40}
-            onChange={e => updateFilter('levelMax', Number(e.target.value))}
-            style={{ width: 40, ...xs, textAlign: 'center' }} />
-        </label>
-        <select value={filters.role} onChange={e => updateFilter('role', e.target.value)} style={selectStyle}>
-          <option value="">All roles</option>
-          {filterOptions.roles.map(r => <option key={r} value={r}>{r}</option>)}
-        </select>
-        <select value={filters.size} onChange={e => updateFilter('size', e.target.value)} style={selectStyle}>
-          <option value="">All sizes</option>
-          {filterOptions.sizes.map(s => <option key={s} value={s}>{s}</option>)}
-        </select>
-        <select value={filters.modifier} onChange={e => updateFilter('modifier', e.target.value)} style={selectStyle}>
-          <option value="">All types</option>
-          <option value="standard">Standard</option>
-          <option value="elite">Elite</option>
-          <option value="solo">Solo</option>
-        </select>
-      </div>
-
-      {/* Column headers */}
-      <div style={{
-        display: 'grid', gridTemplateColumns: '1fr 40px 90px 70px 50px 32px',
-        gap: 'var(--space-2)', padding: '4px var(--space-2)',
-        ...xs, color: 'var(--color-text-muted)', fontWeight: 600, borderBottom: '1px solid var(--color-border)',
-        flexShrink: 0,
-      }}>
-        <span>Name</span><span>Lvl</span><span>Role</span><span>Size</span><span>XP</span><span />
-      </div>
-
-      {/* Virtualized list */}
-      <VirtualizedList items={filtered} rowHeight={ROW_HEIGHT} adding={adding} onAdd={handleAdd} />
-
-      {/* Status */}
-      <div style={{ ...xs, color: 'var(--color-text-muted)', padding: 'var(--space-2) 0', flexShrink: 0 }}>
-        Showing {filtered.length.toLocaleString()} of {totalCount.toLocaleString()}
+      {/* Right: creature preview */}
+      <div style={{ flex: '1 1 400px', minWidth: 300, overflow: 'auto', minHeight: 0 }}>
+        {previewCreature ? (
+          <Dnd4eCreatureViewer creature={previewCreature} />
+        ) : (
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: 'var(--color-text-muted)', fontSize: 'var(--font-size-sm)' }}>
+            Click a creature to preview
+          </div>
+        )}
       </div>
     </div>
   )
@@ -165,9 +189,10 @@ function CompendiumBrowser({ comp, onNavigate }: { comp: ReturnType<typeof useCo
 
 // ─── Virtualized list ───
 
-function VirtualizedList({ items, rowHeight, adding, onAdd }: {
+function VirtualizedList({ items, rowHeight, adding, selectedId, onAdd, onSelect }: {
   items: { id: string; name: string; level: number; role: string; modifier: string; size: string; xp: number }[]
-  rowHeight: number; adding: string | null; onAdd: (id: string) => void
+  rowHeight: number; adding: string | null; selectedId: string | null
+  onAdd: (id: string) => void; onSelect: (id: string) => void
 }) {
   const containerRef = useRef<HTMLDivElement>(null)
   const [scrollTop, setScrollTop] = useState(0)
@@ -198,22 +223,22 @@ function VirtualizedList({ items, rowHeight, adding, onAdd }: {
         {items.slice(startIdx, endIdx).map((item, i) => {
           const idx = startIdx + i
           const mod = modLabel(item.modifier)
+          const isSelected = item.id === selectedId
           return (
-            <div key={item.id} style={{
+            <div key={item.id} onClick={() => onSelect(item.id)} style={{
               position: 'absolute', top: idx * rowHeight, left: 0, right: 0, height: rowHeight,
-              display: 'grid', gridTemplateColumns: '1fr 40px 90px 70px 50px 32px',
+              display: 'grid', gridTemplateColumns: '1fr 30px 32px',
               gap: 'var(--space-2)', alignItems: 'center', padding: '0 var(--space-2)',
               borderBottom: '1px solid var(--color-border-subtle, rgba(128,128,128,0.1))',
+              background: isSelected ? 'var(--color-bg-active, rgba(92,124,250,0.15))' : 'transparent',
+              cursor: 'pointer',
               ...xs,
             }}>
-              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: isSelected ? 600 : 400 }}>
                 {item.name}
               </span>
               <span>{item.level}{mod && <sup style={{ color: 'var(--color-text-muted)', marginLeft: 1 }}>{mod}</sup>}</span>
-              <span style={{ color: 'var(--color-text-muted)' }}>{item.role}</span>
-              <span style={{ color: 'var(--color-text-muted)' }}>{item.size}</span>
-              <span style={{ color: 'var(--color-text-muted)' }}>{item.xp}</span>
-              <button onClick={() => onAdd(item.id)} disabled={adding === item.id}
+              <button onClick={(ev) => { ev.stopPropagation(); onAdd(item.id) }} disabled={adding === item.id}
                 title="Add to campaign"
                 style={{
                   padding: '2px 6px', background: 'transparent', border: '1px solid var(--color-border)',
