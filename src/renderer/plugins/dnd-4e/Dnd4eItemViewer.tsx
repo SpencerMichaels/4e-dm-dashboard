@@ -8,15 +8,17 @@ interface ParsedItem {
   price: string
   flavor: string
   slot: string
+  itemType: string
   enhancement: string
+  critical: string
   properties: string[]
   powers: { name: string; usage: string; action: string; text: string }[]
   damage?: string
   proficiency?: string
   range?: string
   weight?: string
-  group?: string
-  groupDescription?: string
+  groups: string[]
+  weaponCategory?: string
   componentCost?: string
   keySkill?: string
   castTime?: string
@@ -49,7 +51,7 @@ export function Dnd4eItemViewer({ item }: { item: ParsedItem }) {
         {levelStr && <span>{levelStr}</span>}
       </div>
       <div className="sb-subheader">
-        <span>{item.slot || CAT_LABELS[item.category] || item.category}</span>
+        <span>{item.slot || CAT_LABELS[item.category] || item.category}{item.itemType && `: ${item.itemType}`}</span>
         {item.price && <span>{item.price}</span>}
       </div>
 
@@ -71,14 +73,9 @@ export function Dnd4eItemViewer({ item }: { item: ParsedItem }) {
               {item.weight && <span><b className="sb-label">Weight</b> {item.weight}</span>}
             </div>
           )}
-          {item.group && (
-            <div className="sb-row" style={{ flexDirection: item.groupDescription ? 'column' : undefined }}>
-              <span><b className="sb-label">Group</b> {item.group}</span>
-              {item.groupDescription && (
-                <span style={{ fontSize: 11, color: 'var(--color-text-secondary)', fontStyle: 'italic', paddingLeft: 8 }}>
-                  {item.groupDescription}
-                </span>
-              )}
+          {item.groups?.length > 0 && (
+            <div className="sb-row">
+              <b className="sb-label">Group</b> {item.groups.join(', ')}
             </div>
           )}
         </div>
@@ -98,10 +95,11 @@ export function Dnd4eItemViewer({ item }: { item: ParsedItem }) {
         </div>
       )}
 
-      {/* Enhancement */}
-      {item.enhancement && (
-        <div className="sb-row" style={{ borderTop: '1px solid var(--sb-separator)' }}>
-          <b className="sb-label">Enhancement</b> {item.enhancement}
+      {/* Enhancement + Critical */}
+      {(item.enhancement || item.critical) && (
+        <div style={{ borderTop: '1px solid var(--sb-separator)' }}>
+          {item.enhancement && <div className="sb-row"><b className="sb-label">Enhancement</b> {item.enhancement}</div>}
+          {item.critical && <div className="sb-row"><b className="sb-label">Critical</b> {item.critical}</div>}
         </div>
       )}
 
