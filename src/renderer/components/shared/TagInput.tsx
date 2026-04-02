@@ -98,17 +98,18 @@ export function TagInput({ values, onChange, suggestions = [], placeholder, comp
         ))}
         <input
           ref={inputRef}
+          className={compact ? 'ghost' : undefined}
           value={input}
           onChange={(e) => { setInput(e.target.value); setShowSuggestions(true) }}
           onFocus={() => setShowSuggestions(true)}
           onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
           onKeyDown={handleKeyDown}
-          placeholder={values.length === 0 ? placeholder : ''}
+          placeholder={values.length === 0 ? placeholder : (compact ? '+' : '')}
           style={{
-            flex: 1,
-            minWidth: compact ? 50 : 80,
-            border: 'none',
-            background: 'transparent',
+            flex: compact ? '0 1 auto' : 1,
+            minWidth: compact ? 20 : 80,
+            border: compact ? undefined : 'none',
+            background: compact ? undefined : 'transparent',
             outline: 'none',
             fontSize: compact ? 'var(--font-size-xs)' : 'var(--font-size-sm)',
             padding: compact ? '0' : '2px 0',

@@ -179,8 +179,26 @@ export function Dnd4eCreatureDetails({ creature, onSave: save, config }: Props) 
         <span><b className="sb-label">Bloodied</b> {Math.floor(creature.hp / 2)}</span>
       </div>
 
-      {/* AC + Defenses — from CreatureBuilder */}
-      <div style={{ padding: '0 8px' }}>
+      {/* AC, Fortitude, Reflex, Will */}
+      {(() => {
+        const defs = (sb.defenses as Record<string, number>) ?? {}
+        const uDef = (key: string, val: number) => u('defenses', { ...defs, [key]: val })
+        return (
+          <div className="sb-row sb-row-sep">
+            <span><b className="sb-label">AC</b> <input className="ghost" type="number" value={(sb.ac as number) ?? 10}
+              onChange={e => u('ac', Number(e.target.value))} />;</span>
+            <span><b className="sb-label">Fortitude</b> <input className="ghost" type="number" value={defs.fortitude ?? 10}
+              onChange={e => uDef('fortitude', Number(e.target.value))} />,</span>
+            <span><b className="sb-label">Reflex</b> <input className="ghost" type="number" value={defs.reflex ?? 10}
+              onChange={e => uDef('reflex', Number(e.target.value))} />,</span>
+            <span><b className="sb-label">Will</b> <input className="ghost" type="number" value={defs.will ?? 10}
+              onChange={e => uDef('will', Number(e.target.value))} /></span>
+          </div>
+        )
+      })()}
+
+      {/* Other stats from CreatureBuilder (Initiative, etc.) */}
+      <div className="sb-row sb-row-sep">
         <CreatureBuilder statBlock={sb} hp={creature.hp} maxHp={creature.maxHp}
           onUpdate={(statBlock, hp, maxHp) => save({ ...creature, statBlock, hp, maxHp })}
           config={config} />
@@ -198,24 +216,23 @@ export function Dnd4eCreatureDetails({ creature, onSave: save, config }: Props) 
         </div>
       )}
 
-      {/* Immune / Resist / Vulnerable */}
+      {/* Immune / Resist / Vulnerable — always visible */}
       {(() => {
         const defVal = config.resistWeakDefault?.[level]
-        const hasImmune = Array.isArray(sb.immunities) && sb.immunities.length > 0
-        const hasResist = Array.isArray(sb.resistances) && sb.resistances.length > 0
-        const hasWeak = Array.isArray(sb.weaknesses) && sb.weaknesses.length > 0
-        if (!hasImmune && !hasResist && !hasWeak) return null
         return (
           <div className="sb-row-sep" style={{ padding: '2px 8px' }}>
-            {hasImmune && <div><b className="sb-label">Immune</b>{' '}
-              <DamageEntryList entries={sb.immunities as any} onChange={v => u('immunities', v)}
-                suggestions={config.damageTypes} showValue={false} placeholder="+ immunity" /></div>}
-            {hasResist && <div><b className="sb-label">Resist</b>{' '}
-              <DamageEntryList entries={sb.resistances as any} onChange={v => u('resistances', v)}
-                suggestions={config.damageTypes} showValue={true} placeholder="+ resistance" defaultValue={defVal} /></div>}
-            {hasWeak && <div><b className="sb-label">Vulnerable</b>{' '}
-              <DamageEntryList entries={sb.weaknesses as any} onChange={v => u('weaknesses', v)}
-                suggestions={config.damageTypes} showValue={true} placeholder="+ vulnerability" defaultValue={defVal} /></div>}
+            <div><b className="sb-label">Immune</b>{' '}
+              <DamageEntryList entries={Array.isArray(sb.immunities) ? sb.immunities as any : []}
+                onChange={v => u('immunities', v)}
+                suggestions={config.damageTypes} showValue={false} placeholder="+ immunity" /></div>
+            <div><b className="sb-label">Resist</b>{' '}
+              <DamageEntryList entries={Array.isArray(sb.resistances) ? sb.resistances as any : []}
+                onChange={v => u('resistances', v)}
+                suggestions={config.damageTypes} showValue={true} placeholder="+ resistance" defaultValue={defVal} /></div>
+            <div><b className="sb-label">Vulnerable</b>{' '}
+              <DamageEntryList entries={Array.isArray(sb.weaknesses) ? sb.weaknesses as any : []}
+                onChange={v => u('weaknesses', v)}
+                suggestions={config.damageTypes} showValue={true} placeholder="+ vulnerability" defaultValue={defVal} /></div>
           </div>
         )
       })()}
