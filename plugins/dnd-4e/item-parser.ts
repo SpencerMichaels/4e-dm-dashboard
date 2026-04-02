@@ -83,23 +83,33 @@ function parseMagicalItem(html: string, category: ParsedItem['category']): Parse
 
   const price = levels.length > 0 ? levels[0].price : ''
 
-  // Slot / type from first <p class=mistat> with <b>
-  const slot = extractText(html, /<p class=['"]?mistat['"]?>\s*<b>([^<]+)<\/b>/)
+  // Slot / type from first <p class=mistat> with <b> — strip trailing colon/spaces
+  const slot = extractText(html, /<p class=['"]?mistat['"]?>\s*<b>([^<]+)<\/b>/).replace(/:\s*$/, '')
 
   // Enhancement
   const enhMatch = html.match(/<b>Enhancement\s*(?:Bonus)?:?\s*<\/b>\s*([^<\n]+)/i)
   const enhancement = enhMatch ? enhMatch[1].trim() : ''
 
-  // Properties — text after <h2>Property</h2> sections
+  // Properties — from <h2>Property</h2> sections, <p> with <b>Property</b>, or inline <b>Properties</b>:
   const properties: string[] = []
+  // h2 section format
   const propRegex = /<h2[^>]*>Property<\/h2>\s*<p[^>]*>([\s\S]*?)<\/p>/gi
   let pm
   while ((pm = propRegex.exec(html)) !== null) {
     properties.push(stripHtml(pm[1]))
   }
-  // Also inline properties from <p class=mistat> containing "Property" but not as h2
+  // <p class=mistat> with <b>Property</b>
   const inlinePropMatch = html.match(/<p class=['"]?mistat['"]?>[^<]*<b>Property[^<]*<\/b>([\s\S]*?)<\/p>/i)
   if (inlinePropMatch) properties.push(stripHtml(inlinePropMatch[1]))
+  // <b>Properties</b>: followed by inline text (mundane implements, weapons, etc.)
+  const boldPropsMatch = html.match(/<b>Properties<\/b>\s*:?\s*<br\s*\/?>([\s\S]*?)(?=<b>|<p class|<br>\s*<br>|$)/i)
+  if (boldPropsMatch) {
+    // Each property is "Name (description)." — split on ")."
+    const propText = stripHtml(boldPropsMatch[1])
+    for (const p of propText.split(/\.\s*(?=[A-Z])/).map(s => s.trim()).filter(Boolean)) {
+      if (!properties.includes(p)) properties.push(p.replace(/\.$/, ''))
+    }
+  }
 
   // Powers — <h2> with "Power" in it
   const powers: ParsedItem['powers'] = []
@@ -120,6 +130,10 @@ function parseMagicalItem(html: string, category: ParsedItem['category']): Parse
     })
   }
 
+  // Group — from <b>Group</b>: inline text
+  const groupMatch = html.match(/<b>Group<\/b>\s*:?\s*<br\s*\/?>([\s\S]*?)(?=<b>|<p class=['"]?publishedIn|<br>\s*<br>|$)/i)
+  const group = groupMatch ? stripHtml(groupMatch[1]).split('\n')[0].replace(/\s*\(.*/, '').trim() : undefined
+
   // Source
   const source = extractText(html, /<p class=['"]?publishedIn['"]?>([\s\S]*?)<\/p>/)
     .replace(/^Published in\s*/i, '')
@@ -130,7 +144,7 @@ function parseMagicalItem(html: string, category: ParsedItem['category']): Parse
   return {
     name, category, level: lvlNum, rarity, price, flavor, slot, enhancement,
     properties, powers, levels: levels.length > 1 ? levels : undefined,
-    source, description,
+    group, source, description,
   }
 }
 
@@ -146,7 +160,11 @@ function parseMundaneItem(html: string, category: ParsedItem['category']): Parse
   const proficiency = text.match(/Proficient?:\s*([^\n]+)/i)?.[1]?.trim()
   const range = text.match(/Range:\s*([^\n]+)/i)?.[1]?.trim()
   const weight = text.match(/Weight:\s*([^\n]+)/i)?.[1]?.trim()
-  const group = text.match(/Group:\s*([^\n]+)/i)?.[1]?.trim()
+  // Group — from HTML <b>Group</b>: or plain text
+  const groupHtmlMatch = html.match(/<b>Group<\/b>\s*:?\s*<br\s*\/?>([\s\S]*?)(?=<b>|<p class=['"]?publishedIn|<br>\s*<br>|$)/i)
+  const group = groupHtmlMatch
+    ? stripHtml(groupHtmlMatch[1]).split('\n')[0].replace(/\s*\(.*/, '').trim()
+    : text.match(/Group:\s*([^\n]+)/i)?.[1]?.trim()
 
   // Category line (e.g. "Superior two-handed melee weapon")
   const catLine = text.match(/\n((?:Simple|Military|Superior|Improvised)?\s*(?:one-handed|two-handed|double)?\s*(?:melee|ranged)?\s*weapon)/i)?.[1]?.trim()
@@ -156,9 +174,16 @@ function parseMundaneItem(html: string, category: ParsedItem['category']): Parse
   // Slot
   const slot = catLine || category
 
-  // Properties from "Properties:" section
+  // Properties — from HTML <b>Properties</b>: or plain text
   const properties: string[] = []
-  const propsMatch = text.match(/Properties:\s*\n?([\s\S]*?)(?=\n\n|Published in|$)/i)
+  const boldPropsMatch = html.match(/<b>Properties<\/b>\s*:?\s*<br\s*\/?>([\s\S]*?)(?=<b>Group|<b>|<p class|<br>\s*<br>|$)/i)
+  if (boldPropsMatch) {
+    const propText = stripHtml(boldPropsMatch[1])
+    for (const p of propText.split(/\.\s*(?=[A-Z])/).map(s => s.trim()).filter(Boolean)) {
+      properties.push(p.replace(/\.$/, ''))
+    }
+  }
+  const propsMatch = !boldPropsMatch ? text.match(/Properties:\s*\n?([\s\S]*?)(?=\n\n|Published in|$)/i) : null
   if (propsMatch) {
     properties.push(...propsMatch[1].split(/\n/).map(s => s.trim()).filter(Boolean))
   }

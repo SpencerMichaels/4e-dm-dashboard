@@ -59,15 +59,17 @@ export function Dnd4eItemViewer({ item }: { item: ParsedItem }) {
         </div>
       )}
 
-      {/* Weapon stats */}
-      {(item.damage || item.proficiency || item.weight) && (
+      {/* Weapon/implement stats */}
+      {(item.damage || item.proficiency || item.weight || item.group) && (
         <div style={{ borderTop: '1px solid var(--sb-separator)' }}>
-          <div className="sb-row">
-            {item.damage && <span><b className="sb-label">Damage</b> {item.damage}</span>}
-            {item.proficiency && <span><b className="sb-label">Proficient</b> {item.proficiency}</span>}
-            {item.range && <span><b className="sb-label">Range</b> {item.range}</span>}
-            {item.weight && <span><b className="sb-label">Weight</b> {item.weight}</span>}
-          </div>
+          {(item.damage || item.proficiency || item.range || item.weight) && (
+            <div className="sb-row">
+              {item.damage && <span><b className="sb-label">Damage</b> {item.damage}</span>}
+              {item.proficiency && <span><b className="sb-label">Proficient</b> {item.proficiency}</span>}
+              {item.range && <span><b className="sb-label">Range</b> {item.range}</span>}
+              {item.weight && <span><b className="sb-label">Weight</b> {item.weight}</span>}
+            </div>
+          )}
           {item.group && (
             <div className="sb-row">
               <b className="sb-label">Group</b> {item.group}
@@ -147,13 +149,8 @@ export function Dnd4eItemViewer({ item }: { item: ParsedItem }) {
         </div>
       )}
 
-      {/* Description */}
-      {item.description && item.category !== 'ritual' && (
-        <div style={{ padding: '4px 8px', fontSize: 11, color: 'var(--color-text-secondary)' }}>
-          {item.description}
-        </div>
-      )}
-      {item.description && item.category === 'ritual' && (
+      {/* Ritual effect description (distinct from flavor) */}
+      {item.category === 'ritual' && item.description && item.description !== item.flavor && (
         <div style={{ padding: '4px 8px', fontSize: 11, borderTop: '1px solid var(--sb-separator)' }}>
           {item.description.split('\n').map((line, i) => (
             <p key={i} style={{ margin: '2px 0' }}>{line}</p>
