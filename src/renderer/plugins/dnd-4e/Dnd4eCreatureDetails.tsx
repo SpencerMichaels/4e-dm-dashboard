@@ -220,8 +220,8 @@ export function Dnd4eCreatureDetails({ creature, onSave: save, config }: Props) 
           return (
             <select className="ghost" value=""
               onChange={e => { if (e.target.value) { lastAddedSpeed.current = e.target.value; u('speeds', { ...speeds, [e.target.value]: 0 }) } }}
-              style={{ fontSize: '9px', color: 'var(--color-text-muted)' }}>
-              <option value="">+ speed</option>
+              style={{ color: 'var(--color-text-muted)' }}>
+              <option value="">+</option>
               {available.map(({ key, label: l }) => <option key={key} value={key}>{l}</option>)}
             </select>
           )
@@ -294,8 +294,8 @@ export function Dnd4eCreatureDetails({ creature, onSave: save, config }: Props) 
                 const justAdded = lastAddedSkill.current === name
                 if (justAdded) lastAddedSkill.current = null
                 return (
-                  <span key={name} style={{ display: 'inline-flex', alignItems: 'center', gap: 1, padding: '0 3px', background: 'var(--color-bg-hover)', borderRadius: 'var(--radius-sm)', fontSize: 'var(--font-size-xs)' }}>
-                    {cap(name)} <input className="ghost" type="number" value={mod ?? ''}
+                  <span key={name} style={{ display: 'inline-flex', alignItems: 'center', gap: 3, padding: '0 3px', background: 'var(--color-bg-hover)', borderRadius: 'var(--radius-sm)', fontSize: 'var(--font-size-xs)' }}>
+                    {cap(name)}<input className="ghost" type="number" value={mod ?? ''}
                       ref={justAdded ? focusRef : undefined}
                       onChange={ev => u('skills', { ...skills, [name]: ev.target.value === '' ? 0 : Number(ev.target.value) })}
                       onBlur={ev => { if (ev.target.value === '') u('skills', { ...skills, [name]: 0 }) }} />
@@ -308,8 +308,8 @@ export function Dnd4eCreatureDetails({ creature, onSave: save, config }: Props) 
               {availableSkills.length > 0 && (
                 <select className="ghost" value=""
                   onChange={ev => { if (ev.target.value) { lastAddedSkill.current = ev.target.value.toLowerCase(); u('skills', { ...skills, [ev.target.value.toLowerCase()]: 0 }) } }}
-                  style={{ fontSize: '9px', color: 'var(--color-text-muted)' }}>
-                  <option value="">+ skill</option>
+                  style={{ color: 'var(--color-text-muted)' }}>
+                  <option value="">+</option>
                   {availableSkills.map(s => <option key={s} value={s}>{s}</option>)}
                 </select>
               )}
@@ -440,14 +440,14 @@ function InlineEntryChips({ label, entries, onChange, suggestions, showValue }: 
         const justAdded = lastAdded.current === e.type
         if (justAdded) lastAdded.current = null
         return (
-          <span key={e.type} style={{ display: 'inline-flex', alignItems: 'center', gap: 1, padding: '0 3px', background: 'var(--color-bg-hover)', borderRadius: 'var(--radius-sm)', fontSize: 'var(--font-size-xs)' }}>
+          <span key={e.type} style={{ display: 'inline-flex', alignItems: 'center', gap: 3, padding: '0 3px', background: 'var(--color-bg-hover)', borderRadius: 'var(--radius-sm)', fontSize: 'var(--font-size-xs)' }}>
             {e.type}
             {showValue && (
               <input className="ghost" type="number" value={e.value ?? ''}
                 ref={justAdded ? focusRef : undefined}
                 onChange={ev => updateVal(i, Number(ev.target.value))}
                 onBlur={ev => { if (ev.target.value === '') updateVal(i, 0) }}
-                style={{ marginLeft: 3, borderBottom: '1px solid var(--color-border)' }} />
+                style={{ borderBottom: '1px solid var(--color-border)' }} />
             )}
             <button onClick={() => remove(i)}
               style={{ fontSize: '9px', color: 'var(--color-text-muted)', padding: '0 1px' }}>x</button>
@@ -462,7 +462,7 @@ function InlineEntryChips({ label, entries, onChange, suggestions, showValue }: 
               onChange([...entries, { type: e.target.value, ...(showValue ? { value: 0 } : {}) }])
             }
           }}
-          style={{ fontSize: '9px', color: 'var(--color-text-muted)', width: 16 }}>
+          style={{ color: 'var(--color-text-muted)' }}>
           <option value="">+</option>
           {available.map(s => <option key={s} value={s}>{s}</option>)}
         </select>
