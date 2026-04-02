@@ -506,7 +506,7 @@ export function Dnd4eCreatureDetails({ creature, onSave: save, config }: Props) 
             {traitEntries.length > 0 && (
               <div style={{ marginTop: 4 }}>
                 {traitEntries.map(({ e, i }) => (
-                  <div key={i} className={!e.name ? 'entry-slide-down' : undefined} style={{ display: 'flex' }}>
+                  <div key={i}  style={{ display: 'flex' }}>
                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-start', padding: '4px 3px 0', gap: 1, opacity: 0.5, minWidth: 14 }}>
                       <button onClick={() => moveAction(i, -1)} style={gutterBtn} title="Move up">▲</button>
                       <span style={{ cursor: 'grab', fontSize: '8px', color: 'var(--color-text-muted)', letterSpacing: 1 }} title="Drag to reorder">⠿</span>
@@ -522,7 +522,7 @@ export function Dnd4eCreatureDetails({ creature, onSave: save, config }: Props) 
             {auraEntries.length > 0 && (
               <div style={{ marginTop: 4 }}>
                 {auraEntries.map(({ e, i }) => (
-                  <div key={i} className={!e.name ? 'entry-slide-down' : undefined} style={{ display: 'flex' }}>
+                  <div key={i}  style={{ display: 'flex' }}>
                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-start', padding: '4px 3px 0', gap: 1, opacity: 0.5, minWidth: 14 }}>
                       <button onClick={() => moveAction(i, -1)} style={gutterBtn} title="Move up">▲</button>
                       <span style={{ cursor: 'grab', fontSize: '8px', color: 'var(--color-text-muted)', letterSpacing: 1 }} title="Drag to reorder">⠿</span>

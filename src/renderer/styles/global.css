@@ -139,21 +139,6 @@ input.ghost[type="number"] {
   -moz-appearance: textfield;
 }
 
-/* Entry animations */
-@keyframes entry-slide-down {
-  from { transform: translateY(-100%); }
-  to { transform: translateY(0); }
-}
-@keyframes entry-slide-up {
-  from { transform: translateY(100%); }
-  to { transform: translateY(0); }
-}
-.entry-slide-down {
-  animation: entry-slide-down 0.15s ease-out;
-}
-.entry-slide-up {
-  animation: entry-slide-up 0.15s ease-out;
-}
 
 /* Utility classes */
 .truncate {

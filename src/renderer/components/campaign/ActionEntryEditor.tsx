@@ -86,7 +86,6 @@ function getTierLabel(tier: string, config: CreatureBuilderConfig): string {
 
 export function ActionEntryEditor({ entries, onChange, config, level, statBlock }: Props) {
   const grouped = config.useGroupedActions ?? false
-  const [animState, setAnimState] = useState<{ idx: number; dir: -1 | 1 } | null>(null)
   const update = (idx: number, patch: Partial<ActionEntry>) => onChange(entries.map((e, i) => i === idx ? { ...e, ...patch } : e))
   const remove = (idx: number) => onChange(entries.filter((_, i) => i !== idx))
   const move = (idx: number, dir: -1 | 1) => {
@@ -94,9 +93,7 @@ export function ActionEntryEditor({ entries, onChange, config, level, statBlock 
     if (j < 0 || j >= entries.length) return
     const arr = [...entries]
     ;[arr[idx], arr[j]] = [arr[j], arr[idx]]
-    setAnimState({ idx: j, dir })
     onChange(arr)
-    setTimeout(() => setAnimState(null), 200)
   }
 
   // Attack bonus tables from config — used for inline quick-fill buttons on powers
@@ -137,7 +134,7 @@ export function ActionEntryEditor({ entries, onChange, config, level, statBlock 
       </div>
 
       {actions.map(({ e, i }) => (
-        <div key={i} className={animState?.idx === i ? (animState.dir === -1 ? 'entry-slide-up' : 'entry-slide-down') : (i === 0 && !e.name ? 'entry-slide-down' : undefined)}>
+        <div key={i}>
           <FullPowerRow entry={e} idx={i} config={config} level={level} statBlock={statBlock}
             atkBonusTables={atkBonusTables}
             onUpdate={update} onRemove={remove} onMove={move} />
