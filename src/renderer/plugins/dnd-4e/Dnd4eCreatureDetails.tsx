@@ -119,7 +119,7 @@ export function Dnd4eCreatureDetails({ creature, onSave: save, config }: Props) 
           Level
           <input className="ghost" type="number" value={level} min={config.minLevel} max={config.maxLevel}
             onChange={e => u('level', Number(e.target.value))}
-            style={{ width: 32, textAlign: 'center', color: 'inherit', fontWeight: 600 }} />
+            style={{ color: 'inherit', fontWeight: 600 }} />
           <select className="ghost" value={modifier} onChange={e => u('monsterModifier', e.target.value || undefined)}
             style={{ color: 'inherit', background: 'transparent', fontSize: 'inherit' }}>
             <option value="">—</option>
@@ -209,12 +209,12 @@ export function Dnd4eCreatureDetails({ creature, onSave: save, config }: Props) 
           {((sb.savingThrowBonus as number) ?? 0) > 0 && (
             <span><b className="sb-label">Saving Throws</b>{' +'}
               <input className="ghost" type="number" value={(sb.savingThrowBonus as number) ?? 0}
-                onChange={e => u('savingThrowBonus', Number(e.target.value))} style={{ width: 24 }} /></span>
+                onChange={e => u('savingThrowBonus', Number(e.target.value))} /></span>
           )}
           {((sb.actionPoints as number) ?? 0) > 0 && (
             <span><b className="sb-label">Action Points</b>{' '}
               <input className="ghost" type="number" value={(sb.actionPoints as number) ?? 0}
-                onChange={e => u('actionPoints', Number(e.target.value))} style={{ width: 24 }} /></span>
+                onChange={e => u('actionPoints', Number(e.target.value))} /></span>
           )}
         </div>
       )}
@@ -316,7 +316,7 @@ export function Dnd4eCreatureDetails({ creature, onSave: save, config }: Props) 
                       ref={justAdded ? focusRef : undefined}
                       onChange={ev => u('skills', { ...skills, [name]: ev.target.value === '' ? 0 : Number(ev.target.value) })}
                       onBlur={ev => { if (ev.target.value === '') u('skills', { ...skills, [name]: 0 }) }}
-                      style={{ width: 30, fontWeight: 600 }} />
+                      style={{ fontWeight: 600 }} />
                     <button onClick={() => { const { [name]: _, ...rest } = skills; u('skills', rest) }}
                       style={{ fontSize: '9px', color: 'var(--color-text-muted)', padding: '0 1px' }}>x</button>
                     {i < skillEntries.length - 1 && ','}
@@ -385,8 +385,7 @@ export function Dnd4eCreatureDetails({ creature, onSave: save, config }: Props) 
                       {ab.charAt(0).toUpperCase() + ab.slice(1)}
                     </b>{' '}
                     <input className="ghost" type="number" value={score}
-                      onChange={e => u('abilities', { ...abilities, [ab]: Number(e.target.value) })}
-                      style={{ width: 30 }} />
+                      onChange={e => u('abilities', { ...abilities, [ab]: Number(e.target.value) })} />
                     {' '}({mod >= 0 ? '+' : ''}{mod})
                   </span>
                 )
@@ -466,7 +465,7 @@ function InlineEntryChips({ label, entries, onChange, suggestions, showValue }: 
                 ref={justAdded ? focusRef : undefined}
                 onChange={ev => updateVal(i, Number(ev.target.value))}
                 onBlur={ev => { if (ev.target.value === '') updateVal(i, 0) }}
-                style={{ width: 22, fontWeight: 600, marginLeft: 3, borderBottom: '1px solid var(--color-border)' }} />
+                style={{ fontWeight: 600, marginLeft: 3, borderBottom: '1px solid var(--color-border)' }} />
             )}
             <button onClick={() => remove(i)}
               style={{ fontSize: '9px', color: 'var(--color-text-muted)', padding: '0 1px' }}>x</button>

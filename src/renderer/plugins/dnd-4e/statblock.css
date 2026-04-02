@@ -123,9 +123,14 @@
 }
 
 .stat-block-4e input.ghost[type="number"] {
-  width: 32px;
+  field-sizing: content;
+  min-width: 1ch;
   text-align: left;
   -moz-appearance: textfield;
+}
+.stat-block-4e input.ghost:not([type="number"]) {
+  field-sizing: content;
+  min-width: 3ch;
 }
 
 /* Footer section — ability scores in 3-column layout */
