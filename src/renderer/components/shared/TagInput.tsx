@@ -12,6 +12,7 @@ export function TagInput({ values, onChange, suggestions = [], placeholder, comp
   const [input, setInput] = useState('')
   const [showSuggestions, setShowSuggestions] = useState(false)
   const [highlightIndex, setHighlightIndex] = useState(0)
+  const [focused, setFocused] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
 
   const filtered = input
@@ -96,26 +97,30 @@ export function TagInput({ values, onChange, suggestions = [], placeholder, comp
             >×</button>
           </span>
         ))}
-        <input
-          ref={inputRef}
-          className={compact ? 'ghost' : undefined}
-          value={input}
-          onChange={(e) => { setInput(e.target.value); setShowSuggestions(true) }}
-          onFocus={() => setShowSuggestions(true)}
-          onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
-          onKeyDown={handleKeyDown}
-          placeholder={values.length === 0 ? placeholder : (compact ? '+' : '')}
-          style={{
-            flex: compact ? '0 1 auto' : 1,
-            minWidth: compact ? (values.length > 0 ? 8 : 20) : 80,
-            width: compact ? (input ? undefined : 8) : undefined,
-            border: compact ? undefined : 'none',
-            background: compact ? undefined : 'transparent',
-            outline: 'none',
-            fontSize: compact ? 'var(--font-size-xs)' : 'var(--font-size-sm)',
-            padding: compact ? '0' : '2px 0',
-          }}
-        />
+        {compact && values.length > 0 && !focused && !input ? (
+          <button onClick={() => { setFocused(true); setTimeout(() => inputRef.current?.focus(), 0) }}
+            style={{ color: 'var(--color-text-muted)', padding: '0 2px', lineHeight: 1, cursor: 'pointer' }}>+</button>
+        ) : (
+          <input
+            ref={inputRef}
+            className={compact ? 'ghost' : undefined}
+            value={input}
+            onChange={(e) => { setInput(e.target.value); setShowSuggestions(true) }}
+            onFocus={() => { setFocused(true); setShowSuggestions(true) }}
+            onBlur={() => { setFocused(false); setTimeout(() => setShowSuggestions(false), 150) }}
+            onKeyDown={handleKeyDown}
+            placeholder={values.length === 0 ? placeholder : '+'}
+            style={{
+              flex: compact ? '0 1 auto' : 1,
+              minWidth: compact ? 0 : 80,
+              border: compact ? undefined : 'none',
+              background: compact ? undefined : 'transparent',
+              outline: 'none',
+              fontSize: compact ? 'var(--font-size-xs)' : 'var(--font-size-sm)',
+              padding: compact ? '0' : '2px 0',
+            }}
+          />
+        )}
       </div>
 
       {showSuggestions && filtered.length > 0 && (
