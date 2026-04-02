@@ -114,22 +114,38 @@ export function Dnd4eCreatureDetails({ creature, onSave: save, config }: Props) 
   const creatureType = traits[1] ?? ''
   const subtypes = traits.slice(2)
 
-  // Benchmark lookups — role-based tables from statDefs
+  // Benchmark lookups — role-based tables from statDefs, adjusted for elite/solo
   const benchmarks: Record<string, number | undefined> = {}
   if (role) {
     for (const def of config.statDefs) {
       const row = def.table[level]
-      if (row && row[role] != null) benchmarks[def.key] = row[role]
+      if (row && row[role] != null) {
+        let val = row[role]
+        if (def.key === 'hp') {
+          // Elite: 2× standard HP + Con; Solo: complex formula
+          const con = abilities.con ?? 14
+          if (modifier === 'elite') val = val * 2 + con
+          else if (modifier === 'solo') {
+            const baseHp = 8 * level + 1 + con
+            val = baseHp * (level >= 11 ? 5 : 4)
+          }
+        } else if (def.key === 'ac') {
+          // Elite/Solo: up to +2 to AC
+          if (modifier === 'elite' || modifier === 'solo') val += 2
+        }
+        benchmarks[def.key] = val
+      }
     }
   }
-  // Defense benchmarks from ability scores
+  // Defense benchmarks from ability scores — elite/solo get +2 to defenses
   const defBenchmarks: Record<string, number> = {}
   if (abConfig?.defensePairs) {
+    const defBonus = (modifier === 'elite' || modifier === 'solo') ? 2 : 0
     for (const { defense, abilities: [a1, a2], baseOffset } of abConfig.defensePairs) {
       const s1 = abilities[a1] ?? 10
       const s2 = abilities[a2] ?? 10
       const bestMod = Math.floor((Math.max(s1, s2) - 10) / 2)
-      defBenchmarks[defense.toLowerCase()] = (baseOffset ?? 12) + level + bestMod
+      defBenchmarks[defense.toLowerCase()] = (baseOffset ?? 12) + level + bestMod + defBonus
     }
   }
 
@@ -162,9 +178,9 @@ export function Dnd4eCreatureDetails({ creature, onSave: save, config }: Props) 
             style={{ color: 'inherit', fontWeight: 600 }} />
           <select className="ghost" value={modifier} onChange={e => u('monsterModifier', e.target.value || undefined)}
             style={{ color: 'inherit', background: 'transparent', fontSize: 'inherit' }}>
-            <option value="">—</option>
-            <option value="elite">Elite</option>
-            <option value="solo">Solo</option>
+            <option value="">standard</option>
+            <option value="elite">elite</option>
+            <option value="solo">solo</option>
           </select>
           <select className="ghost" value={role} onChange={e => { u('role', e.target.value); }}
             style={{ color: 'inherit', background: 'transparent', fontSize: 'inherit', textTransform: 'capitalize' }}>
