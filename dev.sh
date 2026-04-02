@@ -26,4 +26,4 @@ exec docker run -it --rm \
     -e CLAUDE_CONFIG_DIR=/home/node/.claude \
     --device /dev/dri \
     "$IMAGE_NAME" \
-    bash -c "sudo /usr/local/bin/init-firewall.sh && exec claude --dangerously-skip-permissions --resume 508f8ca7-9b28-4c64-ad76-5a2b33ac6e92"
+    bash -c "sudo /usr/local/bin/init-firewall.sh && exec claude --dangerously-skip-permissions --resume refactor-creature-editor-plugins"

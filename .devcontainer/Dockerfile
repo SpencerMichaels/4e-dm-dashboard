@@ -42,6 +42,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
   libgl1-mesa-dri \
   libgl1-mesa-glx \
   libegl1-mesa \
+  # PDF rendering
+  poppler-utils \
   && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # Ensure default node user has access to /usr/local/share
