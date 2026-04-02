@@ -134,17 +134,6 @@ export function CreatureEditor({ creatureId }: Props) {
         </div>
       ) : null}
 
-      {/* Tags */}
-      <label>
-        <span style={{ display: 'block', fontSize: 'var(--font-size-sm)', color: 'var(--color-text-secondary)', marginBottom: 'var(--space-1)' }}>
-          Tags (comma-separated)
-        </span>
-        <input
-          value={creature.tags.join(', ')}
-          onChange={e => save({ ...creature, tags: e.target.value.split(',').map(t => t.trim()).filter(Boolean) })}
-          style={{ width: '100%' }}
-        />
-      </label>
     </div>
   )
 }
