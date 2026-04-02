@@ -112,57 +112,54 @@ function CompendiumBrowser({ comp, onNavigate }: { comp: ReturnType<typeof useCo
 
   if (loading) return <p style={{ color: 'var(--color-text-muted)' }}>Loading compendium...</p>
 
-  const xs = { fontSize: 'var(--font-size-xs)' }
-  const selectStyle = { ...xs, padding: '2px 4px', background: 'var(--color-bg-surface)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-sm)' }
-
   return (
-    <div style={{ display: 'flex', flex: 1, minHeight: 0, gap: 'var(--space-3)', alignItems: 'flex-start' }}>
+    <div className="stat-block-4e" style={{ display: 'flex', flex: 1, minHeight: 0, gap: 'var(--space-3)', alignItems: 'flex-start' }}>
       {/* Left: search + list */}
       <div style={{ display: 'flex', flexDirection: 'column', flex: '1 1 300px', minWidth: 250, minHeight: 0 }}>
         {/* Search */}
         <div style={{ marginBottom: 'var(--space-2)', flexShrink: 0 }}>
-          <input ref={searchRef} value={filters.search}
+          <input className="ghost" ref={searchRef} value={filters.search}
             onChange={e => updateFilter('search', e.target.value)}
             placeholder="/ Search by name..."
-            style={{ width: '100%', padding: 'var(--space-2)', ...xs }} />
+            style={{ width: '100%', padding: '4px 0', borderBottom: '1px solid var(--color-border)' }} />
         </div>
 
         {/* Filters */}
-        <div style={{ display: 'flex', gap: 'var(--space-2)', flexWrap: 'wrap', marginBottom: 'var(--space-2)', alignItems: 'center', flexShrink: 0 }}>
-          <label style={{ display: 'flex', alignItems: 'center', gap: 2, ...xs, color: 'var(--color-text-muted)' }}>
-            Level
-            <input type="number" value={filters.levelMin} min={-1} max={40}
+        <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginBottom: 'var(--space-2)', alignItems: 'center', flexShrink: 0 }}>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 2, color: 'var(--color-text-secondary)' }}>
+            Lvl
+            <input className="ghost" type="number" value={filters.levelMin} min={-1} max={40}
               onChange={e => updateFilter('levelMin', Number(e.target.value))}
-              style={{ width: 40, ...xs, textAlign: 'center' }} />
+              style={{ width: 30, textAlign: 'center' }} />
             –
-            <input type="number" value={filters.levelMax} min={-1} max={40}
+            <input className="ghost" type="number" value={filters.levelMax} min={-1} max={40}
               onChange={e => updateFilter('levelMax', Number(e.target.value))}
-              style={{ width: 40, ...xs, textAlign: 'center' }} />
+              style={{ width: 30, textAlign: 'center' }} />
           </label>
-          <select value={filters.role} onChange={e => updateFilter('role', e.target.value)} style={selectStyle}>
-            <option value="">All roles</option>
+          <select className="ghost" value={filters.role} onChange={e => updateFilter('role', e.target.value)}>
+            <option value="">role</option>
             {filterOptions.roles.map(r => <option key={r} value={r}>{r}</option>)}
           </select>
-          <select value={filters.size} onChange={e => updateFilter('size', e.target.value)} style={selectStyle}>
-            <option value="">All sizes</option>
+          <select className="ghost" value={filters.size} onChange={e => updateFilter('size', e.target.value)}>
+            <option value="">size</option>
             {filterOptions.sizes.map(s => <option key={s} value={s}>{s}</option>)}
           </select>
-          <select value={filters.modifier} onChange={e => updateFilter('modifier', e.target.value)} style={selectStyle}>
-            <option value="">All types</option>
-            <option value="standard">Standard</option>
-            <option value="elite">Elite</option>
-            <option value="solo">Solo</option>
+          <select className="ghost" value={filters.modifier} onChange={e => updateFilter('modifier', e.target.value)}>
+            <option value="">modifier</option>
+            <option value="standard">standard</option>
+            <option value="elite">elite</option>
+            <option value="solo">solo</option>
           </select>
-          <select value={filters.origin} onChange={e => updateFilter('origin', e.target.value)} style={selectStyle}>
-            <option value="">All origins</option>
+          <select className="ghost" value={filters.origin} onChange={e => updateFilter('origin', e.target.value)}>
+            <option value="">origin</option>
             {filterOptions.origins.map(o => <option key={o} value={o}>{o}</option>)}
           </select>
-          <select value={filters.type} onChange={e => updateFilter('type', e.target.value)} style={selectStyle}>
-            <option value="">All creature types</option>
+          <select className="ghost" value={filters.type} onChange={e => updateFilter('type', e.target.value)}>
+            <option value="">type</option>
             {filterOptions.types.map(t => <option key={t} value={t}>{t}</option>)}
           </select>
-          <select value={filters.alignment} onChange={e => updateFilter('alignment', e.target.value)} style={selectStyle}>
-            <option value="">All alignments</option>
+          <select className="ghost" value={filters.alignment} onChange={e => updateFilter('alignment', e.target.value)}>
+            <option value="">alignment</option>
             {filterOptions.alignments.map(a => <option key={a} value={a}>{a}</option>)}
           </select>
         </div>
@@ -171,7 +168,7 @@ function CompendiumBrowser({ comp, onNavigate }: { comp: ReturnType<typeof useCo
         <div style={{
           display: 'grid', gridTemplateColumns: '1fr 30px 32px',
           gap: 'var(--space-2)', padding: '4px var(--space-2)',
-          ...xs, color: 'var(--color-text-muted)', fontWeight: 600, borderBottom: '1px solid var(--color-border)',
+          color: 'var(--color-text-muted)', fontWeight: 600, borderBottom: '1px solid var(--sb-separator, var(--color-border))',
           flexShrink: 0,
         }}>
           <span>Name</span><span>Lvl</span><span />
@@ -182,7 +179,7 @@ function CompendiumBrowser({ comp, onNavigate }: { comp: ReturnType<typeof useCo
           onAdd={handleAdd} onSelect={handleSelect} />
 
         {/* Status */}
-        <div style={{ ...xs, color: 'var(--color-text-muted)', padding: 'var(--space-2) 0', flexShrink: 0 }}>
+        <div style={{ color: 'var(--color-text-muted)', padding: 'var(--space-2) 0', flexShrink: 0 }}>
           Showing {filtered.length.toLocaleString()} of {totalCount.toLocaleString()}
         </div>
       </div>

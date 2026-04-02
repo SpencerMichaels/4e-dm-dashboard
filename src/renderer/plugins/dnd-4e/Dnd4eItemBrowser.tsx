@@ -81,47 +81,45 @@ export function Dnd4eItemBrowser() {
 
   if (loading) return <p style={{ color: 'var(--color-text-muted)' }}>Loading items...</p>
 
-  const xs = { fontSize: 'var(--font-size-xs)' }
-  const selectStyle = { ...xs, padding: '2px 4px', background: 'var(--color-bg-surface)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-sm)' }
-
   return (
-    <div style={{ display: 'flex', flex: 1, minHeight: 0, gap: 'var(--space-3)', alignItems: 'flex-start' }}>
+    <div className="stat-block-4e" style={{ display: 'flex', flex: 1, minHeight: 0, gap: 'var(--space-3)', alignItems: 'flex-start' }}>
       {/* Left: search + list */}
       <div style={{ display: 'flex', flexDirection: 'column', flex: '1 1 280px', minWidth: 220, minHeight: 0 }}>
         <div style={{ marginBottom: 'var(--space-2)', flexShrink: 0 }}>
-          <input ref={searchRef} value={search} onChange={e => setSearch(e.target.value)}
-            placeholder="/ Search items..." style={{ width: '100%', padding: 'var(--space-2)', ...xs }} />
+          <input className="ghost" ref={searchRef} value={search} onChange={e => setSearch(e.target.value)}
+            placeholder="/ Search items..."
+            style={{ width: '100%', padding: '4px 0', borderBottom: '1px solid var(--color-border)' }} />
         </div>
 
-        <div style={{ display: 'flex', gap: 'var(--space-2)', flexWrap: 'wrap', marginBottom: 'var(--space-2)', alignItems: 'center', flexShrink: 0 }}>
-          <select value={categoryFilter} onChange={e => setCategoryFilter(e.target.value)} style={selectStyle}>
-            <option value="">All categories</option>
+        <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginBottom: 'var(--space-2)', alignItems: 'center', flexShrink: 0 }}>
+          <select className="ghost" value={categoryFilter} onChange={e => setCategoryFilter(e.target.value)}>
+            <option value="">category</option>
             {filterOptions.categories.map(c => <option key={c} value={c}>{c}</option>)}
           </select>
-          <select value={slotFilter} onChange={e => setSlotFilter(e.target.value)} style={selectStyle}>
-            <option value="">All slots</option>
+          <select className="ghost" value={slotFilter} onChange={e => setSlotFilter(e.target.value)}>
+            <option value="">slot</option>
             {filterOptions.slots.map(s => <option key={s} value={s}>{s}</option>)}
           </select>
-          <select value={rarityFilter} onChange={e => setRarityFilter(e.target.value)} style={selectStyle}>
-            <option value="">All rarities</option>
+          <select className="ghost" value={rarityFilter} onChange={e => setRarityFilter(e.target.value)}>
+            <option value="">rarity</option>
             {filterOptions.rarities.map(r => <option key={r} value={r}>{r}</option>)}
           </select>
-          <label style={{ display: 'flex', alignItems: 'center', gap: 2, ...xs, color: 'var(--color-text-muted)' }}>
-            Level
-            <input type="number" value={levelMin} min={0} max={30}
+          <label style={{ display: 'flex', alignItems: 'center', gap: 2, color: 'var(--color-text-secondary)' }}>
+            Lvl
+            <input className="ghost" type="number" value={levelMin} min={0} max={30}
               onChange={e => setLevelMin(Number(e.target.value))}
-              style={{ width: 35, ...xs, textAlign: 'center' }} />
+              style={{ width: 30, textAlign: 'center' }} />
             –
-            <input type="number" value={levelMax} min={0} max={30}
+            <input className="ghost" type="number" value={levelMax} min={0} max={30}
               onChange={e => setLevelMax(Number(e.target.value))}
-              style={{ width: 35, ...xs, textAlign: 'center' }} />
+              style={{ width: 30, textAlign: 'center' }} />
           </label>
         </div>
 
         <div style={{
           display: 'grid', gridTemplateColumns: '1fr 30px',
           gap: 'var(--space-2)', padding: '4px var(--space-2)',
-          ...xs, color: 'var(--color-text-muted)', fontWeight: 600, borderBottom: '1px solid var(--color-border)',
+          color: 'var(--color-text-muted)', fontWeight: 600, borderBottom: '1px solid var(--sb-separator, var(--color-border))',
           flexShrink: 0,
         }}>
           <span>Name</span><span>Lvl</span>
@@ -129,7 +127,7 @@ export function Dnd4eItemBrowser() {
 
         <ItemList items={filtered} rowHeight={ROW_HEIGHT} selectedId={selectedId} onSelect={handleSelect} />
 
-        <div style={{ ...xs, color: 'var(--color-text-muted)', padding: 'var(--space-2) 0', flexShrink: 0 }}>
+        <div style={{ color: 'var(--color-text-muted)', padding: 'var(--space-2) 0', flexShrink: 0 }}>
           {filtered.length.toLocaleString()} of {index?.length.toLocaleString() ?? 0}
         </div>
       </div>
