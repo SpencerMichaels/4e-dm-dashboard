@@ -61,7 +61,7 @@ export function TagInput({ values, onChange, suggestions = [], placeholder, comp
   }
 
   return (
-    <div style={{ position: 'relative', display: compact ? 'inline' : 'block' }}>
+    <div style={{ position: 'relative', display: compact ? 'inline' : 'block', color: 'inherit' }}>
       <div style={{
         display: compact ? 'inline-flex' : 'flex',
         flexWrap: 'wrap',
@@ -73,6 +73,7 @@ export function TagInput({ values, onChange, suggestions = [], placeholder, comp
         minHeight: compact ? undefined : 34,
         alignItems: 'center',
         cursor: 'text',
+        color: 'inherit',
       }}
         onClick={() => inputRef.current?.focus()}
       >
@@ -91,7 +92,7 @@ export function TagInput({ values, onChange, suggestions = [], placeholder, comp
               onClick={(e) => { e.stopPropagation(); removeValue(i) }}
               style={{
                 background: 'none', border: 'none', cursor: 'pointer',
-                padding: 0, color: 'var(--color-text-muted)',
+                padding: 0, color: 'inherit', opacity: 0.6,
                 lineHeight: 1,
               }}
             >×</button>
@@ -99,7 +100,7 @@ export function TagInput({ values, onChange, suggestions = [], placeholder, comp
         ))}
         {compact && values.length > 0 && !focused && !input ? (
           <button onClick={() => { setFocused(true); setTimeout(() => inputRef.current?.focus(), 0) }}
-            style={{ color: 'var(--color-text-muted)', padding: '0 2px', lineHeight: 1, cursor: 'pointer' }}>+</button>
+            style={{ color: 'inherit', opacity: 0.6, padding: '0 2px', lineHeight: 1, cursor: 'pointer' }}>+</button>
         ) : (
           <input
             ref={inputRef}
@@ -118,6 +119,7 @@ export function TagInput({ values, onChange, suggestions = [], placeholder, comp
               outline: 'none',
               fontSize: compact ? 'var(--font-size-xs)' : 'var(--font-size-sm)',
               padding: compact ? '0' : '2px 0',
+              color: 'inherit',
             }}
           />
         )}

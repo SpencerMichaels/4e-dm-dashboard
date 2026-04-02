@@ -434,9 +434,6 @@ function FullPowerRow({ entry: e, idx, config, level, statBlock, atkBonusTables,
           {!e.miss && <button onClick={() => addField('miss', ' ')} style={addBtn}>+ miss</button>}
           {!e.effect && <button onClick={() => addField('effect', ' ')} style={addBtn}>+ effect</button>}
           {!e.requirement && <button onClick={() => addField('requirement', ' ')} style={addBtn}>+ requirement</button>}
-          {normalizeDamage(e.damage).length === 0 && e.attackBonus != null && (
-            <button onClick={() => onUpdate(idx, { damage: [{ expr: '', type: '', ongoing: false }] })} style={addBtn}>+ damage</button>
-          )}
         </div>
       </div>
     </div>
