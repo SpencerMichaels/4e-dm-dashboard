@@ -262,7 +262,7 @@ function TraitRow({ entry: e, idx, onUpdate, onRemove }: {
     <div style={{ padding: '4px 8px', fontSize: 'var(--font-size-xs)', lineHeight: 1.5 }}>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 4 }}>
         <input className="ghost" value={e.name} onChange={(ev) => onUpdate(idx, { name: ev.target.value })}
-          placeholder="Trait name" style={{ fontWeight: 700, fontSize: 'var(--font-size-sm)', minWidth: 60 }} />
+          placeholder="Trait name" style={{ fontWeight: 700, fontSize: 'var(--font-size-sm)' }} />
         <span style={{ marginLeft: 'auto' }}>
           <button onClick={() => onRemove(idx)} style={{ color: 'var(--color-text-muted)', padding: '0 2px', lineHeight: 1 }}>×</button>
         </span>
@@ -283,7 +283,7 @@ function AuraRow({ entry: e, idx, onUpdate, onRemove }: {
     <div style={{ padding: '4px 8px', fontSize: 'var(--font-size-xs)', lineHeight: 1.5 }}>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 4 }}>
         <input className="ghost" value={e.name} onChange={(ev) => onUpdate(idx, { name: ev.target.value })}
-          placeholder="Aura name" style={{ fontWeight: 700, fontSize: 'var(--font-size-sm)', minWidth: 60 }} />
+          placeholder="Aura name" style={{ fontWeight: 700, fontSize: 'var(--font-size-sm)' }} />
         <span style={{ color: 'var(--color-text-secondary)' }}>aura <input className="ghost" type="number" min={1} value={e.auraRange ?? 1}
           onChange={(ev) => onUpdate(idx, { auraRange: Number(ev.target.value) })} /></span>
         <span style={{ marginLeft: 'auto' }}>
@@ -327,7 +327,7 @@ function FullPowerRow({ entry: e, idx, config, level, statBlock, atkBonusTables,
         '--color-bg-hover': 'rgba(255,255,255,0.18)', '--color-border': 'rgba(255,255,255,0.3)',
       } as React.CSSProperties}>
         <input className="ghost" value={e.name} onChange={(ev) => onUpdate(idx, { name: ev.target.value })}
-          placeholder="Power name" style={{ fontWeight: 700, fontSize: 'var(--font-size-sm)', flex: '0 1 auto', minWidth: 60, color: 'inherit' }} />
+          placeholder="Power name" style={{ fontWeight: 700, fontSize: 'var(--font-size-sm)', color: 'inherit' }} />
         <span style={{ color: 'rgba(255,255,255,0.8)' }}>(
           <select className="ghost" style={hdrSelect} value={e.actionType} onChange={(ev) => onUpdate(idx, { actionType: ev.target.value })}>
             {config.actionTypes?.map((at) => <option key={at.value} value={at.value}>{at.label.toLowerCase()}</option>)}
