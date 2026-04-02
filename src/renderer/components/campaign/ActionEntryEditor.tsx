@@ -41,7 +41,7 @@ interface Props {
   statBlock?: Record<string, unknown>
 }
 
-function emptyEntry(config: CreatureBuilderConfig, type: ActionEntry['entryType'] = 'action'): ActionEntry {
+export function emptyEntry(config: CreatureBuilderConfig, type: ActionEntry['entryType'] = 'action'): ActionEntry {
   return {
     name: '',
     entryType: type,
@@ -128,34 +128,10 @@ export function ActionEntryEditor({ entries, onChange, config, level, statBlock 
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
-      {/* Add buttons at top */}
+      {/* Add button at top */}
       <div style={{ display: 'flex', gap: 4, marginBottom: 'var(--space-2)' }}>
-        {([['trait', 'trait'], ['aura', 'aura'], ['action', config.usageTypes ? 'power' : 'action']] as const).map(([type, label]) => (
-          <AddButton key={type} label={label} onClick={() => onChange([...entries, emptyEntry(config, type as ActionEntry['entryType'])])} />
-        ))}
+        <AddButton label={config.usageTypes ? 'power' : 'action'} onClick={() => onChange([...entries, emptyEntry(config, 'action')])} />
       </div>
-
-      {traits.length > 0 && (
-        <>
-          {traits.map(({ e, i }) => (
-            <div key={i} ref={i === lastIdx ? newEntryRef : undefined}>
-              <TraitRow entry={e} idx={i} onUpdate={update} onRemove={remove} />
-            </div>
-          ))}
-          {(auras.length > 0 || actions.length > 0) && <div style={sepStyle} />}
-        </>
-      )}
-
-      {auras.length > 0 && (
-        <>
-          {auras.map(({ e, i }) => (
-            <div key={i} ref={i === lastIdx ? newEntryRef : undefined}>
-              <AuraRow entry={e} idx={i} onUpdate={update} onRemove={remove} />
-            </div>
-          ))}
-          {actions.length > 0 && <div style={sepStyle} />}
-        </>
-      )}
 
       {actions.map(({ e, i }) => (
         <div key={i} ref={i === lastIdx ? newEntryRef : undefined}>
@@ -254,7 +230,7 @@ function SimpleAttackRow({ entry: e, idx, config, level, atkBonusTables, onUpdat
 
 // --- Grouped mode ---
 
-function TraitRow({ entry: e, idx, onUpdate, onRemove }: {
+export function TraitRow({ entry: e, idx, onUpdate, onRemove }: {
   entry: ActionEntry; idx: number
   onUpdate: (i: number, p: Partial<ActionEntry>) => void; onRemove: (i: number) => void
 }) {
@@ -275,7 +251,7 @@ function TraitRow({ entry: e, idx, onUpdate, onRemove }: {
   )
 }
 
-function AuraRow({ entry: e, idx, onUpdate, onRemove }: {
+export function AuraRow({ entry: e, idx, onUpdate, onRemove }: {
   entry: ActionEntry; idx: number
   onUpdate: (i: number, p: Partial<ActionEntry>) => void; onRemove: (i: number) => void
 }) {

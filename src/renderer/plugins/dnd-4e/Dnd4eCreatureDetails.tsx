@@ -1,6 +1,7 @@
 import { useRef, useEffect, useCallback } from 'react'
 import type { Creature, CreatureBuilderConfig } from '@common/types'
-import { ActionEntryEditor } from '@renderer/components/campaign/ActionEntryEditor'
+import { ActionEntryEditor, TraitRow, AuraRow, emptyEntry } from '@renderer/components/campaign/ActionEntryEditor'
+import type { ActionEntry } from '@renderer/components/campaign/ActionEntryEditor'
 import { TagInput } from '@renderer/components/shared/TagInput'
 import './statblock.css'
 
@@ -480,6 +481,43 @@ export function Dnd4eCreatureDetails({ creature, onSave: save, config }: Props) 
           onChange={e => u('equipment', e.target.value.split(',').map(s => s.trim()).filter(Boolean))}
           placeholder="equipment..." style={{ flex: 1 }} />
       </div>
+
+      {/* Traits + Auras */}
+      {(() => {
+        const actions = Array.isArray(sb.actions) ? sb.actions as ActionEntry[] : []
+        const traitEntries = actions.map((e, i) => ({ e, i })).filter(({ e }) => e.entryType === 'trait')
+        const auraEntries = actions.map((e, i) => ({ e, i })).filter(({ e }) => e.entryType === 'aura')
+        const updateAction = (idx: number, patch: Partial<ActionEntry>) => {
+          const updated = actions.map((e, i) => i === idx ? { ...e, ...patch } : e)
+          u('actions', updated)
+        }
+        const removeAction = (idx: number) => u('actions', actions.filter((_, i) => i !== idx))
+        const addEntry = (type: ActionEntry['entryType']) => u('actions', [...actions, emptyEntry(actionConfig, type)])
+        return (
+          <>
+            {traitEntries.length > 0 && (
+              <div style={{ marginTop: 4 }}>
+                {traitEntries.map(({ e, i }) => (
+                  <TraitRow key={i} entry={e} idx={i} onUpdate={updateAction} onRemove={removeAction} />
+                ))}
+              </div>
+            )}
+            {auraEntries.length > 0 && (
+              <div style={{ marginTop: 4 }}>
+                {auraEntries.map(({ e, i }) => (
+                  <AuraRow key={i} entry={e} idx={i} onUpdate={updateAction} onRemove={removeAction} />
+                ))}
+              </div>
+            )}
+            <div style={{ display: 'flex', gap: 4, padding: '4px 8px' }}>
+              <button onClick={() => addEntry('trait')}
+                style={{ color: 'var(--color-text-muted)', border: '1px dashed var(--color-border)', borderRadius: 'var(--radius-sm)', padding: '0 4px', background: 'transparent', cursor: 'pointer' }}>+ trait</button>
+              <button onClick={() => addEntry('aura')}
+                style={{ color: 'var(--color-text-muted)', border: '1px dashed var(--color-border)', borderRadius: 'var(--radius-sm)', padding: '0 4px', background: 'transparent', cursor: 'pointer' }}>+ aura</button>
+            </div>
+          </>
+        )
+      })()}
 
       {/* Description + Source at bottom */}
       {((sb.description as string) || sb.source) && (
