@@ -141,6 +141,10 @@
   text-decoration: underline dotted;
   text-underline-offset: 2px;
 }
+.stat-block-4e select.ghost option {
+  background: var(--color-bg-primary);
+  color: var(--color-text-primary);
+}
 
 /* Footer section — ability scores in 3-column layout */
 .stat-block-4e .sb-abilities {

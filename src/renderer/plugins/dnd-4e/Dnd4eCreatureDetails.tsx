@@ -156,7 +156,7 @@ export function Dnd4eCreatureDetails({ creature, onSave: save, config }: Props) 
         <span style={{ whiteSpace: 'nowrap' }}>XP {xpForCreature(level, modifier)}</span>
       </div>
 
-      {/* ── GROUP 1: Initiative, Senses, Saves/AP, Speed ── */}
+      {/* ── GROUP 1: Initiative, Senses, Speed, Saves/AP ── */}
       <div className="sb-row">
         <span><b className="sb-label">Initiative</b> <input className="ghost" type="number" value={(sb.initiative as number) ?? 0}
           onChange={e => u('initiative', Number(e.target.value))} /></span>
@@ -167,21 +167,7 @@ export function Dnd4eCreatureDetails({ creature, onSave: save, config }: Props) 
             placeholder="darkvision" />
         </span>
       </div>
-      {(((sb.savingThrowBonus as number) ?? 0) > 0 || ((sb.actionPoints as number) ?? 0) > 0) && (
-        <div className="sb-row">
-          {((sb.savingThrowBonus as number) ?? 0) > 0 && (
-            <span><b className="sb-label">Saving Throws</b>{' +'}
-              <input className="ghost" type="number" value={(sb.savingThrowBonus as number) ?? 0}
-                onChange={e => u('savingThrowBonus', Number(e.target.value))} /></span>
-          )}
-          {((sb.actionPoints as number) ?? 0) > 0 && (
-            <span><b className="sb-label">Action Points</b>{' '}
-              <input className="ghost" type="number" value={(sb.actionPoints as number) ?? 0}
-                onChange={e => u('actionPoints', Number(e.target.value))} /></span>
-          )}
-        </div>
-      )}
-      <div className="sb-row sb-row-sep">
+      <div className="sb-row">
         <b className="sb-label">Speed</b>
         {config.speedTypes.map(({ key, label: speedLabel }) => {
           const speeds = (sb.speeds as Record<string, number> | undefined) ?? {}
@@ -207,7 +193,7 @@ export function Dnd4eCreatureDetails({ creature, onSave: save, config }: Props) 
                 }} />
               {key !== 'land' && (
                 <button onClick={() => { const { [key]: _, ...rest } = speeds; u('speeds', rest) }}
-                  style={{ fontSize: '9px', color: 'var(--color-text-muted)', padding: '0 2px' }}>x</button>
+                  style={{ color: 'var(--color-text-muted)', padding: '0 2px', lineHeight: 1 }}>×</button>
               )}
             </span>
           )
@@ -227,8 +213,28 @@ export function Dnd4eCreatureDetails({ creature, onSave: save, config }: Props) 
           )
         })()}
       </div>
+      {(((sb.savingThrowBonus as number) ?? 0) > 0 || ((sb.actionPoints as number) ?? 0) > 0) && (
+        <div className="sb-row">
+          {((sb.savingThrowBonus as number) ?? 0) > 0 && (
+            <span><b className="sb-label">Saving Throws</b>{' +'}
+              <input className="ghost" type="number" value={(sb.savingThrowBonus as number) ?? 0}
+                onChange={e => u('savingThrowBonus', Number(e.target.value))} /></span>
+          )}
+          {((sb.actionPoints as number) ?? 0) > 0 && (
+            <span><b className="sb-label">Action Points</b>{' '}
+              <input className="ghost" type="number" value={(sb.actionPoints as number) ?? 0}
+                onChange={e => u('actionPoints', Number(e.target.value))} /></span>
+          )}
+        </div>
+      )}
 
-      {/* ── GROUP 2: AC, HP, Defenses, Immunities, Resistances, Weaknesses ── */}
+      {/* ── GROUP 2: HP, AC, Defenses, Immunities, Resistances, Weaknesses ── */}
+      <div className="sb-row">
+        <span><b className="sb-label">HP</b>{' '}
+        <input className="ghost" type="number" value={creature.hp}
+          onChange={e => save({ ...creature, hp: Number(e.target.value), maxHp: Number(e.target.value) })} />;</span>
+        <span><b className="sb-label">Bloodied</b> {Math.floor(creature.hp / 2)}</span>
+      </div>
       {(() => {
         const defs = (sb.defenses as Record<string, number>) ?? {}
         const uDef = (key: string, val: number) => u('defenses', { ...defs, [key]: val })
@@ -246,16 +252,14 @@ export function Dnd4eCreatureDetails({ creature, onSave: save, config }: Props) 
         )
       })()}
       <div className="sb-row">
-        <span><b className="sb-label">HP</b>{' '}
-        <input className="ghost" type="number" value={creature.hp}
-          onChange={e => save({ ...creature, hp: Number(e.target.value), maxHp: Number(e.target.value) })} />;</span>
-        <span><b className="sb-label">Bloodied</b> {Math.floor(creature.hp / 2)}</span>
-      </div>
-      <div className="sb-row sb-row-sep">
         <InlineEntryChips label="Immune" entries={Array.isArray(sb.immunities) ? sb.immunities as any[] : []}
           onChange={v => u('immunities', v)} suggestions={config.damageTypes} />
+      </div>
+      <div className="sb-row">
         <InlineEntryChips label="Resist" entries={Array.isArray(sb.resistances) ? sb.resistances as any[] : []}
           onChange={v => u('resistances', v)} suggestions={config.damageTypes} showValue />
+      </div>
+      <div className="sb-row sb-row-sep">
         <InlineEntryChips label="Vulnerable" entries={Array.isArray(sb.weaknesses) ? sb.weaknesses as any[] : []}
           onChange={v => u('weaknesses', v)} suggestions={config.damageTypes} showValue />
       </div>
@@ -300,7 +304,7 @@ export function Dnd4eCreatureDetails({ creature, onSave: save, config }: Props) 
                       onChange={ev => u('skills', { ...skills, [name]: ev.target.value === '' ? 0 : Number(ev.target.value) })}
                       onBlur={ev => { if (ev.target.value === '') u('skills', { ...skills, [name]: 0 }) }} />
                     <button onClick={() => { const { [name]: _, ...rest } = skills; u('skills', rest) }}
-                      style={{ fontSize: '9px', color: 'var(--color-text-muted)', padding: '0 1px' }}>x</button>
+                      style={{ color: 'var(--color-text-muted)', padding: '0 1px', lineHeight: 1 }}>×</button>
                     {i < skillEntries.length - 1 && ','}
                   </span>
                 )
@@ -450,7 +454,7 @@ function InlineEntryChips({ label, entries, onChange, suggestions, showValue }: 
                 style={{ borderBottom: '1px solid var(--color-border)' }} />
             )}
             <button onClick={() => remove(i)}
-              style={{ fontSize: '9px', color: 'var(--color-text-muted)', padding: '0 1px' }}>x</button>
+              style={{ color: 'var(--color-text-muted)', padding: '0 1px', lineHeight: 1 }}>×</button>
           </span>
         )
       })}

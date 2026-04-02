@@ -90,10 +90,10 @@ export function TagInput({ values, onChange, suggestions = [], placeholder, comp
               onClick={(e) => { e.stopPropagation(); removeValue(i) }}
               style={{
                 background: 'none', border: 'none', cursor: 'pointer',
-                padding: 0, fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)',
+                padding: 0, color: 'var(--color-text-muted)',
                 lineHeight: 1,
               }}
-            >x</button>
+            >×</button>
           </span>
         ))}
         <input
