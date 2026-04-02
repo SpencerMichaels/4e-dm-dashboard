@@ -443,6 +443,7 @@ function FullPowerRow({ entry: e, idx, config, level, statBlock, atkBonusTables,
             <button onClick={() => onUpdate(idx, { attackBonus: 0, target: 'One creature', rangeType: 'melee', rangeValue: '1', hit: ' ' })} style={addBtn}>+ attack</button>
           )}
           {e.attackBonus != null && !e.miss && <button onClick={() => addField('miss', ' ')} style={addBtn}>+ miss</button>}
+          {e.attackBonus != null && <button onClick={() => onUpdate(idx, { damage: [...normalizeDamage(e.damage), { expr: '', type: '', ongoing: false }] })} style={addBtn}>+ damage</button>}
           {!e.effect && <button onClick={() => addField('effect', ' ')} style={addBtn}>+ effect</button>}
           {!e.requirement && <button onClick={() => addField('requirement', ' ')} style={addBtn}>+ requirement</button>}
         </div>
@@ -537,12 +538,15 @@ function DamagePartsEditor({ parts, config, level, onChange }: {
     else updatePart(i, { ongoing: false, type: val })
   }
 
+  const labelWidth = 48 // width for "Damage" / "plus" alignment
+
   return (
     <div style={{ marginBottom: 2 }}>
       {parts.map((p, i) => (
         <div key={i} style={{ display: 'flex', gap: 4, alignItems: 'center', flexWrap: 'wrap' }}>
-          {i === 0 && <b style={{ ...xs, color: 'var(--color-text-secondary)' }}>Damage</b>}
-          {i > 0 && <span style={{ ...xs, color: 'var(--color-text-secondary)' }}>plus</span>}
+          <span style={{ ...xs, color: 'var(--color-text-secondary)', display: 'inline-block', width: labelWidth, textAlign: 'right', fontWeight: i === 0 ? 700 : 400 }}>
+            {i === 0 ? 'Damage' : 'plus'}
+          </span>
           {p.ongoing && <span style={{ ...xs, color: 'var(--color-text-secondary)' }}>{ongoingLabel}</span>}
           <input className="ghost" value={p.expr} onChange={(ev) => updatePart(i, { expr: ev.target.value })} placeholder="2d8+6" />
           <select className="ghost" value={p.ongoing ? 'ongoing' : p.type} onChange={(ev) => {
@@ -566,7 +570,6 @@ function DamagePartsEditor({ parts, config, level, onChange }: {
           <button onClick={() => removePart(i)} style={{ color: 'var(--color-text-muted)', padding: '0 2px', lineHeight: 1 }}>×</button>
         </div>
       ))}
-      <button onClick={addPart} style={{ color: 'var(--color-text-muted)', border: '1px dashed var(--color-border)', borderRadius: 'var(--radius-sm)', padding: '0 4px', background: 'transparent', cursor: 'pointer' }}>+ damage</button>
     </div>
   )
 }
