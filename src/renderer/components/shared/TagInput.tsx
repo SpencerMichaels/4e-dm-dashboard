@@ -60,7 +60,7 @@ export function TagInput({ values, onChange, suggestions = [], placeholder, comp
   }
 
   return (
-    <div style={{ position: 'relative' }}>
+    <div style={{ position: 'relative', display: compact ? 'inline' : 'block' }}>
       <div style={{
         display: compact ? 'inline-flex' : 'flex',
         flexWrap: 'wrap',
