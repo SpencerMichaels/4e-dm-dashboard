@@ -517,20 +517,24 @@ export function Dnd4eCreatureDetails({ creature, onSave: save, config }: Props) 
           u('actions', updated)
         }
         const removeAction = (idx: number) => u('actions', actions.filter((_, i) => i !== idx))
-        const addEntry = (type: ActionEntry['entryType']) => u('actions', [...actions, emptyEntry(actionConfig, type)])
+        const addEntry = (type: ActionEntry['entryType']) => u('actions', [emptyEntry(actionConfig, type), ...actions])
         return (
           <>
             {traitEntries.length > 0 && (
               <div style={{ marginTop: 4 }}>
                 {traitEntries.map(({ e, i }) => (
-                  <TraitRow key={i} entry={e} idx={i} onUpdate={updateAction} onRemove={removeAction} />
+                  <div key={i} className={!e.name ? 'entry-animate' : undefined}>
+                    <TraitRow entry={e} idx={i} onUpdate={updateAction} onRemove={removeAction} />
+                  </div>
                 ))}
               </div>
             )}
             {auraEntries.length > 0 && (
               <div style={{ marginTop: 4 }}>
                 {auraEntries.map(({ e, i }) => (
-                  <AuraRow key={i} entry={e} idx={i} onUpdate={updateAction} onRemove={removeAction} />
+                  <div key={i} className={!e.name ? 'entry-animate' : undefined}>
+                    <AuraRow entry={e} idx={i} onUpdate={updateAction} onRemove={removeAction} />
+                  </div>
                 ))}
               </div>
             )}

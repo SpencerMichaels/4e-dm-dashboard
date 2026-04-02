@@ -86,6 +86,7 @@ function getTierLabel(tier: string, config: CreatureBuilderConfig): string {
 
 export function ActionEntryEditor({ entries, onChange, config, level, statBlock }: Props) {
   const grouped = config.useGroupedActions ?? false
+  const [animatedIdx, setAnimatedIdx] = useState<number | null>(null)
   const update = (idx: number, patch: Partial<ActionEntry>) => onChange(entries.map((e, i) => i === idx ? { ...e, ...patch } : e))
   const remove = (idx: number) => onChange(entries.filter((_, i) => i !== idx))
   const move = (idx: number, dir: -1 | 1) => {
@@ -93,7 +94,9 @@ export function ActionEntryEditor({ entries, onChange, config, level, statBlock 
     if (j < 0 || j >= entries.length) return
     const arr = [...entries]
     ;[arr[idx], arr[j]] = [arr[j], arr[idx]]
+    setAnimatedIdx(j)
     onChange(arr)
+    setTimeout(() => setAnimatedIdx(null), 250)
   }
 
   // Attack bonus tables from config — used for inline quick-fill buttons on powers
@@ -130,11 +133,11 @@ export function ActionEntryEditor({ entries, onChange, config, level, statBlock 
     <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
       {/* Add button at top */}
       <div style={{ display: 'flex', gap: 4, marginBottom: 'var(--space-2)' }}>
-        <AddButton label={config.usageTypes ? 'power' : 'action'} onClick={() => onChange([...entries, emptyEntry(config, 'action')])} />
+        <AddButton label={config.usageTypes ? 'power' : 'action'} onClick={() => onChange([emptyEntry(config, 'action'), ...entries])} />
       </div>
 
       {actions.map(({ e, i }) => (
-        <div key={i} ref={i === lastIdx ? newEntryRef : undefined}>
+        <div key={i} className={i === animatedIdx || (i === 0 && entries.length > 0 && !e.name) ? 'entry-animate' : undefined}>
           <FullPowerRow entry={e} idx={i} config={config} level={level} statBlock={statBlock}
             atkBonusTables={atkBonusTables}
             onUpdate={update} onRemove={remove} onMove={move} />
