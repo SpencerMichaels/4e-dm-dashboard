@@ -253,9 +253,9 @@ export function Dnd4eCreatureDetails({ creature, onSave: save, config }: Props) 
             {/* Land speed chip — deletable when other speeds exist */}
             {(landSpeed > 0 || Object.keys(speeds).length === 0) && (
               <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, padding: '0 3px', background: 'var(--color-bg-hover)', borderRadius: 'var(--radius-sm)', fontSize: 'var(--font-size-xs)' }}>
-                <input className="ghost" type="number" min={0} value={landSpeed ?? ''}
-                  onChange={e => u('speed', e.target.value === '' ? 0 : Number(e.target.value))}
-                  onBlur={e => { if (e.target.value === '') u('speed', 0) }} />
+                <input className="ghost" type="number" min={0} value={landSpeed || ''}
+                  onChange={e => u('speed', e.target.value === '' ? '' : Number(e.target.value))}
+                  onBlur={e => { if (e.target.value === '' || e.target.value === '0') u('speed', 0) }} />
                 {Object.keys(speeds).length > 0 && (
                   <button onClick={() => u('speed', 0)}
                     style={{ color: 'var(--color-text-muted)', padding: '0 1px', lineHeight: 1 }}>×</button>
@@ -270,10 +270,10 @@ export function Dnd4eCreatureDetails({ creature, onSave: save, config }: Props) 
               return (
                 <span key={key} style={{ display: 'inline-flex', alignItems: 'center', gap: 3, padding: '0 3px', background: 'var(--color-bg-hover)', borderRadius: 'var(--radius-sm)', fontSize: 'var(--font-size-xs)' }}>
                   {speedLabel.toLowerCase()}
-                  <input className="ghost" type="number" min={0} value={val ?? ''}
+                  <input className="ghost" type="number" min={0} value={val || ''}
                     ref={justAdded ? focusRef : undefined}
-                    onChange={e => u('speeds', { ...speeds, [key]: e.target.value === '' ? 0 : Number(e.target.value) })}
-                    onBlur={e => { if (e.target.value === '') u('speeds', { ...speeds, [key]: 0 }) }} />
+                    onChange={e => u('speeds', { ...speeds, [key]: e.target.value === '' ? '' : Number(e.target.value) })}
+                    onBlur={e => { if (!e.target.value) u('speeds', { ...speeds, [key]: 0 }) }} />
                   <button onClick={() => { const { [key]: _, ...rest } = speeds; u('speeds', rest) }}
                     style={{ color: 'var(--color-text-muted)', padding: '0 1px', lineHeight: 1 }}>×</button>
                 </span>
@@ -419,7 +419,7 @@ export function Dnd4eCreatureDetails({ creature, onSave: save, config }: Props) 
                   <span key={name} style={{ display: 'inline-flex', alignItems: 'center', gap: 3, padding: '0 3px', background: 'var(--color-bg-hover)', borderRadius: 'var(--radius-sm)', fontSize: 'var(--font-size-xs)' }}>
                     {cap(name)}<input className="ghost" type="number" value={mod ?? ''}
                       ref={justAdded ? focusRef : undefined}
-                      onChange={ev => u('skills', { ...skills, [name]: ev.target.value === '' ? 0 : Number(ev.target.value) })}
+                      onChange={ev => u('skills', { ...skills, [name]: ev.target.value === '' ? '' : Number(ev.target.value) })}
                       onBlur={ev => { if (ev.target.value === '') u('skills', { ...skills, [name]: 0 }) }} />
                     <button onClick={() => { const { [name]: _, ...rest } = skills; u('skills', rest) }}
                       style={{ color: 'var(--color-text-muted)', padding: '0 1px', lineHeight: 1 }}>×</button>
@@ -517,14 +517,29 @@ export function Dnd4eCreatureDetails({ creature, onSave: save, config }: Props) 
           u('actions', updated)
         }
         const removeAction = (idx: number) => u('actions', actions.filter((_, i) => i !== idx))
+        const moveAction = (idx: number, dir: -1 | 1) => {
+          const j = idx + dir
+          if (j < 0 || j >= actions.length) return
+          const arr = [...actions]
+          ;[arr[idx], arr[j]] = [arr[j], arr[idx]]
+          u('actions', arr)
+        }
         const addEntry = (type: ActionEntry['entryType']) => u('actions', [emptyEntry(actionConfig, type), ...actions])
+        const gutterBtn = { color: 'var(--color-text-muted)', padding: '0', lineHeight: 1, fontSize: '10px', display: 'block' as const }
         return (
           <>
             {traitEntries.length > 0 && (
               <div style={{ marginTop: 4 }}>
                 {traitEntries.map(({ e, i }) => (
-                  <div key={i} className={!e.name ? 'entry-animate' : undefined}>
-                    <TraitRow entry={e} idx={i} onUpdate={updateAction} onRemove={removeAction} />
+                  <div key={i} className={!e.name ? 'entry-animate' : undefined} style={{ display: 'flex' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-start', padding: '4px 3px 0', gap: 1, opacity: 0.5, minWidth: 14 }}>
+                      <button onClick={() => moveAction(i, -1)} style={gutterBtn} title="Move up">▲</button>
+                      <span style={{ cursor: 'grab', fontSize: '8px', color: 'var(--color-text-muted)', letterSpacing: 1 }} title="Drag to reorder">⠿</span>
+                      <button onClick={() => moveAction(i, 1)} style={gutterBtn} title="Move down">▼</button>
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <TraitRow entry={e} idx={i} onUpdate={updateAction} onRemove={removeAction} />
+                    </div>
                   </div>
                 ))}
               </div>
@@ -532,8 +547,15 @@ export function Dnd4eCreatureDetails({ creature, onSave: save, config }: Props) 
             {auraEntries.length > 0 && (
               <div style={{ marginTop: 4 }}>
                 {auraEntries.map(({ e, i }) => (
-                  <div key={i} className={!e.name ? 'entry-animate' : undefined}>
-                    <AuraRow entry={e} idx={i} onUpdate={updateAction} onRemove={removeAction} />
+                  <div key={i} className={!e.name ? 'entry-animate' : undefined} style={{ display: 'flex' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-start', padding: '4px 3px 0', gap: 1, opacity: 0.5, minWidth: 14 }}>
+                      <button onClick={() => moveAction(i, -1)} style={gutterBtn} title="Move up">▲</button>
+                      <span style={{ cursor: 'grab', fontSize: '8px', color: 'var(--color-text-muted)', letterSpacing: 1 }} title="Drag to reorder">⠿</span>
+                      <button onClick={() => moveAction(i, 1)} style={gutterBtn} title="Move down">▼</button>
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <AuraRow entry={e} idx={i} onUpdate={updateAction} onRemove={removeAction} />
+                    </div>
                   </div>
                 ))}
               </div>
