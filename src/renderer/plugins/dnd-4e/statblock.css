@@ -102,12 +102,24 @@
   white-space: nowrap;
 }
 
-/* Ghost inputs within stat block — minimal padding, left-aligned numbers */
+/* Ghost inputs within stat block — zero padding, no border space */
 .stat-block-4e input.ghost,
 .stat-block-4e select.ghost {
   font-family: inherit;
   font-size: inherit;
   padding: 0;
+  border-width: 0;
+  border-radius: 0;
+  border-bottom: 1px solid transparent;
+}
+.stat-block-4e input.ghost:hover,
+.stat-block-4e select.ghost:hover {
+  border-bottom-color: var(--color-border);
+}
+.stat-block-4e input.ghost:focus,
+.stat-block-4e select.ghost:focus {
+  border-bottom-color: var(--color-border-focus);
+  background: transparent;
 }
 
 .stat-block-4e input.ghost[type="number"] {
