@@ -10,6 +10,8 @@ export function Dnd4eItemBrowser() {
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [categoryFilter, setCategoryFilter] = useState('')
+  const [rarityFilter, setRarityFilter] = useState('')
+  const [slotFilter, setSlotFilter] = useState('')
   const [levelMin, setLevelMin] = useState(0)
   const [levelMax, setLevelMax] = useState(30)
   const [selectedId, setSelectedId] = useState<string | null>(null)
@@ -42,15 +44,31 @@ export function Dnd4eItemBrowser() {
     return index.filter(e => {
       if (q && !e.name.toLowerCase().includes(q)) return false
       if (categoryFilter && e.category !== categoryFilter) return false
+      if (rarityFilter && e.rarity !== rarityFilter) return false
+      if (slotFilter && e.slot !== slotFilter) return false
       if (e.level > 0 && (e.level < levelMin || e.level > levelMax)) return false
       return true
     })
-  }, [index, search, categoryFilter, levelMin, levelMax])
+  }, [index, search, categoryFilter, rarityFilter, slotFilter, levelMin, levelMax])
 
-  const categories = useMemo(() => {
-    if (!index) return []
-    const cats = new Set(index.map(e => e.category))
-    return [...cats].sort()
+  const filterOptions = useMemo(() => {
+    if (!index) return { categories: [], rarities: [], slots: [] }
+    const cats = new Set<string>()
+    const rarities = new Set<string>()
+    const slots = new Set<string>()
+    for (const e of index) {
+      if (e.category) cats.add(e.category)
+      if (e.rarity) rarities.add(e.rarity)
+      if (e.slot) slots.add(e.slot)
+    }
+    // Only show common slots, not dozens of obscure ones
+    const commonSlots = ['Arms Slot', 'Feet Slot', 'Hands Slot', 'Head Slot', 'Neck Slot',
+      'Ring Slot', 'Waist Slot', 'Armor', 'Weapon', 'Implement', 'Wondrous Item', 'Consumable']
+    return {
+      categories: [...cats].sort(),
+      rarities: ['Common', 'Uncommon', 'Rare'].filter(r => rarities.has(r)),
+      slots: commonSlots.filter(s => slots.has(s)),
+    }
   }, [index])
 
   const handleSelect = useCallback(async (itemId: string) => {
@@ -77,8 +95,16 @@ export function Dnd4eItemBrowser() {
 
         <div style={{ display: 'flex', gap: 'var(--space-2)', flexWrap: 'wrap', marginBottom: 'var(--space-2)', alignItems: 'center', flexShrink: 0 }}>
           <select value={categoryFilter} onChange={e => setCategoryFilter(e.target.value)} style={selectStyle}>
-            <option value="">All types</option>
-            {categories.map(c => <option key={c} value={c}>{c}</option>)}
+            <option value="">All categories</option>
+            {filterOptions.categories.map(c => <option key={c} value={c}>{c}</option>)}
+          </select>
+          <select value={slotFilter} onChange={e => setSlotFilter(e.target.value)} style={selectStyle}>
+            <option value="">All slots</option>
+            {filterOptions.slots.map(s => <option key={s} value={s}>{s}</option>)}
+          </select>
+          <select value={rarityFilter} onChange={e => setRarityFilter(e.target.value)} style={selectStyle}>
+            <option value="">All rarities</option>
+            {filterOptions.rarities.map(r => <option key={r} value={r}>{r}</option>)}
           </select>
           <label style={{ display: 'flex', alignItems: 'center', gap: 2, ...xs, color: 'var(--color-text-muted)' }}>
             Level

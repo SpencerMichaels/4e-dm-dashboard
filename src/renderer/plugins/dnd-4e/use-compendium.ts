@@ -8,6 +8,9 @@ export interface CompendiumFilters {
   role: string
   size: string
   modifier: string
+  origin: string
+  type: string
+  alignment: string
 }
 
 const defaultFilters: CompendiumFilters = {
@@ -17,6 +20,9 @@ const defaultFilters: CompendiumFilters = {
   role: '',
   size: '',
   modifier: '',
+  origin: '',
+  type: '',
+  alignment: '',
 }
 
 export function useCompendium() {
@@ -25,7 +31,6 @@ export function useCompendium() {
   const [filters, setFilters] = useState<CompendiumFilters>(defaultFilters)
   const searchRef = useRef<HTMLInputElement>(null)
 
-  // Load index on first mount
   useEffect(() => {
     setLoading(true)
     window.api.compendium.index('dnd-4e')
@@ -33,22 +38,30 @@ export function useCompendium() {
       .finally(() => setLoading(false))
   }, [])
 
-  // Derive unique filter options from index
   const filterOptions = useMemo(() => {
-    if (!index) return { roles: [], sizes: [] }
+    if (!index) return { roles: [], sizes: [], origins: [], types: [], alignments: [] }
     const roles = new Set<string>()
     const sizes = new Set<string>()
+    const origins = new Set<string>()
+    const types = new Set<string>()
+    const alignments = new Set<string>()
     for (const e of index) {
       if (e.role) roles.add(e.role)
       if (e.size) sizes.add(e.size)
+      if (e.origin) origins.add(e.origin)
+      if (e.type) types.add(e.type)
+      if (e.alignment) alignments.add(e.alignment)
     }
     return {
       roles: [...roles].sort(),
       sizes: ['Tiny', 'Small', 'Medium', 'Large', 'Huge', 'Gargantuan'].filter(s => sizes.has(s)),
+      origins: [...origins].sort(),
+      types: [...types].sort(),
+      alignments: ['Lawful Good', 'Good', 'Unaligned', 'Evil', 'Chaotic Evil'].filter(a =>
+        alignments.has(a) || alignments.has(a.toLowerCase())),
     }
   }, [index])
 
-  // Filter index
   const filtered = useMemo(() => {
     if (!index) return []
     const searchLower = filters.search.toLowerCase()
@@ -61,6 +74,9 @@ export function useCompendium() {
         if (filters.modifier === 'standard' && e.modifier) return false
         else if (filters.modifier !== 'standard' && e.modifier !== filters.modifier) return false
       }
+      if (filters.origin && e.origin !== filters.origin) return false
+      if (filters.type && e.type !== filters.type) return false
+      if (filters.alignment && e.alignment.toLowerCase() !== filters.alignment.toLowerCase()) return false
       return true
     })
   }, [index, filters])
@@ -70,19 +86,11 @@ export function useCompendium() {
   }, [])
 
   const resetFilters = useCallback(() => setFilters(defaultFilters), [])
-
   const focusSearch = useCallback(() => searchRef.current?.focus(), [])
 
   return {
-    index,
-    loading,
-    filters,
-    filtered,
-    filterOptions,
-    updateFilter,
-    resetFilters,
-    searchRef,
-    focusSearch,
+    index, loading, filters, filtered, filterOptions,
+    updateFilter, resetFilters, searchRef, focusSearch,
     totalCount: index?.length ?? 0,
   }
 }

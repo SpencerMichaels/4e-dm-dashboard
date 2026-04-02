@@ -155,7 +155,8 @@ function parseMagicalItem(html: string, category: ParsedItem['category']): Parse
 
   return {
     name, category, level, rarity, price, flavor, slot, itemType, enhancement, critical,
-    properties, powers, groups, levels: levels.length > 1 ? levels : undefined,
+    properties, powers, groups,
+    levels: levels.length > 1 ? levels.sort((a, b) => a.level - b.level) : undefined,
     source, description: flavor,
   }
 }

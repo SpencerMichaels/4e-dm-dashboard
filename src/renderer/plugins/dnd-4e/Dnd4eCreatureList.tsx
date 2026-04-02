@@ -153,6 +153,18 @@ function CompendiumBrowser({ comp, onNavigate }: { comp: ReturnType<typeof useCo
             <option value="elite">Elite</option>
             <option value="solo">Solo</option>
           </select>
+          <select value={filters.origin} onChange={e => updateFilter('origin', e.target.value)} style={selectStyle}>
+            <option value="">All origins</option>
+            {filterOptions.origins.map(o => <option key={o} value={o}>{o}</option>)}
+          </select>
+          <select value={filters.type} onChange={e => updateFilter('type', e.target.value)} style={selectStyle}>
+            <option value="">All creature types</option>
+            {filterOptions.types.map(t => <option key={t} value={t}>{t}</option>)}
+          </select>
+          <select value={filters.alignment} onChange={e => updateFilter('alignment', e.target.value)} style={selectStyle}>
+            <option value="">All alignments</option>
+            {filterOptions.alignments.map(a => <option key={a} value={a}>{a}</option>)}
+          </select>
         </div>
 
         {/* Column headers */}
