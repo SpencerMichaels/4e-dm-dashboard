@@ -70,10 +70,10 @@ function lookup(table: { [level: number]: Record<string, number> }, level: numbe
 
 
 const USAGE_COLORS: Record<string, string> = {
-  'at-will': '#2f9e44',
-  'encounter': '#c92a2a',
-  'recharge': '#868e96',
-  'recharge-bloodied': '#868e96',
+  'at-will': '#4a7a5a',
+  'encounter': '#7a4a4a',
+  'recharge': '#6a6a72',
+  'recharge-bloodied': '#6a6a72',
 }
 
 function getTierColor(tier: string, config: CreatureBuilderConfig): string {
@@ -117,30 +117,40 @@ export function ActionEntryEditor({ entries, onChange, config, level, statBlock 
   }
 
   // Grouped layout (traits, auras, actions)
+  const sepStyle = { borderBottom: '1px solid var(--sb-separator, var(--color-border))', marginBottom: 2 }
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
-      {traits.length > 0 && <SectionLabel text="Traits" />}
-      {traits.map(({ e, i }) => (
-        <TraitRow key={i} entry={e} idx={i} onUpdate={update} onRemove={remove} />
-      ))}
+      {/* Add buttons at top */}
+      <div style={{ display: 'flex', gap: 4, marginBottom: 'var(--space-2)' }}>
+        {['trait', 'aura', 'action'].map((type) => (
+          <AddButton key={type} label={type} onClick={() => onChange([...entries, emptyEntry(config, type as ActionEntry['entryType'])])} />
+        ))}
+      </div>
 
-      {auras.length > 0 && <SectionLabel text="Auras" />}
-      {auras.map(({ e, i }) => (
-        <AuraRow key={i} entry={e} idx={i} onUpdate={update} onRemove={remove} />
-      ))}
+      {traits.length > 0 && (
+        <>
+          {traits.map(({ e, i }) => (
+            <TraitRow key={i} entry={e} idx={i} onUpdate={update} onRemove={remove} />
+          ))}
+          {(auras.length > 0 || actions.length > 0) && <div style={sepStyle} />}
+        </>
+      )}
 
-      {actions.length > 0 && <SectionLabel text={config.usageTypes ? 'Powers' : 'Actions'} />}
+      {auras.length > 0 && (
+        <>
+          {auras.map(({ e, i }) => (
+            <AuraRow key={i} entry={e} idx={i} onUpdate={update} onRemove={remove} />
+          ))}
+          {actions.length > 0 && <div style={sepStyle} />}
+        </>
+      )}
+
       {actions.map(({ e, i }) => (
         <FullPowerRow key={i} entry={e} idx={i} config={config} level={level} statBlock={statBlock}
           atkBonusTables={atkBonusTables}
           onUpdate={update} onRemove={remove} onMove={move} />
       ))}
-
-      <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
-        {['trait', 'aura', 'action'].map((type) => (
-          <AddButton key={type} label={type} onClick={() => onChange([...entries, emptyEntry(config, type as ActionEntry['entryType'])])} />
-        ))}
-      </div>
     </div>
   )
 }

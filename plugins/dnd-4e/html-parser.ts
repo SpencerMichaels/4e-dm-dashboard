@@ -395,7 +395,7 @@ function parseOneAbility(headerHtml: string, bodyBlocks: string[], sectionDefaul
       const beforeAtk = unlabeledText.substring(0, atkRollMatch.index).trim()
       if (beforeAtk) {
         rangeType = parseRangeType(beforeAtk)
-        const rv = beforeAtk.match(/(?:burst|blast|ranged|melee)\s+(\d+)/i)
+        const rv = beforeAtk.match(/(?:burst|blast|ranged|melee|reach)\s+(\d+)/i)
         if (rv) rangeValue = rv[1]
         const targetsMatch = beforeAtk.match(/targets?\s+(.+?)(?:;|$)/i)
         if (targetsMatch) {
