@@ -102,7 +102,9 @@ export function ActionEntryEditor({ entries, onChange, config, level, statBlock 
   // Group by entry type for display (only in complex mode)
   const traits = entries.map((e, i) => ({ e, i })).filter(({ e }) => e.entryType === 'trait')
   const auras = entries.map((e, i) => ({ e, i })).filter(({ e }) => e.entryType === 'aura')
+  const usageOrder: Record<string, number> = { 'at-will': 0, 'encounter': 1, 'recharge': 2, 'recharge-bloodied': 2 }
   const actions = entries.map((e, i) => ({ e, i })).filter(({ e }) => e.entryType === 'action')
+    .sort((a, b) => (usageOrder[a.e.usage] ?? 3) - (usageOrder[b.e.usage] ?? 3))
 
   if (!grouped) {
     // Non-grouped layout
@@ -330,7 +332,7 @@ function FullPowerRow({ entry: e, idx, config, level, statBlock, atkBonusTables,
           <select className="ghost" style={hdrSelect} value={e.actionType} onChange={(ev) => onUpdate(idx, { actionType: ev.target.value })}>
             {config.actionTypes?.map((at) => <option key={at.value} value={at.value}>{at.label.toLowerCase()}</option>)}
           </select>
-          {hasUsage && <>; <select style={ghostSelect} value={e.usage} onChange={(ev) => onUpdate(idx, { usage: ev.target.value })}>
+          {hasUsage && <>; <select className="ghost" style={hdrSelect} value={e.usage} onChange={(ev) => onUpdate(idx, { usage: ev.target.value })}>
             {config.usageTypes!.map((u) => <option key={u.value} value={u.value}>{u.label.toLowerCase()}</option>)}
           </select></>}
           {e.usage === 'recharge' && <>{' '}
@@ -338,12 +340,10 @@ function FullPowerRow({ entry: e, idx, config, level, statBlock, atkBonusTables,
               placeholder="5-6" style={{ minWidth: 20 }} />
           </>}
           )</span>
-        {e.keywords?.length > 0 && (
-          <span style={{ color: 'var(--color-text-secondary)' }}>
-            ✦ <TagInput compact values={e.keywords} onChange={(kw) => onUpdate(idx, { keywords: kw })}
-              suggestions={config.attackTraits} placeholder="" />
-          </span>
-        )}
+        <span style={{ color: 'rgba(255,255,255,0.7)' }}>
+          ✦ <TagInput compact values={Array.isArray(e.keywords) ? e.keywords : []} onChange={(kw) => onUpdate(idx, { keywords: kw })}
+            suggestions={config.attackTraits} placeholder="keywords..." />
+        </span>
         <span style={{ marginLeft: 'auto', display: 'flex', gap: 2 }}>
           <button onClick={() => onMove(idx, -1)} style={{ color: 'var(--color-text-muted)', padding: '0 2px', lineHeight: 1 }}>↑</button>
           <button onClick={() => onRemove(idx)} style={{ color: 'var(--color-text-muted)', padding: '0 2px', lineHeight: 1 }}>×</button>
@@ -352,18 +352,19 @@ function FullPowerRow({ entry: e, idx, config, level, statBlock, atkBonusTables,
 
       {/* Body — indented, dense */}
       <div style={{ padding: '2px 8px 4px 12px' }}>
-        {/* Trigger */}
+        {/* Trigger + Requirement */}
         {isTriggered && e.trigger && (
           <div><b style={lbl}>Trigger</b> <input className="ghost" value={e.trigger} onChange={(ev) => onUpdate(idx, { trigger: ev.target.value })}
             style={{ fontStyle: 'italic', minWidth: 100 }} /></div>
         )}
-
-        {/* Requirement */}
-        {e.requirement && (
+        {e.requirement ? (
           <div><b style={lbl}>Requirement</b> <input className="ghost" value={e.requirement} onChange={(ev) => onUpdate(idx, { requirement: ev.target.value })}
             style={{ fontStyle: 'italic', minWidth: 100 }} />
             <button onClick={() => onUpdate(idx, { requirement: '' })} style={{ color: 'var(--color-text-muted)', padding: '0 2px', lineHeight: 1 }}>×</button></div>
-        )}
+        ) : isTriggered && !e.requirement ? (
+          <button onClick={() => onUpdate(idx, { requirement: ' ' })}
+            style={{ color: 'var(--color-text-muted)', border: '1px dashed var(--color-border)', borderRadius: 'var(--radius-sm)', padding: '0 4px', background: 'transparent', cursor: 'pointer' }}>+ requirement</button>
+        ) : null}
 
         {/* Attack line: Range; +N vs Defense; target */}
         {(e.attackBonus != null || e.target || e.rangeValue) && (
@@ -413,7 +414,7 @@ function FullPowerRow({ entry: e, idx, config, level, statBlock, atkBonusTables,
           ) : null
         ))}
 
-        {/* Add buttons */}
+        {/* Add buttons — contextual, near where the fields appear */}
         <div style={{ display: 'flex', gap: 4, marginTop: 2 }}>
           {e.attackBonus == null && !e.target && !e.rangeValue && (
             <button onClick={() => onUpdate(idx, { attackBonus: 0, target: 'One creature', rangeType: 'melee', rangeValue: '1' })}
@@ -422,8 +423,9 @@ function FullPowerRow({ entry: e, idx, config, level, statBlock, atkBonusTables,
           {!e.hit && <button onClick={() => onUpdate(idx, { hit: ' ' })} style={{ color: 'var(--color-text-muted)', border: '1px dashed var(--color-border)', borderRadius: 'var(--radius-sm)', padding: '0 4px', background: 'transparent', cursor: 'pointer' }}>+ hit</button>}
           {!e.miss && <button onClick={() => onUpdate(idx, { miss: ' ' })} style={{ color: 'var(--color-text-muted)', border: '1px dashed var(--color-border)', borderRadius: 'var(--radius-sm)', padding: '0 4px', background: 'transparent', cursor: 'pointer' }}>+ miss</button>}
           {!e.effect && <button onClick={() => onUpdate(idx, { effect: ' ' })} style={{ color: 'var(--color-text-muted)', border: '1px dashed var(--color-border)', borderRadius: 'var(--radius-sm)', padding: '0 4px', background: 'transparent', cursor: 'pointer' }}>+ effect</button>}
-          {!e.requirement && <button onClick={() => onUpdate(idx, { requirement: ' ' })} style={{ color: 'var(--color-text-muted)', border: '1px dashed var(--color-border)', borderRadius: 'var(--radius-sm)', padding: '0 4px', background: 'transparent', cursor: 'pointer' }}>+ req</button>}
-          {!e.keywords?.length && <button onClick={() => onUpdate(idx, { keywords: ['Weapon'] })} style={{ color: 'var(--color-text-muted)', border: '1px dashed var(--color-border)', borderRadius: 'var(--radius-sm)', padding: '0 4px', background: 'transparent', cursor: 'pointer' }}>+ keywords</button>}
+          {!isTriggered && !e.requirement && (
+            <button onClick={() => onUpdate(idx, { requirement: ' ' })} style={{ color: 'var(--color-text-muted)', border: '1px dashed var(--color-border)', borderRadius: 'var(--radius-sm)', padding: '0 4px', background: 'transparent', cursor: 'pointer' }}>+ req</button>
+          )}
         </div>
       </div>
     </div>

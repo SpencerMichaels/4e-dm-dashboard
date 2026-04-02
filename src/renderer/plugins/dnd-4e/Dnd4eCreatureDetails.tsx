@@ -419,7 +419,7 @@ export function Dnd4eCreatureDetails({ creature, onSave: save, config }: Props) 
     </div>
 
     {/* ─── Right column: Powers ─── */}
-    <div style={{ flex: '1 1 400px', minWidth: 340 }}>
+    <div className="stat-block-4e" style={{ flex: '1 1 400px', minWidth: 340 }}>
       <ActionEntryEditor
         entries={Array.isArray(sb.actions) ? sb.actions : []}
         onChange={actions => u('actions', actions)}
