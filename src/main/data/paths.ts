@@ -39,6 +39,10 @@ export function getLinksPath(campaignId: string): string {
   return join(getCampaignDir(campaignId), 'links.json')
 }
 
+export function getAnnotationsPath(campaignId: string): string {
+  return join(getCampaignDir(campaignId), 'annotations.json')
+}
+
 export function getAssetsDir(campaignId: string): string {
   return join(getCampaignDir(campaignId), 'assets', 'images')
 }

@@ -3,12 +3,13 @@ import { useState, useEffect, useRef } from 'react'
 interface Props {
   mode: 'damage' | 'heal'
   combatantName: string
+  initialAmount?: number
   onSubmit: (amount: number) => void
   onClose: () => void
 }
 
-export function DamageHealDialog({ mode, combatantName, onSubmit, onClose }: Props) {
-  const [amount, setAmount] = useState('')
+export function DamageHealDialog({ mode, combatantName, initialAmount, onSubmit, onClose }: Props) {
+  const [amount, setAmount] = useState(initialAmount ? String(initialAmount) : '')
   const inputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {

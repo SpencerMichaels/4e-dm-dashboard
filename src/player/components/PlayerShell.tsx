@@ -17,11 +17,13 @@ export function PlayerShell() {
       window.api.on.playerState((state) => setCombat(state)),
       window.api.on.sceneState((state) => setScene(state)),
     ]
+    // Request current state on mount — covers race where broadcasts arrive before listeners
+    window.api.requestState?.()
     return () => unsubs.forEach(fn => fn())
   }, [])
 
   if (combat && combat.phase !== 'ended') {
-    return <CombatDisplay combat={combat} />
+    return <CombatDisplay combat={combat} backgroundImageId={scene.backgroundImageId} />
   }
 
   return <StoryDisplay scene={scene} />

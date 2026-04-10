@@ -83,6 +83,13 @@
   color: inherit;
 }
 
+/* Placeholder text — inherit parent color at reduced opacity so it works on any background */
+.stat-block-4e input.ghost::placeholder,
+.stat-block-4e textarea.ghost::placeholder {
+  color: inherit;
+  opacity: 0.4;
+}
+
 /* Stat rows */
 .stat-block-4e .sb-row {
   display: flex;
@@ -128,12 +135,57 @@
   white-space: nowrap;
 }
 
-/* Sticky left column only when side-by-side (not stacked) */
-@media (min-width: 800px) {
-  .sb-two-col .sb-left {
-    position: sticky;
-    top: 0;
-    max-height: 100vh;
-    overflow-y: auto;
+/* Side-by-side columns: each scrolls independently (container query responds to actual content width) */
+@container main-content (min-width: 800px) {
+  .sb-two-col {
+    height: calc(100vh - var(--header-height, 40px) - 2 * var(--space-6, 24px));
+    flex-wrap: nowrap !important;
+    overflow: hidden;
   }
+  .sb-two-col > .stat-block-4e {
+    overflow-y: auto;
+    max-height: 100%;
+  }
+}
+
+/* ─── Responsive compendium layout ─── */
+.compendium-split {
+  display: flex;
+  gap: var(--space-3);
+  height: calc(100vh - var(--header-height) - 2 * var(--space-6));
+}
+.compendium-split > .compendium-list {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 250px;
+  min-width: 200px;
+  min-height: 0;
+}
+.compendium-split > .compendium-preview {
+  flex: 1 1 400px;
+  min-width: 300px;
+  overflow: auto;
+  min-height: 0;
+}
+
+@container main-content (max-width: 800px) {
+  .compendium-split {
+    flex-direction: column;
+  }
+  .compendium-split > .compendium-list {
+    flex: 1 1 auto;
+    min-height: 200px;
+    max-height: 50%;
+  }
+  .compendium-split > .compendium-preview {
+    flex: 1 1 auto;
+    min-width: 0;
+    min-height: 200px;
+  }
+}
+
+/* ─── Combat reaction highlight ─── */
+@keyframes reaction-pulse {
+  0%, 100% { background: transparent; }
+  50% { background: rgba(232, 160, 32, 0.12); }
 }

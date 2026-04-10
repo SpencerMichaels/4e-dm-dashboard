@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import type { Campaign, Creature, Encounter, Location, Item, PlayerCharacter, Note, NoteTreeNode, LinkIndex } from '@common/types'
+import type { Campaign, Creature, Encounter, Location, Item, PlayerCharacter, Note, NoteTreeNode, LinkIndex, CompendiumAnnotation } from '@common/types'
 
 export interface CampaignState {
   campaignId: string | null
@@ -12,6 +12,7 @@ export interface CampaignState {
   notes: Note[]
   noteTree: NoteTreeNode[]
   links: LinkIndex
+  annotations: Record<string, CompendiumAnnotation>
 
   // Actions — populated from IPC broadcasts, not local mutations
   setCampaignState: (state: Partial<CampaignState>) => void
@@ -29,6 +30,7 @@ const initialState = {
   notes: [] as Note[],
   noteTree: [] as NoteTreeNode[],
   links: { links: [] } as LinkIndex,
+  annotations: {} as Record<string, CompendiumAnnotation>,
 }
 
 export const useCampaignStore = create<CampaignState>()((set) => ({

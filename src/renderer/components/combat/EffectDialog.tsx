@@ -5,9 +5,12 @@ interface Props {
   onClose: () => void
 }
 
+type DurationType = 'unlimited' | 'encounter' | 'rounds'
+
 export function EffectDialog({ combatantId, onClose }: Props) {
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
+  const [durationType, setDurationType] = useState<DurationType>('unlimited')
   const [rounds, setRounds] = useState('')
   const inputRef = useRef<HTMLInputElement>(null)
 
@@ -30,8 +33,9 @@ export function EffectDialog({ combatantId, onClose }: Props) {
     window.api.combat.addEffect(combatantId, {
       name: name.trim(),
       description: description.trim() || undefined,
-      durationRounds: rounds ? Number(rounds) : undefined,
-      remainingRounds: rounds ? Number(rounds) : undefined,
+      durationType,
+      durationRounds: durationType === 'rounds' && rounds ? Number(rounds) : undefined,
+      remainingRounds: durationType === 'rounds' && rounds ? Number(rounds) : undefined,
     })
     onClose()
   }
@@ -85,17 +89,31 @@ export function EffectDialog({ combatantId, onClose }: Props) {
 
         <div style={{ marginBottom: 'var(--space-3)' }}>
           <label style={{ display: 'block', fontSize: 'var(--font-size-sm)', color: 'var(--color-text-secondary)', marginBottom: 'var(--space-1)' }}>
-            Duration (rounds, leave empty for permanent)
+            Duration
           </label>
-          <input
-            type="number"
-            min={1}
-            value={rounds}
-            onChange={(e) => setRounds(e.target.value)}
-            placeholder="Rounds"
+          <select
+            value={durationType}
+            onChange={(e) => setDurationType(e.target.value as DurationType)}
             style={{ width: '100%' }}
-          />
+          >
+            <option value="unlimited">Save ends</option>
+            <option value="encounter">Until end of encounter</option>
+            <option value="rounds">Rounds</option>
+          </select>
         </div>
+
+        {durationType === 'rounds' && (
+          <div style={{ marginBottom: 'var(--space-3)' }}>
+            <input
+              type="number"
+              min={1}
+              value={rounds}
+              onChange={(e) => setRounds(e.target.value)}
+              placeholder="Number of rounds"
+              style={{ width: '100%' }}
+            />
+          </div>
+        )}
 
         <div style={{ display: 'flex', gap: 'var(--space-2)', justifyContent: 'flex-end' }}>
           <button type="button" onClick={onClose}>Cancel</button>

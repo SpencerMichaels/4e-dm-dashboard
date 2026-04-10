@@ -2,30 +2,30 @@
    System plugins can override these (v2) via SystemTheme.cssVariables */
 
 :root {
-  /* Colors — neutral palette */
-  --color-bg-primary: #1a1a2e;
-  --color-bg-secondary: #16213e;
-  --color-bg-tertiary: #0f3460;
-  --color-bg-surface: #1e2746;
-  --color-bg-hover: #263052;
-  --color-bg-active: #2e3a5e;
+  /* Colors — Solarized Dark */
+  --color-bg-primary: #002b36;
+  --color-bg-secondary: #073642;
+  --color-bg-tertiary: #073642;
+  --color-bg-surface: #073642;
+  --color-bg-hover: #0a4050;
+  --color-bg-active: #0d4d5e;
 
-  --color-text-primary: #e0e0e0;
-  --color-text-secondary: #b8b8ce;
-  --color-text-muted: #9090aa;
-  --color-text-inverse: #1a1a2e;
+  --color-text-primary: #c5cacc;
+  --color-text-secondary: #93a1a1;
+  --color-text-muted: #6c7e86;
+  --color-text-inverse: #002b36;
 
-  --color-border: #2e3a5e;
-  --color-border-focus: #5c7cfa;
+  --color-border: #586e75;
+  --color-border-focus: #268bd2;
 
-  --color-accent: #5c7cfa;
-  --color-accent-hover: #748ffc;
-  --color-accent-text: #fff;
+  --color-accent: #268bd2;
+  --color-accent-hover: #2aa198;
+  --color-accent-text: #fdf6e3;
 
-  --color-danger: #e03131;
-  --color-danger-hover: #c92a2a;
-  --color-success: #2f9e44;
-  --color-warning: #f08c00;
+  --color-danger: #dc322f;
+  --color-danger-hover: #cb4b16;
+  --color-success: #859900;
+  --color-warning: #b58900;
 
   /* Combat-specific */
   --color-hp-full: #2f9e44;
@@ -74,27 +74,31 @@
   --transition-normal: 200ms ease;
 }
 
-/* Light mode */
+/* Light mode — Solarized Light */
 :root[data-theme='light'] {
-  --color-bg-primary: #f8f9fa;
-  --color-bg-secondary: #ffffff;
-  --color-bg-tertiary: #e9ecef;
-  --color-bg-surface: #ffffff;
-  --color-bg-hover: #f1f3f5;
-  --color-bg-active: #e9ecef;
+  --color-bg-primary: #fdf6e3;
+  --color-bg-secondary: #eee8d5;
+  --color-bg-tertiary: #eee8d5;
+  --color-bg-surface: #eee8d5;
+  --color-bg-hover: #e8e1cc;
+  --color-bg-active: #ddd6c1;
 
-  --color-text-primary: #212529;
-  --color-text-secondary: #495057;
-  --color-text-muted: #868e96;
-  --color-text-inverse: #ffffff;
+  --color-text-primary: #657b83;
+  --color-text-secondary: #586e75;
+  --color-text-muted: #93a1a1;
+  --color-text-inverse: #fdf6e3;
 
-  --color-border: #dee2e6;
-  --color-border-focus: #4263eb;
+  --color-border: #93a1a1;
+  --color-border-focus: #268bd2;
 
-  --color-accent: #4263eb;
-  --color-accent-hover: #3b5bdb;
+  --color-accent: #268bd2;
+  --color-accent-hover: #2aa198;
 
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.08);
-  --shadow-md: 0 4px 8px rgba(0, 0, 0, 0.1);
-  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.12);
+  --color-danger: #dc322f;
+  --color-success: #859900;
+  --color-warning: #b58900;
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.06);
+  --shadow-md: 0 4px 8px rgba(0, 0, 0, 0.08);
+  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.1);
 }

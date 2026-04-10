@@ -21,12 +21,10 @@ app.whenReady().then(async () => {
 
   // Create windows
   createDmWindow()
-  createPlayerWindow()
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
       createDmWindow()
-      createPlayerWindow()
     }
   })
 })

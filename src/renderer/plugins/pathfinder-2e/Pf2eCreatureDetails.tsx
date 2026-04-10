@@ -1,6 +1,5 @@
 import type { Creature, CreatureBuilderConfig } from '@common/types'
 import { CreatureBuilder } from '@renderer/components/campaign/CreatureBuilder'
-import { ActionEntryEditor } from '@renderer/components/campaign/ActionEntryEditor'
 import { TagInput } from '@renderer/components/shared/TagInput'
 import { Autocomplete } from '@renderer/components/shared/Autocomplete'
 import { DamageEntryList } from '@renderer/components/shared/DamageEntryList'
@@ -297,13 +296,9 @@ export function Pf2eCreatureDetails({ creature, onSave: save, config }: Props) {
       {/* Abilities */}
       <div style={{ marginBottom: 'var(--space-3)' }}>
         <h3 style={{ fontSize: 'var(--font-size-lg)', marginBottom: 'var(--space-3)' }}>Abilities</h3>
-        <ActionEntryEditor
-          entries={Array.isArray(creature.statBlock.actions) ? creature.statBlock.actions : []}
-          onChange={(actions) => save({ ...creature, statBlock: { ...creature.statBlock, actions } })}
-          config={actionConfig}
-          level={(creature.statBlock.level as number) ?? 1}
-          statBlock={creature.statBlock}
-        />
+        <div style={{ color: 'var(--color-text-muted)', fontStyle: 'italic', padding: 'var(--space-2)' }}>
+          PF2e ability editor coming soon
+        </div>
       </div>
 
       {/* Spells */}

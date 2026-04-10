@@ -9,6 +9,10 @@ import { ItemEditor } from '../campaign/ItemEditor'
 import { PCEditor } from '../campaign/PCEditor'
 import { EntityList } from '../campaign/EntityList'
 import { CombatView } from '../combat/CombatView'
+import { Dnd4eTrapBrowser } from '../../plugins/dnd-4e/Dnd4eTrapBrowser'
+import { Dnd4eDiseaseBrowser } from '../../plugins/dnd-4e/Dnd4eDiseaseBrowser'
+import { Dnd4eTemplateBrowser } from '../../plugins/dnd-4e/Dnd4eTemplateBrowser'
+import { Dnd4eThemeBrowser } from '../../plugins/dnd-4e/Dnd4eThemeBrowser'
 
 export function ContentArea() {
   const view = useUiStore((s) => s.view)
@@ -37,6 +41,14 @@ export function ContentArea() {
       return <CombatView />
     case 'entity-list':
       return <EntityList entityType={view.entityType} key={view.entityType} />
+    case 'trap-compendium':
+      return <Dnd4eTrapBrowser />
+    case 'disease-compendium':
+      return <Dnd4eDiseaseBrowser />
+    case 'template-compendium':
+      return <Dnd4eTemplateBrowser />
+    case 'theme-compendium':
+      return <Dnd4eThemeBrowser />
     default:
       return <HomeView />
   }

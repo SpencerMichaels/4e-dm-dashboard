@@ -12,6 +12,10 @@ export type ViewMode =
   | { type: 'map'; mapId?: string }
   | { type: 'combat' }
   | { type: 'entity-list'; entityType: EntityType }
+  | { type: 'trap-compendium' }
+  | { type: 'disease-compendium' }
+  | { type: 'template-compendium' }
+  | { type: 'theme-compendium' }
 
 export interface UiState {
   view: ViewMode
@@ -36,7 +40,6 @@ export const useUiStore = create<UiState>()((set) => ({
   commandPaletteOpen: false,
   systemPlugin: null,
   skipAutoOpen: false,
-
   setView: (view) => set({ view }),
   toggleTheme: () => set((s) => {
     const next = s.theme === 'dark' ? 'light' : 'dark'

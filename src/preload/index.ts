@@ -30,12 +30,16 @@ const api = {
 
   // Combat commands
   combat: {
-    start: (encounterId?: string) => ipcRenderer.invoke(CMD.COMBAT_START, encounterId),
-    begin: () => ipcRenderer.invoke(CMD.COMBAT_BEGIN),
+    init: (encounterId?: string) => ipcRenderer.invoke(CMD.COMBAT_INIT, encounterId),
+    start: () => ipcRenderer.invoke(CMD.COMBAT_START),
     setInitiative: (combatantId: string, initiative: number) =>
       ipcRenderer.invoke(CMD.COMBAT_SET_INITIATIVE, combatantId, initiative),
-    nextTurn: () => ipcRenderer.invoke(CMD.COMBAT_NEXT_TURN),
-    prevTurn: () => ipcRenderer.invoke(CMD.COMBAT_PREV_TURN),
+    setInitiativeFocus: (combatantId: string | null) =>
+      ipcRenderer.invoke(CMD.COMBAT_SET_INITIATIVE_FOCUS, combatantId),
+    setPlayerExpandConditions: (value: boolean) =>
+      ipcRenderer.invoke(CMD.COMBAT_SET_PLAYER_EXPAND_CONDITIONS, value),
+    endTurn: () => ipcRenderer.invoke(CMD.COMBAT_END_TURN),
+    resolveItem: (index: number, success: boolean) => ipcRenderer.invoke(CMD.COMBAT_RESOLVE_ITEM, index, success),
     delay: (combatantId: string) => ipcRenderer.invoke(CMD.COMBAT_DELAY, combatantId),
     undelay: (combatantId: string, afterCombatantId?: string) =>
       ipcRenderer.invoke(CMD.COMBAT_UNDELAY, combatantId, afterCombatantId),
@@ -53,6 +57,10 @@ const api = {
     removeCombatant: (combatantId: string) => ipcRenderer.invoke(CMD.COMBAT_REMOVE_COMBATANT, combatantId),
     updateCombatant: (combatantId: string, updates: any) =>
       ipcRenderer.invoke(CMD.COMBAT_UPDATE_COMBATANT, combatantId, updates),
+    usePower: (combatantId: string, powerIndex: number) =>
+      ipcRenderer.invoke(CMD.COMBAT_USE_POWER, combatantId, powerIndex),
+    unusePower: (combatantId: string, powerIndex: number) =>
+      ipcRenderer.invoke(CMD.COMBAT_UNUSE_POWER, combatantId, powerIndex),
     end: () => ipcRenderer.invoke(CMD.COMBAT_END),
   },
 
@@ -70,6 +78,9 @@ const api = {
   // Images
   image: {
     import: (sourcePath: string) => ipcRenderer.invoke(CMD.IMAGE_IMPORT, sourcePath),
+    importDialog: () => ipcRenderer.invoke(CMD.IMAGE_IMPORT_DIALOG) as Promise<string | null>,
+    saveData: (base64Data: string, ext: string) => ipcRenderer.invoke(CMD.IMAGE_SAVE_DATA, base64Data, ext) as Promise<string>,
+    get: (imageId: string) => ipcRenderer.invoke(CMD.IMAGE_GET, imageId) as Promise<string | null>,
   },
 
   // Import
@@ -77,12 +88,24 @@ const api = {
     creature: (url: string) => ipcRenderer.invoke(CMD.IMPORT_CREATURE, url),
   },
 
+  // Annotations (images on compendium entries)
+  annotation: {
+    getAll: () => ipcRenderer.invoke(CMD.ANNOTATION_GET_ALL),
+    save: (compendiumId: string, annotation: any) => ipcRenderer.invoke(CMD.ANNOTATION_SAVE, compendiumId, annotation),
+  },
+
   // Compendium
   compendium: {
     index: (systemId: string) => ipcRenderer.invoke(CMD.COMPENDIUM_INDEX, systemId),
     get: (systemId: string, monsterId: string) => ipcRenderer.invoke(CMD.COMPENDIUM_GET, systemId, monsterId),
+    resolve: (systemId: string, monsterId: string) => ipcRenderer.invoke(CMD.COMPENDIUM_RESOLVE, systemId, monsterId),
     itemIndex: (systemId: string) => ipcRenderer.invoke(CMD.COMPENDIUM_ITEM_INDEX, systemId),
     itemGet: (systemId: string, itemId: string) => ipcRenderer.invoke(CMD.COMPENDIUM_ITEM_GET, systemId, itemId),
+    glossary: (systemId: string) => ipcRenderer.invoke(CMD.COMPENDIUM_GLOSSARY, systemId),
+    trapIndex: (systemId: string) => ipcRenderer.invoke(CMD.COMPENDIUM_TRAP_INDEX, systemId),
+    trapGet: (systemId: string, trapId: string) => ipcRenderer.invoke(CMD.COMPENDIUM_TRAP_GET, systemId, trapId),
+    diseaseIndex: (systemId: string) => ipcRenderer.invoke(CMD.COMPENDIUM_DISEASE_INDEX, systemId),
+    diseaseGet: (systemId: string, diseaseId: string) => ipcRenderer.invoke(CMD.COMPENDIUM_DISEASE_GET, systemId, diseaseId),
   },
 
   // Scene
@@ -111,6 +134,11 @@ const api = {
       const handler = (_event: any, theme: any) => callback(theme)
       ipcRenderer.on(SYNC.THEME, handler)
       return () => ipcRenderer.removeListener(SYNC.THEME, handler)
+    },
+    annotations: (callback: (annotations: any) => void) => {
+      const handler = (_event: any, annotations: any) => callback(annotations)
+      ipcRenderer.on(SYNC.ANNOTATIONS, handler)
+      return () => ipcRenderer.removeListener(SYNC.ANNOTATIONS, handler)
     },
   },
 }

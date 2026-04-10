@@ -124,10 +124,10 @@ const pathfinder2e: SystemPlugin = {
     { minPercent: 0, maxPercent: 1, label: 'Down', color: '#868e96' },
   ],
   turnHooks: {
-    onTurnStart(combatantId, conditions) {
+    onTurnStart(combatant) {
       const actions: any[] = []
       // Stunned: decrement at start
-      const stunned = conditions.find(c => c.conditionId === 'stunned')
+      const stunned = combatant.conditions.find(c => c.conditionId === 'stunned')
       if (stunned && stunned.value != null && stunned.value > 0) {
         actions.push({
           type: 'auto',
@@ -137,10 +137,10 @@ const pathfinder2e: SystemPlugin = {
       }
       return actions
     },
-    onTurnEnd(combatantId, conditions) {
+    onTurnEnd(combatant) {
       const actions: any[] = []
       // Frightened: decrement at end
-      const frightened = conditions.find(c => c.conditionId === 'frightened')
+      const frightened = combatant.conditions.find(c => c.conditionId === 'frightened')
       if (frightened && frightened.value != null && frightened.value > 0) {
         actions.push({
           type: 'auto',
@@ -149,7 +149,7 @@ const pathfinder2e: SystemPlugin = {
         })
       }
       // Persistent damage: prompt save
-      const persistent = conditions.find(c => c.conditionId === 'persistent-damage')
+      const persistent = combatant.conditions.find(c => c.conditionId === 'persistent-damage')
       if (persistent) {
         actions.push({
           type: 'prompt',

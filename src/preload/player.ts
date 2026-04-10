@@ -1,9 +1,13 @@
 import { contextBridge, ipcRenderer } from 'electron'
-import { SYNC } from '@common/ipc-channels'
+import { CMD, SYNC } from '@common/ipc-channels'
 
-// Player preload — receive-only, no commands
+// Player preload — mostly receive-only, with image access
 
 const api = {
+  image: {
+    get: (imageId: string) => ipcRenderer.invoke(CMD.IMAGE_GET, imageId) as Promise<string | null>,
+  },
+  requestState: () => ipcRenderer.invoke(CMD.PLAYER_READY),
   on: {
     playerState: (callback: (state: any) => void) => {
       const handler = (_event: any, state: any) => callback(state)

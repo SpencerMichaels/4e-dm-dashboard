@@ -1,6 +1,6 @@
 // SystemPlugin — the interface every system plugin must implement
 
-export type DurationType = 'rounds' | 'minutes' | 'encounter' | 'unlimited'
+export type DurationType = 'save-ends' | 'eont' | 'sont' | 'encounter' | 'indefinite' | 'custom' | 'rounds' | 'minutes' | 'unlimited'
 
 export type AutomationRule =
   | { type: 'decrement' }            // Reduce value by 1 at turn start/end
@@ -16,6 +16,7 @@ export interface ConditionDef {
   durationTypes: DurationType[]
   automation: AutomationRule[]
   appliedAt?: 'start' | 'end'        // When automation triggers (default: start)
+  hidden?: boolean                    // If true, don't show in condition picker (auto-managed)
 }
 
 export type SchemaFieldType =
@@ -67,14 +68,29 @@ export interface TurnPrompt {
 }
 
 export interface TurnHooks {
-  onTurnStart?: (combatantId: string, conditions: AppliedCondition[]) => (TurnAction | TurnPrompt)[]
-  onTurnEnd?: (combatantId: string, conditions: AppliedCondition[]) => (TurnAction | TurnPrompt)[]
+  onTurnStart?: (combatant: TurnHookCombatant) => (TurnAction | TurnPrompt)[]
+  onTurnEnd?: (combatant: TurnHookCombatant) => (TurnAction | TurnPrompt)[]
+}
+
+/** Subset of CombatantState passed to turn hooks — avoids circular import */
+export interface TurnHookCombatant {
+  id: string
+  name: string
+  isPC: boolean
+  hp: number
+  maxHp: number
+  conditions: AppliedCondition[]
+  effects: { id: string; name: string; remainingRounds?: number }[]
+  usedPowers: Record<number, number>
+  statBlock?: Record<string, unknown>
 }
 
 export interface AppliedCondition {
   conditionId: string
+  customName?: string                  // For custom/ad-hoc conditions not in the system list
+  customDescription?: string
   value?: number
-  duration?: { type: DurationType; remaining?: number }
+  duration?: { type: DurationType; remaining?: number; note?: string; expiresOnId?: string }
   sourceId?: string                   // Who applied it
 }
 
@@ -165,5 +181,6 @@ export interface SystemPlugin {
   hpDescriptors: HpDescriptor[]
   turnHooks: TurnHooks
   creatureBuilder?: CreatureBuilderConfig  // System-specific creature builder
+  rechargeRoll?: { die: string; defaultThreshold: number }  // e.g. { die: '1d6', defaultThreshold: 4 }
   theme?: SystemTheme                      // v2
 }

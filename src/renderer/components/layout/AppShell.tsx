@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { useIpcSync } from '../../hooks/use-ipc'
 import { useHotkeys } from '../../hooks/use-hotkeys'
 import { useUiStore } from '../../stores/ui-store'
@@ -5,10 +6,12 @@ import { useCombatStore } from '../../stores/combat-store'
 import { Sidebar } from './Sidebar'
 import { ContentArea } from './ContentArea'
 import { CommandPalette } from './CommandPalette'
+import { HotkeysModal, GLOBAL_HOTKEYS, COMBAT_HOTKEYS } from '../combat/HotkeysModal'
 import styles from './AppShell.module.css'
 
 export function AppShell() {
   useIpcSync()
+  const [showHotkeys, setShowHotkeys] = useState(false)
 
   const { view, sidebarCollapsed, toggleSidebar, toggleTheme, setCommandPaletteOpen, commandPaletteOpen, setView } = useUiStore()
   const combat = useCombatStore((s) => s.combat)
@@ -21,8 +24,6 @@ export function AppShell() {
     { key: 'b', ctrl: true, handler: () => toggleSidebar() },
 
     // Vim-style modal keys (only when NOT in an input — useHotkeys filters these)
-    // Universal search
-    { key: ' ', shift: true, handler: () => setCommandPaletteOpen(true) },
     // Search within current view
     { key: '/', handler: () => setCommandPaletteOpen(true) },
 
@@ -31,8 +32,10 @@ export function AppShell() {
     { key: 'c', handler: () => { if (combat) setView({ type: 'combat' }) } },
 
     // Combat turn control
-    { key: 'j', handler: () => { if (combat?.phase === 'active') window.api.combat.nextTurn() } },
-    { key: 'k', handler: () => { if (combat?.phase === 'active') window.api.combat.prevTurn() } },
+    { key: 'j', handler: () => { if (combat?.phase === 'active' && combat?.turnPhase === 'active') window.api.combat.endTurn() } },
+
+    // Help
+    { key: '?', shift: true, handler: () => setShowHotkeys(v => !v) },
   ])
 
   return (
@@ -52,12 +55,24 @@ export function AppShell() {
           <button className={styles.headerBtn} onClick={toggleTheme} title="Toggle theme">
             ◐
           </button>
+          <button className={styles.headerBtn} onClick={() => setShowHotkeys(true)} title="Keyboard shortcuts (?)">
+            ?
+          </button>
         </div>
         <div className={styles.main}>
           <ContentArea />
         </div>
       </div>
       {commandPaletteOpen && <CommandPalette />}
+      {showHotkeys && (
+        <HotkeysModal
+          sections={[
+            ...GLOBAL_HOTKEYS,
+            ...(view.type === 'combat' ? COMBAT_HOTKEYS : []),
+          ]}
+          onClose={() => setShowHotkeys(false)}
+        />
+      )}
     </div>
   )
 }

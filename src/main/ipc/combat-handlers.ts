@@ -1,10 +1,11 @@
 import { ipcMain } from 'electron'
 import { CMD, SYNC } from '@common/ipc-channels'
-import type { AppliedCondition, AppliedEffect } from '@common/types'
+import type { AppliedCondition, AppliedEffect, Encounter } from '@common/types'
 import * as engine from '../combat/combat-engine'
 import { getPlugin } from '../plugins/plugin-loader'
-import { getActiveCampaignId } from '../data/campaign-store'
-import { broadcastToAll, broadcastToPlayer } from '../windows'
+import { getActiveCampaignId, getEntity } from '../data/campaign-store'
+import { broadcastToAll, broadcastToPlayer, getPlayerWindow, createPlayerWindow } from '../windows'
+import { setCurrentScene } from './system-handlers'
 
 let activeSystemId: string | null = null
 
@@ -32,14 +33,35 @@ function broadcastCombatState(): void {
 }
 
 export function registerCombatHandlers(): void {
-  ipcMain.handle(CMD.COMBAT_START, async (_e, encounterId?: string) => {
-    const state = engine.startCombat(encounterId)
+  ipcMain.handle(CMD.COMBAT_INIT, async (_e, encounterId?: string) => {
+    const state = engine.initCombat(encounterId)
+
+    // Resolve background image: encounter → location → none
+    let backgroundImageId: string | undefined
+    if (encounterId) {
+      const encounter = await getEntity<Encounter>('encounter', encounterId)
+      if (encounter?.backgroundImageId) {
+        backgroundImageId = encounter.backgroundImageId
+      }
+    }
+
+    // Set scene to combat mode with background
+    const scene = { mode: 'combat' as const, backgroundImageId }
+    setCurrentScene(scene)
+    broadcastToAll(SYNC.SCENE_STATE, scene)
+
+    // Broadcast combat state
     broadcastCombatState()
+
+    // Open player window if not already open — PLAYER_READY handles re-broadcast on mount
+    if (!getPlayerWindow()) {
+      createPlayerWindow()
+    }
     return state
   })
 
-  ipcMain.handle(CMD.COMBAT_BEGIN, async () => {
-    const state = engine.beginCombat()
+  ipcMain.handle(CMD.COMBAT_START, async () => {
+    const state = engine.startCombat()
     broadcastCombatState()
     return state
   })
@@ -50,16 +72,47 @@ export function registerCombatHandlers(): void {
     return state
   })
 
-  ipcMain.handle(CMD.COMBAT_NEXT_TURN, async () => {
-    const { state, turnActions } = engine.nextTurn(getActivePlugin())
-    broadcastCombatState()
-    return { state, turnActions }
-  })
-
-  ipcMain.handle(CMD.COMBAT_PREV_TURN, async () => {
-    const state = engine.prevTurn()
+  ipcMain.handle(CMD.COMBAT_SET_INITIATIVE_FOCUS, async (_e, combatantId: string | null) => {
+    const state = engine.setInitiativeFocus(combatantId)
     broadcastCombatState()
     return state
+  })
+
+  ipcMain.handle(CMD.COMBAT_SET_PLAYER_EXPAND_CONDITIONS, async (_e, value: boolean) => {
+    const state = engine.setPlayerExpandConditions(value)
+    broadcastCombatState()
+    return state
+  })
+
+  ipcMain.handle(CMD.COMBAT_END_TURN, async () => {
+    const plugin = getActivePlugin()
+    const result = engine.endTurn(plugin)
+    broadcastCombatState()
+    return result
+  })
+
+  ipcMain.handle(CMD.COMBAT_RESOLVE_ITEM, async (_e, index: number, success: boolean) => {
+    const result = engine.resolveItem(index, success)
+    broadcastCombatState()
+
+    const state = engine.getCombatState()
+    if (state?.turnPhase === 'end-of-turn-done') {
+      // All end-of-turn saves resolved — pause 1.2s for animation, then advance
+      setTimeout(() => {
+        try {
+          engine.commitAndAdvance(getActivePlugin())
+          broadcastCombatState()
+        } catch (e) {
+          console.error('commitAndAdvance error:', e)
+        }
+      }, 1200)
+    } else if (state?.turnPhase === 'start-of-turn' && state.stepperIndex === -1) {
+      // All start-of-turn items resolved — finish immediately
+      engine.finishStartOfTurn(getActivePlugin())
+      broadcastCombatState()
+    }
+
+    return result
   })
 
   ipcMain.handle(CMD.COMBAT_DELAY, async (_e, combatantId: string) => {
@@ -75,9 +128,9 @@ export function registerCombatHandlers(): void {
   })
 
   ipcMain.handle(CMD.COMBAT_DAMAGE, async (_e, combatantId: string, amount: number) => {
-    const state = engine.damageCombatant(combatantId, amount)
+    const { state, notifications } = engine.damageCombatant(combatantId, amount)
     broadcastCombatState()
-    return state
+    return { state, notifications }
   })
 
   ipcMain.handle(CMD.COMBAT_HEAL, async (_e, combatantId: string, amount: number) => {
@@ -126,6 +179,26 @@ export function registerCombatHandlers(): void {
     const state = engine.updateCombatant(combatantId, updates)
     broadcastCombatState()
     return state
+  })
+
+
+  ipcMain.handle(CMD.COMBAT_USE_POWER, async (_e, combatantId: string, powerIndex: number) => {
+    const state = engine.usePower(combatantId, powerIndex)
+    broadcastCombatState()
+    return state
+  })
+
+  ipcMain.handle(CMD.COMBAT_UNUSE_POWER, async (_e, combatantId: string, powerIndex: number) => {
+    const state = engine.unusePower(combatantId, powerIndex)
+    broadcastCombatState()
+    return state
+  })
+
+  // Player window signals it's ready — re-broadcast all state
+  ipcMain.handle(CMD.PLAYER_READY, async () => {
+    const { getCurrentScene } = await import('./system-handlers')
+    broadcastToAll(SYNC.SCENE_STATE, getCurrentScene())
+    broadcastCombatState()
   })
 
   ipcMain.handle(CMD.COMBAT_END, async () => {

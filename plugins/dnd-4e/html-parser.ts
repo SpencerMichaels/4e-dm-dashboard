@@ -13,7 +13,7 @@ export function parseMonsterHtml(html: string, warnings: string[]): Creature {
 
 // ─── Strip HTML tags, keeping text content ───
 function stripHtml(html: string): string {
-  return html.replace(/<br\s*\/?>/gi, '\n').replace(/<\/td>\s*<td[^>]*>/gi, '\n').replace(/<\/tr>\s*<tr[^>]*>/gi, '\n').replace(/<[^>]+>/g, '').trim()
+  return html.replace(/<br\s*\/?>/gi, '\n').replace(/<\/td>\s*<td[^>]*>/gi, '\n').replace(/<\/tr>\s*<tr[^>]*>/gi, '\n').replace(/<[^>]+>/g, '').replace(/^[ \t]+/gm, '').trim()
 }
 
 // ─── Extract bold text from HTML ───
@@ -83,9 +83,9 @@ function _parseMonsterHtml(html: string, warnings: string[]): Creature {
 
   // Immune/Resist/Vulnerable from stats text
   const immuneMatch = statsText.match(/Immune\s+(.+?)(?=\n|Resist|Vulnerable|Saving|$)/i)
-  const immunities = immuneMatch ? immuneMatch[1].split(',').map(s => ({ type: s.replace(/[;.]+$/, '').trim() })).filter(e => e.type) : []
+  const immunities = immuneMatch ? immuneMatch[1].split(/[,;]/).map(s => ({ type: s.replace(/[;.,\s]+$/, '').trim() })).filter(e => e.type) : []
   const resistMatch = statsText.match(/Resist\s+(.+?)(?=\n|Vulnerable|Saving|$)/i)
-  const resistances = resistMatch ? parseResistValues(resistMatch[1]) : []
+  const resistances = resistMatch ? parseResistValues(resistMatch[1].replace(/[;]+$/, '').trim()) : []
   const vulnMatch = statsText.match(/Vulnerable\s+(.+?)(?=\n|Saving|$)/i)
   const weaknesses = vulnMatch ? parseResistValues(vulnMatch[1]) : []
 
@@ -123,7 +123,7 @@ function _parseMonsterHtml(html: string, warnings: string[]): Creature {
   const equipment = footerText.match(/Equipment\s*:?\s*(.+?)(?=\.\s*$|$)/i)?.[1]?.trim() ?? ''
 
   const sizeNames = ['Tiny', 'Small', 'Medium', 'Large', 'Huge', 'Gargantuan']
-  const filteredKeywords = keywords.filter(s => s && !sizeNames.includes(s))
+  const filteredKeywords = [...new Set(keywords.filter(s => s && !sizeNames.includes(s)))]
 
   // Description and published source — appear after the footer
   const descMatch = html.match(/<b>Description<\/b>:?\s*([\s\S]*?)<\/p>/i)
@@ -369,6 +369,7 @@ function parseOneAbility(headerHtml: string, bodyBlocks: string[], sectionDefaul
   let defense = 'AC'
   let damageRaw = ''
   let hit = ''
+  let critical = ''
   let miss = fields.miss ?? ''
   let effect = fields.effect ?? ''
 
@@ -426,10 +427,13 @@ function parseOneAbility(headerHtml: string, bodyBlocks: string[], sectionDefaul
       const em = afterAtk.match(/^(.+?)\s*(?:Effect:|Miss:)/i)
       if (em) afterAtk = em[1].trim()
 
-      // Strip crit/critical parentheticals before damage splitting — they contain
-      // effect text that would otherwise leak into damage parts
+      // Extract crit/critical parentheticals into the critical field before stripping
+      const critParenMatch = afterAtk.match(/\((?:on\s+)?crit(?:ical)?\s+([^)]*)\)/i)
+      if (critParenMatch && !critical) critical = critParenMatch[1].trim()
+      const critParenMatch2 = afterAtk.match(/\(([^)]*critical hit[^)]*)\)/i)
+      if (critParenMatch2 && !critical) critical = critParenMatch2[1].trim()
+      // Now strip them so they don't leak into damage parts
       afterAtk = afterAtk.replace(/\s*\((?:on\s+)?crit(?:ical)?[^)]*\)/gi, '').trim()
-      // Also strip "(plus ...on a critical hit)" style parens
       afterAtk = afterAtk.replace(/\s*\([^)]*critical hit[^)]*\)/gi, '').trim()
 
       const hasDamageExpr = /\d+d\d+|\d+\s+damage\b/i.test(afterAtk)
@@ -437,6 +441,7 @@ function parseOneAbility(headerHtml: string, bodyBlocks: string[], sectionDefaul
         const split = splitDamageFromHit(afterAtk)
         damageRaw = split.damage
         if (split.hit) hit = split.hit
+        if (split.critical) critical = split.critical
       } else {
         effect = effect || afterAtk.replace(/^[;,.\s]+/, '').replace(/\.\s*$/, '')
       }
@@ -448,6 +453,7 @@ function parseOneAbility(headerHtml: string, bodyBlocks: string[], sectionDefaul
     const split = splitDamageFromHit(fields.hit)
     damageRaw = split.damage
     hit = split.hit
+    if (split.critical) critical = split.critical
   }
 
   // If no attack/damage/hit found, entire body is the effect
@@ -466,13 +472,43 @@ function parseOneAbility(headerHtml: string, bodyBlocks: string[], sectionDefaul
   // Clean leading conjunctions from hit text
   hit = hit.replace(/^and\s+/i, '')
 
+  // Extract (crit ...) from effect field if not already captured
+  if (!critical && effect) {
+    const effCritMatch = effect.match(/\((?:on\s+)?crit(?:ical)?\s+([^)]*)\)/i)
+    if (effCritMatch) {
+      critical = effCritMatch[1].trim()
+      effect = effect.replace(/\s*\((?:on\s+)?crit(?:ical)?[^)]*\)/gi, '').trim()
+    }
+  }
+
   function cap(s: string) { return s ? s.charAt(0).toUpperCase() + s.slice(1) : s }
+
+  /** Clean redundant phrases from critical text, keeping just the damage/effect */
+  function cleanCritical(c: string): string {
+    if (!c) return ''
+    let s = c.trim().replace(/\.+$/, '')
+    // Strip "on a critical hit" / "on critical hit" (trailing or mid-string before comma/and)
+    s = s.replace(/\s+on (?:a )?critical hit\b,?\s*/i, ' ')
+    // Strip "if X scores a critical hit" (trailing or mid-string)
+    s = s.replace(/\s+if .+ scores a critical hit\b,?\s*/i, ' ')
+    // Strip "damage if X scores a critical hit" at end
+    s = s.replace(/\s+damage if .+ scores a critical hit$/i, '')
+    // Strip "damage" after a number/expr where it's redundant (e.g., "4d12 + 49 damage")
+    s = s.replace(/(\d)\s+damage(?=\s*$|\s*,|\s+and\b|\s+plus\b)/i, '$1')
+    // Strip leading "on a critical hit, " / "if X scores a critical hit, "
+    s = s.replace(/^on a critical hit,?\s*/i, '')
+    s = s.replace(/^if .+ scores a critical hit,?\s*/i, '')
+    // Strip "Critical Hit: " prefix
+    s = s.replace(/^Critical Hit:\s*/i, '')
+    return s.trim()
+  }
 
   return {
     name, entryType: 'action', actionType, usage: finalUsage,
     rechargeCondition: rechargeCondition || undefined,
     keywords, rangeType, rangeValue, target, attackBonus, attackNotes, defense,
     damage, hit: cap(hit), miss: cap(miss), effect: cap(effect),
+    critical: cleanCritical(critical) || undefined,
     trigger: cap(trigger), requirement, sustain,
   }
 }
@@ -509,7 +545,7 @@ interface DamagePart { expr: string; type: string; ongoing: boolean }
 
 const DAMAGE_TYPES_SET = new Set(['acid', 'cold', 'fire', 'force', 'lightning', 'necrotic', 'poison', 'psychic', 'radiant', 'thunder'])
 
-function splitDamageFromHit(text: string): { damage: string; hit: string } {
+function splitDamageFromHit(text: string): { damage: string; hit: string; critical: string } {
   const trimmed = text.trim()
   // Tokenize: split on whitespace but keep parenthesized groups together
   const tokens: string[] = []
@@ -541,6 +577,8 @@ function splitDamageFromHit(text: string): { damage: string; hit: string } {
     const lower = tok.toLowerCase().replace(/[.,;:]+$/, '')
     // Pure punctuation — skip
     if (!lower) return true
+    // Arithmetic operators between dice/numbers: "+", "-"
+    if ((lower === '+' || lower === '-') && nextTok && /^\d/.test(nextTok)) return true
     // Dice expression: 1d8, 2d12+6, 4, 10
     if (/^\d+d\d+([+\-]\d+)?$/.test(lower)) return true
     // Flat number (but only if not followed by prose — "4 damage" ok, "4 squares" not)
@@ -581,11 +619,27 @@ function splitDamageFromHit(text: string): { damage: string; hit: string } {
 
   const dmgTokens = tokens.slice(0, lastDmgIdx + 1)
   const hitTokens = tokens.slice(lastDmgIdx + 1)
-  const damage = dmgTokens.join(' ')
+  let damage = dmgTokens.join(' ')
   let hit = hitTokens.join(' ')
   // Strip leading punctuation and conjunctions from hit text
   hit = hit.replace(/^[.,;:]+\s*/, '').replace(/^and\s+/i, '').replace(/^or\s+/i, '')
-  return { damage, hit }
+  // Extract critical hit info into a separate field
+  let critical = ''
+  if (/\bcritical hit\b/i.test(hit)) {
+    // Pure crit: "1d12 + 23 on a critical hit" or "3d10+59 if X scores a critical hit"
+    if (/^\d.*\bcritical hit\b/i.test(hit) || /^(if |on a ).*critical hit/i.test(hit)) {
+      critical = hit.replace(/\.+$/, '')
+      hit = ''
+    } else {
+      // Mixed: "X can shift 1 square. On a critical hit, deals 2d4+20."
+      const critMatch = hit.match(/^(.*?)\.\s*((?:On a critical hit|If .* scores a critical hit|Critical Hit:).+)$/i)
+      if (critMatch) {
+        hit = critMatch[1].trim() + '.'
+        critical = critMatch[2].replace(/\.+$/, '')
+      }
+    }
+  }
+  return { damage, hit, critical }
 }
 
 function parseDamageParts(raw: string, knownTypes: string[]): DamagePart[] {
@@ -722,10 +776,15 @@ function parseSpeeds(speedStr: string): { land: number; speeds: Record<string, n
   return { land, speeds, speedNotes: notes.join('; ') }
 }
 
-function parseResistValues(str: string): { type: string; value: number }[] {
-  const results: { type: string; value: number }[] = []
+function parseResistValues(str: string): { type: string; value?: number }[] {
+  const results: { type: string; value?: number }[] = []
+  // Try numeric format: "10 fire, 5 cold"
   for (const m of str.matchAll(/(\d+)\s+([\w\s]+?)(?=,\s*\d|\s*$)/g)) {
     results.push({ type: m[2].trim(), value: parseInt(m[1]) })
+  }
+  // If nothing matched, store the raw text as a descriptive resistance
+  if (results.length === 0 && str.trim()) {
+    results.push({ type: str.replace(/[;.]+$/, '').trim() })
   }
   return results
 }

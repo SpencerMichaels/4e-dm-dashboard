@@ -10,6 +10,7 @@
 import { readFileSync, writeFileSync, mkdirSync } from 'fs'
 import { join } from 'path'
 import { parseMonsterHtml } from '../html-parser'
+import { extractFirstBook } from './build-utils'
 
 function main() {
   const rawPath = join(__dirname, 'raw', 'monsters.json')
@@ -56,6 +57,23 @@ function main() {
   const json = JSON.stringify(parsed)
   writeFileSync(outPath, json)
   console.log(`\nWrote ${outPath} (${(json.length / 1024 / 1024).toFixed(1)} MB)`)
+
+  // Build compact index for fast compendium browsing
+  const indexEntries = Object.entries(parsed).map(([id, entry]: [string, any]) => {
+    const sb = entry.statBlock
+    return {
+      id, name: entry.name ?? 'Unknown',
+      level: sb?.level ?? 1, role: sb?.role ?? '', modifier: sb?.monsterModifier ?? '',
+      size: sb?.size ?? 'Medium', origin: sb?.origin ?? '', type: sb?.creatureType ?? '',
+      alignment: sb?.alignment ?? '', xp: sb?.xp ?? 0,
+      source: extractFirstBook(sb?.source ?? ''),
+    }
+  }).sort((a, b) => a.level - b.level || a.name.localeCompare(b.name))
+
+  const indexJson = JSON.stringify(indexEntries)
+  const indexPath = join(outDir, 'monsters-index.json')
+  writeFileSync(indexPath, indexJson)
+  console.log(`Wrote ${indexPath} (${(indexJson.length / 1024).toFixed(0)} KB, ${indexEntries.length} entries)`)
 }
 
 main()

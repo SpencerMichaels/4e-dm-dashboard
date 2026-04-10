@@ -1,4 +1,5 @@
 import type { Campaign, EntityType, NoteTreeNode, LinkIndex, LinkEntry } from '@common/types'
+import type { CompendiumAnnotation, Creature, CompendiumEntry } from '@common/types'
 import {
   getCampaignsRoot,
   getCampaignDir,
@@ -7,6 +8,7 @@ import {
   getEntityPath,
   getNoteTreePath,
   getLinksPath,
+  getAnnotationsPath,
   getAssetsDir,
 } from './paths'
 import { atomicWriteJson, readJson, deleteFile, listJsonFiles, ensureDir, copyFile } from './file-io'
@@ -157,4 +159,41 @@ export async function importImage(campaignId: string, sourcePath: string): Promi
 
 export async function getImagePath(campaignId: string, imageId: string): Promise<string> {
   return join(getAssetsDir(campaignId), imageId)
+}
+
+// Annotations
+export async function loadAnnotations(campaignId: string): Promise<Record<string, CompendiumAnnotation>> {
+  return (await readJson<Record<string, CompendiumAnnotation>>(getAnnotationsPath(campaignId))) ?? {}
+}
+
+export async function saveAnnotation(campaignId: string, compendiumId: string, annotation: CompendiumAnnotation): Promise<Record<string, CompendiumAnnotation>> {
+  const all = await loadAnnotations(campaignId)
+  if (Object.keys(annotation).length === 0) {
+    delete all[compendiumId]
+  } else {
+    all[compendiumId] = annotation
+  }
+  await atomicWriteJson(getAnnotationsPath(campaignId), all)
+  return all
+}
+
+// Custom creature index — builds CompendiumEntry[] from campaign creatures
+export async function buildCreatureIndex(campaignId: string): Promise<CompendiumEntry[]> {
+  const creatures = await listEntities<Creature>('creature')
+  return creatures.map(c => {
+    const sb = c.statBlock ?? {}
+    return {
+      id: c.id,
+      name: c.name,
+      level: (sb.level as number) ?? 1,
+      role: (sb.role as string) ?? '',
+      modifier: (sb.monsterModifier as string) ?? '',
+      size: (sb.size as string) ?? 'Medium',
+      type: (sb.creatureType as string) ?? '',
+      origin: (sb.origin as string) ?? '',
+      alignment: (sb.alignment as string) ?? '',
+      xp: (sb.xp as number) ?? 0,
+      source: 'Custom',
+    }
+  })
 }

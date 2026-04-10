@@ -36,5 +36,16 @@ export function initSyncListeners(): () => void {
     })
   )
 
+  unsubscribers.push(
+    window.api.on.annotations((annotations) => {
+      useCampaignStore.getState().setCampaignState({ annotations })
+    })
+  )
+
+  // Load annotations on init
+  window.api.annotation.getAll().then(annotations => {
+    useCampaignStore.getState().setCampaignState({ annotations })
+  })
+
   return () => unsubscribers.forEach(unsub => unsub())
 }

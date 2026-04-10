@@ -1,9 +1,10 @@
-import { ipcMain } from 'electron'
+import { ipcMain, dialog, BrowserWindow } from 'electron'
 import { CMD, SYNC } from '@common/ipc-channels'
 import type { EntityType } from '@common/types'
 import * as store from '../data/campaign-store'
 import { broadcastToDm } from '../windows'
 import { setActiveSystemId } from './combat-handlers'
+import { invalidateCreatureIndex } from './compendium-handlers'
 
 export function registerCampaignHandlers(): void {
   ipcMain.handle(CMD.CAMPAIGN_CREATE, async (_e, name: string, systemId: string) => {
@@ -34,12 +35,14 @@ export function registerCampaignHandlers(): void {
 
   ipcMain.handle(CMD.ENTITY_SAVE, async (_e, entityType: EntityType, entity: { id: string }) => {
     await store.saveEntity(entityType, entity)
+    if (entityType === 'creature') invalidateCreatureIndex()
     broadcastCampaignState()
     return entity
   })
 
   ipcMain.handle(CMD.ENTITY_DELETE, async (_e, entityType: EntityType, entityId: string) => {
     await store.deleteEntity(entityType, entityId)
+    if (entityType === 'creature') invalidateCreatureIndex()
     broadcastCampaignState()
   })
 
@@ -85,6 +88,43 @@ export function registerCampaignHandlers(): void {
     const campaignId = store.getActiveCampaignId()
     if (!campaignId) throw new Error('No active campaign')
     return store.importImage(campaignId, sourcePath)
+  })
+
+  ipcMain.handle(CMD.IMAGE_IMPORT_DIALOG, async (e) => {
+    const win = BrowserWindow.fromWebContents(e.sender) ?? undefined
+    const result = await dialog.showOpenDialog({
+      ...(win ? { parentWindow: win } : {}),
+      filters: [{ name: 'Images', extensions: ['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp'] }],
+      properties: ['openFile'],
+    } as any)
+    if (result.canceled || result.filePaths.length === 0) return null
+    const campaignId = store.getActiveCampaignId()
+    if (!campaignId) throw new Error('No active campaign')
+    return store.importImage(campaignId, result.filePaths[0])
+  })
+
+  ipcMain.handle(CMD.IMAGE_SAVE_DATA, async (_e, base64Data: string, ext: string) => {
+    const campaignId = store.getActiveCampaignId()
+    if (!campaignId) throw new Error('No active campaign')
+    const { writeFileSync } = await import('fs')
+    const imageId = (await import('@common/utils/id')).generateId() + '.' + ext
+    const path = await store.getImagePath(campaignId, imageId)
+    writeFileSync(path, Buffer.from(base64Data, 'base64'))
+    return imageId
+  })
+
+  ipcMain.handle(CMD.IMAGE_GET, async (_e, imageId: string) => {
+    const campaignId = store.getActiveCampaignId()
+    if (!campaignId) return null
+    const path = await store.getImagePath(campaignId, imageId)
+    if (!path) return null
+    try {
+      const { readFileSync } = await import('fs')
+      const data = readFileSync(path)
+      const ext = imageId.split('.').pop()?.toLowerCase() ?? 'png'
+      const mime = ext === 'jpg' || ext === 'jpeg' ? 'image/jpeg' : ext === 'gif' ? 'image/gif' : ext === 'webp' ? 'image/webp' : 'image/png'
+      return `data:${mime};base64,${data.toString('base64')}`
+    } catch { return null }
   })
 }
 

@@ -63,6 +63,9 @@
 
 .main {
   flex: 1;
+  min-height: 0;
   overflow: auto;
   padding: var(--space-6);
+  container-type: inline-size;
+  container-name: main-content;
 }

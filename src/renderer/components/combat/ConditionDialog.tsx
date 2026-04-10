@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useUiStore } from '../../stores/ui-store'
 import type { AppliedCondition, DurationType } from '@common/types'
+import { generateId } from '@common/utils/id'
 
 interface Props {
   combatantId: string
@@ -10,9 +11,11 @@ interface Props {
 export function ConditionDialog({ combatantId, onClose }: Props) {
   const systemPlugin = useUiStore((s) => s.systemPlugin)
   const [selectedConditionId, setSelectedConditionId] = useState('')
+  const [customName, setCustomName] = useState('')
+  const [customDescription, setCustomDescription] = useState('')
   const [value, setValue] = useState('')
-  const [durationType, setDurationType] = useState<DurationType>('encounter')
-  const [durationRounds, setDurationRounds] = useState('')
+  const [durationType, setDurationType] = useState<DurationType>('save-ends')
+  const [durationNote, setDurationNote] = useState('')
 
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
@@ -23,14 +26,17 @@ export function ConditionDialog({ combatantId, onClose }: Props) {
   }, [onClose])
 
   const conditions = systemPlugin?.conditions ?? []
-  const selectedDef = conditions.find((c: any) => c.id === selectedConditionId)
+  const isCustom = selectedConditionId === '__custom__'
+  const selectedDef = isCustom ? null : conditions.find((c: any) => c.id === selectedConditionId)
+  const canSubmit = isCustom ? customName.trim() : !!selectedConditionId
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    if (!selectedConditionId) return
+    if (!canSubmit) return
 
     const condition: AppliedCondition = {
-      conditionId: selectedConditionId,
+      conditionId: isCustom ? `custom-${generateId()}` : selectedConditionId,
+      ...(isCustom ? { customName: customName.trim(), customDescription: customDescription.trim() || undefined } : {}),
     }
 
     if (selectedDef?.hasValue && value) {
@@ -39,7 +45,7 @@ export function ConditionDialog({ combatantId, onClose }: Props) {
 
     condition.duration = {
       type: durationType,
-      ...(durationType === 'rounds' && durationRounds ? { remaining: Number(durationRounds) } : {}),
+      ...(durationType === 'custom' && durationNote.trim() ? { note: durationNote.trim() } : {}),
     }
 
     window.api.combat.addCondition(combatantId, condition)
@@ -48,24 +54,13 @@ export function ConditionDialog({ combatantId, onClose }: Props) {
 
   return (
     <div style={{
-      position: 'fixed',
-      inset: 0,
-      background: 'rgba(0,0,0,0.5)',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      zIndex: 100,
+      position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)',
+      display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100,
     }}>
-      <form
-        onSubmit={handleSubmit}
-        style={{
-          background: 'var(--color-bg-primary)',
-          border: '1px solid var(--color-border)',
-          borderRadius: 'var(--radius-md)',
-          padding: 'var(--space-6)',
-          minWidth: 350,
-        }}
-      >
+      <form onSubmit={handleSubmit} style={{
+        background: 'var(--color-bg-primary)', border: '1px solid var(--color-border)',
+        borderRadius: 'var(--radius-md)', padding: 'var(--space-6)', minWidth: 350,
+      }}>
         <h3 style={{ marginBottom: 'var(--space-3)' }}>Add Condition</h3>
 
         <select
@@ -78,7 +73,36 @@ export function ConditionDialog({ combatantId, onClose }: Props) {
           {conditions.map((c: any) => (
             <option key={c.id} value={c.id}>{c.name}</option>
           ))}
+          <option value="__custom__">Custom...</option>
         </select>
+
+        {isCustom && (
+          <>
+            <div style={{ marginBottom: 'var(--space-3)' }}>
+              <label style={{ display: 'block', fontSize: 'var(--font-size-sm)', color: 'var(--color-text-secondary)', marginBottom: 'var(--space-1)' }}>
+                Name
+              </label>
+              <input
+                value={customName}
+                onChange={(e) => setCustomName(e.target.value)}
+                placeholder="e.g. Slowed by ice, Mark of Bane"
+                style={{ width: '100%' }}
+                autoFocus
+              />
+            </div>
+            <div style={{ marginBottom: 'var(--space-3)' }}>
+              <label style={{ display: 'block', fontSize: 'var(--font-size-sm)', color: 'var(--color-text-secondary)', marginBottom: 'var(--space-1)' }}>
+                Description (optional)
+              </label>
+              <input
+                value={customDescription}
+                onChange={(e) => setCustomDescription(e.target.value)}
+                placeholder="Brief description of the effect..."
+                style={{ width: '100%' }}
+              />
+            </div>
+          </>
+        )}
 
         {selectedDef?.hasValue && (
           <div style={{ marginBottom: 'var(--space-3)' }}>
@@ -105,21 +129,20 @@ export function ConditionDialog({ combatantId, onClose }: Props) {
             onChange={(e) => setDurationType(e.target.value as DurationType)}
             style={{ width: '100%' }}
           >
-            <option value="encounter">Until end of encounter</option>
-            <option value="rounds">Rounds</option>
-            <option value="minutes">Minutes</option>
-            <option value="unlimited">Unlimited</option>
+            <option value="save-ends">Save ends</option>
+            <option value="eont">End of next turn (EONT)</option>
+            <option value="sont">Start of next turn (SONT)</option>
+            <option value="indefinite">Never (manual removal)</option>
+            <option value="custom">Custom...</option>
           </select>
         </div>
 
-        {durationType === 'rounds' && (
+        {durationType === 'custom' && (
           <div style={{ marginBottom: 'var(--space-3)' }}>
             <input
-              type="number"
-              min={1}
-              value={durationRounds}
-              onChange={(e) => setDurationRounds(e.target.value)}
-              placeholder="Number of rounds"
+              value={durationNote}
+              onChange={(e) => setDurationNote(e.target.value)}
+              placeholder="e.g. until no longer grabbed"
               style={{ width: '100%' }}
             />
           </div>
@@ -129,10 +152,10 @@ export function ConditionDialog({ combatantId, onClose }: Props) {
           <button type="button" onClick={onClose}>Cancel</button>
           <button
             type="submit"
-            disabled={!selectedConditionId}
+            disabled={!canSubmit}
             style={{
-              background: selectedConditionId ? 'var(--color-accent)' : 'var(--color-bg-surface)',
-              color: selectedConditionId ? 'var(--color-accent-text)' : 'var(--color-text-muted)',
+              background: canSubmit ? 'var(--color-accent)' : 'var(--color-bg-surface)',
+              color: canSubmit ? 'var(--color-accent-text)' : 'var(--color-text-muted)',
               padding: '4px 16px',
               borderRadius: 'var(--radius-sm)',
             }}

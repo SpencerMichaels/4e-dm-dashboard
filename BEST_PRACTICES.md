@@ -14,7 +14,7 @@ If a value exists in one place (e.g. damage types in `plugins/dnd-4e/known-value
 The `CreatureBuilderConfig` should contain benchmark data (stat tables, damage dice, skill lists) — not UI behavior switches like `useGroupedActions` or `hasEliteSolo`. UI decisions belong in the plugin's React components. If you need a new boolean flag on the config to switch rendering, that's a sign the rendering should be in a plugin component instead.
 
 ### Plugin UI components can import shared widgets
-Plugin UI code under `src/renderer/plugins/` can freely import from `@renderer/components/shared/` (TagInput, Autocomplete, DamageEntryList, etc.) and from `@renderer/components/campaign/` (CreatureBuilder, ActionEntryEditor, SchemaForm). These are generic tools. The dependency is one-way: plugin → shared. Shared code never imports from plugins.
+Plugin UI code under `src/renderer/plugins/` can freely import from `@renderer/components/shared/` (TagInput, Autocomplete, DamageEntryList, etc.) and from `@renderer/components/campaign/` (CreatureBuilder, PowerEntryEditor, SchemaForm). These are generic tools. The dependency is one-way: plugin → shared. Shared code never imports from plugins.
 
 ## Parsing & Importing
 
@@ -93,3 +93,60 @@ Both PF2e and 4e store `statBlock.level`, `statBlock.ac`, `statBlock.speed`, `st
 
 ### Imported data should match the editor's expectations
 The importer should produce the exact same data structure that the creature editor reads. If the editor checks `creature.statBlock.monsterModifier`, the importer must write `monsterModifier`, not `eliteSolo`. Test by importing a creature and verifying every field appears correctly in the editor.
+
+## Input Controls — Choosing the Right Widget
+
+### Dropdowns for closed, small sets; datalist for open or large sets
+If a field has a **fixed, small set** of valid values (proficiency: +2/+3; enhancement type: attack/AC/defenses; alchemical type: Volatile/Oil/Poison/Curative/Other; rarity: Common/Uncommon/Rare), use a `<select>` dropdown. If the set is **closed but large** (weapon groups, implement groups), use a dropdown or a select-to-add pattern for multi-value fields. If the set is **open-ended or very large** (item type restrictions like "Heavy blade or light blade", key skills, durations, item names), use a freeform `<input>` with a `<datalist>` for autocomplete suggestions. Never use a freeform text input for a field with fewer than ~10 valid values.
+
+### Derive what can be derived — don't ask the user to enter computable values
+Enhancement bonus is `Math.ceil(level / 5)` — show it as computed text, not an input. Price has a standard table by level — show it as a placeholder hint. Critical damage scales with enhancement bonus — compute the "+N" prefix. The user should only enter the parts that vary (which die, which damage type, any special condition).
+
+### Structured fields beat freeform text
+If a freeform field has a consistent internal structure (like critical: "+1d6 fire damage per plus, and the target is knocked prone"), decompose it into structured sub-fields (die select + type select + freeform extra). This makes the common case (74% of items) trivial to fill in, while still supporting the special cases via the freeform fallback.
+
+### Placeholder hints should be representative values, not field names
+Use `placeholder="680"` not `placeholder="price"`. Use `placeholder="1 hour"` not `placeholder="time"`. The label already tells the user what the field is — the hint should show what a valid value looks like.
+
+### Textarea fields: auto-resize, no drag handle
+Use `resize: 'none'` with `fieldSizing: 'content'` on textareas so they auto-expand to fit content without the bottom-right drag-to-resize handle.
+
+### Placeholder text must be legible on its background
+Inside dark-background headers (stat block headers, power card headers), placeholder text inherits a gray color that's invisible. Use `color: inherit; opacity: 0.4` on `::placeholder` so it adapts to whatever the parent's text color is — semi-transparent white on dark backgrounds, semi-transparent dark on light backgrounds.
+
+## Compendium & Data Pipeline
+
+### Separate index files from full data
+Don't load 14MB of full stat blocks just to populate a search list. Pre-generate compact index files (~500KB–1MB) at build time with only the fields needed for browsing (id, name, level, role, type). Load the full data on-demand when a specific entry is previewed.
+
+### Lazy-load large data files
+Don't import large JSON files at module level — it blocks app startup. Use `fs.readFileSync` on first access with a module-level cache variable. This moved the main process bundle from 20MB to 42KB.
+
+### Compendium browsers should show UI immediately
+Render the search/filter header while the index loads in the background. Only the list area shows a loading indicator. The user can start typing a search before the data arrives.
+
+### Use `useDeferredValue` for responsive filtering
+When filtering thousands of entries, use React's `useDeferredValue` on the filter state so typing stays responsive while the list re-render is deferred.
+
+### Deduplicate parsed data
+When data exists in multiple raw files (e.g., item set entries contain embedded sub-items that also exist as standalone entries), don't extract duplicates. Parse the set as a reference entry and tag standalone items with set membership at build time.
+
+### Strip leading whitespace from parsed text
+Raw HTML often has indented text after `<br>` tags. Add `replace(/^[ \t]+/gm, '')` to `stripHtml` functions to prevent leading spaces in parsed descriptions.
+
+### Concordance/artifact items need boundary detection
+Items with concordance mechanics (24 artifacts) have multiple tiers of properties and powers. The parser must detect where base properties end and concordance content begins (at the first `<p class=mitext>` or `<h2 class=ah1>`), to avoid mashing all tiers into the base fields.
+
+## Layout
+
+### Compendium browser height management
+Use `height: calc(100vh - var(--header-height) - 2 * var(--space-6))` on the compendium browser root to fill exactly the available viewport. Both columns (list + preview) scroll independently within this fixed height. The outer `.main` container should NOT scroll for these pages.
+
+### Preview panel centering
+When the preview panel is empty ("Click to preview"), use `alignSelf: 'stretch'` so `height: 100%` works for centering the placeholder text. When showing content, let it size to content naturally.
+
+### Powers always use PowerCardView
+Whenever powers/abilities are displayed read-only anywhere in the app (creature viewer, item viewer, trap viewer, template viewer, concordance sections), use the shared `PowerCardView` component from `src/renderer/plugins/dnd-4e/PowerCardView.tsx`. Never create inline power card rendering — it leads to drift and inconsistency. Map the data to a `PowerCardEntry` object and pass it to the component.
+
+### Flavor/description placement
+For items, traps, and diseases: italic flavor text goes directly under the header/subheader, before the stat block. For creatures: description goes at the bottom (matching 4e DMG convention). Be consistent within each entity type.

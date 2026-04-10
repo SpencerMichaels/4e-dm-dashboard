@@ -22,11 +22,13 @@ export const CMD = {
   NOTE_TREE_SAVE: 'note:tree:save',
 
   // Combat
+  COMBAT_INIT: 'combat:init',
   COMBAT_START: 'combat:start',
-  COMBAT_BEGIN: 'combat:begin',
   COMBAT_SET_INITIATIVE: 'combat:set-initiative',
-  COMBAT_NEXT_TURN: 'combat:next-turn',
-  COMBAT_PREV_TURN: 'combat:prev-turn',
+  COMBAT_SET_INITIATIVE_FOCUS: 'combat:set-initiative-focus',
+  COMBAT_SET_PLAYER_EXPAND_CONDITIONS: 'combat:set-player-expand-conditions',
+  COMBAT_END_TURN: 'combat:end-turn',
+  COMBAT_RESOLVE_ITEM: 'combat:resolve-item',
   COMBAT_DELAY: 'combat:delay',
   COMBAT_UNDELAY: 'combat:undelay',
   COMBAT_DAMAGE: 'combat:damage',
@@ -39,6 +41,8 @@ export const CMD = {
   COMBAT_REMOVE_COMBATANT: 'combat:remove-combatant',
   COMBAT_END: 'combat:end',
   COMBAT_UPDATE_COMBATANT: 'combat:update-combatant',
+  COMBAT_USE_POWER: 'combat:use-power',
+  COMBAT_UNUSE_POWER: 'combat:unuse-power',
 
   // System
   SYSTEM_GET_PLUGIN: 'system:get-plugin',
@@ -49,15 +53,31 @@ export const CMD = {
 
   // Images
   IMAGE_IMPORT: 'image:import',
+  IMAGE_IMPORT_DIALOG: 'image:import-dialog',
+  IMAGE_SAVE_DATA: 'image:save-data',
+  IMAGE_GET: 'image:get',
 
   // Import
   IMPORT_CREATURE: 'import:creature',
 
+  // Annotations (images/tokens on compendium entries)
+  ANNOTATION_GET_ALL: 'annotation:get-all',
+  ANNOTATION_SAVE: 'annotation:save',
+
   // Compendium
   COMPENDIUM_INDEX: 'compendium:index',
   COMPENDIUM_GET: 'compendium:get',
+  COMPENDIUM_RESOLVE: 'compendium:resolve',
   COMPENDIUM_ITEM_INDEX: 'compendium:item-index',
   COMPENDIUM_ITEM_GET: 'compendium:item-get',
+  COMPENDIUM_GLOSSARY: 'compendium:glossary',
+  COMPENDIUM_TRAP_INDEX: 'compendium:trap-index',
+  COMPENDIUM_TRAP_GET: 'compendium:trap-get',
+  COMPENDIUM_DISEASE_INDEX: 'compendium:disease-index',
+  COMPENDIUM_DISEASE_GET: 'compendium:disease-get',
+
+  // Player
+  PLAYER_READY: 'player:ready',
 
   // Scene
   SCENE_SET: 'scene:set',
@@ -70,4 +90,5 @@ export const SYNC = {
   PLAYER_STATE: 'sync:player-state',
   SCENE_STATE: 'sync:scene-state',
   THEME: 'sync:theme',
+  ANNOTATIONS: 'sync:annotations',
 } as const

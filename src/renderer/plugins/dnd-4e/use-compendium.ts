@@ -1,28 +1,47 @@
-import { useState, useEffect, useMemo, useRef, useCallback } from 'react'
+import { useState, useEffect, useMemo, useRef, useCallback, useDeferredValue } from 'react'
 import type { CompendiumEntry } from '@common/types'
+
+/** Parse a level filter string into a test function.
+ *  Formats: "10" (exact), "1-5" (range), ">5" (greater), "<5" (less), "" (any) */
+export function parseLevelFilter(str: string): (level: number) => boolean {
+  const s = str.trim()
+  if (!s) return () => true
+  const rangeMatch = s.match(/^(\d+)\s*[-–]\s*(\d+)$/)
+  if (rangeMatch) {
+    const min = parseInt(rangeMatch[1]), max = parseInt(rangeMatch[2])
+    return (lvl) => lvl >= min && lvl <= max
+  }
+  const gtMatch = s.match(/^>\s*(\d+)$/)
+  if (gtMatch) { const n = parseInt(gtMatch[1]); return (lvl) => lvl > n }
+  const ltMatch = s.match(/^<\s*(\d+)$/)
+  if (ltMatch) { const n = parseInt(ltMatch[1]); return (lvl) => lvl < n }
+  const exact = parseInt(s)
+  if (!isNaN(exact)) return (lvl) => lvl === exact
+  return () => true
+}
 
 export interface CompendiumFilters {
   search: string
-  levelMin: number
-  levelMax: number
+  level: string
   role: string
   size: string
   modifier: string
   origin: string
   type: string
   alignment: string
+  source: string
 }
 
 const defaultFilters: CompendiumFilters = {
   search: '',
-  levelMin: 1,
-  levelMax: 40,
+  level: '',
   role: '',
   size: '',
   modifier: '',
   origin: '',
   type: '',
   alignment: '',
+  source: '',
 }
 
 export function useCompendium() {
@@ -38,19 +57,27 @@ export function useCompendium() {
       .finally(() => setLoading(false))
   }, [])
 
+  // Reload index when campaign creatures change (custom creatures appear in merged index)
+  const reloadIndex = useCallback(() => {
+    window.api.compendium.index('dnd-4e')
+      .then((entries: CompendiumEntry[]) => setIndex(entries))
+  }, [])
+
   const filterOptions = useMemo(() => {
-    if (!index) return { roles: [], sizes: [], origins: [], types: [], alignments: [] }
+    if (!index) return { roles: [], sizes: [], origins: [], types: [], alignments: [], sources: [] }
     const roles = new Set<string>()
     const sizes = new Set<string>()
     const origins = new Set<string>()
     const types = new Set<string>()
     const alignments = new Set<string>()
+    const sources = new Set<string>()
     for (const e of index) {
       if (e.role) roles.add(e.role)
       if (e.size) sizes.add(e.size)
       if (e.origin) origins.add(e.origin)
       if (e.type) types.add(e.type)
       if (e.alignment) alignments.add(e.alignment)
+      if (e.source) sources.add(e.source)
     }
     return {
       roles: [...roles].sort(),
@@ -59,27 +86,33 @@ export function useCompendium() {
       types: [...types].sort(),
       alignments: ['Lawful Good', 'Good', 'Unaligned', 'Evil', 'Chaotic Evil'].filter(a =>
         alignments.has(a) || alignments.has(a.toLowerCase())),
+      sources: [...sources].sort((a, b) => a === 'Custom' ? -1 : b === 'Custom' ? 1 : a.localeCompare(b)),
     }
   }, [index])
 
+  const deferredFilters = useDeferredValue(filters)
+  const filtering = deferredFilters !== filters
+
   const filtered = useMemo(() => {
     if (!index) return []
-    const searchLower = filters.search.toLowerCase()
+    const searchLower = deferredFilters.search.toLowerCase()
+    const levelTest = parseLevelFilter(deferredFilters.level)
     return index.filter(e => {
       if (searchLower && !e.name.toLowerCase().includes(searchLower)) return false
-      if (e.level < filters.levelMin || e.level > filters.levelMax) return false
-      if (filters.role && e.role !== filters.role) return false
-      if (filters.size && e.size !== filters.size) return false
-      if (filters.modifier) {
-        if (filters.modifier === 'standard' && e.modifier) return false
-        else if (filters.modifier !== 'standard' && e.modifier !== filters.modifier) return false
+      if (deferredFilters.level && !levelTest(e.level)) return false
+      if (deferredFilters.role && e.role !== deferredFilters.role) return false
+      if (deferredFilters.size && e.size !== deferredFilters.size) return false
+      if (deferredFilters.modifier) {
+        if (deferredFilters.modifier === 'standard' && e.modifier) return false
+        else if (deferredFilters.modifier !== 'standard' && e.modifier !== deferredFilters.modifier) return false
       }
-      if (filters.origin && e.origin !== filters.origin) return false
-      if (filters.type && e.type !== filters.type) return false
-      if (filters.alignment && e.alignment.toLowerCase() !== filters.alignment.toLowerCase()) return false
+      if (deferredFilters.origin && e.origin !== deferredFilters.origin) return false
+      if (deferredFilters.type && e.type !== deferredFilters.type) return false
+      if (deferredFilters.alignment && e.alignment.toLowerCase() !== deferredFilters.alignment.toLowerCase()) return false
+      if (deferredFilters.source && e.source !== deferredFilters.source) return false
       return true
     })
-  }, [index, filters])
+  }, [index, deferredFilters])
 
   const updateFilter = useCallback(<K extends keyof CompendiumFilters>(key: K, value: CompendiumFilters[K]) => {
     setFilters(f => ({ ...f, [key]: value }))
@@ -89,8 +122,8 @@ export function useCompendium() {
   const focusSearch = useCallback(() => searchRef.current?.focus(), [])
 
   return {
-    index, loading, filters, filtered, filterOptions,
-    updateFilter, resetFilters, searchRef, focusSearch,
+    index, loading, filtering, filters, filtered, filterOptions,
+    updateFilter, resetFilters, searchRef, focusSearch, reloadIndex,
     totalCount: index?.length ?? 0,
   }
 }

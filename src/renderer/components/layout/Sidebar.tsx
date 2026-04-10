@@ -16,11 +16,20 @@ const navSections: { title: string; items: NavItem[] }[] = [
     items: [
       { icon: '🏠', label: 'Home', view: { type: 'home' } },
       { icon: '📝', label: 'Notes', view: { type: 'entity-list', entityType: 'note' } },
-      { icon: '👹', label: 'Creatures', view: { type: 'entity-list', entityType: 'creature' } },
       { icon: '⚔️', label: 'Encounters', view: { type: 'entity-list', entityType: 'encounter' } },
       { icon: '📍', label: 'Locations', view: { type: 'entity-list', entityType: 'location' } },
-      { icon: '🎒', label: 'Items', view: { type: 'entity-list', entityType: 'item' } },
       { icon: '🧑', label: 'PCs', view: { type: 'entity-list', entityType: 'player-character' } },
+    ],
+  },
+  {
+    title: 'Compendium',
+    items: [
+      { icon: '👹', label: 'Creatures', view: { type: 'entity-list', entityType: 'creature' } },
+      { icon: '🎒', label: 'Items', view: { type: 'entity-list', entityType: 'item' } },
+      { icon: '🪤', label: 'Traps', view: { type: 'trap-compendium' } },
+      { icon: '🦠', label: 'Diseases', view: { type: 'disease-compendium' } },
+      { icon: '🧬', label: 'Templates', view: { type: 'template-compendium' } },
+      { icon: '🎭', label: 'Themes', view: { type: 'theme-compendium' } },
     ],
   },
 ]

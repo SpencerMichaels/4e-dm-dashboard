@@ -1,21 +1,11 @@
 import { useRef, useEffect, useCallback } from 'react'
 import type { Creature, CreatureBuilderConfig } from '@common/types'
-import { ActionEntryEditor, TraitRow, AuraRow, emptyEntry } from '@renderer/components/campaign/ActionEntryEditor'
-import type { ActionEntry } from '@renderer/components/campaign/ActionEntryEditor'
+import { PowerEntryEditor, TraitRow, AuraRow, emptyPower } from './PowerEntryEditor'
+import type { PowerEntry } from './PowerEntryEditor'
 import { TagInput } from '@renderer/components/shared/TagInput'
+import { CreatureImageEditor } from '@renderer/components/shared/CreatureImageEditor'
+import { xpForCreature } from './dnd4e-utils'
 import './statblock.css'
-
-// XP by level (DMG p.56) — derived from level + modifier, not editable
-const XP_BY_LEVEL: Record<number, number> = {
-  1:100,2:125,3:150,4:175,5:200,6:250,7:300,8:350,9:400,10:500,
-  11:600,12:700,13:800,14:1000,15:1200,16:1400,17:1600,18:2000,19:2400,20:2800,
-  21:3200,22:4150,23:5100,24:6050,25:7000,26:9000,27:11000,28:13000,29:15000,30:19000,
-}
-const XP_MULT: Record<string, number> = { elite: 2, solo: 5 }
-function xpForCreature(level: number, modifier?: string): number {
-  const base = XP_BY_LEVEL[level] ?? XP_BY_LEVEL[30]
-  return Math.round(base * (XP_MULT[modifier || ''] ?? 1))
-}
 
 // 4e-specific constants
 const DND4E_ACTION_TYPES = [
@@ -224,6 +214,10 @@ export function Dnd4eCreatureDetails({ creature, onSave: save, config }: Props) 
         </span>
         <span style={{ whiteSpace: 'nowrap' }}>XP {xpForCreature(level, modifier)}</span>
       </div>
+
+      {/* ── Body: stats left, image right ── */}
+      <div style={{ display: 'flex', gap: 'var(--space-3)' }}>
+      <div style={{ flex: 1, minWidth: 0 }}>
 
       {/* ── GROUP 1: Initiative, Senses, Speed, Saves/AP ── */}
       <div className="sb-row">
@@ -477,10 +471,10 @@ export function Dnd4eCreatureDetails({ creature, onSave: save, config }: Props) 
 
       {/* Traits + Auras */}
       {(() => {
-        const actions = Array.isArray(sb.actions) ? sb.actions as ActionEntry[] : []
+        const actions = Array.isArray(sb.actions) ? sb.actions as PowerEntry[] : []
         const traitEntries = actions.map((e, i) => ({ e, i })).filter(({ e }) => e.entryType === 'trait')
         const auraEntries = actions.map((e, i) => ({ e, i })).filter(({ e }) => e.entryType === 'aura')
-        const updateAction = (idx: number, patch: Partial<ActionEntry>) => {
+        const updateAction = (idx: number, patch: Partial<PowerEntry>) => {
           const updated = actions.map((e, i) => i === idx ? { ...e, ...patch } : e)
           u('actions', updated)
         }
@@ -492,7 +486,7 @@ export function Dnd4eCreatureDetails({ creature, onSave: save, config }: Props) 
           ;[arr[idx], arr[j]] = [arr[j], arr[idx]]
           u('actions', arr)
         }
-        const addEntry = (type: ActionEntry['entryType']) => u('actions', [emptyEntry(actionConfig, type), ...actions])
+        const addEntry = (type: PowerEntry['entryType']) => u('actions', [emptyPower(actionConfig, type), ...actions])
         const gutterBtn = { color: 'var(--color-text-muted)', padding: '0', lineHeight: 1, fontSize: '10px', display: 'block' as const }
         const addBtn = { color: 'var(--color-text-muted)', border: '1px dashed var(--color-border)', borderRadius: 'var(--radius-sm)', padding: '0 4px', background: 'transparent', cursor: 'pointer' }
         return (
@@ -553,11 +547,23 @@ export function Dnd4eCreatureDetails({ creature, onSave: save, config }: Props) 
           )}
         </div>
       )}
+
+      </div>{/* end stats column */}
+
+      {/* ── Creature Image ── */}
+      <CreatureImageEditor
+        imageId={creature.imageId}
+        tokenImageId={creature.tokenImageId}
+        onImageChange={imageId => save({ ...creature, imageId })}
+        onTokenChange={tokenImageId => save({ ...creature, tokenImageId })}
+      />
+
+      </div>{/* end body flex row */}
     </div>
 
     {/* ─── Right column: Powers ─── */}
     <div className="stat-block-4e" style={{ flex: '1 1 400px', minWidth: 340 }}>
-      <ActionEntryEditor
+      <PowerEntryEditor
         entries={Array.isArray(sb.actions) ? sb.actions : []}
         onChange={actions => u('actions', actions)}
         config={actionConfig}

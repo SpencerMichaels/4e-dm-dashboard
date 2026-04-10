@@ -1,23 +1,420 @@
-import { useState } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useCombatStore } from '../../stores/combat-store'
 import { useUiStore } from '../../stores/ui-store'
+import { useHotkeys } from '../../hooks/use-hotkeys'
+import { getPluginUI } from '../../plugins/registry'
+import type { PluginUIComponents } from '../../plugins/plugin-types'
+import type { CombatNotification } from '@common/types'
 import { InitiativeEntry } from './InitiativeEntry'
 import { InitiativeList } from './InitiativeList'
 import { CombatantDetail } from './CombatantDetail'
 import { DamageHealDialog } from './DamageHealDialog'
 import { ConditionDialog } from './ConditionDialog'
-import { EffectDialog } from './EffectDialog'
+import { ReactionsPanel } from './ReactionsPanel'
+import { PinnedCardsPanel, type PinnedCard } from './PinnedCardsPanel'
+import { QuickConditionMenu } from './QuickConditionMenu'
+import { CombatLogPanel } from './CombatLogPanel'
+import { AttackApplyPanel } from './AttackApplyPanel'
+
+export interface AttackMode {
+  phase: 'select' | 'resolve' | 'apply'
+  targetIds: string[]
+  results: Record<string, 'hit' | 'miss' | null>
+  currentIndex: number
+  defense?: string  // which defense to display (AC/Fortitude/Reflex/Will)
+  singleTarget?: boolean
+}
 
 export function CombatView() {
   const combat = useCombatStore((s) => s.combat)
   const { setView } = useUiStore()
+  const systemPlugin = useUiStore((s) => s.systemPlugin)
   const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [pluginUI, setPluginUI] = useState<PluginUIComponents | null>(null)
+  const [notifications, setNotifications] = useState<CombatNotification[]>([])
+  const [combatEvents, setCombatEvents] = useState<import('@common/types').CombatEvent[]>([])
+  const [showLog, setShowLog] = useState(false)
+  const [pinnedCards, setPinnedCards] = useState<PinnedCard[]>([])
+  const [showSettings, setShowSettings] = useState(false)
+  const [contextMenu, setContextMenu] = useState<{ combatantId: string; x: number; y: number } | null>(null)
+  const [attackMode, setAttackMode] = useState<AttackMode | null>(null)
+  const [pendingCondition, setPendingCondition] = useState<{ conditionId: string; value?: number; customDescription?: string; sourceId?: string; duration?: any; multi: boolean } | null>(null)
+  const [pendingAction, setPendingAction] = useState<{ type: 'damage' | 'heal'; multi: boolean } | null>(null)
   const [dialog, setDialog] = useState<
-    | { type: 'damage' | 'heal'; combatantId: string }
+    | { type: 'damage' | 'heal'; combatantId: string; initialAmount?: number; multiTargetIds?: string[] }
     | { type: 'condition'; combatantId: string }
-    | { type: 'effect'; combatantId: string }
     | null
   >(null)
+
+  // Load plugin UI
+  useEffect(() => {
+    if (systemPlugin?.id) getPluginUI(systemPlugin.id).then(setPluginUI)
+  }, [systemPlugin?.id])
+
+  const addEvent = useCallback((type: import('@common/types').CombatEventType, targetId: string, targetName: string, data: Record<string, unknown> = {}, sourceId?: string, sourceName?: string, roundOverride?: number) => {
+    setCombatEvents(prev => {
+      // Check if the last event cancels out with this one
+      if (prev.length > 0) {
+        const last = prev[prev.length - 1]
+        if (last.targetId === targetId) {
+          const lastCond = (last.data as any)?.conditionId
+          const thisCond = (data as any)?.conditionId
+          if (lastCond && thisCond && lastCond === thisCond) {
+            const isInverse = (last.type === 'condition-applied' && type === 'condition-removed')
+              || (last.type === 'condition-removed' && type === 'condition-applied')
+            if (isInverse) return prev.slice(0, -1)  // remove last event, don't add new one
+          }
+        }
+      }
+      return [...prev, {
+        timestamp: Date.now(),
+        round: roundOverride ?? combat?.round ?? 0,
+        type, targetId, targetName, data, sourceId, sourceName,
+      }]
+    })
+  }, [combat?.round])
+
+  const addNotificationsToLog = useCallback((notifs: CombatNotification[]) => {
+    for (const n of notifs) {
+      const type = n.type as import('@common/types').CombatEventType
+      const data: Record<string, unknown> = {}
+      if (n.detail) {
+        // Parse roll details from notification detail strings
+        const rollMatch = n.detail.match(/Rolled (\d+)/)
+        if (rollMatch) data.roll = parseInt(rollMatch[1])
+        const dcMatch = n.detail.match(/DC (\d+)/)
+        if (dcMatch) data.dc = parseInt(dcMatch[1])
+        const threshMatch = n.detail.match(/vs (\d+)\+/)
+        if (threshMatch) data.threshold = parseInt(threshMatch[1])
+        const bonusMatch = n.detail.match(/\+ (\d+) =/)
+        if (bonusMatch) data.bonus = parseInt(bonusMatch[1])
+      }
+      // Extract condition/power name from message
+      if (type === 'save-success' || type === 'save-fail') {
+        const m = n.message.match(/vs (.+?)!?$/)
+        if (m) data.conditionName = m[1]
+      }
+      if (type === 'recharge-success' || type === 'recharge-fail') {
+        const m = n.message.match(/: (.+?)(?:\s+recharged|\s+failed)/)
+        if (m) data.powerName = m[1]
+      }
+      addEvent(type, n.combatantId, combat?.combatants[n.combatantId]?.name ?? n.combatantId, data)
+    }
+  }, [addEvent, combat])
+
+  // Diff combat state to detect condition changes and log them
+  const prevCombatRef = useRef<typeof combat>(null)
+  useEffect(() => {
+    const prev = prevCombatRef.current
+    if (prev && combat) {
+      for (const [id, c] of Object.entries(combat.combatants)) {
+        const pc = prev.combatants[id]
+        if (!pc) continue
+        const prevCondIds = new Set(pc.conditions.map(c => c.conditionId))
+        const currCondIds = new Set(c.conditions.map(c => c.conditionId))
+        // New conditions
+        for (const cond of c.conditions) {
+          if (!prevCondIds.has(cond.conditionId)) {
+            const def = conditionDefs.find((d: any) => d.id === cond.conditionId) ?? (cond.conditionId.startsWith('ongoing-damage') ? conditionDefs.find((d: any) => d.id === 'ongoing-damage') : undefined)
+            let name = cond.customName ?? def?.name ?? cond.conditionId
+            if (cond.conditionId.startsWith('ongoing-damage')) name = `Ongoing ${cond.value ?? ''}${cond.customDescription ? ' ' + cond.customDescription : ''} damage`
+            const duration = (cond.duration?.type === 'save-ends' || cond.duration?.type === 'unlimited') ? 'save ends'
+              : cond.duration?.type === 'rounds' ? `${cond.duration.remaining} rounds`
+              : cond.duration?.type === 'encounter' ? 'encounter' : undefined
+            addEvent('condition-applied', id, c.name, {
+              conditionId: cond.conditionId, conditionName: name,
+              value: cond.value, duration,
+            }, cond.sourceId, cond.sourceId ? combat.combatants[cond.sourceId]?.name : undefined)
+          }
+        }
+        // Removed conditions
+        for (const cond of pc.conditions) {
+          if (!currCondIds.has(cond.conditionId)) {
+            const def = conditionDefs.find((d: any) => d.id === cond.conditionId) ?? (cond.conditionId.startsWith('ongoing-damage') ? conditionDefs.find((d: any) => d.id === 'ongoing-damage') : undefined)
+            let name = cond.customName ?? def?.name ?? cond.conditionId
+            if (cond.conditionId.startsWith('ongoing-damage')) name = `Ongoing ${cond.value ?? ''}${cond.customDescription ? ' ' + cond.customDescription : ''} damage`
+            else if (cond.conditionId === 'marked' && cond.customDescription) name += ` ${cond.customDescription}`
+            addEvent('condition-removed', id, c.name, { conditionId: cond.conditionId, conditionName: name })
+          }
+        }
+      }
+    }
+    prevCombatRef.current = combat
+  }, [combat])
+
+  // Handler for applying a condition via target selection (from power card keyword click)
+  const handleApplyConditionToTargets = useCallback((condition: { conditionId: string; value?: number; duration?: any }, multi: boolean) => {
+    setPendingCondition({ ...condition, multi })
+    // Enter target selection mode
+    setAttackMode({ phase: 'select', targetIds: [], results: {}, currentIndex: 0, singleTarget: !multi })
+  }, [])
+
+
+
+  // Auto-select current combatant on turn change + log first turn
+  const firstTurnLogged = useRef(false)
+  useEffect(() => {
+    if (combat?.phase === 'active') {
+      const currentId = combat.initiativeOrder[combat.turnIndex]
+      if (currentId) {
+        setSelectedId(currentId)
+        // Log the very first turn-start when combat begins
+        if (!firstTurnLogged.current) {
+          firstTurnLogged.current = true
+          const name = combat.combatants[currentId]?.name
+          if (name) addEvent('turn-start', currentId, name, {}, undefined, undefined, combat.round)
+        }
+      }
+    } else {
+      firstTurnLogged.current = false
+    }
+  }, [combat?.turnIndex, combat?.round, combat?.phase])
+
+  // Auto-select current attack target during resolve phase
+  useEffect(() => {
+    if (attackMode?.phase === 'resolve') {
+      const targetId = attackMode.targetIds[attackMode.currentIndex]
+      if (targetId) setSelectedId(targetId)
+    }
+  }, [attackMode?.phase, attackMode?.currentIndex])
+
+  // Clear notifications on turn change
+  useEffect(() => {
+    setNotifications([])
+  }, [combat?.turnIndex, combat?.round])
+
+  // Log turn-start when turnIndex changes
+  const prevTurnRef = useRef<{ turnIndex: number; round: number } | null>(null)
+  useEffect(() => {
+    if (!combat || combat.phase !== 'active') return
+    const prev = prevTurnRef.current
+    prevTurnRef.current = { turnIndex: combat.turnIndex, round: combat.round }
+    if (prev && (prev.turnIndex !== combat.turnIndex || prev.round !== combat.round)) {
+      const newId = combat.initiativeOrder[combat.turnIndex]
+      const newName = newId ? combat.combatants[newId]?.name : null
+      if (newId && newName) addEvent('turn-start', newId, newName, {}, undefined, undefined, combat.round)
+    }
+  }, [combat?.turnIndex, combat?.round])
+
+  const handleEndTurn = useCallback(async () => {
+    const result = await window.api.combat.endTurn()
+    if (result?.notifications?.length) addNotificationsToLog(result.notifications)
+  }, [addNotificationsToLog])
+
+  const handleResolveItem = useCallback(async (success: boolean) => {
+    if (!combat || combat.stepperIndex < 0) return
+    const item = combat.turnItems[combat.stepperIndex]
+    if (!item) return
+
+    const currentId = combat.initiativeOrder[combat.turnIndex]
+    const name = currentId ? combat.combatants[currentId]?.name ?? '' : ''
+
+    // Log notification locally
+    if (item.kind === 'ongoing-damage') {
+      if (item.value && item.value > 0) addNotificationsToLog([{ type: 'damage' as any, combatantId: currentId ?? '', message: `${name}: ${item.label}` }])
+    } else if (item.kind === 'save') {
+      const msg = success ? `${name} saved vs ${item.label}!` : `${name} failed: ${item.label}`
+      addNotificationsToLog([{ type: success ? 'save-success' : 'save-fail', combatantId: currentId ?? '', message: msg }])
+    } else if (item.kind === 'recharge') {
+      const msg = success ? `${name}: recharged!` : `${name}: failed to recharge`
+      addNotificationsToLog([{ type: success ? 'recharge-success' : 'recharge-fail', combatantId: currentId ?? '', message: msg }])
+    }
+
+    await window.api.combat.resolveItem(combat.stepperIndex, success)
+  }, [combat, addNotificationsToLog])
+
+  const handleEndCombat = useCallback(async () => {
+    await window.api.combat.end()
+    setView({ type: 'home' })
+  }, [setView])
+
+  const handleDamage = useCallback(async (combatantId: string, amount: number) => {
+    const name = combat?.combatants[combatantId]?.name ?? 'Creature'
+    addEvent('damage', combatantId, name, { amount })
+    const result = await window.api.combat.damage(combatantId, amount)
+    if (result?.notifications?.length) {
+      setNotifications(prev => [...prev, ...result.notifications])
+      addNotificationsToLog(result.notifications)
+    }
+    setDialog(null)
+  }, [combat, addEvent, addNotificationsToLog])
+
+  const handlePinCard = useCallback((card: PinnedCard) => {
+    setPinnedCards(prev => {
+      const exists = prev.some(p => p.key === card.key)
+      return exists ? prev.filter(p => p.key !== card.key) : [...prev, card]
+    })
+  }, [])
+
+  const pinnedKeys = new Set(pinnedCards.map(p => p.key))
+
+  // Attack mode handlers
+  const startAttackMode = useCallback((multi: boolean) => {
+    if (!combat) return
+    // Both single and multi start in select phase — single just limits to 1 selection
+    setAttackMode({ phase: 'select', targetIds: [], results: {}, currentIndex: 0, singleTarget: !multi } as any)
+  }, [combat])
+
+  const attackModeToggleTarget = useCallback((id: string) => {
+    if (!attackMode || attackMode.phase !== 'select') return
+    if (attackMode.singleTarget) {
+      if (pendingCondition) {
+        window.api.combat.addCondition(id, {
+          conditionId: pendingCondition.conditionId,
+          value: pendingCondition.value,
+          customDescription: pendingCondition.customDescription,
+          sourceId: pendingCondition.sourceId,
+          duration: pendingCondition.duration ?? { type: 'save-ends' },
+        })
+        setPendingCondition(null)
+        setAttackMode(null)
+        return
+      }
+      if (pendingAction) {
+        // Open damage/heal dialog for the selected target
+        setDialog({ type: pendingAction.type, combatantId: id })
+        setPendingAction(null)
+        setAttackMode(null)
+        return
+      }
+      // Single target attack: select and immediately confirm
+      const results: Record<string, 'hit' | 'miss' | null> = { [id]: null }
+      setAttackMode({ ...attackMode, phase: 'resolve', targetIds: [id], results, currentIndex: 0, defense: 'AC' })
+    } else {
+      setAttackMode(prev => {
+        if (!prev) return prev
+        const has = prev.targetIds.includes(id)
+        const targetIds = has ? prev.targetIds.filter(t => t !== id) : [...prev.targetIds, id]
+        return { ...prev, targetIds }
+      })
+    }
+  }, [attackMode])
+
+  const attackModeConfirmSelection = useCallback(() => {
+    if (!attackMode || attackMode.phase !== 'select' || attackMode.targetIds.length === 0) return
+    if (pendingCondition) {
+      // Condition apply mode: apply to all targets and exit
+      for (const id of attackMode.targetIds) {
+        window.api.combat.addCondition(id, {
+          conditionId: pendingCondition.conditionId,
+          value: pendingCondition.value,
+          customDescription: pendingCondition.customDescription,
+          sourceId: pendingCondition.sourceId,
+          duration: pendingCondition.duration ?? { type: 'save-ends' },
+        })
+      }
+      setPendingCondition(null)
+      setAttackMode(null)
+      return
+    }
+    if (pendingAction) {
+      // Open damage/heal dialog — will apply to all selected targets
+      setDialog({ type: pendingAction.type, combatantId: attackMode.targetIds[0], multiTargetIds: attackMode.targetIds } as any)
+      setPendingAction(null)
+      setAttackMode(null)
+      return
+    }
+    const results: Record<string, 'hit' | 'miss' | null> = {}
+    for (const id of attackMode.targetIds) results[id] = null
+    setAttackMode({ ...attackMode, phase: 'resolve', results, currentIndex: 0, defense: 'AC' })
+  }, [attackMode])
+
+  const attackModeResolve = useCallback((result: 'hit' | 'miss') => {
+    if (!attackMode || attackMode.phase !== 'resolve') return
+    const currentTarget = attackMode.targetIds[attackMode.currentIndex]
+    if (!currentTarget) return
+    const results = { ...attackMode.results, [currentTarget]: result }
+    const nextIndex = attackMode.currentIndex + 1
+    if (nextIndex >= attackMode.targetIds.length) {
+      setAttackMode({ ...attackMode, results, currentIndex: nextIndex, phase: 'apply' })
+    } else {
+      setAttackMode({ ...attackMode, results, currentIndex: nextIndex })
+    }
+  }, [attackMode])
+
+  const attackModeUndo = useCallback(() => {
+    if (!attackMode || attackMode.phase !== 'resolve' || attackMode.currentIndex <= 0) return
+    const prevIndex = attackMode.currentIndex - 1
+    const prevTarget = attackMode.targetIds[prevIndex]
+    const results = { ...attackMode.results, [prevTarget]: null }
+    setAttackMode({ ...attackMode, results, currentIndex: prevIndex })
+  }, [attackMode])
+
+  const attackModeCancel = useCallback(() => {
+    setAttackMode(null)
+    setPendingCondition(null)
+    setPendingAction(null)
+  }, [])
+
+  // Keyboard shortcuts — context-dependent on attack mode
+  const hasModal = !!dialog || showSettings || !!contextMenu
+  const inStepper = combat?.turnPhase === 'end-of-turn' || combat?.turnPhase === 'start-of-turn'
+  const inAttackMode = !!attackMode
+  useHotkeys([
+    // Damage: d = single target, Shift+D = multi target
+    { key: 'd', handler: () => {
+      if (hasModal || inAttackMode) return
+      setPendingAction({ type: 'damage', multi: false })
+      setAttackMode({ phase: 'select', targetIds: [], results: {}, currentIndex: 0, singleTarget: true })
+    }},
+    { key: 'D', shift: true, handler: () => {
+      if (hasModal || inAttackMode) return
+      setPendingAction({ type: 'damage', multi: true })
+      setAttackMode({ phase: 'select', targetIds: [], results: {}, currentIndex: 0, singleTarget: false })
+    }},
+    // h = hit (in attack resolve) or heal target select
+    { key: 'h', handler: () => {
+      if (attackMode?.phase === 'resolve') { attackModeResolve('hit'); return }
+      if (hasModal || inAttackMode) return
+      setPendingAction({ type: 'heal', multi: false })
+      setAttackMode({ phase: 'select', targetIds: [], results: {}, currentIndex: 0, singleTarget: true })
+    }},
+    { key: 'H', shift: true, handler: () => {
+      if (hasModal || inAttackMode) return
+      setPendingAction({ type: 'heal', multi: true })
+      setAttackMode({ phase: 'select', targetIds: [], results: {}, currentIndex: 0, singleTarget: false })
+    }},
+    // Delay (yield) current creature
+    { key: 'y', handler: () => { if (!hasModal && !inAttackMode && currentId) window.api.combat.delay(currentId) } },
+    // Attack mode entry
+    { key: 'a', handler: () => { if (!hasModal && !inAttackMode) startAttackMode(false) } },
+    { key: 'A', shift: true, handler: () => { if (!hasModal && !inAttackMode) startAttackMode(true) } },
+    // Stepper keys
+    { key: 's', handler: () => {
+      if (!inStepper || !combat) return
+      const item = combat.turnItems[combat.stepperIndex]
+      if (item && item.kind !== 'ongoing-damage') handleResolveItem(true)
+    }},
+    { key: 'f', handler: () => {
+      if (!inStepper || !combat) return
+      const item = combat.turnItems[combat.stepperIndex]
+      if (item && item.kind !== 'ongoing-damage') handleResolveItem(false)
+    }},
+    { key: ' ', handler: () => {
+      if (hasModal) return
+      if (inStepper && combat) {
+        const item = combat.turnItems[combat.stepperIndex]
+        if (item?.kind === 'ongoing-damage') handleResolveItem(true)
+        return
+      }
+      if (combat?.turnPhase === 'end-of-turn-done') return // animation playing
+      if (attackMode?.phase === 'select') attackModeConfirmSelection()
+      else if (!inAttackMode && combat?.turnPhase === 'active') handleEndTurn()
+    }},
+    { key: 'Enter', handler: () => {
+      if (hasModal) return
+      if (inStepper || combat?.turnPhase === 'end-of-turn-done') return
+      if (attackMode?.phase === 'select') attackModeConfirmSelection()
+      else if (!inAttackMode && combat?.turnPhase === 'active') handleEndTurn()
+    }},
+    { key: 'm', handler: () => { if (attackMode?.phase === 'resolve') attackModeResolve('miss') } },
+    { key: 'Backspace', handler: () => { if (attackMode?.phase === 'resolve') attackModeUndo() } },
+    // Escape cancels attack mode or closes dialog
+    { key: 'Escape', handler: () => {
+      if (inAttackMode) attackModeCancel()
+      else setDialog(null)
+    }},
+  ])
 
   if (!combat) {
     return <div style={{ color: 'var(--color-text-muted)' }}>No active combat. Start one from an encounter.</div>
@@ -29,64 +426,158 @@ export function CombatView() {
 
   const currentId = combat.initiativeOrder[combat.turnIndex]
   const selected = selectedId ? combat.combatants[selectedId] : null
+  const currentIsPC = currentId ? combat.combatants[currentId]?.isPC : false
 
-  const handleNextTurn = async () => {
-    await window.api.combat.nextTurn()
-  }
-
-  const handlePrevTurn = async () => {
-    await window.api.combat.prevTurn()
-  }
-
-  const handleEndCombat = async () => {
-    await window.api.combat.end()
-    setView({ type: 'home' })
-  }
+  const PluginCombatPanel = pluginUI?.CombatPanel
+  const conditionDefs = systemPlugin?.conditions ?? []
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: '300px 1fr', gap: 'var(--space-4)', height: '100%' }}>
-      {/* Left panel: initiative list */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+      {/* Global notifications banner */}
+      {notifications.length > 0 && (
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginBottom: 'var(--space-2)', flexShrink: 0 }}>
+          {notifications.map((n, i) => {
+            const bg = n.type === 'bloodied' ? '#c00' : n.type === 'death' ? '#600'
+              : n.type === 'recharge-success' || n.type === 'save-success' ? '#2a6'
+              : n.type === 'recharge-fail' || n.type === 'save-fail' ? '#a62' : '#666'
+            return (
+              <div key={i} style={{
+                padding: '3px 10px', borderRadius: 'var(--radius-sm)', fontSize: 11, fontWeight: 600,
+                background: bg, color: '#fff',
+              }}>
+                {n.message}
+                {n.detail && <span style={{ fontWeight: 400, marginLeft: 4, opacity: 0.8 }}>{n.detail}</span>}
+              </div>
+            )
+          })}
+        </div>
+      )}
+
+      {/* Attack mode banner */}
+      {attackMode && (
+        <div style={{
+          padding: '4px 12px', background: 'rgba(92,124,250,0.15)', border: '1px solid rgba(92,124,250,0.3)',
+          borderRadius: 'var(--radius-sm)', marginBottom: 'var(--space-2)', flexShrink: 0,
+          display: 'flex', alignItems: 'center', gap: 8, fontSize: 12,
+        }}>
+          <span style={{ fontWeight: 700 }}>
+            {attackMode.phase === 'select' ? (pendingCondition
+              ? (attackMode.singleTarget ? '🎯 Click a target to apply condition' : '🎯 Select targets for condition (Space to confirm)')
+              : pendingAction
+              ? (attackMode.singleTarget ? `💥 Click a target to ${pendingAction.type}` : `💥 Select targets to ${pendingAction.type} (Space to confirm)`)
+              : (attackMode.singleTarget ? '⚔ Click a target' : '⚔ Select targets (click creatures, Space to confirm)')) :
+              attackMode.phase === 'resolve' ? `⚔ Resolving ${Math.min(attackMode.currentIndex + 1, attackMode.targetIds.length)}/${attackMode.targetIds.length} — H=hit, M=miss${attackMode.currentIndex > 0 ? ', Backspace=undo' : ''}` :
+              '⚔ Apply results'}
+          </span>
+          <div style={{ flex: 1 }} />
+          <button onClick={attackModeCancel} style={{ fontSize: 11, color: 'var(--color-text-muted)' }}>Cancel (Esc)</button>
+        </div>
+      )}
+
+      <div style={{ display: 'grid', gridTemplateColumns: '300px 1fr', gap: 'var(--space-4)', flex: 1, minHeight: 0 }}>
+      {/* Left panel: initiative list + reactions */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)', minHeight: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
           <h2 style={{ fontSize: 'var(--font-size-lg)', margin: 0 }}>
             Round {combat.round}
           </h2>
-          <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
-            <button onClick={handlePrevTurn} title="Previous turn (Ctrl+[)">Prev</button>
-            <button onClick={handleNextTurn} title="Next turn (Ctrl+])">Next</button>
+          <div style={{ display: 'flex', gap: 'var(--space-2)', alignItems: 'center' }}>
+            <button onClick={handleEndTurn} title="End turn (Space)" disabled={combat.turnPhase !== 'active'}>Next</button>
+            <button onClick={() => { if (currentId) window.api.combat.delay(currentId) }} title="Delay current creature (Y)">Delay</button>
+            <button onClick={() => setShowLog(!showLog)} title="Combat log" style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 16, padding: '0 4px' }}>📋</button>
+            <button onClick={() => setShowSettings(true)} title="Combat settings" style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 16, padding: '0 4px' }}>⚙</button>
           </div>
         </div>
 
-        <InitiativeList
-          combat={combat}
-          currentId={currentId}
-          selectedId={selectedId}
-          onSelect={setSelectedId}
-        />
+        <div style={{ flex: '1 1 auto', minHeight: 200, overflow: 'auto' }}>
+          <InitiativeList
+            combat={combat}
+            currentId={currentId}
+            selectedId={selectedId}
+            onSelect={attackMode?.phase === 'select' ? attackModeToggleTarget : setSelectedId}
+            onContextMenu={attackMode ? undefined : (id, e) => setContextMenu({ combatantId: id, x: e.clientX, y: e.clientY })}
+            attackMode={attackMode ?? undefined}
+            conditionDefs={conditionDefs}
+            onUndelay={(id) => window.api.combat.undelay(id, currentId)}
+          />
+        </div>
+
+        {/* Reactions panel — always shown, excludes current combatant */}
+        <div style={{ flex: '0 1 auto', maxHeight: '40%', overflow: 'auto' }}>
+          <ReactionsPanel combat={combat} currentCombatantId={currentId} notifications={notifications} />
+        </div>
 
         <button
           onClick={handleEndCombat}
-          style={{ color: 'var(--color-danger)', fontSize: 'var(--font-size-sm)', marginTop: 'auto' }}
+          style={{ color: 'var(--color-danger)', fontSize: 'var(--font-size-sm)', flexShrink: 0 }}
         >
           End Combat
         </button>
       </div>
 
-      {/* Right panel: selected combatant detail */}
-      <div>
-        {selected ? (
-          <CombatantDetail
-            combatant={selected}
-            isCurrent={selected.id === currentId}
-            isDelayed={combat.delayedIds.includes(selected.id)}
-            onDamage={() => setDialog({ type: 'damage', combatantId: selected.id })}
-            onHeal={() => setDialog({ type: 'heal', combatantId: selected.id })}
-            onAddCondition={() => setDialog({ type: 'condition', combatantId: selected.id })}
-            onAddEffect={() => setDialog({ type: 'effect', combatantId: selected.id })}
-            onDelay={() => window.api.combat.delay(selected.id)}
-            onUndelay={() => window.api.combat.undelay(selected.id, currentId)}
-            onRemove={() => { window.api.combat.removeCombatant(selected.id); setSelectedId(null) }}
+      {/* Right panel: selected combatant detail OR attack apply panel */}
+      <div style={{ overflow: 'auto', minHeight: 0 }}>
+        {attackMode?.phase === 'apply' ? (
+          <AttackApplyPanel
+            combat={combat}
+            attackMode={attackMode}
+            conditionDefs={conditionDefs}
+            onApply={(hitDamage, missDamage, hitConditions, missConditions) => {
+              for (const [id, result] of Object.entries(attackMode.results)) {
+                const name = combat.combatants[id]?.name ?? id
+                const currentTurnId = combat.initiativeOrder[combat.turnIndex]
+                const currentTurnName = currentTurnId ? combat.combatants[currentTurnId]?.name : undefined
+                if (result === 'hit') {
+                  addEvent('attack-hit', id, name, {}, currentTurnId, currentTurnName)
+                  if (hitDamage > 0) { addEvent('damage', id, name, { amount: hitDamage }); window.api.combat.damage(id, hitDamage) }
+                  for (const c of hitConditions) window.api.combat.addCondition(id, c)
+                } else if (result === 'miss') {
+                  addEvent('attack-miss', id, name, {}, currentTurnId, currentTurnName)
+                  if (missDamage > 0) { addEvent('damage', id, name, { amount: missDamage }); window.api.combat.damage(id, missDamage) }
+                  for (const c of missConditions) window.api.combat.addCondition(id, c)
+                }
+              }
+              setAttackMode(null)
+            }}
+            onCancel={attackModeCancel}
           />
+        ) : selected ? (
+          PluginCombatPanel ? (
+            <PluginCombatPanel
+              combatant={selected}
+              combat={combat}
+              isCurrent={selected.id === currentId}
+              isDelayed={combat.delayedIds.includes(selected.id)}
+              onUsePower={(idx) => window.api.combat.usePower(selected.id, idx)}
+              onUnusePower={(idx) => window.api.combat.unusePower(selected.id, idx)}
+              onQuickDamage={(amount) => setDialog({ type: 'damage', combatantId: selected.id, initialAmount: amount })}
+              onDamage={() => setDialog({ type: 'damage', combatantId: selected.id })}
+              onHeal={() => setDialog({ type: 'heal', combatantId: selected.id })}
+              onAddCondition={() => setDialog({ type: 'condition', combatantId: selected.id })}
+              onAddEffect={() => setDialog({ type: 'effect', combatantId: selected.id })}
+              onDelay={() => window.api.combat.delay(selected.id)}
+              onUndelay={() => window.api.combat.undelay(selected.id, currentId)}
+              onRemove={() => { window.api.combat.removeCombatant(selected.id); setSelectedId(null) }}
+              conditions={conditionDefs}
+              notifications={notifications.filter(n => n.combatantId === selected.id)}
+              onPinCard={handlePinCard}
+              pinnedKeys={pinnedKeys}
+              onApplyConditionToTargets={handleApplyConditionToTargets}
+            />
+          ) : (
+            <CombatantDetail
+              combatant={selected}
+              isCurrent={selected.id === currentId}
+              isDelayed={combat.delayedIds.includes(selected.id)}
+              onDamage={() => setDialog({ type: 'damage', combatantId: selected.id })}
+              onHeal={() => setDialog({ type: 'heal', combatantId: selected.id })}
+              onAddCondition={() => setDialog({ type: 'condition', combatantId: selected.id })}
+              onAddEffect={() => setDialog({ type: 'effect', combatantId: selected.id })}
+              onDelay={() => window.api.combat.delay(selected.id)}
+              onUndelay={() => window.api.combat.undelay(selected.id, currentId)}
+              onRemove={() => { window.api.combat.removeCombatant(selected.id); setSelectedId(null) }}
+            />
+          )
         ) : (
           <div style={{ color: 'var(--color-text-muted)', padding: 'var(--space-4)' }}>
             Select a combatant from the initiative list.
@@ -98,16 +589,33 @@ export function CombatView() {
       {dialog?.type === 'damage' && (
         <DamageHealDialog
           mode="damage"
-          combatantName={combat.combatants[dialog.combatantId]?.name ?? ''}
-          onSubmit={(amount) => { window.api.combat.damage(dialog.combatantId, amount); setDialog(null) }}
+          combatantName={dialog.multiTargetIds
+            ? `${dialog.multiTargetIds.length} creatures`
+            : combat.combatants[dialog.combatantId]?.name ?? ''}
+          initialAmount={dialog.initialAmount}
+          onSubmit={(amount) => {
+            const targets = dialog.multiTargetIds ?? [dialog.combatantId]
+            for (const id of targets) handleDamage(id, amount)
+            setDialog(null)
+          }}
           onClose={() => setDialog(null)}
         />
       )}
       {dialog?.type === 'heal' && (
         <DamageHealDialog
           mode="heal"
-          combatantName={combat.combatants[dialog.combatantId]?.name ?? ''}
-          onSubmit={(amount) => { window.api.combat.heal(dialog.combatantId, amount); setDialog(null) }}
+          combatantName={dialog.multiTargetIds
+            ? `${dialog.multiTargetIds.length} creatures`
+            : combat.combatants[dialog.combatantId]?.name ?? ''}
+          onSubmit={(amount) => {
+            const targets = dialog.multiTargetIds ?? [dialog.combatantId]
+            for (const id of targets) {
+              const name = combat.combatants[id]?.name ?? 'Creature'
+              addEvent('heal', id, name, { amount })
+              window.api.combat.heal(id, amount)
+            }
+            setDialog(null)
+          }}
           onClose={() => setDialog(null)}
         />
       )}
@@ -117,12 +625,98 @@ export function CombatView() {
           onClose={() => setDialog(null)}
         />
       )}
-      {dialog?.type === 'effect' && (
-        <EffectDialog
-          combatantId={dialog.combatantId}
-          onClose={() => setDialog(null)}
+
+      {/* Floating pinned cards */}
+      <PinnedCardsPanel cards={pinnedCards} onUnpin={(key) => setPinnedCards(prev => prev.filter(p => p.key !== key))} />
+
+      {/* Combat log */}
+      {showLog && <CombatLogPanel events={combatEvents} onClose={() => setShowLog(false)} />}
+
+      {/* Quick condition context menu */}
+      {contextMenu && combat.combatants[contextMenu.combatantId] && (
+        <QuickConditionMenu
+          combatantId={contextMenu.combatantId}
+          combatant={combat.combatants[contextMenu.combatantId]}
+          position={{ x: contextMenu.x, y: contextMenu.y }}
+          onClose={() => setContextMenu(null)}
+          onOpenFull={() => {
+            setDialog({ type: 'condition', combatantId: contextMenu.combatantId })
+            setContextMenu(null)
+          }}
         />
       )}
+
+      {/* Save/Recharge resolution modal */}
+      {/* Turn item stepper banner */}
+      {inStepper && combat.stepperIndex >= 0 && combat.turnItems[combat.stepperIndex] && (() => {
+        const item = combat.turnItems[combat.stepperIndex]
+        const combatantId = combat.initiativeOrder[combat.turnIndex]
+        const combatantName = combatantId ? combat.combatants[combatantId]?.name ?? '' : ''
+        const isOngoing = item.kind === 'ongoing-damage'
+        return (
+          <div style={{
+            position: 'fixed', bottom: 0, left: 0, right: 0,
+            padding: 'var(--space-3) var(--space-6)',
+            background: 'var(--color-bg-secondary)',
+            borderTop: `2px solid ${isOngoing ? 'var(--color-danger)' : 'var(--color-accent)'}`,
+            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 'var(--space-4)',
+            zIndex: 100,
+          }}>
+            <span style={{ fontWeight: 600 }}>{combatantName}:</span>
+            <span style={{ fontSize: 'var(--font-size-lg)', color: isOngoing ? 'var(--color-danger)' : undefined }}>
+              {item.label}
+            </span>
+            <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
+              {isOngoing ? (
+                <button onClick={() => handleResolveItem(true)} style={{
+                  padding: 'var(--space-2) var(--space-4)', background: 'var(--color-accent)', color: '#fff',
+                  border: 'none', borderRadius: 'var(--radius-sm)', cursor: 'pointer', fontWeight: 600,
+                }}>Continue (Space)</button>
+              ) : (
+                <>
+                  <button onClick={() => handleResolveItem(true)} style={{
+                    padding: 'var(--space-2) var(--space-4)', background: '#2a6', color: '#fff',
+                    border: 'none', borderRadius: 'var(--radius-sm)', cursor: 'pointer', fontWeight: 600,
+                  }}>{item.kind === 'save' ? 'Save (S)' : 'Success (S)'}</button>
+                  <button onClick={() => handleResolveItem(false)} style={{
+                    padding: 'var(--space-2) var(--space-4)', background: '#a44', color: '#fff',
+                    border: 'none', borderRadius: 'var(--radius-sm)', cursor: 'pointer', fontWeight: 600,
+                  }}>Fail (F)</button>
+                </>
+              )}
+            </div>
+          </div>
+        )
+      })()}
+
+      {/* Settings modal */}
+      {showSettings && (
+        <div style={{
+          position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100,
+        }} onClick={() => setShowSettings(false)}>
+          <div style={{
+            background: 'var(--color-bg-primary)', border: '1px solid var(--color-border)',
+            borderRadius: 'var(--radius-md)', padding: 'var(--space-6)', minWidth: 350,
+          }} onClick={e => e.stopPropagation()}>
+            <h3 style={{ marginBottom: 'var(--space-4)' }}>Combat Settings</h3>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)', cursor: 'pointer' }}>
+              <input type="checkbox" checked={combat.playerExpandConditions ?? true}
+                onChange={e => window.api.combat.setPlayerExpandConditions(e.target.checked)} />
+              <div>
+                <div style={{ fontWeight: 600 }}>Show condition details on player display</div>
+                <div style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text-muted)' }}>
+                  Show full condition descriptions under the active creature on the player-facing screen. When off, only shows condition pills.
+                </div>
+              </div>
+            </label>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 'var(--space-4)' }}>
+              <button onClick={() => setShowSettings(false)}>Close</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
     </div>
   )
 }

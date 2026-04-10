@@ -59,8 +59,8 @@ const deltaGreen: SystemPlugin = {
     { minPercent: 0, maxPercent: 1, label: 'Down', color: '#868e96' },
   ],
   turnHooks: {
-    onTurnStart(_combatantId, _conditions) { return [] },
-    onTurnEnd(_combatantId, _conditions) { return [] },
+    onTurnStart(_combatant) { return [] },
+    onTurnEnd(_combatant) { return [] },
   },
 }
 

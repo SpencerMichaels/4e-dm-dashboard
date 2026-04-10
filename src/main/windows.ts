@@ -55,6 +55,7 @@ export function createPlayerWindow(): BrowserWindow {
     height: 1080,
     ...bounds,
     title: 'Tabletop Dashboard — Player',
+    autoHideMenuBar: true,
     webPreferences: {
       preload: join(__dirname, '../preload/player.js'),
       sandbox: false,

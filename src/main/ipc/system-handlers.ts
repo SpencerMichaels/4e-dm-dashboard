@@ -39,3 +39,7 @@ export function registerSystemHandlers(): void {
 export function getCurrentScene(): SceneState {
   return currentScene
 }
+
+export function setCurrentScene(scene: SceneState): void {
+  currentScene = scene
+}
