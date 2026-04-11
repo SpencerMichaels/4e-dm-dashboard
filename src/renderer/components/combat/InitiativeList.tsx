@@ -116,7 +116,7 @@ export function InitiativeList({ combat, currentId, selectedId, onSelect, onCont
         const isSelected = id === selectedId
         const isDelayed = section === 'delayed'
         const isActed = section === 'acted'
-        const isDead = c.hp <= 0
+        const isDead = c.dead === true || (!c.isPC && c.hp <= 0)
 
         const hpPct = c.maxHp > 0 ? (c.hp / c.maxHp) * 100 : 0
 
@@ -140,7 +140,7 @@ export function InitiativeList({ combat, currentId, selectedId, onSelect, onCont
               display: 'flex', flex: isDelayed ? 1 : undefined,
               alignItems: 'center',
               gap: 'var(--space-2)',
-              padding: '0 var(--space-3) 0 0',
+              padding: '3px var(--space-3) 3px 0',
               minHeight: 38,
               background: isAttackCurrent
                 ? 'rgba(92,124,250,0.25)'
@@ -159,20 +159,32 @@ export function InitiativeList({ combat, currentId, selectedId, onSelect, onCont
               textAlign: 'left',
               cursor: 'pointer',
               opacity: attackFaded ? 0.3 : isDelayed || isDead ? 0.5 : 1,
-              textDecoration: isDead ? 'line-through' : 'none',
               width: '100%',
               transition: 'opacity 0.15s, background 0.15s',
             }}
           >
-            <div style={{ marginLeft: -1, marginTop: -1, marginBottom: -1, marginRight: 4 }}>
-              <CombatToken name={c.name} imageId={c.imageId} tokenImageId={c.tokenImageId} hp={c.hp} maxHp={c.maxHp} isDead={isDead} />
+            <div style={{ marginLeft: 2, marginRight: 4, flexShrink: 0 }}>
+              <CombatToken name={c.name} imageId={c.imageId} tokenImageId={c.tokenImageId}
+                hp={c.hp} maxHp={c.maxHp} isDead={isDead} size={32}
+                hideHpRing={c.isPC && !!c.color}
+                solidRingColor={c.isPC ? c.color : undefined} />
             </div>
 
             {/* Name + condition pills */}
             <div style={{ flex: 1, overflow: 'hidden', minWidth: 0 }}>
-              <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                {c.name}
-                {isDelayed && <span style={{ fontSize: 'var(--font-size-xs)', marginLeft: 'var(--space-1)' }}>[D]</span>}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 4, overflow: 'hidden' }}>
+                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', textDecoration: isDead ? 'line-through' : 'none' }}>
+                  {c.name}
+                  {isDelayed && <span style={{ fontSize: 'var(--font-size-xs)', marginLeft: 'var(--space-1)' }}>[D]</span>}
+                </span>
+                {c.isPC && (c.deathSaveFailures != null && c.deathSaveFailures > 0 || c.conditions.some(cd => cd.conditionId === 'dying')) && (
+                  <span style={{ display: 'inline-flex', gap: 1, fontSize: 11, lineHeight: 1, flexShrink: 0 }}>
+                    {[0, 1, 2].map(i => {
+                      const filled = (c.deathSaveFailures ?? 0) > i
+                      return <span key={i} style={{ opacity: filled ? 1 : 0.3 }}>💀</span>
+                    })}
+                  </span>
+                )}
               </div>
               {c.conditions.length > 0 && (
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 2, marginTop: 1 }}>

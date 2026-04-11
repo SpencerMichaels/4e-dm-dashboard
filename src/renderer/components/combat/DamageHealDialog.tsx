@@ -4,12 +4,13 @@ interface Props {
   mode: 'damage' | 'heal'
   combatantName: string
   initialAmount?: number
-  onSubmit: (amount: number) => void
+  onSubmit: (amount: number, wasHit: boolean) => void
   onClose: () => void
 }
 
 export function DamageHealDialog({ mode, combatantName, initialAmount, onSubmit, onClose }: Props) {
   const [amount, setAmount] = useState(initialAmount ? String(initialAmount) : '')
+  const [missDamage, setMissDamage] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
@@ -28,7 +29,7 @@ export function DamageHealDialog({ mode, combatantName, initialAmount, onSubmit,
     e.preventDefault()
     const num = Number(amount)
     if (!isNaN(num) && num > 0) {
-      onSubmit(num)
+      onSubmit(num, !missDamage)
     }
   }
 
@@ -64,6 +65,12 @@ export function DamageHealDialog({ mode, combatantName, initialAmount, onSubmit,
           placeholder="Amount"
           style={{ width: '100%', marginBottom: 'var(--space-3)', fontSize: 'var(--font-size-lg)', textAlign: 'center' }}
         />
+        {mode === 'damage' && (
+          <label style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', marginBottom: 'var(--space-3)', fontSize: 'var(--font-size-sm)', color: 'var(--color-text-muted)', cursor: 'pointer' }}>
+            <input type="checkbox" checked={missDamage} onChange={e => setMissDamage(e.target.checked)} />
+            Miss damage (minions ignore)
+          </label>
+        )}
         <div style={{ display: 'flex', gap: 'var(--space-2)', justifyContent: 'flex-end' }}>
           <button type="button" onClick={onClose}>Cancel</button>
           <button

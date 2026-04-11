@@ -96,24 +96,23 @@ export interface EncounterTemplate {
   slots: EncounterSlot[]
 }
 
-// DMG p.58-59: templates with level offsets relative to encounter level
+// DMG p.58-59: templates with level offsets relative to encounter level.
+// Standard-difficulty variant of each template.
 export const ENCOUNTER_TEMPLATES: EncounterTemplate[] = [
   { name: 'Battlefield Control', slots: [
-    { role: 'controller', count: 1, levelOffset: 2 },
-    { role: 'skirmisher', count: 2, altRole: 'lurker', levelOffset: 0 },
-    { role: 'brute', count: 2, altRole: 'soldier', levelOffset: 0 },
+    { role: 'controller', count: 1, levelOffset: 1 },
+    { role: 'skirmisher', count: 6, levelOffset: -2 },
   ]},
   { name: 'Commander and Troops', slots: [
     { role: 'controller', count: 1, altRole: 'soldier', levelOffset: 3 },
-    { role: 'soldier', count: 2, levelOffset: 0 },
-    { role: 'artillery', count: 2, levelOffset: 0 },
+    { role: 'brute', count: 5, altRole: 'soldier', levelOffset: -2 },
   ]},
   { name: 'Double Line', slots: [
-    { role: 'soldier', count: 3, levelOffset: 0 },
-    { role: 'artillery', count: 2, levelOffset: 0 },
+    { role: 'brute', count: 3, altRole: 'soldier', levelOffset: 0 },
+    { role: 'artillery', count: 2, altRole: 'controller', levelOffset: 0 },
   ]},
   { name: "Dragon's Den", slots: [
-    { role: 'solo', count: 1, modifier: 'solo', levelOffset: 4 },
+    { role: '', count: 1, modifier: 'solo', levelOffset: 0 },
   ]},
   { name: 'Wolf Pack', slots: [
     { role: 'skirmisher', count: 5, levelOffset: 0 },

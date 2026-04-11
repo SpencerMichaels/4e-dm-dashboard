@@ -7,6 +7,7 @@ export const CMD = {
   CAMPAIGN_OPEN: 'campaign:open',
   CAMPAIGN_LIST: 'campaign:list',
   CAMPAIGN_GET_META: 'campaign:get-meta',
+  CAMPAIGN_UPDATE: 'campaign:update',
 
   // Entities
   ENTITY_SAVE: 'entity:save',
@@ -29,6 +30,7 @@ export const CMD = {
   COMBAT_SET_PLAYER_EXPAND_CONDITIONS: 'combat:set-player-expand-conditions',
   COMBAT_END_TURN: 'combat:end-turn',
   COMBAT_RESOLVE_ITEM: 'combat:resolve-item',
+  COMBAT_RESOLVE_DEATH_SAVE: 'combat:resolve-death-save',
   COMBAT_DELAY: 'combat:delay',
   COMBAT_UNDELAY: 'combat:undelay',
   COMBAT_DAMAGE: 'combat:damage',

@@ -37,6 +37,7 @@ export function addCombatant(combatant: Omit<CombatantState, 'conditions' | 'eff
     usedPowers: {},
     usedReaction: false,
     usedActionPoints: 0,
+    deathSaveFailures: combatant.isPC ? 0 : undefined,
   }
   return combatState
 }
@@ -103,7 +104,11 @@ export function unusePower(combatantId: string, powerIndex: number): CombatState
 function shouldSkip(combatantId: string): boolean {
   if (!combatState) return false
   const c = combatState.combatants[combatantId]
-  return c != null && c.hp <= 0
+  if (!c) return false
+  if (c.dead) return true
+  // Monsters skip at 0 HP; PCs skip only when explicitly marked dead (they may be Dying but still take turns)
+  if (!c.isPC && c.hp <= 0) return true
+  return false
 }
 
 // ──────────────────────────────────────────────────
@@ -125,7 +130,7 @@ function applyPendingResults(): void {
 }
 
 function isActionable(item: PlayerTurnItem): boolean {
-  return item.kind === 'ongoing-damage' || item.kind === 'save' || item.kind === 'recharge'
+  return item.kind === 'ongoing-damage' || item.kind === 'save' || item.kind === 'recharge' || item.kind === 'death-save'
 }
 
 function findFirstActionable(items: PlayerTurnItem[], phase: 'start' | 'end'): number {
@@ -165,6 +170,13 @@ function buildEndOfTurnPreview(combatant: CombatantState | null, plugin?: System
       id: `save-${cond.conditionId}`, phase: 'end', kind: 'save',
       label: saveLabel(condName, saveBonus), conditionId: cond.conditionId,
       damageType: isOngoing ? cond.customDescription : undefined,
+    })
+  }
+  // Death save for dying PCs
+  if (combatant.isPC && combatant.conditions.some(c => c.conditionId === 'dying')) {
+    items.push({
+      id: `death-save-${combatant.id}`, phase: 'end', kind: 'death-save',
+      label: 'Death Save', conditionId: 'dying',
     })
   }
   return items
@@ -299,6 +311,14 @@ export function endTurn(plugin?: SystemPlugin): { state: CombatState; notificati
       const endActions: unknown[] = []
       if (plugin?.turnHooks?.onTurnEnd) endActions.push(...plugin.turnHooks.onTurnEnd(combatant))
       endItems.push(...buildSaveItems(endActions, currentId))
+
+      // Death save for dying PCs
+      if (combatant.isPC && combatant.conditions.some(c => c.conditionId === 'dying')) {
+        endItems.push({
+          id: `death-save-${currentId}`, phase: 'end', kind: 'death-save',
+          label: 'Death Save', conditionId: 'dying',
+        })
+      }
     }
   }
 
@@ -313,6 +333,49 @@ export function endTurn(plugin?: SystemPlugin): { state: CombatState; notificati
 
   // No saves — advance immediately
   return commitAndAdvance(plugin, notifications)
+}
+
+/**
+ * Resolve a death save with three possible outcomes.
+ * - 'fail': increment death save failure count, mark dead at 3
+ * - 'none': no change (10-19 roll)
+ * - 'success': spend healing surge, lose dying (20+ roll)
+ */
+export function resolveDeathSave(index: number, outcome: 'fail' | 'none' | 'success'): { state: CombatState; notifications: CombatNotification[] } {
+  if (!combatState) throw new Error('No active combat')
+  const notifications: CombatNotification[] = []
+  const item = combatState.turnItems[index]
+  if (!item || item.kind !== 'death-save') return { state: combatState, notifications }
+
+  const currentId = combatState.initiativeOrder[combatState.turnIndex]
+  const c = currentId ? combatState.combatants[currentId] : null
+
+  if (c) {
+    if (outcome === 'fail') {
+      c.deathSaveFailures = (c.deathSaveFailures ?? 0) + 1
+      if (c.deathSaveFailures >= 3) {
+        c.dead = true
+        notifications.push({ type: 'death', combatantId: currentId!, message: `${c.name} has died!` })
+      }
+    } else if (outcome === 'success') {
+      // Successful death save: lose Dying (and Unconscious via removeCondition logic)
+      // Queue removal so the UI animation can show first
+      pendingResults.push({ combatantId: currentId!, conditionId: 'dying', success: true })
+    }
+    // 'none' = no state change
+  }
+
+  // Mark result on the item (success/fail/none)
+  item.result = outcome
+
+  // Advance stepper
+  const phase = combatState.turnPhase === 'start-of-turn' ? 'start' : 'end'
+  combatState.stepperIndex = findNextActionable(combatState.turnItems, index, phase)
+  if (combatState.stepperIndex === -1 && combatState.turnPhase === 'end-of-turn') {
+    combatState.turnPhase = 'end-of-turn-done'
+  }
+
+  return { state: combatState, notifications }
 }
 
 /**
@@ -459,6 +522,21 @@ export function finishStartOfTurn(plugin?: SystemPlugin): CombatState {
 
 // ──────────────────────────────────────────────────
 // Combat Actions (unchanged)
+/**
+ * Refresh the end-of-turn preview items for the current combatant.
+ * Called after conditions change mid-turn so the sidebar reflects the current state.
+ */
+export function refreshEndOfTurnPreview(plugin?: SystemPlugin): void {
+  if (!combatState) return
+  // Only refresh if we're in the active phase (not during a stepper)
+  if (combatState.turnPhase !== 'active') return
+  const curId = combatState.initiativeOrder[combatState.turnIndex]
+  const cur = curId ? combatState.combatants[curId] : null
+  // Keep any non-end items, replace end items with fresh preview
+  const startItems = combatState.turnItems.filter(i => i.phase === 'start')
+  combatState.turnItems = [...startItems, ...buildEndOfTurnPreview(cur, plugin)]
+}
+
 // ──────────────────────────────────────────────────
 
 export function delayCombatant(combatantId: string): CombatState {
@@ -492,16 +570,19 @@ export function undelayCombatant(combatantId: string, beforeCombatantId?: string
   return combatState
 }
 
-export function damageCombatant(combatantId: string, amount: number): { state: CombatState; notifications: CombatNotification[] } {
+export function damageCombatant(combatantId: string, amount: number, wasHit: boolean = true): { state: CombatState; notifications: CombatNotification[] } {
   if (!combatState) throw new Error('No active combat')
   const c = combatState.combatants[combatantId]
   if (!c) throw new Error(`Combatant ${combatantId} not found`)
   const notifications: CombatNotification[] = []
+  const isMinion = !!(c.statBlock && (c.statBlock as Record<string, unknown>).isMinion)
+  // Minions take no damage from a miss, even if the power deals half on miss
+  if (isMinion && !wasHit) return { state: combatState, notifications }
   let remaining = amount
   if (c.tempHp > 0) { const absorbed = Math.min(c.tempHp, remaining); c.tempHp -= absorbed; remaining -= absorbed }
   c.hp = Math.max(0, c.hp - remaining)
-  // Auto-bloodied management — only for monsters (PCs track their own HP, DM marks bloodied manually)
-  if (!c.isPC) {
+  // Auto-bloodied management — only for monsters, and never for minions (they have no bloodied state)
+  if (!c.isPC && !isMinion) {
     const isBloodied = c.maxHp > 0 && c.hp <= c.maxHp / 2 && c.hp > 0
     const hasBloodied = c.conditions.some(cond => cond.conditionId === 'bloodied')
     if (isBloodied && !hasBloodied) {
@@ -533,6 +614,15 @@ export function addCondition(combatantId: string, condition: AppliedCondition): 
   if (!c) throw new Error(`Combatant ${combatantId} not found`)
   if (condition.conditionId === 'ongoing-damage') {
     c.conditions.push({ ...condition, conditionId: `ongoing-damage-${generateId()}` })
+  } else if (condition.conditionId === 'dying') {
+    // Dying auto-applies unconscious + prone (and inits death save counter)
+    c.conditions = c.conditions.filter(cond => cond.conditionId !== 'dying' && cond.conditionId !== 'unconscious')
+    c.conditions.push(condition)
+    c.conditions.push({ conditionId: 'unconscious', duration: { type: 'indefinite' } } as AppliedCondition)
+    if (!c.conditions.some(cond => cond.conditionId === 'prone')) {
+      c.conditions.push({ conditionId: 'prone', duration: { type: 'indefinite' } } as AppliedCondition)
+    }
+    if (c.deathSaveFailures == null) c.deathSaveFailures = 0
   } else {
     c.conditions = c.conditions.filter(cond => cond.conditionId !== condition.conditionId)
     c.conditions.push(condition)
@@ -545,6 +635,10 @@ export function removeCondition(combatantId: string, conditionId: string): Comba
   const c = combatState.combatants[combatantId]
   if (!c) throw new Error(`Combatant ${combatantId} not found`)
   c.conditions = c.conditions.filter(cond => cond.conditionId !== conditionId)
+  // Removing Dying also clears Unconscious (but Prone stays — they need to stand up)
+  if (conditionId === 'dying') {
+    c.conditions = c.conditions.filter(cond => cond.conditionId !== 'unconscious')
+  }
   return combatState
 }
 
@@ -610,6 +704,7 @@ export function toPlayerCombatState(state: CombatState, plugin?: SystemPlugin): 
 
     combatants[id] = {
       id: c.id, name: c.name, isPC: c.isPC, playerName: c.playerName, initiative: c.initiative,
+      dead: c.dead, deathSaveFailures: c.deathSaveFailures,
       hpDescriptor: label,
       hpPct,
       hpColor: color,
@@ -631,6 +726,7 @@ export function toPlayerCombatState(state: CombatState, plugin?: SystemPlugin): 
       miniIndicator: c.miniIndicator,
       imageId: c.imageId,
       tokenImageId: c.tokenImageId,
+      color: c.color,
     }
   }
 

@@ -14,7 +14,8 @@ interface Props {
 
 export function CombatToken({ name, imageId, tokenImageId, hp, maxHp, isDead, size = 36, hideHpRing, solidRingColor }: Props) {
   const tokenUrl = useImage(tokenImageId ?? imageId)
-  const ringWidth = 2
+  // Ring width scales with token size — ~6% of size, min 2px
+  const ringWidth = Math.max(2, Math.round(size * 0.06))
   const hpPct = maxHp > 0 ? (hp / maxHp) * 100 : 0
   const hpColor = isDead ? '#555' : hpPct > 50 ? '#0a0' : hpPct > 25 ? '#c90' : '#c00'
   const hpAngle = isDead ? 0 : (hpPct / 100) * 360

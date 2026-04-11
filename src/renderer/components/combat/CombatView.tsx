@@ -14,6 +14,7 @@ import { ReactionsPanel } from './ReactionsPanel'
 import { PinnedCardsPanel, type PinnedCard } from './PinnedCardsPanel'
 import { QuickConditionMenu } from './QuickConditionMenu'
 import { CombatLogPanel } from './CombatLogPanel'
+import { PopoutStatblockPanel } from './PopoutStatblockPanel'
 import { AttackApplyPanel } from './AttackApplyPanel'
 
 export interface AttackMode {
@@ -35,6 +36,7 @@ export function CombatView() {
   const [combatEvents, setCombatEvents] = useState<import('@common/types').CombatEvent[]>([])
   const [showLog, setShowLog] = useState(false)
   const [pinnedCards, setPinnedCards] = useState<PinnedCard[]>([])
+  const [poppedOutStatblockIds, setPoppedOutStatblockIds] = useState<string[]>([])
   const [showSettings, setShowSettings] = useState(false)
   const [contextMenu, setContextMenu] = useState<{ combatantId: string; x: number; y: number } | null>(null)
   const [attackMode, setAttackMode] = useState<AttackMode | null>(null)
@@ -223,15 +225,28 @@ export function CombatView() {
     await window.api.combat.resolveItem(combat.stepperIndex, success)
   }, [combat, addNotificationsToLog])
 
+  const handleResolveDeathSave = useCallback(async (outcome: 'fail' | 'none' | 'success') => {
+    if (!combat || combat.stepperIndex < 0) return
+    const item = combat.turnItems[combat.stepperIndex]
+    if (!item || item.kind !== 'death-save') return
+    const currentId = combat.initiativeOrder[combat.turnIndex]
+    const name = currentId ? combat.combatants[currentId]?.name ?? '' : ''
+    const msg = outcome === 'success' ? `${name} stabilized!`
+      : outcome === 'fail' ? `${name} failed death save`
+      : `${name}: death save unchanged`
+    addNotificationsToLog([{ type: outcome === 'success' ? 'save-success' : outcome === 'fail' ? 'save-fail' : 'save-fail', combatantId: currentId ?? '', message: msg }])
+    await window.api.combat.resolveDeathSave(combat.stepperIndex, outcome)
+  }, [combat, addNotificationsToLog])
+
   const handleEndCombat = useCallback(async () => {
     await window.api.combat.end()
     setView({ type: 'home' })
   }, [setView])
 
-  const handleDamage = useCallback(async (combatantId: string, amount: number) => {
+  const handleDamage = useCallback(async (combatantId: string, amount: number, wasHit: boolean = true) => {
     const name = combat?.combatants[combatantId]?.name ?? 'Creature'
     addEvent('damage', combatantId, name, { amount })
-    const result = await window.api.combat.damage(combatantId, amount)
+    const result = await window.api.combat.damage(combatantId, amount, wasHit)
     if (result?.notifications?.length) {
       setNotifications(prev => [...prev, ...result.notifications])
       addNotificationsToLog(result.notifications)
@@ -383,12 +398,21 @@ export function CombatView() {
     { key: 's', handler: () => {
       if (!inStepper || !combat) return
       const item = combat.turnItems[combat.stepperIndex]
-      if (item && item.kind !== 'ongoing-damage') handleResolveItem(true)
+      if (!item || item.kind === 'ongoing-damage') return
+      if (item.kind === 'death-save') handleResolveDeathSave('success')
+      else handleResolveItem(true)
     }},
     { key: 'f', handler: () => {
       if (!inStepper || !combat) return
       const item = combat.turnItems[combat.stepperIndex]
-      if (item && item.kind !== 'ongoing-damage') handleResolveItem(false)
+      if (!item || item.kind === 'ongoing-damage') return
+      if (item.kind === 'death-save') handleResolveDeathSave('fail')
+      else handleResolveItem(false)
+    }},
+    { key: 'n', handler: () => {
+      if (!inStepper || !combat) return
+      const item = combat.turnItems[combat.stepperIndex]
+      if (item?.kind === 'death-save') handleResolveDeathSave('none')
     }},
     { key: ' ', handler: () => {
       if (hasModal) return
@@ -432,10 +456,14 @@ export function CombatView() {
   const conditionDefs = systemPlugin?.conditions ?? []
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-      {/* Global notifications banner */}
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', position: 'relative' }}>
+      {/* Global notifications banner — overlaid, doesn't affect layout */}
       {notifications.length > 0 && (
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginBottom: 'var(--space-2)', flexShrink: 0 }}>
+        <div style={{
+          position: 'absolute', top: 8, left: '50%', transform: 'translateX(-50%)',
+          display: 'flex', flexWrap: 'wrap', gap: 4, justifyContent: 'center',
+          maxWidth: '90%', zIndex: 50, pointerEvents: 'none',
+        }}>
           {notifications.map((n, i) => {
             const bg = n.type === 'bloodied' ? '#c00' : n.type === 'death' ? '#600'
               : n.type === 'recharge-success' || n.type === 'save-success' ? '#2a6'
@@ -444,6 +472,7 @@ export function CombatView() {
               <div key={i} style={{
                 padding: '3px 10px', borderRadius: 'var(--radius-sm)', fontSize: 11, fontWeight: 600,
                 background: bg, color: '#fff',
+                boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
               }}>
                 {n.message}
                 {n.detail && <span style={{ fontWeight: 400, marginLeft: 4, opacity: 0.8 }}>{n.detail}</span>}
@@ -453,12 +482,14 @@ export function CombatView() {
         </div>
       )}
 
-      {/* Attack mode banner */}
+      {/* Attack mode banner — overlaid */}
       {attackMode && (
         <div style={{
-          padding: '4px 12px', background: 'rgba(92,124,250,0.15)', border: '1px solid rgba(92,124,250,0.3)',
-          borderRadius: 'var(--radius-sm)', marginBottom: 'var(--space-2)', flexShrink: 0,
+          position: 'absolute', top: 8, left: '50%', transform: 'translateX(-50%)',
+          padding: '4px 12px', background: 'rgba(92,124,250,0.95)', border: '1px solid rgba(92,124,250,0.5)',
+          borderRadius: 'var(--radius-sm)', zIndex: 50,
           display: 'flex', alignItems: 'center', gap: 8, fontSize: 12,
+          boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
         }}>
           <span style={{ fontWeight: 700 }}>
             {attackMode.phase === 'select' ? (pendingCondition
@@ -533,7 +564,7 @@ export function CombatView() {
                   for (const c of hitConditions) window.api.combat.addCondition(id, c)
                 } else if (result === 'miss') {
                   addEvent('attack-miss', id, name, {}, currentTurnId, currentTurnName)
-                  if (missDamage > 0) { addEvent('damage', id, name, { amount: missDamage }); window.api.combat.damage(id, missDamage) }
+                  if (missDamage > 0) { addEvent('damage', id, name, { amount: missDamage }); window.api.combat.damage(id, missDamage, false) }
                   for (const c of missConditions) window.api.combat.addCondition(id, c)
                 }
               }
@@ -562,6 +593,7 @@ export function CombatView() {
               notifications={notifications.filter(n => n.combatantId === selected.id)}
               onPinCard={handlePinCard}
               pinnedKeys={pinnedKeys}
+              onPopoutStatblock={(id) => setPoppedOutStatblockIds(prev => prev.includes(id) ? prev : [...prev, id])}
               onApplyConditionToTargets={handleApplyConditionToTargets}
             />
           ) : (
@@ -593,9 +625,9 @@ export function CombatView() {
             ? `${dialog.multiTargetIds.length} creatures`
             : combat.combatants[dialog.combatantId]?.name ?? ''}
           initialAmount={dialog.initialAmount}
-          onSubmit={(amount) => {
+          onSubmit={(amount, wasHit) => {
             const targets = dialog.multiTargetIds ?? [dialog.combatantId]
-            for (const id of targets) handleDamage(id, amount)
+            for (const id of targets) handleDamage(id, amount, wasHit)
             setDialog(null)
           }}
           onClose={() => setDialog(null)}
@@ -632,6 +664,17 @@ export function CombatView() {
       {/* Combat log */}
       {showLog && <CombatLogPanel events={combatEvents} onClose={() => setShowLog(false)} />}
 
+      {/* Popped-out floating creature stat blocks */}
+      {poppedOutStatblockIds.map((id, i) => {
+        const c = combat.combatants[id]
+        if (!c) return null
+        return (
+          <PopoutStatblockPanel key={id} combatant={c}
+            offsetIndex={i}
+            onClose={() => setPoppedOutStatblockIds(prev => prev.filter(x => x !== id))} />
+        )
+      })}
+
       {/* Quick condition context menu */}
       {contextMenu && combat.combatants[contextMenu.combatantId] && (
         <QuickConditionMenu
@@ -653,18 +696,19 @@ export function CombatView() {
         const combatantId = combat.initiativeOrder[combat.turnIndex]
         const combatantName = combatantId ? combat.combatants[combatantId]?.name ?? '' : ''
         const isOngoing = item.kind === 'ongoing-damage'
+        const isDeathSave = item.kind === 'death-save'
         return (
           <div style={{
             position: 'fixed', bottom: 0, left: 0, right: 0,
             padding: 'var(--space-3) var(--space-6)',
             background: 'var(--color-bg-secondary)',
-            borderTop: `2px solid ${isOngoing ? 'var(--color-danger)' : 'var(--color-accent)'}`,
+            borderTop: `2px solid ${isOngoing ? 'var(--color-danger)' : isDeathSave ? '#9c4444' : 'var(--color-accent)'}`,
             display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 'var(--space-4)',
             zIndex: 100,
           }}>
             <span style={{ fontWeight: 600 }}>{combatantName}:</span>
-            <span style={{ fontSize: 'var(--font-size-lg)', color: isOngoing ? 'var(--color-danger)' : undefined }}>
-              {item.label}
+            <span style={{ fontSize: 'var(--font-size-lg)', color: isOngoing ? 'var(--color-danger)' : isDeathSave ? '#c66' : undefined }}>
+              {isDeathSave ? '💀 Death Save' : item.label}
             </span>
             <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
               {isOngoing ? (
@@ -672,6 +716,21 @@ export function CombatView() {
                   padding: 'var(--space-2) var(--space-4)', background: 'var(--color-accent)', color: '#fff',
                   border: 'none', borderRadius: 'var(--radius-sm)', cursor: 'pointer', fontWeight: 600,
                 }}>Continue (Space)</button>
+              ) : isDeathSave ? (
+                <>
+                  <button onClick={() => handleResolveDeathSave('fail')} style={{
+                    padding: 'var(--space-2) var(--space-4)', background: '#a44', color: '#fff',
+                    border: 'none', borderRadius: 'var(--radius-sm)', cursor: 'pointer', fontWeight: 600,
+                  }}>Fail &lt;10 (F)</button>
+                  <button onClick={() => handleResolveDeathSave('none')} style={{
+                    padding: 'var(--space-2) var(--space-4)', background: '#666', color: '#fff',
+                    border: 'none', borderRadius: 'var(--radius-sm)', cursor: 'pointer', fontWeight: 600,
+                  }}>10–19 (N)</button>
+                  <button onClick={() => handleResolveDeathSave('success')} style={{
+                    padding: 'var(--space-2) var(--space-4)', background: '#2a6', color: '#fff',
+                    border: 'none', borderRadius: 'var(--radius-sm)', cursor: 'pointer', fontWeight: 600,
+                  }}>20+ (S)</button>
+                </>
               ) : (
                 <>
                   <button onClick={() => handleResolveItem(true)} style={{

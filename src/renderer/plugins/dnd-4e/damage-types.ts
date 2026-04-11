@@ -6,19 +6,19 @@ export interface DamageTypeStyle {
 }
 
 export const DAMAGE_TYPE_STYLES: Record<string, DamageTypeStyle> = {
-  'acid':      { color: '#65a30d', icon: '🧪' },
-  'cold':      { color: '#0ea5e9', icon: '❄' },
-  'fire':      { color: '#ef4444', icon: '🔥' },
-  'force':     { color: '#a855f7', icon: '✦' },
-  'lightning': { color: '#eab308', icon: '⚡' },
-  'necrotic':  { color: '#6b21a8', icon: '💀' },
-  'poison':    { color: '#22c55e', icon: '☠' },
-  'psychic':   { color: '#ec4899', icon: '🧠' },
-  'radiant':   { color: '#f59e0b', icon: '☀' },
-  'thunder':   { color: '#6366f1', icon: '💥' },
+  'acid':      { color: '#b8cc85', icon: '🧪' },
+  'cold':      { color: '#9fd0e3', icon: '❄' },
+  'fire':      { color: '#dc9494', icon: '🔥' },
+  'force':     { color: '#caa8de', icon: '✦' },
+  'lightning': { color: '#dccd8e', icon: '⚡' },
+  'necrotic':  { color: '#a88ab8', icon: '💀' },
+  'poison':    { color: '#9fcfa8', icon: '☠' },
+  'psychic':   { color: '#dca5c1', icon: '🧠' },
+  'radiant':   { color: '#dcc592', icon: '☀' },
+  'thunder':   { color: '#a8aedc', icon: '💥' },
 }
 
-const DEFAULT_STYLE: DamageTypeStyle = { color: '#be123c', icon: '🔄' }
+const DEFAULT_STYLE: DamageTypeStyle = { color: '#d489a0', icon: '🔄' }
 
 export function getDamageTypeStyle(type: string): DamageTypeStyle {
   return DAMAGE_TYPE_STYLES[type.toLowerCase()] ?? DEFAULT_STYLE

@@ -17,6 +17,21 @@ function getActivePlugin() {
   return activeSystemId ? getPlugin(activeSystemId) : undefined
 }
 
+function handlePostResolve(): void {
+  const state = engine.getCombatState()
+  if (state?.turnPhase === 'end-of-turn-done') {
+    broadcastCombatState()
+    engine.commitAndAdvance(getActivePlugin())
+    broadcastCombatState()
+  } else if (state?.turnPhase === 'start-of-turn' && state.stepperIndex === -1) {
+    broadcastCombatState()
+    engine.finishStartOfTurn(getActivePlugin())
+    broadcastCombatState()
+  } else {
+    broadcastCombatState()
+  }
+}
+
 function broadcastCombatState(): void {
   const state = engine.getCombatState()
   if (!state) {
@@ -93,25 +108,13 @@ export function registerCombatHandlers(): void {
 
   ipcMain.handle(CMD.COMBAT_RESOLVE_ITEM, async (_e, index: number, success: boolean) => {
     const result = engine.resolveItem(index, success)
-    broadcastCombatState()
+    handlePostResolve()
+    return result
+  })
 
-    const state = engine.getCombatState()
-    if (state?.turnPhase === 'end-of-turn-done') {
-      // All end-of-turn saves resolved — pause 1.2s for animation, then advance
-      setTimeout(() => {
-        try {
-          engine.commitAndAdvance(getActivePlugin())
-          broadcastCombatState()
-        } catch (e) {
-          console.error('commitAndAdvance error:', e)
-        }
-      }, 1200)
-    } else if (state?.turnPhase === 'start-of-turn' && state.stepperIndex === -1) {
-      // All start-of-turn items resolved — finish immediately
-      engine.finishStartOfTurn(getActivePlugin())
-      broadcastCombatState()
-    }
-
+  ipcMain.handle(CMD.COMBAT_RESOLVE_DEATH_SAVE, async (_e, index: number, outcome: 'fail' | 'none' | 'success') => {
+    const result = engine.resolveDeathSave(index, outcome)
+    handlePostResolve()
     return result
   })
 
@@ -127,8 +130,8 @@ export function registerCombatHandlers(): void {
     return state
   })
 
-  ipcMain.handle(CMD.COMBAT_DAMAGE, async (_e, combatantId: string, amount: number) => {
-    const { state, notifications } = engine.damageCombatant(combatantId, amount)
+  ipcMain.handle(CMD.COMBAT_DAMAGE, async (_e, combatantId: string, amount: number, wasHit: boolean = true) => {
+    const { state, notifications } = engine.damageCombatant(combatantId, amount, wasHit)
     broadcastCombatState()
     return { state, notifications }
   })
@@ -141,12 +144,14 @@ export function registerCombatHandlers(): void {
 
   ipcMain.handle(CMD.COMBAT_ADD_CONDITION, async (_e, combatantId: string, condition: AppliedCondition) => {
     const state = engine.addCondition(combatantId, condition)
+    engine.refreshEndOfTurnPreview(getActivePlugin())
     broadcastCombatState()
     return state
   })
 
   ipcMain.handle(CMD.COMBAT_REMOVE_CONDITION, async (_e, combatantId: string, conditionId: string) => {
     const state = engine.removeCondition(combatantId, conditionId)
+    engine.refreshEndOfTurnPreview(getActivePlugin())
     broadcastCombatState()
     return state
   })

@@ -59,6 +59,7 @@ interface Props {
   creature: Creature
   onSave: (updated: Creature) => void
   config: CreatureBuilderConfig
+  compact?: boolean
 }
 
 /** Clickable benchmark hint — shows expected value when actual differs */
@@ -86,7 +87,7 @@ function tierTooltip(table: { [level: number]: Record<string, string | number> }
   return parts.join('\n')
 }
 
-export function Dnd4eCreatureDetails({ creature, onSave: save, config }: Props) {
+export function Dnd4eCreatureDetails({ creature, onSave: save, config, compact }: Props) {
   const actionConfig: CreatureBuilderConfig = {
     ...config,
     actionTypes: DND4E_ACTION_TYPES,
@@ -162,7 +163,7 @@ export function Dnd4eCreatureDetails({ creature, onSave: save, config }: Props) 
   const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1)
 
   return (
-    <div className="sb-two-col" style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-4)', alignItems: 'flex-start' }}>
+    <div className={compact ? '' : 'sb-two-col'} style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-4)', alignItems: 'flex-start' }}>
 
     {/* ─── Left column: Stat block ─── */}
     <div className="stat-block-4e sb-left" style={{ flex: '1 1 380px', minWidth: 320 }}>
@@ -178,7 +179,7 @@ export function Dnd4eCreatureDetails({ creature, onSave: save, config }: Props) 
             onChange={e => u('level', Number(e.target.value))}
             style={{ color: 'inherit', fontWeight: 600 }} />
           <select className="ghost" value={modifier} onChange={e => u('monsterModifier', e.target.value || undefined)}
-            style={{ color: 'inherit', background: 'transparent', fontSize: 'inherit' }}>
+            style={{ color: 'inherit', background: 'transparent', fontSize: 'inherit', textTransform: 'capitalize' }}>
             <option value="">standard</option>
             <option value="elite">elite</option>
             <option value="solo">solo</option>
@@ -551,12 +552,19 @@ export function Dnd4eCreatureDetails({ creature, onSave: save, config }: Props) 
       </div>{/* end stats column */}
 
       {/* ── Creature Image ── */}
-      <CreatureImageEditor
-        imageId={creature.imageId}
-        tokenImageId={creature.tokenImageId}
-        onImageChange={imageId => save({ ...creature, imageId })}
-        onTokenChange={tokenImageId => save({ ...creature, tokenImageId })}
-      />
+      <div style={{
+        flexShrink: 0, alignSelf: 'stretch',
+        width: 200, minHeight: 140, maxHeight: 320,
+        display: 'flex', padding: 6,
+      }}>
+        <CreatureImageEditor
+          imageId={creature.imageId}
+          tokenImageId={creature.tokenImageId}
+          tokenCrop={creature.tokenCrop}
+          onImageChange={imageId => save({ ...creature, imageId })}
+          onTokenChange={(tokenImageId, crop) => save({ ...creature, tokenImageId, tokenCrop: crop })}
+        />
+      </div>
 
       </div>{/* end body flex row */}
     </div>

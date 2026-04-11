@@ -64,6 +64,7 @@ export function Dnd4eCombatPanel({
   onUsePower, onUnusePower, onQuickDamage,
   onDamage, onHeal, onAddCondition, onAddEffect, onDelay, onUndelay, onRemove,
   conditions: conditionDefs, notifications, onPinCard, pinnedKeys, onApplyConditionToTargets,
+  onPopoutStatblock,
 }: PluginCombatPanelProps) {
   const sb = (c.statBlock ?? {}) as Record<string, any>
   const actions = Array.isArray(sb.actions) ? sb.actions as PowerEntry[] : []
@@ -125,8 +126,24 @@ export function Dnd4eCombatPanel({
 
       {/* Header: name + badges */}
       <div className="sb-header">
-        <span className="sb-name">{c.name}</span>
-        <span>Level {sb.level} {sb.role}{sb.monsterModifier ? ` ${sb.monsterModifier}` : ''}</span>
+        <span className="sb-name" style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+          {c.name}
+          {onPopoutStatblock && (
+            <button onClick={() => onPopoutStatblock(c.id)}
+              title="Pop out full stat block as a floating window"
+              style={{
+                background: 'transparent', border: 'none', cursor: 'pointer',
+                color: 'inherit', padding: 2, fontSize: 12, lineHeight: 1,
+                display: 'inline-flex', alignItems: 'center',
+              }}>↗</button>
+          )}
+        </span>
+        <span>Level {sb.level} {(() => {
+          const cap = (s: string) => s ? s.charAt(0).toUpperCase() + s.slice(1) : s
+          const mod = sb.monsterModifier as string | undefined
+          const role = sb.role as string | undefined
+          return (mod ? cap(mod) + ' ' : '') + (role ? cap(role) : '')
+        })()}</span>
       </div>
 
       {/* HP + AP line */}

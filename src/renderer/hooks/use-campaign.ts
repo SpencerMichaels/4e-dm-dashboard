@@ -91,10 +91,6 @@ export function useCampaignActions() {
       id: generateId(),
       name,
       playerName,
-      hp: 10,
-      maxHp: 10,
-      stats: {},
-      tags: [],
       createdAt: now,
       updatedAt: now,
     }

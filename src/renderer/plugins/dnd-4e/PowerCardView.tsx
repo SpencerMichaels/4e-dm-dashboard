@@ -3,6 +3,26 @@ import type { DetectedCondition } from './condition-detection'
 import { splitTextWithHighlights } from './condition-detection'
 import './statblock.css'
 
+// Monochrome unicode icons (text presentation, never colored emoji) for the
+// action-type and range-type indicators on power cards.
+const ACTION_ICONS: Record<string, string> = {
+  standard:             '\u25CF',          // ● filled circle
+  minor:                '\u25D4',          // ◔ one-quarter filled circle
+  move:                 '\u226B',          // ≫ much greater-than
+  free:                 '\u25CB',          // ○ empty circle
+  'immediate-reaction': '\u21BB',          // ↻ clockwise loop (responds AFTER trigger)
+  'immediate-interrupt':'\u21AF',          // ↯ downwards zigzag arrow (failed/interrupted reaction)
+  'no-action':          '\u2013',          // – en dash
+}
+const RANGE_ICONS: Record<string, string> = {
+  melee:        '\u2694\uFE0E', // ⚔ crossed swords (text variation)
+  ranged:       '\u27B3',       // ➳ heavy arrow with hooked head
+  'close-burst':'\u229B',       // ⊛ circled asterisk (centered on self)
+  'close-blast':'\u25E2',       // ◢ lower-right triangle (cone from self)
+  'area-burst': '\u2738',       // ✸ heavy eight-pointed asterisk (explosion at range)
+  'area-wall':  '\u25A6',       // ▦ square with orthogonal hatch (wall)
+}
+
 /** Shared read-only power card used by creature viewer, item viewer, and trap viewer */
 
 export interface PowerCardEntry {
@@ -71,6 +91,12 @@ export function PowerCardView({ entry: e, selectedLevel, detectedConditions, onC
     <div style={{ fontSize: 'var(--font-size-xs)', lineHeight: 1.5, marginBottom: 1 }}>
       {/* Header */}
       <div style={{ padding: '2px 8px', background: usageColor, color: '#fff' }}>
+        {e.actionType && ACTION_ICONS[e.actionType] && (
+          <span title={DND4E_ACTION_TYPES[e.actionType] ?? e.actionType}
+            style={{ marginRight: 6, display: 'inline-block', minWidth: '1em', textAlign: 'center' }}>
+            {ACTION_ICONS[e.actionType]}
+          </span>
+        )}
         <b>{e.name}</b>
         {e.keywords && e.keywords.length > 0 && (
           <span style={{ color: 'rgba(255,255,255,0.7)' }}> ({e.keywords.join(', ')})</span>
@@ -87,6 +113,12 @@ export function PowerCardView({ entry: e, selectedLevel, detectedConditions, onC
       {/* Attack subheader */}
       {hasAttack && (
         <div style={{ padding: '1px 8px', background: usageColor + '88', color: '#fff' }}>
+          {e.rangeType && RANGE_ICONS[e.rangeType] && (
+            <span title={e.rangeType.replace(/-/g, ' ')}
+              style={{ marginRight: 6, display: 'inline-block', minWidth: '1em', textAlign: 'center' }}>
+              {RANGE_ICONS[e.rangeType]}
+            </span>
+          )}
           {e.rangeType && <>{e.rangeType.replace(/-/g, ' ')}</>}
           {e.rangeValue && <> {e.rangeValue}</>}
           {e.target && <> ({e.target})</>}

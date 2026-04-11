@@ -28,9 +28,13 @@ export function registerCampaignHandlers(): void {
   })
 
   ipcMain.handle(CMD.CAMPAIGN_GET_META, async () => {
-    const id = store.getActiveCampaignId()
-    if (!id) return null
-    return store.getEntity('note', id) // Will be fetched from campaign.json via openCampaign
+    return store.getActiveCampaign()
+  })
+
+  ipcMain.handle(CMD.CAMPAIGN_UPDATE, async (_e, patch: Record<string, unknown>) => {
+    const updated = await store.updateCampaign(patch)
+    broadcastCampaignState()
+    return updated
   })
 
   ipcMain.handle(CMD.ENTITY_SAVE, async (_e, entityType: EntityType, entity: { id: string }) => {
@@ -133,7 +137,8 @@ async function broadcastCampaignState(): Promise<void> {
   if (!campaignId) return
 
   // Broadcast a summary of current state to DM renderer
-  const [creatures, encounters, locations, items, pcs, notes, noteTree, links] = await Promise.all([
+  const [campaign, creatures, encounters, locations, items, pcs, notes, noteTree, links] = await Promise.all([
+    store.getActiveCampaign(),
     store.listEntities('creature'),
     store.listEntities('encounter'),
     store.listEntities('location'),
@@ -146,6 +151,7 @@ async function broadcastCampaignState(): Promise<void> {
 
   broadcastToDm(SYNC.CAMPAIGN_STATE, {
     campaignId,
+    campaign,
     creatures,
     encounters,
     locations,

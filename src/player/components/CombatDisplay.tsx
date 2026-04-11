@@ -11,16 +11,34 @@ interface Props {
   backgroundImageId?: string
 }
 
-/** Get the ring color for a combatant: PCs are green/red based on bloodied, monsters use HP descriptor color */
+/** Get the ring color for a combatant: PCs use their chip color (or green/red bloodied fallback), monsters use HP descriptor color */
 function getRingColor(c: PlayerCombatantState): string {
   if (c.isPC) {
+    if (c.color) return c.color
     const bloodied = c.conditions.some(cond => cond.conditionId === 'bloodied')
     return bloodied ? '#e03131' : '#2f9e44'
   }
   return c.hpColor ?? '#888'
 }
 
-export function CombatDisplay({ combat, backgroundImageId }: Props) {
+export function CombatDisplay({ combat: incomingCombat, backgroundImageId }: Props) {
+  // Buffer state transitions out of 'end-of-turn-done' to give time for the result animation
+  const [combat, setCombat] = useState(incomingCombat)
+  const prevPhaseRef = useRef(incomingCombat.turnPhase)
+
+  useEffect(() => {
+    // If the previous phase was end-of-turn-done and the new one isn't, hold the old state briefly
+    if (prevPhaseRef.current === 'end-of-turn-done' && incomingCombat.turnPhase !== 'end-of-turn-done') {
+      const timer = setTimeout(() => {
+        setCombat(incomingCombat)
+        prevPhaseRef.current = incomingCombat.turnPhase
+      }, 1200)
+      return () => clearTimeout(timer)
+    }
+    setCombat(incomingCombat)
+    prevPhaseRef.current = incomingCombat.turnPhase
+  }, [incomingCombat])
+
   const currentId = combat.initiativeOrder[combat.turnIndex]
   const backgroundUrl = useImage(backgroundImageId)
 
@@ -51,7 +69,7 @@ export function CombatDisplay({ combat, backgroundImageId }: Props) {
 
         {/* Left: Initiative list */}
         <div style={{
-          width: 420, flexShrink: 0,
+          width: 540, flexShrink: 0,
           display: 'flex', flexDirection: 'column',
           padding: '1.5rem 1rem',
           position: 'relative', zIndex: 1,
@@ -110,7 +128,7 @@ export function CombatDisplay({ combat, backgroundImageId }: Props) {
 
       {/* Left: Initiative tracker */}
       <div style={{
-        width: 420, flexShrink: 0,
+        width: 540, flexShrink: 0,
         display: 'flex', flexDirection: 'column',
         padding: '1.5rem 1rem',
         position: 'relative', zIndex: 1,
@@ -216,21 +234,22 @@ function InitiativeEntryList({ sortedIds, combatants, focusedId }: {
         const hasInit = c.initiative != null
         return (
           <div key={id} data-flip-key={id} style={{
-            display: 'flex', alignItems: 'center', gap: '0.6rem',
-            padding: '0 0.75rem 0 0',
-            minHeight: 38,
-            background: isFocused ? 'rgba(255,255,255,0.1)' : 'transparent',
-            border: isFocused ? '2px solid rgba(255,255,255,0.25)' : '1px solid rgba(255,255,255,0.05)',
-            borderRadius: '21px 8px 8px 21px',
+            display: 'flex', alignItems: 'center', gap: '0.75rem',
+            padding: '0 1rem 0 0',
+            minHeight: 67,
+            background: isFocused ? 'rgba(255,255,255,0.2)' : 'rgba(255,255,255,0.08)',
+            border: isFocused ? '2px solid rgba(255,255,255,0.25)' : '1px solid rgba(255,255,255,0.2)',
+            borderRadius: '34px 10px 10px 34px',
             opacity: !hasInit && !isFocused ? 0.4 : 1,
           }}>
-            <div style={{ marginLeft: -2, marginTop: -2, marginBottom: -2 }}>
-              <CombatToken name={c.name} imageId={c.imageId} tokenImageId={c.tokenImageId} hp={100} maxHp={100} size={38} hideHpRing solidRingColor={getRingColor(c)} />
+            <div style={{ marginLeft: 5, flexShrink: 0 }}>
+              <CombatToken name={c.name} imageId={c.imageId} tokenImageId={c.tokenImageId} hp={100} maxHp={100} size={56} hideHpRing solidRingColor={getRingColor(c)} />
             </div>
             <span style={{
               flex: 1, minWidth: 0,
-              fontSize: isFocused ? '1.3rem' : '1.1rem',
-              fontWeight: isFocused || c.isPC ? 700 : 400,
+              fontFamily: "'MentorSans', 'Mentor', sans-serif",
+              fontSize: isFocused ? '1.5rem' : '1.3rem',
+              fontWeight: 700,
               overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
             }}>
               {c.name}
@@ -285,6 +304,7 @@ function CreatureSpotlight({ combatant: c }: { combatant: PlayerCombatantState }
       )}
 
       <div style={{
+        fontFamily: "'MentorSans', 'Mentor', sans-serif",
         fontSize: '2.5rem', fontWeight: 700,
         textAlign: 'center', textShadow: '0 2px 8px rgba(0,0,0,0.5)',
       }}>
@@ -376,31 +396,44 @@ function AnimatedList({ waiting, acted, combatants, currentId, round }: {
 function PlayerCard({ combatant: c, isCurrent }: { combatant: PlayerCombatantState; isCurrent: boolean }) {
   const hpPct = c.hpPct ?? 100
   const hpColor = c.hpColor ?? '#0a0'
+  const isDead = c.dead === true || (!c.isPC && hpPct === 0)
+  const isDying = c.isPC && (c.conditions.some(co => co.conditionId === 'dying') || (c.deathSaveFailures != null && c.deathSaveFailures > 0))
 
   return (
     <div style={{
-      display: 'flex', alignItems: 'center', gap: '0.6rem',
-      padding: '0 0.75rem 0 0',
-      minHeight: 38,
-      background: isCurrent ? 'rgba(255,255,255,0.1)' : 'transparent',
-      border: isCurrent ? '2px solid rgba(255,255,255,0.25)' : '1px solid rgba(255,255,255,0.05)',
-      borderRadius: '21px 8px 8px 21px',
+      display: 'flex', alignItems: 'center', gap: '0.75rem',
+      padding: '6px 1rem 6px 0',
+      minHeight: 67,
+      background: isCurrent ? 'rgba(255,255,255,0.2)' : 'rgba(255,255,255,0.08)',
+      border: isCurrent ? '2px solid rgba(255,255,255,0.25)' : '1px solid rgba(255,255,255,0.2)',
+      borderRadius: '34px 10px 10px 34px',
+      opacity: isDead ? 0.5 : 1,
     }}>
-      <div style={{ marginLeft: -2, marginTop: -2, marginBottom: -2 }}>
-        <CombatToken name={c.name} imageId={c.imageId} tokenImageId={c.tokenImageId} hp={hpPct} maxHp={100} size={38} hideHpRing solidRingColor={getRingColor(c)} />
+      <div style={{ marginLeft: 5, flexShrink: 0 }}>
+        <CombatToken name={c.name} imageId={c.imageId} tokenImageId={c.tokenImageId} hp={hpPct} maxHp={100} size={56} hideHpRing solidRingColor={getRingColor(c)} isDead={isDead} />
       </div>
 
       {/* Name + conditions */}
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{
-          fontSize: '1.1rem',
-          fontWeight: 400,
-          overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+          display: 'flex', alignItems: 'center', gap: 6,
+          fontFamily: "'MentorSans', 'Mentor', sans-serif",
+          fontSize: '1.3rem',
+          fontWeight: 700,
+          overflow: 'hidden', whiteSpace: 'nowrap',
         }}>
-          {c.name}
+          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', textDecoration: isDead ? 'line-through' : 'none' }}>{c.name}</span>
+          {isDying && (
+            <span style={{ display: 'inline-flex', gap: 2, fontSize: '1rem', flexShrink: 0 }}>
+              {[0, 1, 2].map(i => {
+                const filled = (c.deathSaveFailures ?? 0) > i
+                return <span key={i} style={{ opacity: filled ? 1 : 0.3 }}>💀</span>
+              })}
+            </span>
+          )}
         </div>
         {c.conditions.length > 0 && (
-          <div style={{ display: 'flex', gap: 3, flexWrap: 'wrap', marginTop: 2 }}>
+          <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginTop: 4 }}>
             {c.conditions.map((cond, i) => (
               <ConditionPill
                 key={i}
@@ -411,6 +444,7 @@ function PlayerCard({ combatant: c, isCurrent }: { combatant: PlayerCombatantSta
                   durationType: cond.durationType, expiresOnName: cond.expiresOnName,
                 })}
                 damageType={cond.damageType}
+                style={{ fontSize: 13, lineHeight: '20px', padding: '0 8px', borderRadius: 10 }}
               />
             ))}
           </div>
@@ -419,8 +453,8 @@ function PlayerCard({ combatant: c, isCurrent }: { combatant: PlayerCombatantSta
 
       {/* HP descriptor (monsters) or player name (PCs) */}
       <div style={{
-        color: c.isPC ? '#888' : hpColor,
-        fontWeight: c.isPC ? 400 : 600,
+        color: c.isPC ? '#ccc' : hpColor,
+        fontWeight: 600,
         fontSize: '1rem', whiteSpace: 'nowrap',
       }}>
         {c.isPC ? c.playerName : c.hpDescriptor}
@@ -503,14 +537,17 @@ function TurnItemRow({ item, isActive }: { item: PlayerTurnItem; isActive: boole
   const resolved = item.result != null
   const isSuccess = item.result === 'success'
   const isFail = item.result === 'fail'
+  const isNone = item.result === 'none'
   const isDamage = item.kind === 'ongoing-damage'
   const isExpire = item.kind === 'sont-expire' || item.kind === 'eont-expire'
+  const isDeathSave = item.kind === 'death-save'
+  const isRecharge = item.kind === 'recharge'
 
   // Get condition/damage styling
   const condStyle = item.conditionId ? getConditionStyle(item.conditionId, item.damageType) : null
   const dmgStyle = item.damageType ? getDamageTypeStyle(item.damageType.trim().split(/\s+and\s+/)[0]) : null
-  const itemColor = condStyle?.color ?? dmgStyle?.color ?? '#888'
-  const itemIcon = isDamage ? (dmgStyle?.icon ?? '🔄') : (condStyle?.icon ?? '')
+  const itemColor = isDeathSave ? '#d9534f' : isRecharge ? '#5c9ee8' : (condStyle?.color ?? dmgStyle?.color ?? '#888')
+  const itemIcon = isDeathSave ? '💀' : isRecharge ? '↻' : isDamage ? (dmgStyle?.icon ?? '🔄') : (condStyle?.icon ?? '')
 
   const isSaveOrRecharge = item.kind === 'save' || item.kind === 'recharge'
   const isPending = !resolved && !isActive
@@ -525,6 +562,23 @@ function TurnItemRow({ item, isActive }: { item: PlayerTurnItem; isActive: boole
     if (resolved) {
       bg = 'rgba(255,255,255,0.05)'; border = '1px solid rgba(255,255,255,0.1)'
       iconFilter = 'grayscale(1) opacity(0.5)'; textColor = '#666'
+    } else if (isActive) {
+      bg = `${itemColor}25`; border = `2px solid ${itemColor}66`
+      iconFilter = 'none'; textColor = '#ddd'
+    } else {
+      bg = `${itemColor}10`; border = `1px solid ${itemColor}22`
+      iconFilter = 'opacity(0.5)'; textColor = '#888'
+    }
+  } else if (isDeathSave) {
+    if (isSuccess) {
+      bg = 'rgba(40,167,69,0.2)'; border = '1px solid rgba(40,167,69,0.5)'
+      iconFilter = 'none'; textColor = '#5cb85c'; displayIcon = '✓'
+    } else if (isFail) {
+      bg = 'rgba(220,53,69,0.2)'; border = '1px solid rgba(220,53,69,0.5)'
+      iconFilter = 'none'; textColor = '#d9534f'; displayIcon = '✗'
+    } else if (isNone) {
+      bg = 'rgba(255,255,255,0.05)'; border = '1px solid rgba(255,255,255,0.15)'
+      iconFilter = 'grayscale(1) opacity(0.6)'; textColor = '#888'; displayIcon = '—'
     } else if (isActive) {
       bg = `${itemColor}25`; border = `2px solid ${itemColor}66`
       iconFilter = 'none'; textColor = '#ddd'
@@ -561,12 +615,12 @@ function TurnItemRow({ item, isActive }: { item: PlayerTurnItem; isActive: boole
       transition: 'all 0.2s',
     }}>
       <span style={{
-        fontSize: resolved && isSaveOrRecharge ? '1.5rem' : '1.3rem',
+        fontSize: resolved && (isSaveOrRecharge || isDeathSave) ? '1.5rem' : '1.3rem',
         flexShrink: 0,
         filter: iconFilter,
         transition: 'filter 0.2s',
         color: isSuccess ? '#5cb85c' : isFail ? '#d9534f' : undefined,
-        fontWeight: resolved && isSaveOrRecharge ? 700 : undefined,
+        fontWeight: resolved && (isSaveOrRecharge || isDeathSave) ? 700 : undefined,
       }}>
         {displayIcon}
       </span>

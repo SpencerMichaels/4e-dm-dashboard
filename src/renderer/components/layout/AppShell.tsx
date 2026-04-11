@@ -13,7 +13,7 @@ export function AppShell() {
   useIpcSync()
   const [showHotkeys, setShowHotkeys] = useState(false)
 
-  const { view, sidebarCollapsed, toggleSidebar, toggleTheme, setCommandPaletteOpen, commandPaletteOpen, setView } = useUiStore()
+  const { view, sidebarCollapsed, toggleSidebar, setCommandPaletteOpen, commandPaletteOpen, setView } = useUiStore()
   const combat = useCombatStore((s) => s.combat)
 
   useHotkeys([
@@ -41,24 +41,9 @@ export function AppShell() {
   return (
     <div className={styles.shell}>
       <div className={`${styles.sidebar} ${sidebarCollapsed ? styles.collapsed : ''}`}>
-        <Sidebar />
+        <Sidebar onShowHotkeys={() => setShowHotkeys(true)} />
       </div>
       <div className={styles.content}>
-        <div className={styles.header}>
-          <button className={styles.headerBtn} onClick={toggleSidebar} title="Toggle sidebar (Ctrl+B)">
-            ☰
-          </button>
-          <span className={styles.headerTitle}>Tabletop Dashboard</span>
-          <button className={styles.headerBtn} onClick={() => setCommandPaletteOpen(true)} title="Command palette (Ctrl+K)">
-            /
-          </button>
-          <button className={styles.headerBtn} onClick={toggleTheme} title="Toggle theme">
-            ◐
-          </button>
-          <button className={styles.headerBtn} onClick={() => setShowHotkeys(true)} title="Keyboard shortcuts (?)">
-            ?
-          </button>
-        </div>
         <div className={styles.main}>
           <ContentArea />
         </div>

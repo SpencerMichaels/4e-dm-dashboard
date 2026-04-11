@@ -6,6 +6,7 @@ import { useHotkeys } from '../../hooks/use-hotkeys'
 import { getPluginUI } from '../../plugins/registry'
 import type { PluginUIComponents } from '../../plugins/plugin-types'
 import type { EntityType } from '@common/types'
+import { PCListView } from './PCListView'
 
 interface Props {
   entityType: EntityType
@@ -60,7 +61,7 @@ export function EntityList({ entityType }: Props) {
       case 'encounter': { const e = await createEncounter('New Encounter'); setView({ type: 'encounter', encounterId: e.id }); break }
       case 'location': { const l = await createLocation('New Location'); setView({ type: 'location', locationId: l.id }); break }
       case 'item': { const i = await createItem('New Item'); setView({ type: 'item', itemId: i.id }); break }
-      case 'player-character': { const p = await createPC('New PC', ''); setView({ type: 'player-character', pcId: p.id }); break }
+      case 'player-character': { await createPC('New PC', ''); break }
     }
   }
 
@@ -92,8 +93,12 @@ export function EntityList({ entityType }: Props) {
       case 'encounter': setView({ type: 'encounter', encounterId: id }); break
       case 'location': setView({ type: 'location', locationId: id }); break
       case 'item': setView({ type: 'item', itemId: id }); break
-      case 'player-character': setView({ type: 'player-character', pcId: id }); break
     }
+  }
+
+  // Player characters get their own dedicated inline-edit list view
+  if (entityType === 'player-character') {
+    return <PCListView />
   }
 
   // Delegate to plugin's creature list if available

@@ -7,6 +7,8 @@ export interface PluginCreatureDetailsProps {
   creature: Creature
   onSave: (updated: Creature) => void
   config: CreatureBuilderConfig
+  /** When true, render in a single-column layout (for narrow inline panes) */
+  compact?: boolean
 }
 
 /** Props for plugin creature list (replaces EntityList for creatures) */
@@ -57,6 +59,7 @@ export interface PluginCombatPanelProps {
   notifications: CombatNotification[]
   onPinCard: (card: { combatantName: string; title: string; content: any; key: string }) => void
   pinnedKeys: Set<string>
+  onPopoutStatblock?: (combatantId: string) => void
   onApplyConditionToTargets: (condition: { conditionId: string; value?: number; customDescription?: string; sourceId?: string; duration?: { type: string; remaining?: number; expiresOnId?: string } }, multi: boolean) => void
 }
 

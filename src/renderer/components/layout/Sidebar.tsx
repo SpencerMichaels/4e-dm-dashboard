@@ -34,8 +34,12 @@ const navSections: { title: string; items: NavItem[] }[] = [
   },
 ]
 
-export function Sidebar() {
-  const { view, setView } = useUiStore()
+interface SidebarProps {
+  onShowHotkeys: () => void
+}
+
+export function Sidebar({ onShowHotkeys }: SidebarProps) {
+  const { view, setView, toggleTheme, setCommandPaletteOpen } = useUiStore()
   const combat = useCombatStore((s) => s.combat)
   const noteTree = useCampaignStore((s) => s.noteTree)
   const notes = useCampaignStore((s) => s.notes)
@@ -120,8 +124,14 @@ export function Sidebar() {
         </button>
       </div>
 
+      <div className={styles.actionRow} style={{ marginTop: 'auto' }}>
+        <button className={styles.iconBtn} onClick={() => setCommandPaletteOpen(true)} title="Command palette (Ctrl+K)">/</button>
+        <button className={styles.iconBtn} onClick={toggleTheme} title="Toggle theme">◐</button>
+        <button className={styles.iconBtn} onClick={onShowHotkeys} title="Keyboard shortcuts (?)">?</button>
+      </div>
+
       {campaignId && (
-        <div className={styles.section} style={{ marginTop: 'auto' }}>
+        <div className={styles.section}>
           <button className={styles.item} onClick={closeCampaign} style={{ color: 'var(--color-text-muted)' }}>
             Close Campaign
           </button>

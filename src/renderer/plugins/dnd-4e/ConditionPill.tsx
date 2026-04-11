@@ -10,7 +10,7 @@ export function buildConditionLabel(opts: {
   durationType?: string
   expiresOnName?: string
 }): string {
-  const { conditionId, name, value, customDescription, durationType, expiresOnName } = opts
+  const { conditionId, name, value, customDescription } = opts
   // Ongoing damage: "Ongoing 5 fire"
   if (conditionId.startsWith('ongoing-damage')) {
     return `Ongoing ${value ?? ''}${opts.damageType ? ' ' + opts.damageType : ''}`
@@ -18,10 +18,6 @@ export function buildConditionLabel(opts: {
   let label = name
   // Marked: append "by X"
   if (conditionId === 'marked' && customDescription) label += ` ${customDescription}`
-  // Duration suffix
-  if (durationType === 'save-ends' || durationType === 'unlimited') label += ' (save)'
-  else if (durationType === 'eont') label += ` (EONT${expiresOnName ? ' ' + expiresOnName : ''})`
-  else if (durationType === 'sont') label += ` (SONT${expiresOnName ? ' ' + expiresOnName : ''})`
   return label
 }
 
@@ -41,15 +37,20 @@ export function ConditionPill({ conditionId, label, damageType, title, onClick, 
 
   return (
     <span title={title} onClick={onClick} style={{
-      display: 'inline-flex', alignItems: 'center', gap: 2,
-      padding: '0 5px', borderRadius: 8,
+      display: 'inline-flex', alignItems: 'center', gap: 4,
+      padding: '0 6px 0 2px', borderRadius: 8,
       background, color: style.textColor,
       fontSize: 9, fontWeight: 600, lineHeight: '14px',
       whiteSpace: 'nowrap',
       cursor: onClick ? 'pointer' : 'default',
       ...extraStyle,
     }}>
-      <span style={{ fontSize: 8 }}>{style.icon}{style.icon2 ?? ''}</span>
+      <span style={{
+        display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+        width: '1.7em', height: '1.7em', borderRadius: '50%',
+        background: 'rgba(0,0,0,0.35)',
+        fontSize: '0.85em', flexShrink: 0,
+      }}>{style.icon}{style.icon2 ?? ''}</span>
       {label}
     </span>
   )

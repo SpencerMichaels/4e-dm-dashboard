@@ -6,7 +6,6 @@ import { CreatureEditor } from '../campaign/CreatureEditor'
 import { EncounterEditor } from '../campaign/EncounterEditor'
 import { LocationEditor } from '../campaign/LocationEditor'
 import { ItemEditor } from '../campaign/ItemEditor'
-import { PCEditor } from '../campaign/PCEditor'
 import { EntityList } from '../campaign/EntityList'
 import { CombatView } from '../combat/CombatView'
 import { Dnd4eTrapBrowser } from '../../plugins/dnd-4e/Dnd4eTrapBrowser'
@@ -35,8 +34,6 @@ export function ContentArea() {
       return <LocationEditor locationId={view.locationId} key={view.locationId} />
     case 'item':
       return <ItemEditor itemId={view.itemId} key={view.itemId} />
-    case 'player-character':
-      return <PCEditor pcId={view.pcId} key={view.pcId} />
     case 'combat':
       return <CombatView />
     case 'entity-list':

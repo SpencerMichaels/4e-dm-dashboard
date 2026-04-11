@@ -8,7 +8,6 @@ export type ViewMode =
   | { type: 'encounter'; encounterId?: string }
   | { type: 'location'; locationId?: string }
   | { type: 'item'; itemId?: string }
-  | { type: 'player-character'; pcId?: string }
   | { type: 'map'; mapId?: string }
   | { type: 'combat' }
   | { type: 'entity-list'; entityType: EntityType }

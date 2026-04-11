@@ -1,5 +1,16 @@
 import { useState, useEffect, useMemo, useRef, useCallback, useDeferredValue } from 'react'
 import type { CompendiumEntry } from '@common/types'
+import { XP_BY_LEVEL } from './dnd4e-utils'
+
+// Minion detection: native minions in the parsed data have an empty modifier
+// (no monsterModifier set) but their xp is exactly 1/4 of the standard XP for
+// their level. We use that to identify them since the index doesn't carry hp.
+function isMinionEntry(e: CompendiumEntry): boolean {
+  if (e.modifier) return false
+  const std = XP_BY_LEVEL[e.level]
+  if (!std) return false
+  return e.xp > 0 && e.xp === Math.round(std / 4)
+}
 
 /** Parse a level filter string into a test function.
  *  Formats: "10" (exact), "1-5" (range), ">5" (greater), "<5" (less), "" (any) */
@@ -23,7 +34,7 @@ export function parseLevelFilter(str: string): (level: number) => boolean {
 export interface CompendiumFilters {
   search: string
   level: string
-  role: string
+  role: string[]
   size: string
   modifier: string
   origin: string
@@ -35,7 +46,7 @@ export interface CompendiumFilters {
 const defaultFilters: CompendiumFilters = {
   search: '',
   level: '',
-  role: '',
+  role: [],
   size: '',
   modifier: '',
   origin: '',
@@ -100,11 +111,17 @@ export function useCompendium() {
     return index.filter(e => {
       if (searchLower && !e.name.toLowerCase().includes(searchLower)) return false
       if (deferredFilters.level && !levelTest(e.level)) return false
-      if (deferredFilters.role && e.role !== deferredFilters.role) return false
+      if (deferredFilters.role.length > 0 && !deferredFilters.role.includes(e.role)) return false
       if (deferredFilters.size && e.size !== deferredFilters.size) return false
       if (deferredFilters.modifier) {
-        if (deferredFilters.modifier === 'standard' && e.modifier) return false
-        else if (deferredFilters.modifier !== 'standard' && e.modifier !== deferredFilters.modifier) return false
+        const minion = isMinionEntry(e)
+        if (deferredFilters.modifier === 'minion') {
+          if (!minion) return false
+        } else if (deferredFilters.modifier === 'standard') {
+          if (e.modifier || minion) return false
+        } else if (e.modifier !== deferredFilters.modifier) {
+          return false
+        }
       }
       if (deferredFilters.origin && e.origin !== deferredFilters.origin) return false
       if (deferredFilters.type && e.type !== deferredFilters.type) return false
@@ -121,9 +138,15 @@ export function useCompendium() {
   const resetFilters = useCallback(() => setFilters(defaultFilters), [])
   const focusSearch = useCallback(() => searchRef.current?.focus(), [])
 
+  const hasActiveFilters = !!(
+    filters.search || filters.level || filters.role.length > 0 ||
+    filters.size || filters.modifier || filters.origin ||
+    filters.type || filters.alignment || filters.source
+  )
+
   return {
     index, loading, filtering, filters, filtered, filterOptions,
-    updateFilter, resetFilters, searchRef, focusSearch, reloadIndex,
+    updateFilter, resetFilters, hasActiveFilters, searchRef, focusSearch, reloadIndex,
     totalCount: index?.length ?? 0,
   }
 }

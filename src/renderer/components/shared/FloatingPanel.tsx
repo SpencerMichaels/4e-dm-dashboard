@@ -1,0 +1,118 @@
+import { useState, useRef, useCallback, useEffect, type ReactNode, type CSSProperties } from 'react'
+
+interface Props {
+  title: ReactNode
+  initialX?: number
+  initialY?: number
+  width?: number
+  maxHeight?: string | number
+  onClose?: () => void
+  zIndex?: number
+  children: ReactNode
+  bodyStyle?: CSSProperties
+  /** Optional padding (or 0) for body — default 0 (children control their own padding) */
+}
+
+/**
+ * A reusable draggable, minimizable floating window.
+ *
+ * - Drag from the title bar to move.
+ * - Double-click the title bar to minimize/restore.
+ * - × button in the header closes (if onClose provided).
+ *
+ * Mouse listeners attach to window during drag so the cursor can leave the
+ * panel without breaking the drag.
+ */
+export function FloatingPanel({
+  title, initialX = 20, initialY = 60,
+  width = 320, maxHeight = '60vh',
+  onClose, zIndex = 50,
+  children, bodyStyle,
+}: Props) {
+  const [pos, setPos] = useState({ x: initialX, y: initialY })
+  const [dragging, setDragging] = useState(false)
+  const [minimized, setMinimized] = useState(false)
+  const dragOffset = useRef({ x: 0, y: 0 })
+  const movedDuringDrag = useRef(false)
+
+  const handleMouseDown = useCallback((e: React.MouseEvent) => {
+    e.preventDefault()
+    setDragging(true)
+    movedDuringDrag.current = false
+    dragOffset.current = { x: e.clientX - pos.x, y: e.clientY - pos.y }
+  }, [pos])
+
+  useEffect(() => {
+    if (!dragging) return
+    const onMove = (e: MouseEvent) => {
+      const nx = e.clientX - dragOffset.current.x
+      const ny = e.clientY - dragOffset.current.y
+      if (Math.abs(nx - pos.x) > 1 || Math.abs(ny - pos.y) > 1) movedDuringDrag.current = true
+      setPos({ x: nx, y: ny })
+    }
+    const onUp = () => setDragging(false)
+    window.addEventListener('mousemove', onMove)
+    window.addEventListener('mouseup', onUp)
+    return () => {
+      window.removeEventListener('mousemove', onMove)
+      window.removeEventListener('mouseup', onUp)
+    }
+  }, [dragging, pos.x, pos.y])
+
+  const handleHeaderDoubleClick = useCallback((e: React.MouseEvent) => {
+    // Don't toggle if the user double-clicked the close button
+    if ((e.target as HTMLElement).closest('button')) return
+    setMinimized(m => !m)
+  }, [])
+
+  return (
+    <div
+      style={{
+        position: 'fixed',
+        left: pos.x, top: pos.y,
+        zIndex,
+        width,
+        maxHeight: minimized ? undefined : maxHeight,
+        background: 'var(--color-bg-primary)',
+        border: '1px solid var(--color-border)',
+        borderRadius: 'var(--radius-md)',
+        boxShadow: '0 4px 20px rgba(0,0,0,0.3)',
+        display: 'flex', flexDirection: 'column',
+        overflow: 'hidden',
+      }}
+    >
+      <div
+        onMouseDown={handleMouseDown}
+        onDoubleClick={handleHeaderDoubleClick}
+        title="Drag to move · double-click to minimize"
+        style={{
+          padding: '4px 8px',
+          background: 'var(--color-bg-surface)',
+          borderBottom: minimized ? 'none' : '1px solid var(--color-border)',
+          cursor: dragging ? 'grabbing' : 'grab',
+          fontSize: 10, fontWeight: 600, color: 'var(--color-text-muted)',
+          textTransform: 'uppercase', letterSpacing: '0.05em',
+          userSelect: 'none', display: 'flex', alignItems: 'center', gap: 6,
+          flexShrink: 0,
+        }}
+      >
+        <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{title}</span>
+        {minimized && (
+          <span style={{ fontSize: 9, opacity: 0.6 }}>(minimized)</span>
+        )}
+        {onClose && (
+          <button onClick={onClose} title="Close"
+            style={{
+              background: 'none', border: 'none', cursor: 'pointer',
+              fontSize: 13, lineHeight: 1, color: 'var(--color-text-muted)', padding: 0,
+            }}>×</button>
+        )}
+      </div>
+      {!minimized && (
+        <div style={{ flex: 1, overflow: 'auto', minHeight: 0, ...bodyStyle }}>
+          {children}
+        </div>
+      )}
+    </div>
+  )
+}

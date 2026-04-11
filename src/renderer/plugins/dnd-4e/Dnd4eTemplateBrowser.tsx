@@ -136,7 +136,7 @@ export function Dnd4eTemplateBrowser() {
 
 // ─── Template Viewer ───
 
-function TemplateViewer({ template: t }: { template: MonsterTemplate }) {
+export function TemplateViewer({ template: t }: { template: MonsterTemplate }) {
   const roleLabel = t.role + (t.leader ? ' (Leader)' : '')
   const defEntries = Object.entries(t.defenses).filter(([, v]) => v)
 

@@ -9,6 +9,7 @@ const api = {
     create: (name: string, systemId: string) => ipcRenderer.invoke(CMD.CAMPAIGN_CREATE, name, systemId),
     open: (campaignId: string) => ipcRenderer.invoke(CMD.CAMPAIGN_OPEN, campaignId),
     list: () => ipcRenderer.invoke(CMD.CAMPAIGN_LIST),
+    update: (patch: Record<string, unknown>) => ipcRenderer.invoke(CMD.CAMPAIGN_UPDATE, patch),
   },
 
   // Entity CRUD
@@ -40,10 +41,11 @@ const api = {
       ipcRenderer.invoke(CMD.COMBAT_SET_PLAYER_EXPAND_CONDITIONS, value),
     endTurn: () => ipcRenderer.invoke(CMD.COMBAT_END_TURN),
     resolveItem: (index: number, success: boolean) => ipcRenderer.invoke(CMD.COMBAT_RESOLVE_ITEM, index, success),
+    resolveDeathSave: (index: number, outcome: 'fail' | 'none' | 'success') => ipcRenderer.invoke(CMD.COMBAT_RESOLVE_DEATH_SAVE, index, outcome),
     delay: (combatantId: string) => ipcRenderer.invoke(CMD.COMBAT_DELAY, combatantId),
     undelay: (combatantId: string, afterCombatantId?: string) =>
       ipcRenderer.invoke(CMD.COMBAT_UNDELAY, combatantId, afterCombatantId),
-    damage: (combatantId: string, amount: number) => ipcRenderer.invoke(CMD.COMBAT_DAMAGE, combatantId, amount),
+    damage: (combatantId: string, amount: number, wasHit: boolean = true) => ipcRenderer.invoke(CMD.COMBAT_DAMAGE, combatantId, amount, wasHit),
     heal: (combatantId: string, amount: number) => ipcRenderer.invoke(CMD.COMBAT_HEAL, combatantId, amount),
     addCondition: (combatantId: string, condition: any) =>
       ipcRenderer.invoke(CMD.COMBAT_ADD_CONDITION, combatantId, condition),

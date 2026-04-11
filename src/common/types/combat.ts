@@ -51,6 +51,8 @@ export interface CombatantState {
   hp: number
   maxHp: number
   tempHp: number
+  dead?: boolean              // Manually marked dead — distinct from hp <= 0 (e.g., trolls regen)
+  deathSaveFailures?: number  // Failed death saves accumulated this combat (PCs only)
   conditions: AppliedCondition[]
   effects: AppliedEffect[]
   usedPowers: Record<number, number>
@@ -60,6 +62,7 @@ export interface CombatantState {
   statBlock?: Record<string, unknown>
   imageId?: string
   tokenImageId?: string
+  color?: string              // PC chip color (CSS color string)
   entityId?: string
 }
 
@@ -79,13 +82,13 @@ export interface CombatNotification {
 export interface PlayerTurnItem {
   id: string
   phase: 'start' | 'end'
-  kind: 'ongoing-damage' | 'sont-expire' | 'eont-expire' | 'save' | 'recharge'
+  kind: 'ongoing-damage' | 'sont-expire' | 'eont-expire' | 'save' | 'recharge' | 'death-save'
   label: string
   conditionId?: string
   damageType?: string
   value?: number
   dc?: number
-  result?: 'success' | 'fail'
+  result?: 'success' | 'fail' | 'none'
 }
 
 export interface CombatState {
@@ -127,9 +130,12 @@ export interface PlayerCombatantState {
   hpDescriptor: string
   hpPct: number
   hpColor: string
+  dead?: boolean
+  deathSaveFailures?: number
   conditions: { conditionId: string; name: string; value?: number; description?: string; customDescription?: string; damageType?: string; durationType?: string; expiresOnName?: string }[]
   effects: { name: string }[]
   miniIndicator?: string
   imageId?: string
   tokenImageId?: string
+  color?: string
 }

@@ -9,28 +9,29 @@ export interface ConditionStyle {
   icon2?: string    // second icon for multi-type
 }
 
+// Muted pastel palette — light enough that dark text reads cleanly on all of them
 export const CONDITION_STYLES: Record<string, ConditionStyle> = {
-  'combat-advantage':  { color: '#8b5cf6', textColor: '#fff', icon: '⚠' },
-  'blinded':           { color: '#1e3a5f', textColor: '#fff', icon: '🕶' },
-  'dazed':             { color: '#d97706', textColor: '#fff', icon: '💫' },
-  'dominated':         { color: '#9333ea', textColor: '#fff', icon: '🧠' },
-  'dying':             { color: '#450a0a', textColor: '#fff', icon: '💀' },
-  'helpless':          { color: '#78716c', textColor: '#fff', icon: '🪢' },
-  'immobilized':       { color: '#0369a1', textColor: '#fff', icon: '⛓' },
-  'marked':            { color: '#dc2626', textColor: '#fff', icon: '🎯' },
-  'petrified':         { color: '#78716c', textColor: '#fff', icon: '🪨' },
-  'prone':             { color: '#92400e', textColor: '#fff', icon: '⤵' },
-  'restrained':        { color: '#0e7490', textColor: '#fff', icon: '🕸' },
-  'slowed':            { color: '#2563eb', textColor: '#fff', icon: '🐌' },
-  'stunned':           { color: '#b91c1c', textColor: '#fff', icon: '⚡' },
-  'surprised':         { color: '#a16207', textColor: '#fff', icon: '❗' },
-  'unconscious':       { color: '#374151', textColor: '#fff', icon: '😵' },
-  'weakened':          { color: '#65a30d', textColor: '#fff', icon: '📉' },
-  'bloodied':          { color: '#991b1b', textColor: '#fff', icon: '🩸' },
-  'ongoing-damage':    { color: '#be123c', textColor: '#fff', icon: '🔄' },
+  'combat-advantage':  { color: '#c4b0e4', textColor: '#1a1a1a', icon: '⚠' },
+  'blinded':           { color: '#a3b8d1', textColor: '#1a1a1a', icon: '🕶' },
+  'dazed':             { color: '#e0bd8c', textColor: '#1a1a1a', icon: '💫' },
+  'dominated':         { color: '#caa8de', textColor: '#1a1a1a', icon: '🧠' },
+  'dying':             { color: '#c08585', textColor: '#1a1a1a', icon: '💀' },
+  'helpless':          { color: '#bbb3a9', textColor: '#1a1a1a', icon: '🪢' },
+  'immobilized':       { color: '#9bb8cc', textColor: '#1a1a1a', icon: '⛓' },
+  'marked':            { color: '#dc9a9a', textColor: '#1a1a1a', icon: '🎯' },
+  'petrified':         { color: '#bbb3a9', textColor: '#1a1a1a', icon: '🪨' },
+  'prone':             { color: '#cba072', textColor: '#1a1a1a', icon: '⤵' },
+  'restrained':        { color: '#92c0cc', textColor: '#1a1a1a', icon: '🕸' },
+  'slowed':            { color: '#9fb8de', textColor: '#1a1a1a', icon: '🐌' },
+  'stunned':           { color: '#dc9494', textColor: '#1a1a1a', icon: '⚡' },
+  'surprised':         { color: '#d6b372', textColor: '#1a1a1a', icon: '❗' },
+  'unconscious':       { color: '#a0a6ad', textColor: '#1a1a1a', icon: '😵' },
+  'weakened':          { color: '#b8cc85', textColor: '#1a1a1a', icon: '📉' },
+  'bloodied':          { color: '#cc7e7e', textColor: '#1a1a1a', icon: '🩸' },
+  'ongoing-damage':    { color: '#d489a0', textColor: '#1a1a1a', icon: '🔄' },
 }
 
-const DEFAULT_STYLE: ConditionStyle = { color: '#6b7280', textColor: '#fff', icon: '●' }
+const DEFAULT_STYLE: ConditionStyle = { color: '#b5b9c0', textColor: '#1a1a1a', icon: '●' }
 
 export function getConditionStyle(conditionId: string, damageType?: string): ConditionStyle {
   // Handle ongoing-damage-{uuid} prefix — key to damage type color if available

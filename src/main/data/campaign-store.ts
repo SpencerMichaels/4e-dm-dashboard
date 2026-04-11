@@ -74,6 +74,20 @@ export async function openCampaign(campaignId: string): Promise<Campaign | null>
   return meta
 }
 
+export async function getActiveCampaign(): Promise<Campaign | null> {
+  if (!activeCampaignId) return null
+  return readJson<Campaign>(getCampaignMetaPath(activeCampaignId))
+}
+
+export async function updateCampaign(patch: Partial<Campaign>): Promise<Campaign | null> {
+  if (!activeCampaignId) throw new Error('No active campaign')
+  const meta = await readJson<Campaign>(getCampaignMetaPath(activeCampaignId))
+  if (!meta) return null
+  const updated = { ...meta, ...patch, id: meta.id }
+  await atomicWriteJson(getCampaignMetaPath(activeCampaignId), updated)
+  return updated
+}
+
 export async function saveEntity(entityType: EntityType, entity: { id: string; [key: string]: unknown }): Promise<void> {
   if (!activeCampaignId) throw new Error('No active campaign')
   const path = getEntityPath(activeCampaignId, entityType, entity.id)
@@ -151,10 +165,61 @@ async function rebuildLinkIndex(): Promise<void> {
 // Images
 export async function importImage(campaignId: string, sourcePath: string): Promise<string> {
   const imageId = generateId()
-  const ext = extname(sourcePath)
-  const destPath = join(getAssetsDir(campaignId), `${imageId}${ext}`)
+  const srcExt = extname(sourcePath).toLowerCase()
+  // For PNGs (and other alpha-bearing formats), trim transparent borders so the
+  // creature occupies the full image box. Re-save as PNG.
+  const trimmable = srcExt === '.png' || srcExt === '.webp'
+  if (trimmable) {
+    const trimmed = await trimTransparentBorders(sourcePath)
+    if (trimmed) {
+      const destPath = join(getAssetsDir(campaignId), `${imageId}.png`)
+      const { writeFile } = await import('fs/promises')
+      await writeFile(destPath, trimmed)
+      return imageId + '.png'
+    }
+  }
+  // Fallback (or non-alpha format): just copy as-is
+  const destPath = join(getAssetsDir(campaignId), `${imageId}${srcExt}`)
   await copyFile(sourcePath, destPath)
-  return imageId + ext
+  return imageId + srcExt
+}
+
+// Use Electron's built-in nativeImage to find the bounding box of non-transparent
+// pixels and return a cropped PNG buffer. Returns null if the image has no alpha
+// channel, can't be loaded, or is already tight (no cropping needed).
+async function trimTransparentBorders(sourcePath: string): Promise<Buffer | null> {
+  const { nativeImage } = await import('electron')
+  const img = nativeImage.createFromPath(sourcePath)
+  if (img.isEmpty()) return null
+  const { width, height } = img.getSize()
+  if (width <= 0 || height <= 0) return null
+  // getBitmap() returns BGRA pixels in row-major order. width*4 bytes per row.
+  const bitmap = img.getBitmap()
+  if (bitmap.length < width * height * 4) return null
+  const ALPHA_THRESHOLD = 0  // any non-zero alpha counts as content (preserves AA fringe)
+  let minX = width, minY = height, maxX = -1, maxY = -1
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      const alpha = bitmap[(y * width + x) * 4 + 3]
+      if (alpha > ALPHA_THRESHOLD) {
+        if (x < minX) minX = x
+        if (x > maxX) maxX = x
+        if (y < minY) minY = y
+        if (y > maxY) maxY = y
+      }
+    }
+  }
+  if (maxX < 0) return null  // fully transparent
+  // Add a small margin so we don't clip antialiased edges
+  const margin = 2
+  const x = Math.max(0, minX - margin)
+  const y = Math.max(0, minY - margin)
+  const w = Math.min(width - x, maxX - minX + 1 + margin * 2)
+  const h = Math.min(height - y, maxY - minY + 1 + margin * 2)
+  // No-op if the bounding box is already (close to) the full image
+  if (w >= width - 2 && h >= height - 2) return null
+  const cropped = img.crop({ x, y, width: w, height: h })
+  return cropped.toPNG()
 }
 
 export async function getImagePath(campaignId: string, imageId: string): Promise<string> {

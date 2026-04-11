@@ -1,6 +1,38 @@
 /* CSS custom properties — theming layer.
    System plugins can override these (v2) via SystemTheme.cssVariables */
 
+/* D&D 4e display fonts (globally available so player display can use them) */
+@font-face {
+  font-family: 'Mentor';
+  src: url('../fonts/MentorStd.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+}
+@font-face {
+  font-family: 'Mentor';
+  src: url('../fonts/MentorStd-Bold.cff');
+  font-weight: 700;
+  font-style: normal;
+}
+@font-face {
+  font-family: 'Mentor';
+  src: url('../fonts/MentorStd-BoldItalic.cff');
+  font-weight: 700;
+  font-style: italic;
+}
+@font-face {
+  font-family: 'MentorSans';
+  src: url('../fonts/MentorSansStd-Bold.cff');
+  font-weight: 700;
+  font-style: normal;
+}
+@font-face {
+  font-family: 'DnDVecna';
+  src: url('../fonts/DnDVecnaSC-Regular.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+}
+
 :root {
   /* Colors — Solarized Dark */
   --color-bg-primary: #002b36;
@@ -58,8 +90,8 @@
   --space-8: 2rem;
 
   /* Layout */
-  --sidebar-width: 260px;
-  --header-height: 40px;
+  --sidebar-width: 170px;
+  --header-height: 0px;
   --radius-sm: 4px;
   --radius-md: 6px;
   --radius-lg: 8px;

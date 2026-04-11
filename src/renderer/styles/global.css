@@ -94,7 +94,7 @@ input[type="number"] {
 }
 
 /* Ghost inputs — transparent until hovered, for inline stat editing */
-input.ghost, textarea.ghost, select.ghost {
+input.ghost, textarea.ghost, select.ghost, button.ghost {
   background: transparent;
   border: none;
   border-bottom: 1px dotted rgba(160, 160, 180, 0.5);
@@ -103,15 +103,15 @@ input.ghost, textarea.ghost, select.ghost {
   field-sizing: content;
   transition: border-color 0.15s;
 }
-input.ghost:hover, textarea.ghost:hover, select.ghost:hover {
+input.ghost:hover, textarea.ghost:hover, select.ghost:hover, button.ghost:hover {
   border-bottom-color: var(--color-border);
   border-bottom-style: solid;
 }
-input.ghost:focus, textarea.ghost:focus, select.ghost:focus {
+input.ghost:focus, textarea.ghost:focus, select.ghost:focus, button.ghost:focus {
   border-bottom-color: var(--color-border-focus);
   background: transparent;
 }
-select.ghost {
+select.ghost, button.ghost {
   -webkit-appearance: none;
   appearance: none;
   cursor: pointer;

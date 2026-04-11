@@ -14,6 +14,7 @@ interface Props {
 export function CreatureEditor({ creatureId }: Props) {
   const [creature, setCreature] = useState<Creature | null>(null)
   const systemPlugin = useUiStore((s) => s.systemPlugin)
+  const setView = useUiStore((s) => s.setView)
   const { createCreature } = useCampaignActions()
   const [pluginUI, setPluginUI] = useState<PluginUIComponents | null>(null)
 
@@ -55,6 +56,17 @@ export function CreatureEditor({ creatureId }: Props) {
 
   return (
     <div style={{ padding: '0 var(--space-4)' }}>
+      {/* Top bar: back to creature list */}
+      <div style={{ marginBottom: 'var(--space-3)' }}>
+        <button onClick={() => setView({ type: 'entity-list', entityType: 'creature' })}
+          title="Back to creatures"
+          style={{
+            padding: '4px 10px', background: 'transparent',
+            border: '1px solid var(--color-border)', borderRadius: 'var(--radius-sm)',
+            cursor: 'pointer', color: 'var(--color-text-muted)', fontSize: 'var(--font-size-xs)',
+          }}>← Back to creatures</button>
+      </div>
+
       {/* Name — hidden when plugin provides its own header */}
       {!PluginDetails && (
         <input

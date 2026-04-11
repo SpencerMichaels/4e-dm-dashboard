@@ -1,5 +1,5 @@
-import { useState, useRef, useCallback } from 'react'
 import { PowerCardView, type PowerCardEntry } from '../../plugins/dnd-4e/PowerCardView'
+import { FloatingPanel } from '../shared/FloatingPanel'
 
 export interface PinnedCard {
   combatantName: string
@@ -14,63 +14,17 @@ interface Props {
 }
 
 export function PinnedCardsPanel({ cards, onUnpin }: Props) {
-  const [pos, setPos] = useState({ x: 20, y: 60 })
-  const [dragging, setDragging] = useState(false)
-  const dragOffset = useRef({ x: 0, y: 0 })
-
-  const handleMouseDown = useCallback((e: React.MouseEvent) => {
-    // Only drag from the header area
-    if ((e.target as HTMLElement).closest('[data-pin-content]')) return
-    setDragging(true)
-    dragOffset.current = { x: e.clientX - pos.x, y: e.clientY - pos.y }
-  }, [pos])
-
-  const handleMouseMove = useCallback((e: React.MouseEvent) => {
-    if (!dragging) return
-    setPos({ x: e.clientX - dragOffset.current.x, y: e.clientY - dragOffset.current.y })
-  }, [dragging])
-
-  const handleMouseUp = useCallback(() => {
-    setDragging(false)
-  }, [])
-
   if (cards.length === 0) return null
 
   return (
-    <div
-      onMouseMove={handleMouseMove}
-      onMouseUp={handleMouseUp}
-      onMouseLeave={handleMouseUp}
-      style={{
-        position: 'fixed',
-        left: pos.x, top: pos.y,
-        zIndex: 50,
-        width: 320,
-        maxHeight: '60vh',
-        overflow: 'auto',
-        background: 'var(--color-bg-primary)',
-        border: '1px solid var(--color-border)',
-        borderRadius: 'var(--radius-md)',
-        boxShadow: '0 4px 20px rgba(0,0,0,0.3)',
-      }}
+    <FloatingPanel
+      title={`📌 Pinned (${cards.length})`}
+      initialX={20}
+      initialY={60}
+      width={320}
+      maxHeight="60vh"
     >
-      {/* Drag handle header */}
-      <div
-        onMouseDown={handleMouseDown}
-        style={{
-          padding: '4px 8px',
-          background: 'var(--color-bg-surface)',
-          borderBottom: '1px solid var(--color-border)',
-          cursor: dragging ? 'grabbing' : 'grab',
-          fontSize: 10, fontWeight: 600, color: 'var(--color-text-muted)',
-          textTransform: 'uppercase', letterSpacing: '0.05em',
-          userSelect: 'none',
-        }}
-      >
-        📌 Pinned ({cards.length})
-      </div>
-
-      <div data-pin-content className="stat-block-4e" style={{ fontSize: 11 }}>
+      <div className="stat-block-4e" style={{ fontSize: 11 }}>
         {(() => {
           // Group cards by combatant name, preserving order
           const groups: { name: string; cards: PinnedCard[] }[] = []
@@ -112,6 +66,6 @@ export function PinnedCardsPanel({ cards, onUnpin }: Props) {
           ))
         })()}
       </div>
-    </div>
+    </FloatingPanel>
   )
 }

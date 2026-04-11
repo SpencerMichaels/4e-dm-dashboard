@@ -22,11 +22,13 @@ interface Props {
   onAdd?: (id: string) => void
   addingId?: string | null
   onSelect?: (id: string) => void
+  onActivate?: (id: string) => void
+  onContextMenu?: (id: string, e: React.MouseEvent) => void
   selectedId?: string | null
   addTitle?: string
 }
 
-export function CreatureCompendiumList({ items, onAdd, addingId, onSelect, selectedId, addTitle = 'Add' }: Props) {
+export function CreatureCompendiumList({ items, onAdd, addingId, onSelect, onActivate, onContextMenu, selectedId, addTitle = 'Add' }: Props) {
   const [sortKey, setSortKey] = useState<SortKey>('level')
   const [sortAsc, setSortAsc] = useState(true)
 
@@ -76,12 +78,16 @@ export function CreatureCompendiumList({ items, onAdd, addingId, onSelect, selec
         const isCustom = item.source === 'Custom'
         return (
           <div onClick={onSelect ? () => onSelect(item.id) : undefined}
+            onDoubleClick={onActivate ? () => onActivate(item.id) : undefined}
+            onContextMenu={onContextMenu ? (e) => { e.preventDefault(); onContextMenu(item.id, e) } : undefined}
+            title={onActivate ? 'Double-click to add' : undefined}
             style={{
               display: 'grid', gridTemplateColumns: cols, height: '100%',
               gap: 'var(--space-2)', alignItems: 'center', padding: '0 var(--space-2)',
               borderBottom: '1px solid var(--color-border-subtle, rgba(128,128,128,0.1))',
               background: isSelected ? 'var(--color-bg-active, rgba(92,124,250,0.15))' : 'transparent',
-              cursor: onSelect ? 'pointer' : undefined,
+              cursor: onSelect || onActivate ? 'pointer' : undefined,
+              userSelect: onActivate ? 'none' : undefined,
               ...xs,
             }}>
             <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: isSelected ? 600 : 400 }}>

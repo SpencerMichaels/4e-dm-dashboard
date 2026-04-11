@@ -4,6 +4,7 @@ export interface EncounterCreature {
   count: number
   miniIndicators?: string[]   // One per instance
   overrideHp?: number         // optional HP override (e.g. 1 for minions)
+  isMinion?: boolean          // mark as minion: HP=1, XP = standard / 4
   monsterTemplates?: string[]  // functional template names, max 2 (1=elite, 2=solo)
 }
 
@@ -12,8 +13,6 @@ export interface Encounter {
   name: string
   description?: string
   creatures: EncounterCreature[]
-  partySize?: number        // default 5
-  partyLevel?: number       // default 1
   locationId?: string
   backgroundImageId?: string  // encounter-specific background for player display
   tags: string[]

@@ -382,7 +382,7 @@ function parseOneAbility(headerHtml: string, bodyBlocks: string[], sectionDefaul
     if (atkLabeled) {
       const rangePart = atkLabeled[1].trim()
       rangeType = parseRangeType(rangePart)
-      rangeValue = rangePart.match(/\d+/)?.[0] ?? ''
+      rangeValue = parseRangeValue(rangePart)
       target = rangePart.match(/\((.+)\)/)?.[1] ?? ''
       attackBonus = parseInt(atkLabeled[2])
       defense = atkLabeled[3]
@@ -397,8 +397,7 @@ function parseOneAbility(headerHtml: string, bodyBlocks: string[], sectionDefaul
       const beforeAtk = unlabeledText.substring(0, atkRollMatch.index).trim()
       if (beforeAtk) {
         rangeType = parseRangeType(beforeAtk)
-        const rv = beforeAtk.match(/(?:burst|blast|ranged|melee|reach)\s+(\d+)/i)
-        if (rv) rangeValue = rv[1]
+        rangeValue = parseRangeValue(beforeAtk)
         const targetsMatch = beforeAtk.match(/targets?\s+(.+?)(?:;|$)/i)
         if (targetsMatch) {
           target = targetsMatch[1].trim()
@@ -895,4 +894,19 @@ function parseRangeType(str: string): string {
   if (l.includes('ranged')) return 'ranged'
   if (l.includes('melee')) return 'melee'
   return 'melee'
+}
+
+/** Parse the rangeValue out of a range string. Examples:
+ *   "Area burst 1 within 10 (creatures in the burst)" → "1 within 10"
+ *   "Close burst 3"  → "3"
+ *   "Ranged 10"      → "10"
+ *   "Melee 1"        → "1"
+ */
+function parseRangeValue(rangePart: string): string {
+  return rangePart
+    // Strip the type keyword (and anything before it) from the start
+    .replace(/^.*?(close burst|close blast|area burst|area wall|ranged|melee|reach)\s*/i, '')
+    // Strip a trailing target parenthetical, e.g. "(creatures in the burst)"
+    .replace(/\s*\(.*$/, '')
+    .trim()
 }

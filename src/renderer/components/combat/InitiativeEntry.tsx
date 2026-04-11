@@ -99,16 +99,17 @@ export function InitiativeEntry({ combat }: Props) {
       name: pc.name,
       isPC: true,
       playerName: pc.playerName,
-      hp: pc.hp,
-      maxHp: pc.maxHp,
+      hp: 0,
+      maxHp: 0,
       imageId: pc.imageId,
+      tokenImageId: pc.tokenImageId,
+      color: pc.color,
       entityId: pc.id,
-      statBlock: pc.stats,
     })
   }
 
   const unaddedPCs = playerCharacters.filter(
-    (pc) => !Object.values(combat.combatants).some((c) => c.entityId === pc.id)
+    (pc) => pc.active !== false && !Object.values(combat.combatants).some((c) => c.entityId === pc.id)
   )
 
   // Count how many PCs remain
@@ -170,7 +171,10 @@ export function InitiativeEntry({ combat }: Props) {
                   borderRadius: 'var(--radius-sm)',
                   opacity: !isDone && !isCurrent ? 0.5 : 1,
                 }}>
-                  <CombatToken name={c.name} imageId={c.imageId} tokenImageId={c.tokenImageId} hp={c.hp} maxHp={c.maxHp} size={24} />
+                  <CombatToken name={c.name} imageId={c.imageId} tokenImageId={c.tokenImageId}
+                    hp={c.hp} maxHp={c.maxHp} size={24}
+                    hideHpRing={c.isPC && !!c.color}
+                    solidRingColor={c.isPC ? c.color : undefined} />
                   <span style={{ flex: 1, fontWeight: isCurrent || c.isPC ? 600 : 400, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {c.name}
                   </span>
