@@ -10,6 +10,7 @@ const api = {
     open: (campaignId: string) => ipcRenderer.invoke(CMD.CAMPAIGN_OPEN, campaignId),
     list: () => ipcRenderer.invoke(CMD.CAMPAIGN_LIST),
     update: (patch: Record<string, unknown>) => ipcRenderer.invoke(CMD.CAMPAIGN_UPDATE, patch),
+    delete: (campaignId: string) => ipcRenderer.invoke(CMD.CAMPAIGN_DELETE, campaignId),
   },
 
   // Entity CRUD
@@ -45,8 +46,14 @@ const api = {
     delay: (combatantId: string) => ipcRenderer.invoke(CMD.COMBAT_DELAY, combatantId),
     undelay: (combatantId: string, afterCombatantId?: string) =>
       ipcRenderer.invoke(CMD.COMBAT_UNDELAY, combatantId, afterCombatantId),
-    damage: (combatantId: string, amount: number, wasHit: boolean = true) => ipcRenderer.invoke(CMD.COMBAT_DAMAGE, combatantId, amount, wasHit),
-    heal: (combatantId: string, amount: number) => ipcRenderer.invoke(CMD.COMBAT_HEAL, combatantId, amount),
+    ready: (combatantId: string, actionText: string) =>
+      ipcRenderer.invoke(CMD.COMBAT_READY, combatantId, actionText),
+    resolveReady: (combatantId: string) =>
+      ipcRenderer.invoke(CMD.COMBAT_RESOLVE_READY, combatantId),
+    cancelReady: (combatantId: string) =>
+      ipcRenderer.invoke(CMD.COMBAT_CANCEL_READY, combatantId),
+    damage: (combatantId: string, amount: number, wasHit: boolean = true, sourceId?: string) => ipcRenderer.invoke(CMD.COMBAT_DAMAGE, combatantId, amount, wasHit, sourceId),
+    heal: (combatantId: string, amount: number, sourceId?: string) => ipcRenderer.invoke(CMD.COMBAT_HEAL, combatantId, amount, sourceId),
     addCondition: (combatantId: string, condition: any) =>
       ipcRenderer.invoke(CMD.COMBAT_ADD_CONDITION, combatantId, condition),
     removeCondition: (combatantId: string, conditionId: string) =>
@@ -64,6 +71,8 @@ const api = {
     unusePower: (combatantId: string, powerIndex: number) =>
       ipcRenderer.invoke(CMD.COMBAT_UNUSE_POWER, combatantId, powerIndex),
     end: () => ipcRenderer.invoke(CMD.COMBAT_END),
+    setSurprise: (enabled: boolean, actorIds?: string[]) =>
+      ipcRenderer.invoke(CMD.COMBAT_SET_SURPRISE, enabled, actorIds),
   },
 
   // System
@@ -113,6 +122,11 @@ const api = {
   // Scene
   scene: {
     set: (scene: any) => ipcRenderer.invoke(CMD.SCENE_SET, scene),
+  },
+
+  // Player window
+  playerWindow: {
+    show: () => ipcRenderer.invoke(CMD.PLAYER_WINDOW_SHOW),
   },
 
   // Sync listeners

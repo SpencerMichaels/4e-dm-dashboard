@@ -1,11 +1,12 @@
 import { USAGE_COLORS, DND4E_ACTION_TYPES, sign, normalizeDamage, type DamagePart } from './dnd4e-utils'
 import type { DetectedCondition } from './condition-detection'
 import { splitTextWithHighlights } from './condition-detection'
+import { useSystemSetting } from '../../stores/settings-store'
 import './statblock.css'
 
 // Monochrome unicode icons (text presentation, never colored emoji) for the
 // action-type and range-type indicators on power cards.
-const ACTION_ICONS: Record<string, string> = {
+export const ACTION_ICONS: Record<string, string> = {
   standard:             '\u25CF',          // ● filled circle
   minor:                '\u25D4',          // ◔ one-quarter filled circle
   move:                 '\u226B',          // ≫ much greater-than
@@ -21,6 +22,7 @@ const RANGE_ICONS: Record<string, string> = {
   'close-blast':'\u25E2',       // ◢ lower-right triangle (cone from self)
   'area-burst': '\u2738',       // ✸ heavy eight-pointed asterisk (explosion at range)
   'area-wall':  '\u25A6',       // ▦ square with orthogonal hatch (wall)
+  aura:         '\u2600\uFE0E', // ☀ sun (text variation) — radiating presence
 }
 
 /** Shared read-only power card used by creature viewer, item viewer, and trap viewer */
@@ -59,6 +61,7 @@ interface Props {
 }
 
 export function PowerCardView({ entry: e, selectedLevel, detectedConditions, onConditionClick }: Props) {
+  const hideActionTypeText = useSystemSetting<boolean>('dnd-4e', 'hideActionTypeText', false)
   // Derive rechargeValue from rechargeCondition if it's a numeric string like "5-6"
   const rechargeValue = e.rechargeValue ?? (e.rechargeCondition ? (parseInt(e.rechargeCondition) || undefined) : undefined)
   const rechargeCondition = rechargeValue ? undefined : e.rechargeCondition  // don't show condition if numeric
@@ -72,13 +75,14 @@ export function PowerCardView({ entry: e, selectedLevel, detectedConditions, onC
     if (segments.length === 1 && !segments[0].detection) return text
     return segments.map((seg, i) => seg.detection ? (
       <span key={i}
-        onClick={(ev) => { ev.stopPropagation(); onConditionClick(seg.detection!, false) }}
-        onContextMenu={(ev) => { ev.preventDefault(); ev.stopPropagation(); onConditionClick(seg.detection!, true) }}
+        onMouseDown={(ev) => { if (ev.shiftKey) ev.preventDefault() }}
+        onClick={(ev) => { ev.stopPropagation(); onConditionClick(seg.detection!, ev.shiftKey) }}
         style={{
           textDecoration: 'underline', textDecorationStyle: 'dotted',
           cursor: 'pointer', color: '#e8a020', fontWeight: 600,
+          userSelect: 'none',
         }}
-        title={`Click to apply ${seg.detection.conditionName}`}
+        title={`Click to apply ${seg.detection.conditionName} (shift-click to apply to multiple targets)`}
       >{seg.text}</span>
     ) : <span key={i}>{seg.text}</span>)
   }
@@ -101,7 +105,7 @@ export function PowerCardView({ entry: e, selectedLevel, detectedConditions, onC
         {e.keywords && e.keywords.length > 0 && (
           <span style={{ color: 'rgba(255,255,255,0.7)' }}> ({e.keywords.join(', ')})</span>
         )}
-        {(actionLabel || e.usage) && (
+        {!hideActionTypeText && (actionLabel || e.usage) && (
           <span style={{ color: 'rgba(255,255,255,0.8)' }}> ({[
             actionLabel,
             rechargeValue ? `recharge ${rechargeValue}${rechargeValue < 6 ? '+' : ''}`
@@ -110,8 +114,8 @@ export function PowerCardView({ entry: e, selectedLevel, detectedConditions, onC
           ].filter(Boolean).join('; ')})</span>
         )}
       </div>
-      {/* Attack subheader */}
-      {hasAttack && (
+      {/* Attack / range subheader — shown for attacks AND for non-attack entries that have a range (auras, blasts) */}
+      {(hasAttack || (e.rangeType && e.rangeValue)) && (
         <div style={{ padding: '1px 8px', background: usageColor + '88', color: '#fff' }}>
           {e.rangeType && RANGE_ICONS[e.rangeType] && (
             <span title={e.rangeType.replace(/-/g, ' ')}
@@ -123,7 +127,12 @@ export function PowerCardView({ entry: e, selectedLevel, detectedConditions, onC
           {e.rangeValue && <> {e.rangeValue}</>}
           {e.target && <> ({e.target})</>}
           {e.defense && <>
-            ; {e.attackNotes && /level/i.test(e.attackNotes) ? e.attackNotes : sign(e.attackBonus!)} vs {e.defense}
+            ; {e.attackNotes && /level/i.test(e.attackNotes) ? e.attackNotes : (
+              (e as any)._levelAdjust?.attackDelta
+                ? <span title={`${(e as any)._levelAdjust.source}: ${(e as any)._levelAdjust.attackDelta > 0 ? '+' : ''}${(e as any)._levelAdjust.attackDelta} to attack`}
+                    style={{ color: '#c47a1a', textDecoration: 'underline dotted', textUnderlineOffset: 2 }}>{sign(e.attackBonus!)}</span>
+                : sign(e.attackBonus!)
+            )} vs {e.defense}
           </>}
           {e.attackNotes && !/level/i.test(e.attackNotes) && <> {e.attackNotes}</>}
         </div>
@@ -135,9 +144,18 @@ export function PowerCardView({ entry: e, selectedLevel, detectedConditions, onC
         {damage.length > 0 && (
           <div>
             <b style={labelStyle}>Damage</b>{' '}
-            {damage.map((p, i) => (
-              <span key={i}>{i > 0 && ' plus '}{p.ongoing && 'ongoing '}{p.expr}{p.type && ` ${p.type}`}</span>
-            ))}
+            {(e as any)._levelAdjust?.damageDelta ? (
+              <span title={`${(e as any)._levelAdjust.source}: ${(e as any)._levelAdjust.damageDelta > 0 ? '+' : ''}${(e as any)._levelAdjust.damageDelta} damage`}
+                style={{ color: '#c47a1a', textDecoration: 'underline dotted', textUnderlineOffset: 2 }}>
+                {damage.map((p, i) => (
+                  <span key={i}>{i > 0 && ' plus '}{p.ongoing && 'ongoing '}{p.expr}{p.type && ` ${p.type}`}</span>
+                ))}
+              </span>
+            ) : (
+              damage.map((p, i) => (
+                <span key={i}>{i > 0 && ' plus '}{p.ongoing && 'ongoing '}{p.expr}{p.type && ` ${p.type}`}</span>
+              ))
+            )}
           </div>
         )}
         {e.critical && <div><b style={labelStyle}>Critical</b> {e.critical}</div>}

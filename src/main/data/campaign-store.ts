@@ -11,7 +11,7 @@ import {
   getAnnotationsPath,
   getAssetsDir,
 } from './paths'
-import { atomicWriteJson, readJson, deleteFile, listJsonFiles, ensureDir, copyFile } from './file-io'
+import { atomicWriteJson, readJson, deleteFile, listJsonFiles, ensureDir, copyFile, deleteDir } from './file-io'
 import { generateId } from '@common/utils/id'
 import { extractLinks } from '@common/utils/links'
 import { join, extname } from 'path'
@@ -86,6 +86,12 @@ export async function updateCampaign(patch: Partial<Campaign>): Promise<Campaign
   const updated = { ...meta, ...patch, id: meta.id }
   await atomicWriteJson(getCampaignMetaPath(activeCampaignId), updated)
   return updated
+}
+
+export async function deleteCampaign(campaignId: string): Promise<void> {
+  const dir = getCampaignDir(campaignId)
+  await deleteDir(dir)
+  if (activeCampaignId === campaignId) activeCampaignId = null
 }
 
 export async function saveEntity(entityType: EntityType, entity: { id: string; [key: string]: unknown }): Promise<void> {

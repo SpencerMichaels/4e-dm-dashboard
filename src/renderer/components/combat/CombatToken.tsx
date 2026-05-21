@@ -1,4 +1,5 @@
 import { useImage } from '../../hooks/use-image'
+import { tokenColorFromName } from '@common/utils/token-color'
 
 interface Props {
   name: string
@@ -10,9 +11,10 @@ interface Props {
   size?: number
   hideHpRing?: boolean       // When true, no HP pie slice — use solidRingColor for the ring
   solidRingColor?: string    // Solid ring color (used with hideHpRing)
+  miniNumber?: number        // Numbered marker badge shown at bottom-right
 }
 
-export function CombatToken({ name, imageId, tokenImageId, hp, maxHp, isDead, size = 36, hideHpRing, solidRingColor }: Props) {
+export function CombatToken({ name, imageId, tokenImageId, hp, maxHp, isDead, size = 36, hideHpRing, solidRingColor, miniNumber }: Props) {
   const tokenUrl = useImage(tokenImageId ?? imageId)
   // Ring width scales with token size — ~6% of size, min 2px
   const ringWidth = Math.max(2, Math.round(size * 0.06))
@@ -20,19 +22,18 @@ export function CombatToken({ name, imageId, tokenImageId, hp, maxHp, isDead, si
   const hpColor = isDead ? '#555' : hpPct > 50 ? '#0a0' : hpPct > 25 ? '#c90' : '#c00'
   const hpAngle = isDead ? 0 : (hpPct / 100) * 360
 
-  // Deterministic color from name
-  let hash = 0
-  for (let i = 0; i < name.length; i++) hash = ((hash << 5) - hash + name.charCodeAt(i)) | 0
-  const hue = Math.abs(hash) % 360
-  const bgColor = `hsl(${hue}, 40%, 35%)`
+  const bgColor = tokenColorFromName(name)
   const initial = name.charAt(0).toUpperCase()
 
   const ringBg = isDead ? '#333'
     : hideHpRing ? (solidRingColor ?? 'rgba(128,128,128,0.5)')
     : `conic-gradient(${hpColor} ${hpAngle}deg, rgba(128,128,128,0.3) ${hpAngle}deg)`
 
+  const badgeSize = Math.max(12, Math.round(size * 0.38))
+
   return (
     <div style={{
+      position: 'relative',
       width: size, height: size, borderRadius: '50%', flexShrink: 0,
       background: ringBg,
       display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -50,6 +51,18 @@ export function CombatToken({ name, imageId, tokenImageId, hp, maxHp, isDead, si
           isDead ? '✕' : initial
         )}
       </div>
+      {miniNumber != null && (
+        <div style={{
+          position: 'absolute', bottom: -1, right: -1,
+          width: badgeSize, height: badgeSize, borderRadius: '50%',
+          background: '#222', border: '1.5px solid #888',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          color: '#fff', fontSize: badgeSize * 0.65, fontWeight: 700,
+          lineHeight: 1,
+        }}>
+          {miniNumber}
+        </div>
+      )}
     </div>
   )
 }

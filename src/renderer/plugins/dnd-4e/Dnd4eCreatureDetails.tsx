@@ -1,9 +1,10 @@
-import { useRef, useEffect, useCallback } from 'react'
+import { useRef, useEffect, useCallback, useState, useSyncExternalStore } from 'react'
 import type { Creature, CreatureBuilderConfig } from '@common/types'
 import { PowerEntryEditor, TraitRow, AuraRow, emptyPower } from './PowerEntryEditor'
 import type { PowerEntry } from './PowerEntryEditor'
 import { TagInput } from '@renderer/components/shared/TagInput'
 import { CreatureImageEditor } from '@renderer/components/shared/CreatureImageEditor'
+import { getPastedPower, getClipboardPowerName, onClipboardChange } from './power-clipboard'
 import { xpForCreature } from './dnd4e-utils'
 import './statblock.css'
 
@@ -88,6 +89,9 @@ function tierTooltip(table: { [level: number]: Record<string, string | number> }
 }
 
 export function Dnd4eCreatureDetails({ creature, onSave: save, config, compact }: Props) {
+  // Subscribe to power clipboard changes so the paste button re-renders
+  const clipboardName = useSyncExternalStore(onClipboardChange, getClipboardPowerName)
+
   const actionConfig: CreatureBuilderConfig = {
     ...config,
     actionTypes: DND4E_ACTION_TYPES,
@@ -466,7 +470,8 @@ export function Dnd4eCreatureDetails({ creature, onSave: save, config, compact }
         <b className="sb-label">Equipment</b>
         <input className="ghost" value={
           Array.isArray(sb.equipment) ? (sb.equipment as string[]).join(', ') : ((sb.equipment as string) ?? '')}
-          onChange={e => u('equipment', e.target.value.split(',').map(s => s.trim()).filter(Boolean))}
+          onChange={e => u('equipment', e.target.value)}
+          onBlur={e => u('equipment', e.target.value.split(',').map(s => s.trim()).filter(Boolean))}
           placeholder="equipment..." style={{ flex: 1 }} />
       </div>
 
@@ -492,9 +497,16 @@ export function Dnd4eCreatureDetails({ creature, onSave: save, config, compact }
         const addBtn = { color: 'var(--color-text-muted)', border: '1px dashed var(--color-border)', borderRadius: 'var(--radius-sm)', padding: '0 4px', background: 'transparent', cursor: 'pointer' }
         return (
           <>
-            <div style={{ display: 'flex', gap: 4, padding: '8px 8px 4px' }}>
+            <div style={{ display: 'flex', gap: 4, padding: '8px 8px 4px', flexWrap: 'wrap' }}>
               <button onClick={() => addEntry('trait')} style={addBtn}>+ Trait</button>
               <button onClick={() => addEntry('aura')} style={addBtn}>+ Aura</button>
+              {clipboardName && (
+                <button onClick={() => { const p = getPastedPower(); if (p) u('actions', [p, ...actions]) }}
+                  style={{ ...addBtn, color: '#2f9e44', borderColor: '#2f9e44' }}
+                  title={`Paste "${clipboardName}" from clipboard`}>
+                  Paste: {clipboardName}
+                </button>
+              )}
             </div>
             {traitEntries.length > 0 && (
               <div style={{ marginTop: 4 }}>

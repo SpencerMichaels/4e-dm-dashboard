@@ -1,30 +1,37 @@
-import type { ReactNode } from 'react'
+import { type ReactNode, useState, useCallback } from 'react'
 import type { Creature, CreatureBuilderConfig } from '@common/types'
 import type { PowerEntry } from './PowerEntryEditor'
 import { PowerCardView } from './PowerCardView'
 import type { TemplateFieldDiff } from './monster-templates'
 import { useImage } from '@renderer/hooks/use-image'
 import { CreatureImageEditor } from '@renderer/components/shared/CreatureImageEditor'
+import { useCampaignStore } from '@renderer/stores/campaign-store'
+import { copyPower } from './power-clipboard'
 import { xpForCreature, sign } from './dnd4e-utils'
 import './statblock.css'
 
 // Per-template-slot color palette (used for visual attribution of template-modified values)
 const TEMPLATE_COLORS = ['var(--color-accent)', '#f59f00']
+const THEME_COLOR = '#0d9488'
 const templateColor = (idx: number): string => TEMPLATE_COLORS[idx] ?? '#9c36b5'
 
-// Render a numeric stat with template-attribution highlighting
-function StatNumber({ value, field, diffs }: { value: number; field: string; diffs?: TemplateFieldDiff[] }): ReactNode {
+// Render a numeric stat with template/theme-attribution highlighting
+function StatNumber({ value, field, diffs, prefix }: { value: number; field: string; diffs?: TemplateFieldDiff[]; prefix?: string }): ReactNode {
+  const display = prefix ? `${value >= 0 ? '+' : ''}${value}` : String(value)
   const matches = diffs?.filter(d => d.field === field) ?? []
-  if (matches.length === 0) return value
+  if (matches.length === 0) return display
   const sorted = [...matches].sort((a, b) => a.sourceIndex - b.sourceIndex)
   const original = sorted[0].before
   const lineage = sorted.map(d => {
     const delta = d.after - d.before
     return `${delta >= 0 ? '+' : ''}${delta} from ${d.source}`
   }).join('; ')
-  const title = `${lineage}; original: ${original}`
-  const color = templateColor(sorted[sorted.length - 1].sourceIndex)
-  return <span title={title} style={{ color, textDecoration: 'underline dotted', textUnderlineOffset: 2 }}>{value}</span>
+  const title = `${lineage}; original: ${prefix ? (original >= 0 ? '+' : '') + original : original}`
+  // Theme diffs use sourceIndex -1; level adjustments use -2
+  const LEVEL_ADJ_COLOR = '#c47a1a'
+  const lastSource = sorted[sorted.length - 1]
+  const color = lastSource.sourceIndex === -2 ? LEVEL_ADJ_COLOR : lastSource.sourceIndex === -1 ? THEME_COLOR : templateColor(lastSource.sourceIndex)
+  return <span title={title} style={{ color, textDecoration: 'underline dotted', textUnderlineOffset: 2 }}>{display}</span>
 }
 
 // Wrap a template-stamped list item (immune/resist/etc.) with per-source color + tooltip
@@ -48,23 +55,36 @@ interface Props {
   creature: Creature
   config?: CreatureBuilderConfig
   tooltip?: (term: string) => string
-  imageId?: string  // Override image (e.g., from annotation)
-  tokenImageId?: string  // Override token image (e.g., from annotation)
-  tokenCrop?: { x: number; y: number; size: number }  // Override token crop region
+  /** Compendium ID for annotation lookup (image/token overrides). If the
+   *  creature has a compendiumId field, it's used automatically. Only needed
+   *  for synthetic creatures that lack it (e.g. encounter preview). */
+  compendiumId?: string
   onImageChange?: (imageId: string) => void  // If provided, show editable drop box
   onTokenChange?: (tokenImageId: string, crop: { x: number; y: number; size: number }) => void  // If provided, show editable token crop box
   onClone?: () => void  // If provided, show clone-to-custom icon in header
   onEdit?: () => void  // If provided, show edit icon in header (for custom creatures)
+  onPopout?: () => void // If provided, show popout button in header
   templateChips?: TemplateChip[]
   onTemplateChipClick?: (templateName: string) => void
 }
 
-export function Dnd4eCreatureViewer({ creature, tooltip: tip, imageId: imageIdOverride, tokenImageId: tokenImageIdOverride, tokenCrop: tokenCropOverride, onImageChange, onTokenChange, onClone, onEdit, templateChips, onTemplateChipClick }: Props) {
+export function Dnd4eCreatureViewer({ creature, tooltip: tip, compendiumId: compendiumIdProp, onImageChange, onTokenChange, onClone, onEdit, onPopout, templateChips, onTemplateChipClick }: Props) {
   const tooltip = tip ?? (() => '')
+  const [copiedIdx, setCopiedIdx] = useState<number | null>(null)
+
+  const handleCopyPower = useCallback((power: PowerEntry, idx: number) => {
+    copyPower(power)
+    setCopiedIdx(idx)
+    setTimeout(() => setCopiedIdx(null), 800)
+  }, [])
   const sb = creature.statBlock
-  const effectiveImageId = imageIdOverride ?? creature.imageId
-  const effectiveTokenImageId = tokenImageIdOverride ?? creature.tokenImageId
-  const effectiveTokenCrop = tokenCropOverride ?? creature.tokenCrop
+  // Merge annotation overrides for compendium creatures (image, token, crop)
+  const annotationKey = compendiumIdProp ?? creature.compendiumId
+  const annotations = useCampaignStore(s => s.annotations)
+  const ann = annotationKey ? annotations[annotationKey] : undefined
+  const effectiveImageId = creature.imageId ?? ann?.imageId
+  const effectiveTokenImageId = creature.tokenImageId ?? ann?.tokenImageId
+  const effectiveTokenCrop = creature.tokenCrop ?? ann?.tokenCrop
   const imageUrl = useImage(effectiveImageId)
   const showImageEditor = !!onImageChange
   const level = (sb.level as number) ?? 1
@@ -95,8 +115,13 @@ export function Dnd4eCreatureViewer({ creature, tooltip: tip, imageId: imageIdOv
   const equipment = Array.isArray(sb.equipment) ? sb.equipment as string[] : typeof sb.equipment === 'string' ? (sb.equipment as string).split(',').map(s => s.trim()).filter(Boolean) : []
   const diffs = Array.isArray(sb._templateDiffs) ? sb._templateDiffs as TemplateFieldDiff[] : undefined
 
-  // Template-added trait/aura entries render as cards (their entryType determines section, not card-vs-text)
+  // Template-added or theme-added entries render with colored borders for attribution
   const isTemplate = (a: any) => !!a._templateSource
+  const isTheme = (a: any) => !!a._themeSource
+  const sourceColor = (a: any): string | null =>
+    a._themeSource ? THEME_COLOR
+    : a._templateSource != null ? templateColor(a._templateSourceIndex ?? 0)
+    : null
   const traitEntries = actions.filter(a => a.entryType === 'trait')
   const auraEntries = actions.filter(a => a.entryType === 'aura')
   const powerEntries = actions.filter(a => a.entryType === 'action')
@@ -128,6 +153,29 @@ export function Dnd4eCreatureViewer({ creature, tooltip: tip, imageId: imageIdOv
               }}
             >{chip.name}</button>
           ))}
+          {(sb._monsterTheme as string) && (
+            <span style={{
+              display: 'inline-flex', alignItems: 'center',
+              padding: '0 6px', borderRadius: 'var(--radius-sm)',
+              background: THEME_COLOR, color: '#fff',
+              fontSize: 10, fontWeight: 700,
+              fontFamily: "'MentorSans', 'Mentor', sans-serif",
+              textTransform: 'uppercase', letterSpacing: '0.03em',
+            }}>
+              {sb._monsterTheme as string}
+            </span>
+          )}
+          {onPopout && (
+            <button
+              onClick={onPopout}
+              title="Pop out stat block"
+              style={{
+                background: 'transparent', border: 'none', cursor: 'pointer',
+                color: 'inherit', padding: 2, fontSize: 13,
+                display: 'inline-flex', alignItems: 'center',
+              }}
+            >⧉</button>
+          )}
           {onClone && (
             <button
               onClick={onClone}
@@ -224,7 +272,12 @@ export function Dnd4eCreatureViewer({ creature, tooltip: tip, imageId: imageIdOv
       <div style={{ borderTop: '1px solid var(--sb-separator)' }}>
         {Object.keys(skills).length > 0 && (
           <div className="sb-row">
-            <b className="sb-label">Skills</b> {Object.entries(skills).map(([name, mod]) => `${cap(name)} ${sign(mod)}`).join(', ')}
+            <b className="sb-label">Skills</b> {Object.entries(skills).map(([name, mod], i) => (
+              <span key={name}>
+                {i > 0 && ', '}
+                {cap(name)} <StatNumber value={mod as number} field={`skills.${name}`} diffs={diffs} prefix="+" />
+              </span>
+            ))}
           </div>
         )}
         {Object.keys(abilities).length > 0 && (
@@ -287,12 +340,15 @@ export function Dnd4eCreatureViewer({ creature, tooltip: tip, imageId: imageIdOv
       {traitEntries.length > 0 && (
         <div style={{ borderTop: '1px solid var(--sb-separator)', paddingTop: 2 }}>
           {traitEntries.map((a, i) => {
-            const card = <PowerCardView entry={a} />
-            if (isTemplate(a)) {
-              const srcIdx = (a as any)._templateSourceIndex as number | undefined
-              return <div key={i} style={{ borderLeft: `3px solid ${templateColor(srcIdx ?? 0)}`, marginBottom: 2 }}>{card}</div>
-            }
-            return <div key={i}>{card}</div>
+            const gi = i
+            const sc = sourceColor(a)
+            return (
+              <div key={i} style={{ ...(sc ? { borderLeft: `3px solid ${sc}` } : {}), marginBottom: 2, position: 'relative', cursor: 'context-menu' }}
+                onContextMenu={e => { e.preventDefault(); handleCopyPower(a, gi) }}>
+                <PowerCardView entry={a} />
+                {copiedIdx === gi && <CopiedFlash />}
+              </div>
+            )
           })}
         </div>
       )}
@@ -301,12 +357,16 @@ export function Dnd4eCreatureViewer({ creature, tooltip: tip, imageId: imageIdOv
       {auraEntries.length > 0 && (
         <div style={{ paddingTop: 2 }}>
           {auraEntries.map((a, i) => {
-            const card = <PowerCardView entry={a} />
-            if (isTemplate(a)) {
-              const srcIdx = (a as any)._templateSourceIndex as number | undefined
-              return <div key={i} style={{ borderLeft: `3px solid ${templateColor(srcIdx ?? 0)}`, marginBottom: 2 }}>{card}</div>
-            }
-            return <div key={i}>{card}</div>
+            const gi = traitEntries.length + i
+            const auraEntry = { ...a, rangeType: 'aura', rangeValue: String((a as any).auraRange ?? 1) }
+            const sc = sourceColor(a)
+            return (
+              <div key={i} style={{ ...(sc ? { borderLeft: `3px solid ${sc}` } : {}), marginBottom: 2, position: 'relative', cursor: 'context-menu' }}
+                onContextMenu={e => { e.preventDefault(); handleCopyPower(a, gi) }}>
+                <PowerCardView entry={auraEntry} />
+                {copiedIdx === gi && <CopiedFlash />}
+              </div>
+            )
           })}
         </div>
       )}
@@ -315,15 +375,15 @@ export function Dnd4eCreatureViewer({ creature, tooltip: tip, imageId: imageIdOv
       {powerEntries.length > 0 && (
         <div style={{ borderTop: '1px solid var(--sb-separator)', paddingTop: 2 }}>
           {powerEntries.map((a, i) => {
-            if (isTemplate(a)) {
-              const srcIdx = (a as any)._templateSourceIndex as number | undefined
-              return (
-                <div key={i} style={{ borderLeft: `3px solid ${templateColor(srcIdx ?? 0)}`, marginBottom: 2 }}>
-                  <PowerCardView entry={a} />
-                </div>
-              )
-            }
-            return <PowerCardView key={i} entry={a} />
+            const gi = traitEntries.length + auraEntries.length + i
+            const sc = sourceColor(a)
+            return (
+              <div key={i} style={{ ...(sc ? { borderLeft: `3px solid ${sc}` } : {}), marginBottom: 2, position: 'relative', cursor: 'context-menu' }}
+                onContextMenu={e => { e.preventDefault(); handleCopyPower(a, gi) }}>
+                <PowerCardView entry={a} />
+                {copiedIdx === gi && <CopiedFlash />}
+              </div>
+            )
           })}
         </div>
       )}
@@ -339,6 +399,22 @@ export function Dnd4eCreatureViewer({ creature, tooltip: tip, imageId: imageIdOv
           {sb.source as string}
         </div>
       )}
+    </div>
+  )
+}
+
+/** Brief green flash overlay showing "Copied" on right-click */
+function CopiedFlash() {
+  return (
+    <div style={{
+      position: 'absolute', inset: 0,
+      background: 'rgba(40,167,69,0.2)',
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      pointerEvents: 'none',
+      fontSize: 11, fontWeight: 700, color: '#2f9e44',
+      borderRadius: 2,
+    }}>
+      Copied
     </div>
   )
 }

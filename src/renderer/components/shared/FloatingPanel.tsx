@@ -1,5 +1,9 @@
 import { useState, useRef, useCallback, useEffect, type ReactNode, type CSSProperties } from 'react'
 
+// Module-scope counter so every FloatingPanel instance shares one z-index stack.
+// Clicking a panel bumps this and assigns the new top value to that panel.
+let topZ = 50
+
 interface Props {
   title: ReactNode
   initialX?: number
@@ -34,6 +38,14 @@ export function FloatingPanel({
   const [minimized, setMinimized] = useState(false)
   const dragOffset = useRef({ x: 0, y: 0 })
   const movedDuringDrag = useRef(false)
+  const [currentZ, setCurrentZ] = useState(() => {
+    topZ = Math.max(topZ, zIndex) + 1
+    return topZ
+  })
+  const bringToFront = useCallback(() => {
+    topZ += 1
+    setCurrentZ(topZ)
+  }, [])
 
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
     e.preventDefault()
@@ -67,10 +79,11 @@ export function FloatingPanel({
 
   return (
     <div
+      onMouseDownCapture={bringToFront}
       style={{
         position: 'fixed',
         left: pos.x, top: pos.y,
-        zIndex,
+        zIndex: currentZ,
         width,
         maxHeight: minimized ? undefined : maxHeight,
         background: 'var(--color-bg-primary)',

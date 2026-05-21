@@ -15,6 +15,7 @@ export interface DetectedCondition {
   matchStart: number        // character offset in the source field text
   matchEnd: number
   matchText: string         // the matched substring
+  grantsCATo?: 'all' | 'source' | 'source-allies'  // only for combat-advantage
 }
 
 interface PowerFields {
@@ -52,6 +53,22 @@ const DURATION_PATTERNS: { pattern: RegExp; duration: DetectedCondition['duratio
   { pattern: /until the end of the encounter/i, duration: { type: 'encounter' } },
 ]
 
+// "Grants combat advantage" recipient classification — looks at text immediately
+// after the match. Order matters: check 'all' before 'allies' to avoid mistaking
+// "to all enemies" for an allies clause.
+const GRANTS_CA_ALL_PATTERN = /^[\s,.]*\bto\s+(?:all\b|any\s+(?:enemy|creature))/i
+const GRANTS_CA_ALLIES_PATTERN = /^[\s,.]*\bto\s+(?:[\w'\- ]*?\b)?allies\b/i
+const GRANTS_CA_TO_PATTERN = /^[\s,.]*\bto\s+/i
+
+function classifyGrantsCATarget(textAfterMatch: string): 'all' | 'source' | 'source-allies' {
+  const window = textAfterMatch.substring(0, 80)
+  if (GRANTS_CA_ALL_PATTERN.test(window)) return 'all'
+  if (GRANTS_CA_ALLIES_PATTERN.test(window)) return 'source-allies'
+  if (GRANTS_CA_TO_PATTERN.test(window)) return 'source'
+  // No "to X" phrase — plain "grants combat advantage" is universal
+  return 'all'
+}
+
 // Default durations when no explicit duration is stated in the power text
 const CONDITION_DEFAULT_DURATION: Record<string, DetectedCondition['duration']> = {
   'prone': { type: 'indefinite' },
@@ -59,6 +76,7 @@ const CONDITION_DEFAULT_DURATION: Record<string, DetectedCondition['duration']> 
   'unconscious': { type: 'indefinite' },
   'combat-advantage': { type: 'indefinite' },
   'dying': { type: 'indefinite' },
+  'bloodied': { type: 'indefinite' },
   // All others default to save-ends
 }
 const FALLBACK_DURATION: DetectedCondition['duration'] = { type: 'save-ends' }
@@ -66,13 +84,12 @@ const FALLBACK_DURATION: DetectedCondition['duration'] = { type: 'save-ends' }
 // Context exclusion — if these patterns appear near the condition name, it's a reference, not an application
 const EXCLUSION_BEFORE = /(?:while\s+|while\s+.{0,20}\s+is\s+|against\s+(?:a\s+)?|if\s+(?:the\s+)?(?:target|creature|enemy)\s+|if\s+.{0,20}\s+is\s+|a\s+\w+\s+)$/i
 
-function extractDuration(text: string, afterPos: number, conditionId: string): { duration: DetectedCondition['duration']; endPos: number } {
+function extractDuration(text: string, afterPos: number, conditionId: string): DetectedCondition['duration'] {
   const remaining = text.substring(afterPos, afterPos + 120)
   for (const dp of DURATION_PATTERNS) {
-    const m = remaining.match(dp.pattern)
-    if (m) return { duration: dp.duration, endPos: afterPos + m.index! + m[0].length }
+    if (dp.pattern.test(remaining)) return dp.duration
   }
-  return { duration: CONDITION_DEFAULT_DURATION[conditionId] ?? FALLBACK_DURATION, endPos: afterPos }
+  return CONDITION_DEFAULT_DURATION[conditionId] ?? FALLBACK_DURATION
 }
 
 function detectInField(
@@ -91,15 +108,17 @@ function detectInField(
       const before = text.substring(Math.max(0, match.index - 40), match.index)
       if (EXCLUSION_BEFORE.test(before)) continue
 
-      const { duration, endPos } = extractDuration(text, match.index + match[0].length, matcher.id)
-      const fullEnd = endPos > match.index + match[0].length ? endPos : match.index + match[0].length
+      const duration = extractDuration(text, match.index + match[0].length, matcher.id)
+      // Highlight only the regex match itself — don't extend across intervening
+      // prose to a trailing duration phrase. The duration is still assigned;
+      // we just don't lie about what the click will apply.
       const detected: DetectedCondition = {
         conditionId: matcher.id,
         conditionName: matcher.name,
         sourceField: field,
         matchStart: match.index,
-        matchEnd: fullEnd,
-        matchText: text.substring(match.index, fullEnd),
+        matchEnd: match.index + match[0].length,
+        matchText: match[0],
         duration,
       }
 
@@ -107,6 +126,11 @@ function detectInField(
       if (matcher.id === 'ongoing-damage' && match[1]) {
         detected.value = parseInt(match[1])
         if (match[2]) detected.damageType = match[2].trim().toLowerCase()
+      }
+
+      // For grants combat advantage, classify who the target grants CA to
+      if (matcher.id === 'combat-advantage') {
+        detected.grantsCATo = classifyGrantsCATarget(text.substring(match.index + match[0].length))
       }
 
       results.push(detected)

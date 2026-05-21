@@ -1,6 +1,7 @@
-import type { SystemPlugin } from '../../src/common/types/system-plugin'
+import type { SystemPlugin, DurationType } from '../../src/common/types/system-plugin'
 import { statDefs, normalDamageDice, limitedDamageDice, resistWeakDefault, attackVsAC, attackVsOther, dcTable } from './benchmarks'
 import { allDamageTypes, creatureTraits, attackTraits, speedTypes } from './known-values'
+import { CLASS_MARKS } from './class-marks'
 
 const dnd4e: SystemPlugin = {
   id: 'dnd-4e',
@@ -11,9 +12,12 @@ const dnd4e: SystemPlugin = {
     { id: 'blinded', name: 'Blinded', description: 'Grant combat advantage. Can\'t see any target. -10 to Perception.', hasValue: false, durationTypes: ['rounds', 'encounter'], automation: [] },
     { id: 'dazed', name: 'Dazed', description: 'Grant combat advantage. Can take one action per turn. No opportunity/immediate.', hasValue: false, durationTypes: ['rounds', 'encounter'], automation: [] },
     { id: 'dominated', name: 'Dominated', description: 'Dazed. Dominator chooses one action per turn.', hasValue: false, durationTypes: ['rounds', 'encounter'], automation: [] },
+    { id: 'dead', name: 'Dead', description: 'Creature is dead. Skipped in initiative.', hasValue: false, durationTypes: ['unlimited'], automation: [] },
     { id: 'dying', name: 'Dying', description: 'Unconscious. Make death saves each turn.', hasValue: false, durationTypes: ['unlimited'], automation: [{ type: 'prompt-save' }] },
+    { id: 'grabbed', name: 'Grabbed', description: 'Immobilized until escape (Acrobatics vs. Reflex or Athletics vs. Fortitude as a move action).', hasValue: false, durationTypes: ['rounds', 'encounter', 'unlimited'], automation: [] },
     { id: 'helpless', name: 'Helpless', description: 'Grant combat advantage. Can be coup de grace\'d.', hasValue: false, durationTypes: ['unlimited'], automation: [] },
     { id: 'immobilized', name: 'Immobilized', description: 'Can\'t move from current space.', hasValue: false, durationTypes: ['rounds', 'encounter'], automation: [] },
+    { id: 'invisible', name: 'Invisible', description: 'Can\'t be seen without special senses. Has total concealment and combat advantage against enemies that can\'t see it.', hasValue: false, durationTypes: ['rounds', 'encounter', 'unlimited'], automation: [] },
     { id: 'marked', name: 'Marked', description: '-2 to attack rolls for attacks not targeting marker.', hasValue: false, durationTypes: ['rounds', 'encounter'], automation: [] },
     { id: 'petrified', name: 'Petrified', description: 'Turned to stone. Unconscious. Resist 20 all.', hasValue: false, durationTypes: ['unlimited'], automation: [] },
     { id: 'prone', name: 'Prone', description: 'Grant combat advantage to melee. +2 to defenses vs ranged.', hasValue: false, durationTypes: ['unlimited'], automation: [] },
@@ -29,6 +33,19 @@ const dnd4e: SystemPlugin = {
       hasValue: true, durationTypes: ['unlimited'],
       automation: [{ type: 'prompt-save', dc: '10' }], appliedAt: 'start',
     },
+    // Striker designation marks (Hunter's Quarry, Warlock's Curse, Oath of
+    // Enmity) — hidden from the generic condition picker; applied via the
+    // dedicated Class Marks UI. Defender marks share the existing `marked`
+    // condition with a customName override and don't get their own def.
+    ...CLASS_MARKS.filter(m => !m.appliesMarkedCondition).map(m => ({
+      id: m.conditionId!,
+      name: m.shortName,
+      description: m.description,
+      hasValue: false,
+      durationTypes: ['encounter', 'eont', 'sont', 'unlimited', 'save-ends'] as DurationType[],
+      automation: [],
+      hidden: true,
+    })),
   ],
   statBlockSchema: [
     { key: 'level', label: 'Level', type: 'number', required: true },
@@ -143,6 +160,15 @@ const dnd4e: SystemPlugin = {
     },
   },
   rechargeRoll: { die: '1d6', defaultThreshold: 4 },
+  settings: [
+    {
+      key: 'hideActionTypeText',
+      label: 'Hide action and power type text (icons only)',
+      type: 'boolean',
+      default: false,
+      description: 'When enabled, the "(standard action; at-will)" line is hidden from power cards. The action icon and usage color already convey this info.',
+    },
+  ],
   creatureBuilder: {
     minLevel: 1,
     maxLevel: 30,

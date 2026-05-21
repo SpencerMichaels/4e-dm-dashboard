@@ -83,6 +83,13 @@ textarea {
   resize: none;
 }
 
+/* Inputs marked .header-input (used in dark stat-block headers) — placeholder
+   inherits the header's text color at low opacity instead of the browser default gray */
+input.header-input::placeholder {
+  color: inherit;
+  opacity: 0.5;
+}
+
 /* Hide number input spinners — they overlay on values */
 input[type="number"]::-webkit-inner-spin-button,
 input[type="number"]::-webkit-outer-spin-button {

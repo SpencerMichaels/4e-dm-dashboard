@@ -1,5 +1,5 @@
 import { useCallback } from 'react'
-import type { EntityType, Note, Creature, Encounter, Location, Item, PlayerCharacter } from '@common/types'
+import type { EntityType, Note, Creature, Encounter, Location, Item, PlayerCharacter, MapData } from '@common/types'
 import { generateId } from '@common/utils/id'
 
 // Convenience wrappers around window.api for use in components
@@ -98,6 +98,20 @@ export function useCampaignActions() {
     return pc
   }, [])
 
+  const createMap = useCallback(async (name: string, imageId: string): Promise<MapData> => {
+    const now = new Date().toISOString()
+    const map: MapData = {
+      id: generateId(),
+      name,
+      imageId,
+      pins: [],
+      createdAt: now,
+      updatedAt: now,
+    }
+    await window.api.entity.save('map', map)
+    return map
+  }, [])
+
   return {
     saveEntity,
     deleteEntity,
@@ -107,5 +121,6 @@ export function useCampaignActions() {
     createLocation,
     createItem,
     createPC,
+    createMap,
   }
 }

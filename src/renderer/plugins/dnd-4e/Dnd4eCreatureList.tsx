@@ -1,5 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from 'react'
 import type { Creature } from '@common/types'
+import { FloatingPanel } from '@renderer/components/shared/FloatingPanel'
 import type { PluginCreatureListProps } from '../plugin-types'
 import { useCompendium } from './use-compendium'
 import { useGlossary } from './use-glossary'
@@ -28,6 +29,8 @@ export function Dnd4eCreatureList({ creatures, onNavigate }: PluginCreatureListP
   const previewRef = useRef<HTMLDivElement>(null)
   // Right-click context menu state (only shown for Custom creatures)
   const [contextMenu, setContextMenu] = useState<{ creatureId: string; x: number; y: number } | null>(null)
+  // Popped-out stat block panels
+  const [poppedOut, setPoppedOut] = useState<{ id: string; creature: Creature }[]>([])
 
   // Close context menu on outside click / Escape
   useEffect(() => {
@@ -364,9 +367,7 @@ export function Dnd4eCreatureList({ creatures, onNavigate }: PluginCreatureListP
               compact />
           ) : previewCreature ? (
             <Dnd4eCreatureViewer creature={previewCreature} tooltip={tooltip}
-              imageId={!previewIsCustom && selectedId ? annotations[selectedId]?.imageId : undefined}
-              tokenImageId={!previewIsCustom && selectedId ? annotations[selectedId]?.tokenImageId : undefined}
-              tokenCrop={!previewIsCustom && selectedId ? annotations[selectedId]?.tokenCrop : undefined}
+              compendiumId={!previewIsCustom ? selectedId ?? undefined : undefined}
               onImageChange={previewIsCustom
                 ? async (imageId) => {
                     const updated = { ...previewCreature, imageId, updatedAt: new Date().toISOString() }
@@ -387,6 +388,11 @@ export function Dnd4eCreatureList({ creatures, onNavigate }: PluginCreatureListP
                     const existing = annotations[selectedId] ?? {}
                     await window.api.annotation.save(selectedId, { ...existing, tokenImageId, tokenCrop: crop })
                   } : undefined)}
+              onPopout={previewCreature ? () => {
+                if (!poppedOut.some(p => p.id === (selectedId ?? previewCreature.id))) {
+                  setPoppedOut(prev => [...prev, { id: selectedId ?? previewCreature.id, creature: previewCreature }])
+                }
+              } : undefined}
               onClone={!previewIsCustom && selectedId ? () => handleClone(selectedId) : undefined}
               onEdit={previewIsCustom ? () => handleEditExisting(previewCreature) : undefined} />
           ) : (
@@ -420,6 +426,22 @@ export function Dnd4eCreatureList({ creatures, onNavigate }: PluginCreatureListP
           >Delete creature</button>
         </div>
       )}
+
+      {/* Popped-out stat block floating panels */}
+      {poppedOut.map((p, i) => (
+        <FloatingPanel
+          key={p.id}
+          title={`📑 ${p.creature.name}`}
+          initialX={100 + i * 30}
+          initialY={100 + i * 30}
+          width={420}
+          maxHeight="80vh"
+          onClose={() => setPoppedOut(prev => prev.filter(x => x.id !== p.id))}
+        >
+          <Dnd4eCreatureViewer creature={p.creature} tooltip={tooltip}
+            compendiumId={p.creature.compendiumId ?? p.id} />
+        </FloatingPanel>
+      ))}
     </div>
   )
 }

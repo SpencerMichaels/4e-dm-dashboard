@@ -40,6 +40,12 @@ export function AttackApplyPanel({ combat, attackMode, conditionDefs, onApply, o
         cond.sourceId = currentId
         cond.customDescription = `by ${currentName ?? currentId}`
       }
+      // Auto-set Grants CA recipient to the attacker (most common case from a hit)
+      if (condId === 'combat-advantage' && currentId) {
+        cond.sourceId = currentId
+        cond.grantsCATo = 'source'
+        cond.customDescription = `to ${currentName ?? currentId}`
+      }
       return cond
     }
     const hitConds: AppliedCondition[] = hitConditionId ? [makeCondition(hitConditionId)] : []

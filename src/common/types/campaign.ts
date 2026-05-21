@@ -25,10 +25,11 @@ export interface Note {
 export interface Location {
   id: string
   name: string
-  description: string
-  imageId?: string        // Reference to uploaded image
-  sceneImageId?: string   // Background for player screen
-  parentId?: string       // Parent location for hierarchy
+  description: string      // TipTap JSON serialized as string (rich text notes)
+  imageId?: string          // Reference to uploaded image
+  sceneImageId?: string     // Background for player screen
+  parentId?: string         // Parent location for hierarchy
+  encounterIds?: string[]   // Encounters associated with this location
   tags: string[]
   createdAt: string
   updatedAt: string

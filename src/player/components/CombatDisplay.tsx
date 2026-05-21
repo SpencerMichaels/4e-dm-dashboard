@@ -1,23 +1,26 @@
 import { useRef, useState, useEffect, useLayoutEffect } from 'react'
-import type { PlayerCombatState, PlayerCombatantState, PlayerTurnItem } from '@common/types'
+import type { PlayerCombatState, PlayerCombatantState, PlayerTurnItem, CombatNotification } from '@common/types'
 import { ConditionPill, buildConditionLabel } from '@renderer/plugins/dnd-4e/ConditionPill'
 import { getConditionStyle } from '@renderer/plugins/dnd-4e/condition-styles'
 import { getDamageTypeStyle } from '@renderer/plugins/dnd-4e/damage-types'
 import { CombatToken } from '@renderer/components/combat/CombatToken'
 import { useImage } from '@renderer/hooks/use-image'
+import { tokenColorFromName } from '@common/utils/token-color'
 
 interface Props {
   combat: PlayerCombatState
   backgroundImageId?: string
 }
 
-/** Get the ring color for a combatant: PCs use their chip color (or green/red bloodied fallback), monsters use HP descriptor color */
+/** Get the ring color for a combatant: PCs use their chip color (or green/red bloodied fallback),
+ *  monsters use their assigned mini color if set, otherwise HP descriptor color */
 function getRingColor(c: PlayerCombatantState): string {
   if (c.isPC) {
     if (c.color) return c.color
     const bloodied = c.conditions.some(cond => cond.conditionId === 'bloodied')
     return bloodied ? '#e03131' : '#2f9e44'
   }
+  if (c.color) return c.color
   return c.hpColor ?? '#888'
 }
 
@@ -105,11 +108,24 @@ export function CombatDisplay({ combat: incomingCombat, backgroundImageId }: Pro
     )
   }
 
-  // Build display order: current creature at top, then remaining, then next round
+  // Build display order: current creature at top, then delayed, then remaining waiting, then next round
   const order = combat.initiativeOrder
   const turnIdx = combat.turnIndex
-  const waiting = order.slice(turnIdx)
-  const acted = order.slice(0, turnIdx)
+  const delayedSet = new Set(combat.delayedIds ?? [])
+  const waiting: string[] = []
+  const acted: string[] = []
+  for (let i = 0; i < order.length; i++) {
+    const id = order[i]
+    if (delayedSet.has(id)) continue
+    if (i >= turnIdx) waiting.push(id)
+    else acted.push(id)
+  }
+  const delayedSorted = [...(combat.delayedIds ?? [])]
+    .filter(id => combat.combatants[id])
+    .sort((a, b) => (combat.combatants[b]?.initiative ?? 0) - (combat.combatants[a]?.initiative ?? 0))
+  const readiedSorted = [...(combat.readiedIds ?? [])]
+    .filter(id => combat.combatants[id])
+    .sort((a, b) => (combat.combatants[b]?.initiative ?? 0) - (combat.combatants[a]?.initiative ?? 0))
 
   const currentCombatant = currentId ? combat.combatants[currentId] : null
 
@@ -123,7 +139,6 @@ export function CombatDisplay({ combat: incomingCombat, backgroundImageId }: Pro
       {backgroundUrl && <div style={{
         position: 'absolute', inset: 0,
         backgroundImage: `url(${backgroundUrl})`, backgroundSize: 'cover', backgroundPosition: 'center',
-        opacity: 0.15,
       }} />}
 
       {/* Left: Initiative tracker */}
@@ -140,12 +155,14 @@ export function CombatDisplay({ combat: incomingCombat, backgroundImageId }: Pro
           textTransform: 'uppercase', letterSpacing: '0.1em',
           marginBottom: '1rem',
         }}>
-          Round {combat.round}
+          {combat.round === 0 ? 'Surprise Round' : `Round ${combat.round}`}
         </div>
 
         <div style={{ flex: 1, overflow: 'auto', display: 'flex', flexDirection: 'column' }}>
           <AnimatedList
             waiting={waiting}
+            delayed={delayedSorted}
+            readied={readiedSorted}
             acted={acted}
             combatants={combat.combatants}
             currentId={currentId}
@@ -180,6 +197,11 @@ export function CombatDisplay({ combat: incomingCombat, backgroundImageId }: Pro
           </>
         )}
       </div>
+
+      {/* Floating notification toasts (damage/heal/condition/death). Layered
+          over the spotlight column, between the initiative list and the turn
+          info sidebar. */}
+      <NotificationToasts notifications={combat.notifications ?? []} combatants={combat.combatants} />
     </div>
   )
 }
@@ -243,7 +265,7 @@ function InitiativeEntryList({ sortedIds, combatants, focusedId }: {
             opacity: !hasInit && !isFocused ? 0.4 : 1,
           }}>
             <div style={{ marginLeft: 5, flexShrink: 0 }}>
-              <CombatToken name={c.name} imageId={c.imageId} tokenImageId={c.tokenImageId} hp={100} maxHp={100} size={56} hideHpRing solidRingColor={getRingColor(c)} />
+              <CombatToken name={c.name} imageId={c.imageId} tokenImageId={c.tokenImageId} hp={100} maxHp={100} size={56} hideHpRing solidRingColor={getRingColor(c)} miniNumber={c.miniNumber} />
             </div>
             <span style={{
               flex: 1, minWidth: 0,
@@ -321,8 +343,10 @@ function CreatureSpotlight({ combatant: c }: { combatant: PlayerCombatantState }
   )
 }
 
-function AnimatedList({ waiting, acted, combatants, currentId, round }: {
+function AnimatedList({ waiting, delayed, readied, acted, combatants, currentId, round }: {
   waiting: string[]
+  delayed: string[]
+  readied: string[]
   acted: string[]
   combatants: Record<string, PlayerCombatantState>
   currentId: string
@@ -367,10 +391,29 @@ function AnimatedList({ waiting, acted, combatants, currentId, round }: {
 
   return (
     <div ref={containerRef} style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-      {waiting.map(id => {
+      {/* Order: readied → current → delayed → rest of waiting → header → acted */}
+      {readied.map(id => {
         const c = combatants[id]
         if (!c) return null
-        return <div key={id} data-flip-key={id}><PlayerCard combatant={c} isCurrent={id === currentId} /></div>
+        return <div key={id} data-flip-key={id} style={{ marginLeft: 24 }}><PlayerCard combatant={c} isCurrent={false} isReadied /></div>
+      })}
+
+      {waiting.length > 0 && (() => {
+        const c = combatants[waiting[0]]
+        if (!c) return null
+        return <div key={waiting[0]} data-flip-key={waiting[0]}><PlayerCard combatant={c} isCurrent={waiting[0] === currentId} /></div>
+      })()}
+
+      {delayed.map(id => {
+        const c = combatants[id]
+        if (!c) return null
+        return <div key={id} data-flip-key={id} style={{ marginLeft: 24 }}><PlayerCard combatant={c} isCurrent={false} isDelayed /></div>
+      })}
+
+      {waiting.slice(1).map(id => {
+        const c = combatants[id]
+        if (!c) return null
+        return <div key={id} data-flip-key={id}><PlayerCard combatant={c} isCurrent={false} /></div>
       })}
 
       {acted.length > 0 && (
@@ -380,7 +423,7 @@ function AnimatedList({ waiting, acted, combatants, currentId, round }: {
           marginTop: '1rem', marginBottom: '0.25rem',
           borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: '0.75rem',
         }}>
-          Round {round + 1}
+          {round === 0 ? 'Round 1' : `Round ${round + 1}`}
         </div>
       )}
 
@@ -393,7 +436,7 @@ function AnimatedList({ waiting, acted, combatants, currentId, round }: {
   )
 }
 
-function PlayerCard({ combatant: c, isCurrent }: { combatant: PlayerCombatantState; isCurrent: boolean }) {
+function PlayerCard({ combatant: c, isCurrent, isDelayed, isReadied }: { combatant: PlayerCombatantState; isCurrent: boolean; isDelayed?: boolean; isReadied?: boolean }) {
   const hpPct = c.hpPct ?? 100
   const hpColor = c.hpColor ?? '#0a0'
   const isDead = c.dead === true || (!c.isPC && hpPct === 0)
@@ -407,10 +450,10 @@ function PlayerCard({ combatant: c, isCurrent }: { combatant: PlayerCombatantSta
       background: isCurrent ? 'rgba(255,255,255,0.2)' : 'rgba(255,255,255,0.08)',
       border: isCurrent ? '2px solid rgba(255,255,255,0.25)' : '1px solid rgba(255,255,255,0.2)',
       borderRadius: '34px 10px 10px 34px',
-      opacity: isDead ? 0.5 : 1,
+      opacity: isDead || isDelayed || isReadied ? 0.5 : 1,
     }}>
       <div style={{ marginLeft: 5, flexShrink: 0 }}>
-        <CombatToken name={c.name} imageId={c.imageId} tokenImageId={c.tokenImageId} hp={hpPct} maxHp={100} size={56} hideHpRing solidRingColor={getRingColor(c)} isDead={isDead} />
+        <CombatToken name={c.name} imageId={c.imageId} tokenImageId={c.tokenImageId} hp={hpPct} maxHp={100} size={56} hideHpRing solidRingColor={getRingColor(c)} isDead={isDead} miniNumber={c.miniNumber} />
       </div>
 
       {/* Name + conditions */}
@@ -432,6 +475,11 @@ function PlayerCard({ combatant: c, isCurrent }: { combatant: PlayerCombatantSta
             </span>
           )}
         </div>
+        {isReadied && c.readiedAction && (
+          <div style={{ fontSize: '0.85rem', color: '#39c', marginTop: 3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            Readied: {c.readiedAction}
+          </div>
+        )}
         {c.conditions.length > 0 && (
           <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginTop: 4 }}>
             {c.conditions.map((cond, i) => (
@@ -444,6 +492,8 @@ function PlayerCard({ combatant: c, isCurrent }: { combatant: PlayerCombatantSta
                   durationType: cond.durationType, expiresOnName: cond.expiresOnName,
                 })}
                 damageType={cond.damageType}
+                customColor={cond.customColor}
+                customIcon={cond.customIcon}
                 style={{ fontSize: 13, lineHeight: '20px', padding: '0 8px', borderRadius: 10 }}
               />
             ))}
@@ -507,16 +557,28 @@ function TurnInfoSidebar({ combatant: c, turnItems, stepperIndex }: {
       )}
 
       {/* ── CONDITIONS ── */}
-      {nonOngoingConditions.length > 0 && (
-        <>
-          {sectionHeader('Conditions')}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 12 }}>
-            {nonOngoingConditions.map((cond, i) => (
-              <ConditionCard key={i} condition={cond} />
-            ))}
-          </div>
-        </>
-      )}
+      {nonOngoingConditions.length > 0 && (() => {
+        // Build a set of conditionIds whose expiration is already listed in
+        // the start-of-turn or end-of-turn sections — used to avoid showing
+        // a duplicate "till end of X's next turn" line on the condition card.
+        const expireIdsAlreadyShown = new Set<string>()
+        for (const it of turnItems) {
+          if ((it.kind === 'sont-expire' || it.kind === 'eont-expire') && it.conditionId) {
+            expireIdsAlreadyShown.add(it.conditionId)
+          }
+        }
+        return (
+          <>
+            {sectionHeader('Conditions')}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 12 }}>
+              {nonOngoingConditions.map((cond, i) => (
+                <ConditionCard key={i} condition={cond} carrierName={c.name}
+                  hideExpiresLine={expireIdsAlreadyShown.has(cond.conditionId)} />
+              ))}
+            </div>
+          </>
+        )
+      })()}
 
       {/* ── END OF TURN ── */}
       {endItems.length > 0 && (
@@ -637,13 +699,27 @@ function TurnItemRow({ item, isActive }: { item: PlayerTurnItem; isActive: boole
   )
 }
 
-function ConditionCard({ condition: cond }: { condition: PlayerCombatantState['conditions'][0] }) {
-  const style = getConditionStyle(cond.conditionId, cond.damageType)
+function ConditionCard({ condition: cond, carrierName, hideExpiresLine }: {
+  condition: PlayerCombatantState['conditions'][0]
+  carrierName?: string
+  hideExpiresLine?: boolean
+}) {
+  const style = getConditionStyle(cond.conditionId, cond.damageType, cond.customColor, cond.customIcon)
   const label = buildConditionLabel({
     conditionId: cond.conditionId, name: cond.name, value: cond.value,
     customDescription: cond.customDescription, damageType: cond.damageType,
     durationType: cond.durationType, expiresOnName: cond.expiresOnName,
   })
+
+  // Surface the SONT/EONT expiration so the affected player knows when relief comes.
+  // Self-bound conditions ("till the end of YOUR next turn") use the carrier name
+  // ("yours") in place of someone else's. The line is hidden when an explicit
+  // expiration item is already listed in the sidebar to avoid duplication.
+  const isSontEont = cond.durationType === 'eont' || cond.durationType === 'sont'
+  const isSelfBound = cond.expiresOnName === carrierName
+  const expiresLine = !hideExpiresLine && isSontEont && cond.expiresOnName
+    ? `till ${cond.durationType === 'sont' ? 'start' : 'end'} of ${isSelfBound ? '' : `${cond.expiresOnName}'s `}next turn`
+    : null
 
   return (
     <div style={{
@@ -662,11 +738,345 @@ function ConditionCard({ condition: cond }: { condition: PlayerCombatantState['c
           {label}
         </div>
         {cond.description && (
-          <div style={{ fontSize: '0.8rem', color: '#999', lineHeight: 1.3 }}>
+          <div style={{ fontSize: '0.8rem', color: '#bbb', lineHeight: 1.3 }}>
             {cond.description}
           </div>
         )}
+        {expiresLine && (
+          <div style={{ fontSize: '0.8rem', color: '#999', fontStyle: 'italic', lineHeight: 1.3, marginTop: 2 }}>
+            {expiresLine}
+          </div>
+        )}
       </div>
+    </div>
+  )
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Notification toasts
+// ─────────────────────────────────────────────────────────────────────────────
+
+const TOAST_HOLD_MS = 6500
+const TOAST_FADE_MS = 500
+const TOAST_MAX_VISIBLE = 5
+
+interface ToastEntry {
+  notification: CombatNotification
+  enteredAt: number
+  exiting: boolean
+}
+
+/** Resolve the subject (target) creature's color: PCs use chip color,
+ *  monsters use the deterministic token-name color. */
+function getSubjectColor(combatant: PlayerCombatantState | undefined, name: string): string {
+  if (combatant?.isPC && combatant.color) return combatant.color
+  return tokenColorFromName(combatant?.name ?? name)
+}
+
+/** Per-condition phrasing for application notifications. Keyed by the display
+ *  name (matches what `conditionName` carries — for defender class marks this
+ *  is the customName like "Challenged"; for strikers it's the short name like
+ *  "Quarried"; for vanilla conditions it's the def name). The "attack" form is
+ *  used when there's a distinct source; "self" is used when the source is
+ *  unknown or equals the target. Conditions not in the map fall through to a
+ *  generic "Y applied X to T" / "T became X" default. */
+type CondPhrasing = {
+  attack: (target: string, source: string) => string
+  self: (target: string) => string
+}
+const CONDITION_PHRASING: Record<string, CondPhrasing> = {
+  // ── Standard 4e conditions ───────────────────────────────────────────────
+  Blinded: {
+    attack: (t, s) => `${s} blinded ${t}!`,
+    self: (t) => `${t} was Blinded!`,
+  },
+  Dazed: {
+    attack: (t, s) => `${s} dazed ${t}!`,
+    self: (t) => `${t} became Dazed!`,
+  },
+  Dominated: {
+    attack: (t, s) => `${s} dominated ${t}!`,
+    self: (t) => `${t} became Dominated!`,
+  },
+  Dying: {
+    attack: (t, s) => `${s} dropped ${t}!`,
+    self: (t) => `${t} is Dying!`,
+  },
+  Helpless: {
+    attack: (t, s) => `${s} left ${t} helpless!`,
+    self: (t) => `${t} became Helpless!`,
+  },
+  Immobilized: {
+    attack: (t, s) => `${s} immobilized ${t}!`,
+    self: (t) => `${t} became Immobilized!`,
+  },
+  Petrified: {
+    attack: (t, s) => `${s} petrified ${t}!`,
+    self: (t) => `${t} became Petrified!`,
+  },
+  Prone: {
+    attack: (t, s) => `${s} knocked ${t} prone!`,
+    self: (t) => `${t} fell prone!`,
+  },
+  Restrained: {
+    attack: (t, s) => `${s} restrained ${t}!`,
+    self: (t) => `${t} became Restrained!`,
+  },
+  Slowed: {
+    attack: (t, s) => `${s} slowed ${t}!`,
+    self: (t) => `${t} became Slowed!`,
+  },
+  Stunned: {
+    attack: (t, s) => `${s} stunned ${t}!`,
+    self: (t) => `${t} became Stunned!`,
+  },
+  Surprised: {
+    attack: (t, s) => `${s} surprised ${t}!`,
+    self: (t) => `${t} was Surprised!`,
+  },
+  Unconscious: {
+    attack: (t, s) => `${s} knocked ${t} unconscious!`,
+    self: (t) => `${t} fell unconscious!`,
+  },
+  Weakened: {
+    attack: (t, s) => `${s} weakened ${t}!`,
+    self: (t) => `${t} became Weakened!`,
+  },
+  // ── Marks (vanilla + defender class-mark customName overrides) ───────────
+  Marked: {
+    attack: (t, s) => `${s} marked ${t}!`,
+    self: (t) => `${t} became Marked!`,
+  },
+  Challenged: {
+    attack: (t, s) => `${s} challenged ${t}!`,
+    self: (t) => `${t} was Challenged!`,
+  },
+  Aegis: {
+    attack: (t, s) => `${s} placed an Aegis on ${t}!`,
+    self: (t) => `${t} was placed under an Aegis!`,
+  },
+  Demanded: {
+    attack: (t, s) => `${s} singled out ${t}!`,
+    self: (t) => `${t} was singled out!`,
+  },
+  // ── Striker designations (dedicated mark-* conditionIds) ─────────────────
+  Quarried: {
+    attack: (t, s) => `${s} chose ${t} as their quarry!`,
+    self: (t) => `${t} was Quarried!`,
+  },
+  Cursed: {
+    attack: (t, s) => `${s} cursed ${t}!`,
+    self: (t) => `${t} was Cursed!`,
+  },
+  Oathbound: {
+    attack: (t, s) => `${s} swore enmity against ${t}!`,
+    self: (t) => `${t} was sworn against!`,
+  },
+  Shrouded: {
+    attack: (t, s) => `${s} placed a shroud on ${t}!`,
+    self: (t) => `${t} was Shrouded!`,
+  },
+}
+
+function phraseCondition(targetName: string, sourceName: string | undefined, conditionName: string): string {
+  const phrasing = CONDITION_PHRASING[conditionName]
+  if (phrasing) {
+    return sourceName ? phrasing.attack(targetName, sourceName) : phrasing.self(targetName)
+  }
+  // Generic fallback for unknown / custom conditions.
+  return sourceName
+    ? `${sourceName} applied ${conditionName} to ${targetName}!`
+    : `${targetName} became ${conditionName}!`
+}
+
+/** Build the toast text from a structured notification. */
+function buildToastText(n: CombatNotification): { text: string } {
+  const targetName = n.combatantName ?? '?'
+  const sourceName = n.sourceName
+  if (n.type === 'damage') {
+    if (n.ongoing) {
+      const dt = n.damageType ? ` ${n.damageType}` : ''
+      const fromSrc = sourceName ? ` from ${sourceName}` : ''
+      if (n.becameBloodied) {
+        return { text: `${targetName} was bloodied by ${n.amount}${dt} ongoing damage${fromSrc}!` }
+      }
+      return { text: `${targetName} took ${n.amount}${dt} ongoing damage${fromSrc}!` }
+    }
+    // Bloodying hit gets a dedicated phrasing so the subject of "bloodied" is
+    // unambiguous (the target, not the attacker).
+    if (n.becameBloodied) {
+      return {
+        text: sourceName
+          ? `${sourceName} bloodied ${targetName} with ${n.amount} damage!`
+          : `${targetName} took ${n.amount} damage and was bloodied!`,
+      }
+    }
+    return {
+      text: sourceName
+        ? `${sourceName} hit ${targetName} for ${n.amount} damage!`
+        : `${targetName} took ${n.amount} damage!`,
+    }
+  }
+  if (n.type === 'heal') {
+    return {
+      text: sourceName
+        ? `${targetName} was healed for ${n.amount} by ${sourceName}!`
+        : `${targetName} was healed for ${n.amount}!`,
+    }
+  }
+  if (n.type === 'death') {
+    return {
+      text: sourceName ? `${targetName} was slain by ${sourceName}!` : `${targetName} was slain!`,
+    }
+  }
+  if (n.type === 'condition') {
+    // Ongoing damage gets a dedicated "applied" phrasing — distinct from the
+    // generic per-condition phrasing used for everything else.
+    if (n.conditionId === 'ongoing-damage') {
+      const dt = n.damageType ? ` ${n.damageType}` : ''
+      const fromSrc = sourceName ? ` from ${sourceName}` : ''
+      return { text: `${targetName} started taking ${n.amount}${dt} ongoing damage${fromSrc}!` }
+    }
+    return { text: phraseCondition(targetName, sourceName, n.conditionName ?? '?') }
+  }
+  if (n.type === 'save-success') {
+    return { text: `${targetName} saved vs ${n.conditionName ?? '?'}!` }
+  }
+  if (n.type === 'save-fail') {
+    return { text: `${targetName} failed save vs ${n.conditionName ?? '?'}!` }
+  }
+  return { text: n.message ?? '' }
+}
+
+function NotificationToasts({ notifications, combatants }: {
+  notifications: CombatNotification[]
+  combatants: Record<string, PlayerCombatantState>
+}) {
+  // Local state: which toasts are currently visible (with their entry time and
+  // exiting flag). Driven by an effect that watches the incoming buffer for
+  // new ids since last render.
+  const [toasts, setToasts] = useState<ToastEntry[]>([])
+  const seenIdsRef = useRef<Set<string>>(new Set())
+
+  // On mount, mark every existing notification as already-seen so we don't
+  // animate in a backlog when the player window first connects to a
+  // mid-combat state.
+  useEffect(() => {
+    for (const n of notifications) if (n.id) seenIdsRef.current.add(n.id)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  // Watch for new notifications.
+  useEffect(() => {
+    const fresh: ToastEntry[] = []
+    for (const n of notifications) {
+      if (!n.id || seenIdsRef.current.has(n.id)) continue
+      seenIdsRef.current.add(n.id)
+      fresh.push({ notification: n, enteredAt: Date.now(), exiting: false })
+    }
+    if (fresh.length > 0) {
+      setToasts(prev => {
+        const next = [...prev, ...fresh]
+        // Cap visible toasts: oldest non-exiting drops first
+        if (next.length > TOAST_MAX_VISIBLE) return next.slice(next.length - TOAST_MAX_VISIBLE)
+        return next
+      })
+    }
+  }, [notifications])
+
+  // Schedule fade-out and removal for each toast.
+  useEffect(() => {
+    if (toasts.length === 0) return
+    const timers: number[] = []
+    for (const t of toasts) {
+      if (t.exiting) continue
+      const elapsed = Date.now() - t.enteredAt
+      const remaining = Math.max(0, TOAST_HOLD_MS - elapsed)
+      timers.push(window.setTimeout(() => {
+        setToasts(prev => prev.map(p => p.notification.id === t.notification.id ? { ...p, exiting: true } : p))
+      }, remaining))
+      timers.push(window.setTimeout(() => {
+        setToasts(prev => prev.filter(p => p.notification.id !== t.notification.id))
+      }, remaining + TOAST_FADE_MS))
+    }
+    return () => { for (const t of timers) window.clearTimeout(t) }
+  }, [toasts.length])
+
+  if (toasts.length === 0) return null
+
+  return (
+    <div style={{
+      position: 'absolute',
+      bottom: 80,
+      left: 540,        // matches the initiative column width
+      right: 360,       // matches the turn-info sidebar width
+      display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8,
+      pointerEvents: 'none',
+      zIndex: 50,
+    }}>
+      {toasts.map(t => {
+        const n = t.notification
+        const targetCombatant = combatants[n.combatantId]
+        const sourceCombatant = n.sourceId ? combatants[n.sourceId] : undefined
+        const subjectColor = getSubjectColor(targetCombatant, n.combatantName ?? '')
+        const sourceColor = sourceCombatant
+          ? getSubjectColor(sourceCombatant, n.sourceName ?? '')
+          : undefined
+        const { text } = buildToastText(n)
+        const renderToken = (c: PlayerCombatantState | undefined, fallbackName: string, ringColor: string) => (
+          <div style={{ flexShrink: 0 }}>
+            <CombatToken
+              name={c?.name ?? fallbackName}
+              imageId={c?.imageId}
+              tokenImageId={c?.tokenImageId}
+              hp={100}
+              maxHp={100}
+              size={48}
+              hideHpRing
+              solidRingColor={ringColor}
+            />
+          </div>
+        )
+        // Two-token notifications get a diagonal gradient border (attacker → target),
+        // mirroring the 2-damage-type ongoing damage pills. Single-token notifications
+        // get a flat subject-colored border.
+        const borderGradient = sourceColor
+          ? `linear-gradient(135deg, ${sourceColor} 45%, ${subjectColor} 55%)`
+          : null
+        const glowColor = sourceColor ?? subjectColor
+        return (
+          <div key={n.id} style={{
+            display: 'flex', alignItems: 'center', gap: 12,
+            padding: '10px 10px',
+            // Gradient-border trick: opaque inner background on padding-box,
+            // gradient (or solid) on border-box. Border is transparent so the
+            // border-box layer shows through.
+            background: borderGradient
+              ? `linear-gradient(rgba(0,0,0,0.85), rgba(0,0,0,0.85)) padding-box, ${borderGradient} border-box`
+              : 'rgba(0,0,0,0.85)',
+            border: borderGradient
+              ? '2px solid transparent'
+              : `2px solid ${subjectColor}`,
+            borderRadius: 36,
+            boxShadow: `0 4px 16px rgba(0,0,0,0.5), 0 0 24px ${glowColor}44`,
+            fontFamily: "'MentorSans', 'Mentor', sans-serif",
+            fontSize: '1.2rem',
+            color: '#eee',
+            opacity: t.exiting ? 0 : 1,
+            transform: t.exiting ? 'translateY(-8px)' : 'translateY(0)',
+            transition: `opacity ${TOAST_FADE_MS}ms ease-out, transform ${TOAST_FADE_MS}ms ease-out`,
+            maxWidth: '100%',
+          }}>
+            {/* Attacker on the left if present, otherwise the lone subject token. */}
+            {sourceCombatant
+              ? renderToken(sourceCombatant, n.sourceName ?? '?', getSubjectColor(sourceCombatant, n.sourceName ?? ''))
+              : renderToken(targetCombatant, n.combatantName ?? '?', subjectColor)}
+            <span style={{ flex: 1, minWidth: 0, lineHeight: 1.3, padding: '0 4px' }}>{text}</span>
+            {/* Target on the right when there's a distinct attacker. */}
+            {sourceCombatant && renderToken(targetCombatant, n.combatantName ?? '?', subjectColor)}
+          </div>
+        )
+      })}
     </div>
   )
 }

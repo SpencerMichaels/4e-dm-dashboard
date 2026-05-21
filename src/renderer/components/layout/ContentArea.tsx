@@ -5,6 +5,7 @@ import { NoteEditor } from '../campaign/NoteEditor'
 import { CreatureEditor } from '../campaign/CreatureEditor'
 import { EncounterEditor } from '../campaign/EncounterEditor'
 import { LocationEditor } from '../campaign/LocationEditor'
+import { MapEditor } from '../campaign/MapEditor'
 import { ItemEditor } from '../campaign/ItemEditor'
 import { EntityList } from '../campaign/EntityList'
 import { CombatView } from '../combat/CombatView'
@@ -32,6 +33,8 @@ export function ContentArea() {
       return <EncounterEditor encounterId={view.encounterId} key={view.encounterId} />
     case 'location':
       return <LocationEditor locationId={view.locationId} key={view.locationId} />
+    case 'map':
+      return <MapEditor mapId={view.mapId} key={view.mapId} />
     case 'item':
       return <ItemEditor itemId={view.itemId} key={view.itemId} />
     case 'combat':

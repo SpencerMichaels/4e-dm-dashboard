@@ -19,10 +19,12 @@ export function initCombat(encounterId?: string): CombatState {
     initiativeOrder: [],
     combatants: {},
     delayedIds: [],
+    readiedIds: [],
     turnPhase: 'active',
     turnItems: [],
     stepperIndex: -1,
     playerExpandConditions: true,
+    notifications: [],
   }
   return combatState
 }
@@ -47,6 +49,7 @@ export function removeCombatant(combatantId: string): CombatState {
   delete combatState.combatants[combatantId]
   combatState.initiativeOrder = combatState.initiativeOrder.filter(id => id !== combatantId)
   combatState.delayedIds = combatState.delayedIds.filter(id => id !== combatantId)
+  combatState.readiedIds = combatState.readiedIds.filter(id => id !== combatantId)
   return combatState
 }
 
@@ -57,7 +60,14 @@ export function setInitiative(combatantId: string, initiative: number): CombatSt
   combatant.initiative = initiative
   const allIds = Object.keys(combatState.combatants)
   const withInit = allIds.filter(id => combatState!.combatants[id].initiative != null)
-  withInit.sort((a, b) => (combatState!.combatants[b].initiative ?? 0) - (combatState!.combatants[a].initiative ?? 0))
+  withInit.sort((a, b) => {
+    const diff = (combatState!.combatants[b].initiative ?? 0) - (combatState!.combatants[a].initiative ?? 0)
+    if (diff !== 0) return diff
+    // Same initiative: group members stay adjacent
+    const ga = combatState!.combatants[a].initiativeGroupId ?? ''
+    const gb = combatState!.combatants[b].initiativeGroupId ?? ''
+    return ga.localeCompare(gb)
+  })
   combatState.initiativeOrder = withInit
   return combatState
 }
@@ -74,12 +84,39 @@ export function setPlayerExpandConditions(value: boolean): CombatState {
   return combatState
 }
 
+export function setSurprise(enabled: boolean, actorIds?: string[]): CombatState {
+  if (!combatState) throw new Error('No active combat')
+  combatState.surpriseRound = enabled
+  combatState.surpriseActorIds = enabled ? (actorIds ?? []) : undefined
+  return combatState
+}
+
 export function startCombat(): CombatState {
   if (!combatState) throw new Error('No active combat')
   combatState.phase = 'active'
-  combatState.round = 1
-  combatState.turnIndex = 0
   combatState.turnPhase = 'active'
+
+  if (combatState.surpriseRound) {
+    combatState.round = 0
+    const actorSet = new Set(combatState.surpriseActorIds ?? [])
+    for (const [id, c] of Object.entries(combatState.combatants)) {
+      if (!actorSet.has(id)) {
+        c.conditions.push({ conditionId: 'surprised', duration: { type: 'indefinite' } })
+        if (!c.conditions.some(cond => cond.conditionId === 'combat-advantage')) {
+          c.conditions.push({ conditionId: 'combat-advantage', sourceId: '__surprised', grantsCATo: 'all', duration: { type: 'indefinite' } })
+        }
+      }
+    }
+  } else {
+    combatState.round = 1
+  }
+
+  combatState.turnIndex = 0
+  // Skip surprised (and dead) combatants to find the first actor
+  while (combatState.turnIndex < combatState.initiativeOrder.length && shouldSkip(combatState.initiativeOrder[combatState.turnIndex])) {
+    combatState.turnIndex++
+  }
+
   return combatState
 }
 
@@ -108,12 +145,33 @@ function shouldSkip(combatantId: string): boolean {
   if (c.dead) return true
   // Monsters skip at 0 HP; PCs skip only when explicitly marked dead (they may be Dying but still take turns)
   if (!c.isPC && c.hp <= 0) return true
+  // During surprise round (round 0), surprised creatures can't act
+  if (combatState.round === 0 && c.conditions.some(co => co.conditionId === 'surprised')) return true
   return false
 }
 
 // ──────────────────────────────────────────────────
 // Turn Phase State Machine
 // ──────────────────────────────────────────────────
+
+// Notification ring buffer cap. Older entries are dropped on push.
+const NOTIFICATION_BUFFER_SIZE = 30
+
+/** Push a notification onto the combat-state ring buffer. The player window
+ *  derives transient toasts from this list. id and timestamp are auto-filled
+ *  if missing so the player side can dedup re-renders and age them out. */
+function pushStateNotification(n: CombatNotification): void {
+  if (!combatState) return
+  const enriched: CombatNotification = {
+    ...n,
+    id: n.id ?? generateId(),
+    timestamp: n.timestamp ?? Date.now(),
+  }
+  combatState.notifications.push(enriched)
+  if (combatState.notifications.length > NOTIFICATION_BUFFER_SIZE) {
+    combatState.notifications.splice(0, combatState.notifications.length - NOTIFICATION_BUFFER_SIZE)
+  }
+}
 
 // Queued save/recharge results — applied when phase finishes
 let pendingResults: { combatantId: string; conditionId?: string; powerIndex?: number; success: boolean }[] = []
@@ -149,6 +207,43 @@ function saveLabel(condName: string, saveBonus: number): string {
   return `Save${bonusStr} vs ${condName}`
 }
 
+/**
+ * Build expire items for conditions that the given combatant has applied to
+ * *other* combatants and which expire on the given combatant's start- or
+ * end-of-turn (i.e. their `expiresOnId === combatant.id`). These appear in
+ * the source's own turn info, with a label like "Marked on Bob ends".
+ */
+function buildSourceExpireItems(
+  expiringFor: CombatantState,
+  durationType: 'eont' | 'sont',
+  plugin?: SystemPlugin,
+): PlayerTurnItem[] {
+  if (!combatState) return []
+  const items: PlayerTurnItem[] = []
+  const phase = durationType === 'eont' ? 'end' : 'start'
+  const kind = durationType === 'eont' ? 'eont-expire' : 'sont-expire'
+  for (const c of Object.values(combatState.combatants)) {
+    if (c.id === expiringFor.id) continue  // self-bound EONT/SONT handled by the carrier's own scan
+    for (const cond of c.conditions) {
+      if (cond.duration?.type !== durationType) continue
+      if (cond.duration.expiresOnId !== expiringFor.id) continue
+      // Won't expire at the upcoming boundary if it still has remaining > 0
+      if (cond.duration.remaining != null && cond.duration.remaining > 0) continue
+      const def = plugin?.conditions.find(d => d.id === cond.conditionId)
+      const name = cond.customName ?? def?.name ?? cond.conditionId
+      items.push({
+        id: `${phase === 'end' ? 'eont' : 'sont'}-${cond.conditionId}-${c.id}`,
+        phase, kind,
+        label: `${name} on ${c.name} ends`,
+        conditionId: cond.conditionId,
+        targetId: c.id,
+        targetName: c.name,
+      })
+    }
+  }
+  return items
+}
+
 function buildEndOfTurnPreview(combatant: CombatantState | null, plugin?: SystemPlugin): PlayerTurnItem[] {
   if (!combatant) return []
   const items: PlayerTurnItem[] = []
@@ -170,6 +265,21 @@ function buildEndOfTurnPreview(combatant: CombatantState | null, plugin?: System
       id: `save-${cond.conditionId}`, phase: 'end', kind: 'save',
       label: saveLabel(condName, saveBonus), conditionId: cond.conditionId,
       damageType: isOngoing ? cond.customDescription : undefined,
+    })
+  }
+  // EONT expirations on conditions this combatant applied to others
+  items.push(...buildSourceExpireItems(combatant, 'eont', plugin))
+  // Self-EONT expirations (conditions on this combatant whose duration pins to itself)
+  for (const cond of combatant.conditions) {
+    if (cond.duration?.type !== 'eont') continue
+    const expiresOn = cond.duration.expiresOnId ?? combatant.id
+    if (expiresOn !== combatant.id) continue
+    if (cond.duration.remaining != null && cond.duration.remaining > 0) continue
+    const def = plugin?.conditions.find(d => d.id === cond.conditionId)
+    const name = cond.customName ?? def?.name ?? cond.conditionId
+    items.push({
+      id: `eont-${cond.conditionId}-self`, phase: 'end', kind: 'eont-expire',
+      label: `${name} ends`, conditionId: cond.conditionId,
     })
   }
   // Death save for dying PCs
@@ -287,7 +397,16 @@ export function endTurn(plugin?: SystemPlugin): { state: CombatState; notificati
             if (!cond.duration.remaining || cond.duration.remaining <= 0) {
               const condDef = plugin?.conditions.find(d => d.id === cond.conditionId)
               const name = cond.customName ?? condDef?.name ?? cond.conditionId
-              endItems.push({ id: `eont-${cond.conditionId}`, phase: 'end', kind: 'eont-expire', label: `${name} ends`, conditionId: cond.conditionId })
+              const isSelf = c.id === currentId
+              endItems.push({
+                id: `eont-${cond.conditionId}-${c.id}`,
+                phase: 'end',
+                kind: 'eont-expire',
+                label: isSelf ? `${name} ends` : `${name} on ${c.name} ends`,
+                conditionId: cond.conditionId,
+                targetId: isSelf ? undefined : c.id,
+                targetName: isSelf ? undefined : c.name,
+              })
             }
           }
         }
@@ -382,7 +501,7 @@ export function resolveDeathSave(index: number, outcome: 'fail' | 'none' | 'succ
  * Resolve a single stepper item.
  * Ongoing damage: applied immediately. Saves/recharges: queued.
  */
-export function resolveItem(index: number, success: boolean): { state: CombatState; notifications: CombatNotification[] } {
+export function resolveItem(index: number, success: boolean, plugin?: SystemPlugin): { state: CombatState; notifications: CombatNotification[] } {
   if (!combatState) throw new Error('No active combat')
   const notifications: CombatNotification[] = []
   const item = combatState.turnItems[index]
@@ -392,11 +511,36 @@ export function resolveItem(index: number, success: boolean): { state: CombatSta
 
   if (item.kind === 'ongoing-damage') {
     if (item.value && item.value > 0 && currentId) {
-      const result = damageCombatant(currentId, item.value)
+      // Look up the underlying ongoing-damage condition on the carrier so we
+      // can attribute the tick to whoever originally applied it.
+      const carrier = combatState.combatants[currentId]
+      const cond = carrier?.conditions.find(co => co.conditionId === item.conditionId)
+      const sourceId = cond?.sourceId
+      const result = damageCombatant(currentId, item.value, true, { ongoing: true, damageType: item.damageType, sourceId })
       notifications.push(...result.notifications)
     }
   } else if (item.kind === 'save') {
     pendingResults.push({ combatantId: currentId ?? '', conditionId: item.conditionId, success })
+    // Emit a player-toast notification for the save attempt. Look up the
+    // condition's display name from the carrier so it matches the toast text
+    // for class-mark customNames etc.
+    if (currentId && item.conditionId) {
+      const carrier = combatState.combatants[currentId]
+      const cond = carrier?.conditions.find(co => co.conditionId === item.conditionId)
+      const isOngoing = item.conditionId?.startsWith('ongoing-damage')
+      const def = plugin?.conditions.find(d => d.id === (isOngoing ? 'ongoing-damage' : item.conditionId))
+      const displayName = isOngoing
+        ? `Ongoing${cond?.value ? ' ' + cond.value : ''}${cond?.customDescription ? ' ' + cond.customDescription : ''} Damage`
+        : (cond?.customName ?? def?.name ?? item.conditionId)
+      pushStateNotification({
+        type: success ? 'save-success' : 'save-fail',
+        combatantId: currentId,
+        combatantName: carrier?.name,
+        conditionId: item.conditionId,
+        conditionName: displayName,
+        message: success ? `${carrier?.name} saved vs ${displayName}` : `${carrier?.name} failed save vs ${displayName}`,
+      })
+    }
   } else if (item.kind === 'recharge') {
     const powerIdx = parseInt(item.id.replace('rch-', ''))
     pendingResults.push({ combatantId: currentId ?? '', powerIndex: isNaN(powerIdx) ? undefined : powerIdx, success })
@@ -431,17 +575,18 @@ export function commitAndAdvance(plugin?: SystemPlugin, extraNotifications?: Com
   while (combatState.turnIndex < combatState.initiativeOrder.length && shouldSkip(combatState.initiativeOrder[combatState.turnIndex])) combatState.turnIndex++
 
   if (combatState.turnIndex >= combatState.initiativeOrder.length) {
-    if (combatState.delayedIds.length > 0) {
-      const delayed = combatState.delayedIds.map(id => ({ id, init: combatState!.combatants[id]?.initiative ?? 0 })).sort((a, b) => b.init - a.init)
-      const forcedId = delayed[0].id
-      combatState.delayedIds = combatState.delayedIds.filter(id => id !== forcedId)
-      combatState.initiativeOrder.push(forcedId)
-      combatState.turnIndex = combatState.initiativeOrder.length - 1
-    } else {
-      combatState.round++
-      combatState.turnIndex = 0
-      decrementRoundEffects()
+    combatState.round++
+    // Transitioning from surprise round to round 1: remove all Surprised conditions
+    if (combatState.round === 1 && combatState.surpriseRound) {
+      for (const c of Object.values(combatState.combatants)) {
+        c.conditions = c.conditions.filter(cond =>
+          cond.conditionId !== 'surprised'
+          && !(cond.conditionId === 'combat-advantage' && cond.sourceId === '__surprised')
+        )
+      }
     }
+    combatState.turnIndex = 0
+    decrementRoundEffects()
     while (combatState.turnIndex < combatState.initiativeOrder.length && shouldSkip(combatState.initiativeOrder[combatState.turnIndex])) combatState.turnIndex++
   }
 
@@ -460,7 +605,16 @@ export function commitAndAdvance(plugin?: SystemPlugin, extraNotifications?: Com
             if (!cond.duration.remaining || cond.duration.remaining <= 0) {
               const condDef = plugin?.conditions.find(d => d.id === cond.conditionId)
               const name = cond.customName ?? condDef?.name ?? cond.conditionId
-              startItems.push({ id: `sont-${cond.conditionId}`, phase: 'start', kind: 'sont-expire', label: `${name} ends`, conditionId: cond.conditionId })
+              const isSelf = c.id === newId
+              startItems.push({
+                id: `sont-${cond.conditionId}-${c.id}`,
+                phase: 'start',
+                kind: 'sont-expire',
+                label: isSelf ? `${name} ends` : `${name} on ${c.name} ends`,
+                conditionId: cond.conditionId,
+                targetId: isSelf ? undefined : c.id,
+                targetName: isSelf ? undefined : c.name,
+              })
             }
           }
         }
@@ -570,7 +724,51 @@ export function undelayCombatant(combatantId: string, beforeCombatantId?: string
   return combatState
 }
 
-export function damageCombatant(combatantId: string, amount: number, wasHit: boolean = true): { state: CombatState; notifications: CombatNotification[] } {
+export function readyCombatant(combatantId: string, actionText: string): CombatState {
+  if (!combatState) throw new Error('No active combat')
+  if (!combatState.readiedIds.includes(combatantId)) combatState.readiedIds.push(combatantId)
+  combatState.combatants[combatantId].readiedAction = actionText
+  const idx = combatState.initiativeOrder.indexOf(combatantId)
+  if (idx >= 0) {
+    combatState.initiativeOrder = combatState.initiativeOrder.filter(id => id !== combatantId)
+    if (idx < combatState.turnIndex) combatState.turnIndex--
+  }
+  while (combatState.turnIndex < combatState.initiativeOrder.length && shouldSkip(combatState.initiativeOrder[combatState.turnIndex])) combatState.turnIndex++
+  return combatState
+}
+
+export function resolveReadiedAction(combatantId: string): CombatState {
+  if (!combatState) throw new Error('No active combat')
+  combatState.readiedIds = combatState.readiedIds.filter(id => id !== combatantId)
+  const c = combatState.combatants[combatantId]
+  if (c) c.readiedAction = undefined
+  // Insert before the current creature; skip if dead
+  if (!shouldSkip(combatantId)) {
+    combatState.initiativeOrder.splice(combatState.turnIndex, 0, combatantId)
+    combatState.turnIndex++
+  }
+  return combatState
+}
+
+export function cancelReady(combatantId: string): CombatState {
+  if (!combatState) throw new Error('No active combat')
+  combatState.readiedIds = combatState.readiedIds.filter(id => id !== combatantId)
+  const c = combatState.combatants[combatantId]
+  if (c) c.readiedAction = undefined
+  // Slot in after the current creature
+  if (!shouldSkip(combatantId)) {
+    const insertIdx = combatState.turnIndex + 1
+    combatState.initiativeOrder.splice(insertIdx, 0, combatantId)
+  }
+  return combatState
+}
+
+export function damageCombatant(
+  combatantId: string,
+  amount: number,
+  wasHit: boolean = true,
+  opts: { sourceId?: string; ongoing?: boolean; damageType?: string } = {},
+): { state: CombatState; notifications: CombatNotification[] } {
   if (!combatState) throw new Error('No active combat')
   const c = combatState.combatants[combatantId]
   if (!c) throw new Error(`Combatant ${combatantId} not found`)
@@ -578,42 +776,120 @@ export function damageCombatant(combatantId: string, amount: number, wasHit: boo
   const isMinion = !!(c.statBlock && (c.statBlock as Record<string, unknown>).isMinion)
   // Minions take no damage from a miss, even if the power deals half on miss
   if (isMinion && !wasHit) return { state: combatState, notifications }
+  const wasAlreadyDead = c.hp <= 0 || c.dead
   let remaining = amount
   if (c.tempHp > 0) { const absorbed = Math.min(c.tempHp, remaining); c.tempHp -= absorbed; remaining -= absorbed }
   c.hp = Math.max(0, c.hp - remaining)
   // Auto-bloodied management — only for monsters, and never for minions (they have no bloodied state)
+  let crossedBloodied = false
   if (!c.isPC && !isMinion) {
     const isBloodied = c.maxHp > 0 && c.hp <= c.maxHp / 2 && c.hp > 0
     const hasBloodied = c.conditions.some(cond => cond.conditionId === 'bloodied')
     if (isBloodied && !hasBloodied) {
       c.conditions.push({ conditionId: 'bloodied', duration: { type: 'indefinite' } })
       notifications.push({ type: 'bloodied', combatantId, message: `${c.name} is Bloodied!` })
+      crossedBloodied = true
     } else if (!isBloodied && hasBloodied) {
       c.conditions = c.conditions.filter(cond => cond.conditionId !== 'bloodied')
     }
   }
-  if (c.hp <= 0) notifications.push({ type: 'death', combatantId, message: c.isPC ? `${c.name} is down!` : `${c.name} is defeated!` })
+  // Player-toast damage notification (only for nonzero damage)
+  if (amount > 0 && !wasAlreadyDead) {
+    const sourceName = opts.sourceId ? combatState.combatants[opts.sourceId]?.name : undefined
+    pushStateNotification({
+      type: 'damage',
+      combatantId,
+      combatantName: c.name,
+      sourceId: opts.sourceId && opts.sourceId !== combatantId ? opts.sourceId : undefined,
+      sourceName: opts.sourceId && opts.sourceId !== combatantId ? sourceName : undefined,
+      amount,
+      becameBloodied: crossedBloodied,
+      ongoing: opts.ongoing,
+      damageType: opts.damageType,
+      message: `${c.name} took ${amount} damage`,
+    })
+  }
+  if (c.hp <= 0) {
+    notifications.push({ type: 'death', combatantId, message: c.isPC ? `${c.name} is down!` : `${c.name} is defeated!` })
+    if (!wasAlreadyDead) {
+      const sourceName = opts.sourceId ? combatState.combatants[opts.sourceId]?.name : undefined
+      pushStateNotification({
+        type: 'death',
+        combatantId,
+        combatantName: c.name,
+        sourceId: opts.sourceId && opts.sourceId !== combatantId ? opts.sourceId : undefined,
+        sourceName: opts.sourceId && opts.sourceId !== combatantId ? sourceName : undefined,
+        message: c.isPC ? `${c.name} is down!` : `${c.name} was slain!`,
+      })
+    }
+  }
   return { state: combatState, notifications }
 }
 
-export function healCombatant(combatantId: string, amount: number): CombatState {
+export function healCombatant(combatantId: string, amount: number, opts: { sourceId?: string } = {}): CombatState {
   if (!combatState) throw new Error('No active combat')
   const c = combatState.combatants[combatantId]
   if (!c) throw new Error(`Combatant ${combatantId} not found`)
+  const before = c.hp
   c.hp = Math.min(c.maxHp, c.hp + amount)
+  const actual = c.hp - before
   // Auto-unbloodied — only for monsters
   if (!c.isPC && c.maxHp > 0 && c.hp > c.maxHp / 2) {
     c.conditions = c.conditions.filter(cond => cond.conditionId !== 'bloodied')
   }
+  if (actual > 0) {
+    const sourceName = opts.sourceId ? combatState.combatants[opts.sourceId]?.name : undefined
+    pushStateNotification({
+      type: 'heal',
+      combatantId,
+      combatantName: c.name,
+      sourceId: opts.sourceId && opts.sourceId !== combatantId ? opts.sourceId : undefined,
+      sourceName: opts.sourceId && opts.sourceId !== combatantId ? sourceName : undefined,
+      amount: actual,
+      message: `${c.name} was healed for ${actual}`,
+    })
+  }
   return combatState
 }
 
-export function addCondition(combatantId: string, condition: AppliedCondition): CombatState {
+export function addCondition(combatantId: string, condition: AppliedCondition, plugin?: SystemPlugin): CombatState {
   if (!combatState) throw new Error('No active combat')
+  // Surprised is engine-managed only — cannot be manually applied
+  if (condition.conditionId === 'surprised') return combatState
   const c = combatState.combatants[combatantId]
   if (!c) throw new Error(`Combatant ${combatantId} not found`)
+  // Determine if this is a "new" application (vs replacing an existing instance
+  // of the same condition id) — used to suppress no-op notifications.
+  const wasAlreadyPresent = c.conditions.some(co => co.conditionId === condition.conditionId)
+  // Resolve display name. customName overrides everything (used by defender
+  // class marks to render "Challenged" instead of "Marked"). Otherwise fall
+  // back to the plugin's def name, then the raw id.
+  const def = plugin?.conditions.find(d => d.id === condition.conditionId)
+  const displayName = condition.customName ?? def?.name ?? condition.conditionId
+  // Suppress notifications for engine-internal/hidden condition defs
+  // (`bloodied`, `ongoing-damage` shim, etc.) — those are noise.
+  const suppress = !!def?.hidden || condition.conditionId === 'bloodied'
   if (condition.conditionId === 'ongoing-damage') {
     c.conditions.push({ ...condition, conditionId: `ongoing-damage-${generateId()}` })
+    // Emit an "applied" notification for the player toast — distinct from the
+    // per-tick damage notifications fired later by resolveItem.
+    if (condition.value && condition.value > 0) {
+      const sourceId = condition.sourceId
+      const sourceName = sourceId ? combatState.combatants[sourceId]?.name : undefined
+      const isSelf = !sourceId || sourceId === combatantId
+      pushStateNotification({
+        type: 'condition',
+        combatantId,
+        combatantName: c.name,
+        sourceId: isSelf ? undefined : sourceId,
+        sourceName: isSelf ? undefined : sourceName,
+        conditionId: 'ongoing-damage',
+        conditionName: 'Ongoing Damage',
+        amount: condition.value,
+        damageType: condition.customDescription,
+        message: `${c.name} started taking ongoing damage`,
+      })
+    }
   } else if (condition.conditionId === 'dying') {
     // Dying auto-applies unconscious + prone (and inits death save counter)
     c.conditions = c.conditions.filter(cond => cond.conditionId !== 'dying' && cond.conditionId !== 'unconscious')
@@ -623,9 +899,43 @@ export function addCondition(combatantId: string, condition: AppliedCondition): 
       c.conditions.push({ conditionId: 'prone', duration: { type: 'indefinite' } } as AppliedCondition)
     }
     if (c.deathSaveFailures == null) c.deathSaveFailures = 0
+  } else if (condition.conditionId === 'grabbed') {
+    // Grabbed implies immobilized — tag the implied instance with
+    // sourceId='__grabbed' so we can distinguish it from independently
+    // applied immobilized on removal.
+    c.conditions = c.conditions.filter(cond => cond.conditionId !== 'grabbed')
+    c.conditions.push(condition)
+    if (!c.conditions.some(cond => cond.conditionId === 'immobilized')) {
+      c.conditions.push({ conditionId: 'immobilized', sourceId: '__grabbed', duration: condition.duration ?? { type: 'indefinite' } } as AppliedCondition)
+    }
   } else {
     c.conditions = c.conditions.filter(cond => cond.conditionId !== condition.conditionId)
     c.conditions.push(condition)
+  }
+  // Emit a player-toast notification for the application. Skip ongoing-damage
+  // (handled separately on each tick), hidden defs, and pure no-op replacements
+  // — except for class marks where re-application means a new source/target
+  // pair the player should still see.
+  if (!suppress && !condition.conditionId.startsWith('ongoing-damage')) {
+    const isClassMark = condition.conditionId === 'marked' || (def && def.id !== condition.conditionId)
+    const isClassMarkAlias = condition.conditionId.startsWith('mark-')
+    if (!wasAlreadyPresent || isClassMark || isClassMarkAlias) {
+      const sourceId = condition.sourceId
+      const sourceName = sourceId ? combatState.combatants[sourceId]?.name : undefined
+      const isSelf = !sourceId || sourceId === combatantId
+      pushStateNotification({
+        type: 'condition',
+        combatantId,
+        combatantName: c.name,
+        sourceId: isSelf ? undefined : sourceId,
+        sourceName: isSelf ? undefined : sourceName,
+        conditionId: condition.conditionId,
+        conditionName: displayName,
+        message: def
+          ? `${c.name} was ${displayName}${isSelf ? '' : ` by ${sourceName ?? '?'}`}`
+          : `${c.name} gained condition "${displayName}"`,
+      })
+    }
   }
   return combatState
 }
@@ -638,6 +948,16 @@ export function removeCondition(combatantId: string, conditionId: string): Comba
   // Removing Dying also clears Unconscious (but Prone stays — they need to stand up)
   if (conditionId === 'dying') {
     c.conditions = c.conditions.filter(cond => cond.conditionId !== 'unconscious')
+  }
+  // Removing Grabbed clears the implied Immobilized (tagged with sourceId='__grabbed'),
+  // but leaves independently applied Immobilized intact.
+  if (conditionId === 'grabbed') {
+    c.conditions = c.conditions.filter(cond => !(cond.conditionId === 'immobilized' && cond.sourceId === '__grabbed'))
+  }
+  // Removing Surprised clears the implied Grants CA (tagged with sourceId='__surprised'),
+  // but leaves independently applied combat-advantage intact.
+  if (conditionId === 'surprised') {
+    c.conditions = c.conditions.filter(cond => !(cond.conditionId === 'combat-advantage' && cond.sourceId === '__surprised'))
   }
   return combatState
 }
@@ -689,6 +1009,11 @@ export function toPlayerCombatState(state: CombatState, plugin?: SystemPlugin): 
   const descriptors = plugin?.hpDescriptors ?? []
 
   for (const [id, c] of Object.entries(state.combatants)) {
+    // Hidden creatures are completely omitted from the player state
+    if (c.hidden) continue
+    // During initiative entry, players only see PCs — monsters are revealed
+    // when the DM clicks "Start Combat"
+    if (state.phase === 'initiative-entry' && !c.isPC) continue
     let label: string, color: string, hpPct: number
     if (c.isPC) {
       // PCs track their own HP — no descriptor shown
@@ -715,31 +1040,54 @@ export function toPlayerCombatState(state: CombatState, plugin?: SystemPlugin): 
           conditionId: cond.conditionId,
           name: cond.customName ?? def?.name ?? cond.conditionId,
           value: cond.value,
-          description: cond.customDescription ?? def?.description,
+          // Prefer the def's static description (the rules text). customDescription
+          // is normally a label suffix like "by X" — already in the pill label —
+          // and shouldn't override the description. Custom/ad-hoc conditions
+          // without a def fall back to it.
+          description: def?.description ?? cond.customDescription,
           customDescription: cond.customDescription,
           damageType: cond.conditionId.startsWith('ongoing-damage') ? cond.customDescription : undefined,
           durationType: cond.duration?.type,
           expiresOnName: expiresOnId ? state.combatants[expiresOnId]?.name : undefined,
+          customColor: cond.customColor,
+          customIcon: cond.customIcon,
+          grantsCATo: cond.grantsCATo,
+          sourceId: cond.sourceId,
         }
       }),
+      readiedAction: c.readiedAction,
       effects: c.effects.map(e => ({ name: e.name })),
       miniIndicator: c.miniIndicator,
+      miniNumber: c.miniNumber,
       imageId: c.imageId,
       tokenImageId: c.tokenImageId,
       color: c.color,
     }
   }
 
+  // Filter hidden creatures from the player-visible initiative order
+  const hiddenIds = new Set(Object.entries(state.combatants).filter(([_, c]) => c.hidden).map(([id]) => id))
+  const filteredOrder = state.initiativeOrder.filter(id => !hiddenIds.has(id))
+  const filteredDelayed = state.delayedIds.filter(id => !hiddenIds.has(id))
+  const filteredReadied = state.readiedIds.filter(id => !hiddenIds.has(id))
+  // Adjust turnIndex to the filtered order: find which visible creature is currently active
+  const currentId = state.initiativeOrder[state.turnIndex]
+  const filteredTurnIndex = currentId ? filteredOrder.indexOf(currentId) : 0
+
   return {
     round: state.round,
     phase: state.phase,
-    turnIndex: state.turnIndex,
-    initiativeOrder: state.initiativeOrder,
+    turnIndex: Math.max(0, filteredTurnIndex),
+    initiativeOrder: filteredOrder,
     combatants,
-    activeInitiativeId: state.activeInitiativeId,
+    delayedIds: filteredDelayed,
+    readiedIds: filteredReadied,
+    notifications: state.notifications ?? [],
+    activeInitiativeId: hiddenIds.has(state.activeInitiativeId ?? '') ? undefined : state.activeInitiativeId,
     turnPhase: state.turnPhase,
     turnItems: state.turnItems ?? [],
     stepperIndex: state.stepperIndex ?? -1,
     playerExpandConditions: state.playerExpandConditions ?? true,
+    surpriseRound: state.surpriseRound,
   }
 }

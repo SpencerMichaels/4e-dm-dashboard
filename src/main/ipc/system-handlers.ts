@@ -1,7 +1,7 @@
 import { ipcMain } from 'electron'
 import { CMD, SYNC } from '@common/ipc-channels'
 import { getPlugin, getAllPlugins } from '../plugins/plugin-loader'
-import { broadcastToAll } from '../windows'
+import { broadcastToAll, getPlayerWindow, createPlayerWindow } from '../windows'
 import type { SceneState } from '@common/types'
 
 let currentScene: SceneState = { mode: 'story' }
@@ -22,6 +22,7 @@ export function registerSystemHandlers(): void {
       initiativeRules: plugin.initiativeRules,
       hpDescriptors: plugin.hpDescriptors,
       creatureBuilder: plugin.creatureBuilder,
+      settings: plugin.settings,
     }
   })
 
@@ -29,8 +30,15 @@ export function registerSystemHandlers(): void {
     return getAllPlugins().map(p => ({ id: p.id, name: p.name, version: p.version }))
   })
 
+  ipcMain.handle(CMD.PLAYER_WINDOW_SHOW, async () => {
+    if (!getPlayerWindow()) createPlayerWindow()
+    else getPlayerWindow()?.focus()
+  })
+
   ipcMain.handle(CMD.SCENE_SET, async (_e, scene: SceneState) => {
     currentScene = scene
+    // Open the player window if it isn't already
+    if (!getPlayerWindow()) createPlayerWindow()
     broadcastToAll(SYNC.SCENE_STATE, currentScene)
     return currentScene
   })

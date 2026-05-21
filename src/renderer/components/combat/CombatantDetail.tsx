@@ -5,12 +5,16 @@ interface Props {
   combatant: CombatantState
   isCurrent: boolean
   isDelayed: boolean
+  isReadied?: boolean
   onDamage: () => void
   onHeal: () => void
   onAddCondition: () => void
   onAddEffect: () => void
   onDelay: () => void
   onUndelay: () => void
+  onReady?: () => void
+  onResolveReady?: () => void
+  onCancelReady?: () => void
   onRemove: () => void
 }
 
@@ -18,12 +22,16 @@ export function CombatantDetail({
   combatant: c,
   isCurrent,
   isDelayed,
+  isReadied,
   onDamage,
   onHeal,
   onAddCondition,
   onAddEffect,
   onDelay,
   onUndelay,
+  onReady,
+  onResolveReady,
+  onCancelReady,
   onRemove,
 }: Props) {
   const systemPlugin = useUiStore((s) => s.systemPlugin)
@@ -60,6 +68,18 @@ export function CombatantDetail({
             Delayed
           </span>
         )}
+        {isReadied && (
+          <span style={{
+            background: '#39c',
+            color: '#fff',
+            padding: '2px 10px',
+            borderRadius: 'var(--radius-sm)',
+            fontSize: 'var(--font-size-sm)',
+            fontWeight: 600,
+          }}>
+            Readied
+          </span>
+        )}
       </div>
 
       {/* HP */}
@@ -87,6 +107,64 @@ export function CombatantDetail({
         </div>
       </div>
 
+      {/* Active conditions strip */}
+      {c.conditions.length > 0 && (
+        <div style={{
+          display: 'flex', flexWrap: 'wrap', gap: 'var(--space-2)',
+          marginBottom: 'var(--space-3)',
+          padding: 'var(--space-2) var(--space-3)',
+          background: 'var(--color-bg-surface)',
+          border: '1px solid var(--color-border)',
+          borderRadius: 'var(--radius-sm)',
+        }}>
+          {c.conditions.map((cond) => {
+            const def = systemPlugin?.conditions?.find((d: any) => d.id === cond.conditionId)
+            const name = cond.customName ?? def?.name ?? cond.conditionId.replace(/-/g, ' ').replace(/\b\w/g, ch => ch.toUpperCase())
+            const label = cond.value != null ? `${name} ${cond.value}` : name
+            return (
+              <span
+                key={cond.conditionId}
+                title={[name, def?.description].filter(Boolean).join(' — ')}
+                style={{
+                  display: 'inline-flex', alignItems: 'center', gap: 4,
+                  padding: '2px 8px', borderRadius: 10,
+                  background: cond.customColor ?? '#c90', color: '#000',
+                  fontSize: 'var(--font-size-xs)', fontWeight: 600,
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                {label}
+                <button
+                  onClick={() => window.api.combat.removeCondition(c.id, cond.conditionId)}
+                  style={{
+                    background: 'none', border: 'none', cursor: 'pointer',
+                    padding: 0, marginLeft: 2, fontSize: 'var(--font-size-xs)',
+                    lineHeight: 1, color: 'inherit', opacity: 0.7,
+                  }}
+                >
+                  x
+                </button>
+              </span>
+            )
+          })}
+        </div>
+      )}
+
+      {/* Readied action text */}
+      {isReadied && c.readiedAction && (
+        <div style={{
+          padding: 'var(--space-2) var(--space-3)',
+          marginBottom: 'var(--space-3)',
+          background: 'rgba(51, 153, 204, 0.1)',
+          border: '1px solid rgba(51, 153, 204, 0.3)',
+          borderRadius: 'var(--radius-sm)',
+          fontSize: 'var(--font-size-sm)',
+          color: '#39c',
+        }}>
+          {c.readiedAction}
+        </div>
+      )}
+
       {/* Action buttons */}
       <div style={{ display: 'flex', gap: 'var(--space-2)', flexWrap: 'wrap', marginBottom: 'var(--space-4)' }}>
         <button onClick={onDamage} style={{ background: '#c00', color: '#fff', padding: '4px 12px', borderRadius: 'var(--radius-sm)' }}>
@@ -101,61 +179,30 @@ export function CombatantDetail({
         <button onClick={onAddEffect} style={{ padding: '4px 12px', borderRadius: 'var(--radius-sm)' }}>
           + Effect
         </button>
-        {isDelayed ? (
+        {isReadied ? (
+          <>
+            {onResolveReady && <button onClick={onResolveReady} style={{ padding: '4px 12px', borderRadius: 'var(--radius-sm)', background: '#39c', color: '#fff' }}>
+              Resolve Ready
+            </button>}
+            {onCancelReady && <button onClick={onCancelReady} style={{ padding: '4px 12px', borderRadius: 'var(--radius-sm)' }}>
+              Cancel Ready
+            </button>}
+          </>
+        ) : isDelayed ? (
           <button onClick={onUndelay} style={{ padding: '4px 12px', borderRadius: 'var(--radius-sm)' }}>
             Undelay
           </button>
         ) : (
-          <button onClick={onDelay} style={{ padding: '4px 12px', borderRadius: 'var(--radius-sm)' }}>
-            Delay
-          </button>
+          <>
+            <button onClick={onDelay} style={{ padding: '4px 12px', borderRadius: 'var(--radius-sm)' }}>
+              Delay
+            </button>
+            {onReady && <button onClick={onReady} style={{ padding: '4px 12px', borderRadius: 'var(--radius-sm)' }}>
+              Ready
+            </button>}
+          </>
         )}
       </div>
-
-      {/* Conditions */}
-      {c.conditions.length > 0 && (
-        <div style={{ marginBottom: 'var(--space-4)' }}>
-          <h3 style={{ fontSize: 'var(--font-size-base)', marginBottom: 'var(--space-2)' }}>Conditions</h3>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-2)' }}>
-            {c.conditions.map((cond) => {
-              const def = systemPlugin?.conditions?.find((d: any) => d.id === cond.conditionId)
-              return (
-                <span
-                  key={cond.conditionId}
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: 'var(--space-1)',
-                    padding: '2px 8px',
-                    background: '#c90',
-                    color: '#000',
-                    borderRadius: 'var(--radius-sm)',
-                    fontSize: 'var(--font-size-sm)',
-                    fontWeight: 500,
-                  }}
-                >
-                  {def?.name ?? cond.conditionId}
-                  {cond.value != null && ` ${cond.value}`}
-                  <button
-                    onClick={() => window.api.combat.removeCondition(c.id, cond.conditionId)}
-                    style={{
-                      background: 'none',
-                      border: 'none',
-                      cursor: 'pointer',
-                      padding: 0,
-                      marginLeft: 2,
-                      fontSize: 'var(--font-size-sm)',
-                      lineHeight: 1,
-                    }}
-                  >
-                    x
-                  </button>
-                </span>
-              )
-            })}
-          </div>
-        </div>
-      )}
 
       {/* Effects */}
       {c.effects.length > 0 && (

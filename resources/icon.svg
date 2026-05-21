@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
+  <!-- Background circle -->
+  <circle cx="128" cy="128" r="120" fill="#1a1a2e"/>
+  <circle cx="128" cy="128" r="116" fill="none" stroke="#c4a563" stroke-width="3"/>
+
+  <!-- d20 shape (icosahedron face) -->
+  <polygon points="128,28 220,168 36,168" fill="none" stroke="#c4a563" stroke-width="3" stroke-linejoin="round"/>
+
+  <!-- Inner triangle -->
+  <polygon points="128,72 184,152 72,152" fill="none" stroke="#8b7340" stroke-width="2" stroke-linejoin="round"/>
+
+  <!-- Cross lines connecting inner to outer -->
+  <line x1="128" y1="28" x2="128" y2="72" stroke="#8b7340" stroke-width="2"/>
+  <line x1="220" y1="168" x2="184" y2="152" stroke="#8b7340" stroke-width="2"/>
+  <line x1="36" y1="168" x2="72" y2="152" stroke="#8b7340" stroke-width="2"/>
+
+  <!-- "20" text -->
+  <text x="128" y="130" text-anchor="middle" font-family="serif" font-size="42" font-weight="700" fill="#c4a563">20</text>
+
+  <!-- Bottom label -->
+  <text x="128" y="210" text-anchor="middle" font-family="sans-serif" font-size="22" font-weight="600" fill="#8b7340" letter-spacing="4">TD</text>
+</svg>

@@ -4,6 +4,7 @@ import type { PowerEntry } from './PowerEntryEditor'
 import { PowerCardView, type PowerCardEntry } from './PowerCardView'
 import { USAGE_COLORS, sign } from './dnd4e-utils'
 import { detectConditions, type DetectedCondition } from './condition-detection'
+import { ConditionPill, buildConditionLabel } from './ConditionPill'
 import './statblock.css'
 
 /** Extract max uses for a power: 1 for normal encounter, N for "N/Encounter" in keywords, Infinity for at-will */
@@ -64,7 +65,7 @@ export function Dnd4eCombatPanel({
   onUsePower, onUnusePower, onQuickDamage,
   onDamage, onHeal, onAddCondition, onAddEffect, onDelay, onUndelay, onRemove,
   conditions: conditionDefs, notifications, onPinCard, pinnedKeys, onApplyConditionToTargets,
-  onPopoutStatblock,
+  onPopoutStatblock, hideMainActionPowers,
 }: PluginCombatPanelProps) {
   const sb = (c.statBlock ?? {}) as Record<string, any>
   const actions = Array.isArray(sb.actions) ? sb.actions as PowerEntry[] : []
@@ -80,13 +81,16 @@ export function Dnd4eCombatPanel({
   const resistances = Array.isArray(sb.resistances) ? sb.resistances as { type: string; value?: number }[] : []
   const weaknesses = Array.isArray(sb.weaknesses) ? sb.weaknesses as { type: string; value?: number }[] : []
   const languages = Array.isArray(sb.languages) ? sb.languages as string[] : typeof sb.languages === 'string' ? (sb.languages as string).split(',').map(s => s.trim()).filter(Boolean) : []
-  const senses = Array.isArray(sb.senses) ? sb.senses as string[] : typeof sb.senses === 'string' ? (sb.senses as string).split(',').map(s => s.trim()).filter(Boolean) : []
+  const senses = Array.isArray(sb.senses)
+    ? (sb.senses as any[]).map(s => typeof s === 'string' ? s : s?.name).filter(Boolean)
+    : typeof sb.senses === 'string' ? (sb.senses as string).split(',').map(s => s.trim()).filter(Boolean) : []
   const equipment = Array.isArray(sb.equipment) ? sb.equipment as string[] : typeof sb.equipment === 'string' ? (sb.equipment as string).split(',').map(s => s.trim()).filter(Boolean) : []
 
   // Separate action types
+  const hiddenActionTypes = new Set(['standard', 'move', 'minor'])
   const traitEntries = actions.filter(a => a.entryType === 'trait')
   const auraEntries = actions.filter(a => a.entryType === 'aura')
-  const powerEntries = actions.filter(a => a.entryType === 'action')
+  const powerEntries = actions.filter(a => a.entryType === 'action' && !(hideMainActionPowers && hiddenActionTypes.has(a.actionType)))
   const usageOrder: Record<string, number> = { 'at-will': 0, 'encounter': 1, 'recharge': 2 }
   powerEntries.sort((a, b) => (usageOrder[a.usage] ?? 3) - (usageOrder[b.usage] ?? 3))
 
@@ -180,6 +184,54 @@ export function Dnd4eCombatPanel({
 
 
 
+
+      {/* Active conditions strip */}
+      {c.conditions.length > 0 && (
+        <div style={{
+          padding: '4px 8px', display: 'flex', flexWrap: 'wrap', gap: 4, alignItems: 'center',
+          borderBottom: '1px solid var(--sb-separator)',
+          background: 'rgba(0,0,0,0.15)',
+        }}>
+          {c.conditions.map(cond => {
+            const def = conditionDefs.find(d => d.id === cond.conditionId)
+              ?? (cond.conditionId.startsWith('ongoing-damage') ? conditionDefs.find(d => d.id === 'ongoing-damage') : undefined)
+            const name = cond.customName
+              ?? (cond.conditionId.startsWith('ongoing-damage') ? 'Ongoing Damage'
+                : def?.name ?? cond.conditionId.replace(/-/g, ' ').replace(/\b\w/g, ch => ch.toUpperCase()))
+            const expiresOnName = cond.duration?.expiresOnId ? combat.combatants[cond.duration.expiresOnId]?.name : undefined
+            const pillLabel = buildConditionLabel({
+              conditionId: cond.conditionId, name, value: cond.value,
+              customDescription: cond.customDescription, damageType: cond.customDescription,
+              durationType: cond.duration?.type, expiresOnName,
+            })
+            const tooltipParts = [name, cond.customDescription ?? def?.description].filter(Boolean)
+            if (cond.duration?.type) {
+              const durLabels: Record<string, string> = {
+                'save-ends': 'save ends',
+                'sont': `SONT ${expiresOnName ?? '?'}`,
+                'eont': `EONT ${expiresOnName ?? '?'}`,
+                'encounter': 'encounter',
+                'rounds': cond.duration.remaining != null ? `${cond.duration.remaining}rd` : 'rounds',
+              }
+              const durLabel = durLabels[cond.duration.type]
+              if (durLabel) tooltipParts.push(`(${durLabel})`)
+            }
+            return (
+              <ConditionPill
+                key={cond.conditionId}
+                conditionId={cond.conditionId}
+                label={pillLabel}
+                damageType={cond.customDescription}
+                customColor={cond.customColor}
+                customIcon={cond.customIcon}
+                title={tooltipParts.join(' — ')}
+                onClick={() => window.api.combat.removeCondition(c.id, cond.conditionId)}
+                style={{ fontSize: 10, lineHeight: '16px', cursor: 'pointer' }}
+              />
+            )
+          })}
+        </div>
+      )}
 
       {/* Full stat block */}
       <div className="sb-row" style={{ fontSize: 11 }}>
@@ -305,6 +357,15 @@ export function Dnd4eCombatPanel({
                         // For marked conditions from power cards, add the "by" description
                         if (det.conditionId === 'marked') {
                           condData.customDescription = `by ${c.name}`
+                        }
+                        // For Grants CA, set the recipient enum + preformatted label suffix.
+                        // Source name resolves to the power's owner (`c.name`).
+                        if (det.conditionId === 'combat-advantage') {
+                          const recipient = det.grantsCATo ?? 'all'
+                          condData.grantsCATo = recipient
+                          if (recipient === 'source') condData.customDescription = `to ${c.name}`
+                          else if (recipient === 'source-allies') condData.customDescription = `to ${c.name}'s allies`
+                          else condData.customDescription = undefined  // 'all' has no suffix
                         }
                         onApplyConditionToTargets(condData, multi)
                       }}

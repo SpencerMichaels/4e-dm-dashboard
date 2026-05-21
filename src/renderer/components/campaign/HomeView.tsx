@@ -7,6 +7,7 @@ export function HomeView() {
   const campaignId = useCampaignStore((s) => s.campaignId)
   const [campaigns, setCampaigns] = useState<Campaign[]>([])
   const [creating, setCreating] = useState(false)
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
   const [name, setName] = useState('')
   const [systemId, setSystemId] = useState('')
   const [plugins, setPlugins] = useState<{ id: string; name: string }[]>([])
@@ -114,26 +115,75 @@ export function HomeView() {
             Recent Campaigns
           </h2>
           {campaigns.map(c => (
-            <button
+            <div
               key={c.id}
-              onClick={() => handleOpen(c.id)}
               style={{
-                display: 'block',
-                width: '100%',
-                textAlign: 'left',
-                padding: 'var(--space-3) var(--space-4)',
+                display: 'flex', alignItems: 'center',
                 background: 'var(--color-bg-surface)',
                 border: '1px solid var(--color-border)',
                 borderRadius: 'var(--radius-md)',
                 marginBottom: 'var(--space-2)',
-                cursor: 'pointer',
               }}
             >
-              <div style={{ fontWeight: 500 }}>{c.name}</div>
-              <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)' }}>
-                {c.systemId} — Last opened {new Date(c.lastOpenedAt).toLocaleDateString()}
-              </div>
-            </button>
+              <button
+                onClick={() => handleOpen(c.id)}
+                style={{
+                  flex: 1,
+                  textAlign: 'left',
+                  padding: 'var(--space-3) var(--space-4)',
+                  background: 'transparent',
+                  border: 'none',
+                  cursor: 'pointer',
+                }}
+              >
+                <div style={{ fontWeight: 500 }}>{c.name}</div>
+                <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)' }}>
+                  {c.systemId} — Last opened {new Date(c.lastOpenedAt).toLocaleDateString()}
+                </div>
+              </button>
+              {confirmDeleteId === c.id ? (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-1)', padding: 'var(--space-2)' }}>
+                  <span style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-danger)', whiteSpace: 'nowrap' }}>Delete?</span>
+                  <button
+                    onClick={async () => {
+                      await window.api.campaign.delete(c.id)
+                      setCampaigns(prev => prev.filter(p => p.id !== c.id))
+                      setConfirmDeleteId(null)
+                    }}
+                    style={{
+                      padding: '2px 8px', fontSize: 'var(--font-size-xs)',
+                      background: 'var(--color-danger)', color: '#fff',
+                      border: 'none', borderRadius: 'var(--radius-sm)', cursor: 'pointer',
+                    }}
+                  >
+                    Yes
+                  </button>
+                  <button
+                    onClick={() => setConfirmDeleteId(null)}
+                    style={{
+                      padding: '2px 8px', fontSize: 'var(--font-size-xs)',
+                      background: 'var(--color-bg-hover)',
+                      border: 'none', borderRadius: 'var(--radius-sm)', cursor: 'pointer',
+                    }}
+                  >
+                    No
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={(e) => { e.stopPropagation(); setConfirmDeleteId(c.id) }}
+                  title="Delete campaign"
+                  style={{
+                    padding: 'var(--space-2) var(--space-3)',
+                    background: 'transparent', border: 'none',
+                    cursor: 'pointer', color: 'var(--color-text-muted)',
+                    fontSize: 'var(--font-size-sm)',
+                  }}
+                >
+                  x
+                </button>
+              )}
+            </div>
           ))}
         </div>
       )}

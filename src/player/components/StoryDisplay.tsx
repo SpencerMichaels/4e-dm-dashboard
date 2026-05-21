@@ -1,10 +1,13 @@
 import type { SceneState } from '@common/types'
+import { useImage } from '@renderer/hooks/use-image'
 
 interface Props {
   scene: SceneState
 }
 
 export function StoryDisplay({ scene }: Props) {
+  const bgUrl = useImage(scene.backgroundImageId)
+
   return (
     <div style={{
       height: '100vh',
@@ -17,17 +20,26 @@ export function StoryDisplay({ scene }: Props) {
       position: 'relative',
       overflow: 'hidden',
     }}>
-      {/* Background image placeholder — imageId loading is v2 */}
+      {bgUrl && (
+        <div style={{
+          position: 'absolute', inset: 0,
+          backgroundImage: `url(${bgUrl})`,
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+        }} />
+      )}
 
-      <h1 style={{
-        fontSize: '4rem',
-        fontWeight: 700,
-        textAlign: 'center',
-        textShadow: '0 2px 20px rgba(0,0,0,0.8)',
-        zIndex: 1,
-      }}>
-        {scene.title || 'Tabletop Dashboard'}
-      </h1>
+      {scene.title && (
+        <h1 style={{
+          fontSize: '4rem',
+          fontWeight: 700,
+          textAlign: 'center',
+          textShadow: '0 2px 20px rgba(0,0,0,0.8)',
+          zIndex: 1,
+        }}>
+          {scene.title}
+        </h1>
+      )}
     </div>
   )
 }

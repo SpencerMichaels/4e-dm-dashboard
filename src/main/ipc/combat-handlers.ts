@@ -1,6 +1,6 @@
 import { ipcMain } from 'electron'
 import { CMD, SYNC } from '@common/ipc-channels'
-import type { AppliedCondition, AppliedEffect, Encounter } from '@common/types'
+import type { AppliedCondition, AppliedEffect, Encounter, Location } from '@common/types'
 import * as engine from '../combat/combat-engine'
 import { getPlugin } from '../plugins/plugin-loader'
 import { getActiveCampaignId, getEntity } from '../data/campaign-store'
@@ -51,12 +51,15 @@ export function registerCombatHandlers(): void {
   ipcMain.handle(CMD.COMBAT_INIT, async (_e, encounterId?: string) => {
     const state = engine.initCombat(encounterId)
 
-    // Resolve background image: encounter → location → none
+    // Resolve background image: encounter → linked location → none
     let backgroundImageId: string | undefined
     if (encounterId) {
       const encounter = await getEntity<Encounter>('encounter', encounterId)
       if (encounter?.backgroundImageId) {
         backgroundImageId = encounter.backgroundImageId
+      } else if (encounter?.locationId) {
+        const location = await getEntity<Location>('location', encounter.locationId)
+        if (location?.sceneImageId) backgroundImageId = location.sceneImageId
       }
     }
 
@@ -107,7 +110,7 @@ export function registerCombatHandlers(): void {
   })
 
   ipcMain.handle(CMD.COMBAT_RESOLVE_ITEM, async (_e, index: number, success: boolean) => {
-    const result = engine.resolveItem(index, success)
+    const result = engine.resolveItem(index, success, getActivePlugin())
     handlePostResolve()
     return result
   })
@@ -130,20 +133,38 @@ export function registerCombatHandlers(): void {
     return state
   })
 
-  ipcMain.handle(CMD.COMBAT_DAMAGE, async (_e, combatantId: string, amount: number, wasHit: boolean = true) => {
-    const { state, notifications } = engine.damageCombatant(combatantId, amount, wasHit)
+  ipcMain.handle(CMD.COMBAT_READY, async (_e, combatantId: string, actionText: string) => {
+    const state = engine.readyCombatant(combatantId, actionText)
+    broadcastCombatState()
+    return state
+  })
+
+  ipcMain.handle(CMD.COMBAT_RESOLVE_READY, async (_e, combatantId: string) => {
+    const state = engine.resolveReadiedAction(combatantId)
+    broadcastCombatState()
+    return state
+  })
+
+  ipcMain.handle(CMD.COMBAT_CANCEL_READY, async (_e, combatantId: string) => {
+    const state = engine.cancelReady(combatantId)
+    broadcastCombatState()
+    return state
+  })
+
+  ipcMain.handle(CMD.COMBAT_DAMAGE, async (_e, combatantId: string, amount: number, wasHit: boolean = true, sourceId?: string) => {
+    const { state, notifications } = engine.damageCombatant(combatantId, amount, wasHit, { sourceId })
     broadcastCombatState()
     return { state, notifications }
   })
 
-  ipcMain.handle(CMD.COMBAT_HEAL, async (_e, combatantId: string, amount: number) => {
-    const state = engine.healCombatant(combatantId, amount)
+  ipcMain.handle(CMD.COMBAT_HEAL, async (_e, combatantId: string, amount: number, sourceId?: string) => {
+    const state = engine.healCombatant(combatantId, amount, { sourceId })
     broadcastCombatState()
     return state
   })
 
   ipcMain.handle(CMD.COMBAT_ADD_CONDITION, async (_e, combatantId: string, condition: AppliedCondition) => {
-    const state = engine.addCondition(combatantId, condition)
+    const state = engine.addCondition(combatantId, condition, getActivePlugin())
     engine.refreshEndOfTurnPreview(getActivePlugin())
     broadcastCombatState()
     return state
@@ -208,6 +229,11 @@ export function registerCombatHandlers(): void {
 
   ipcMain.handle(CMD.COMBAT_END, async () => {
     engine.endCombat()
+    broadcastCombatState()
+  })
+
+  ipcMain.handle(CMD.COMBAT_SET_SURPRISE, async (_e, enabled: boolean, actorIds?: string[]) => {
+    engine.setSurprise(enabled, actorIds)
     broadcastCombatState()
   })
 }

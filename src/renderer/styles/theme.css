@@ -134,3 +134,9 @@
   --shadow-md: 0 4px 8px rgba(0, 0, 0, 0.08);
   --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.1);
 }
+
+/* TipTap editor — fill its container so the entire area is clickable */
+.tiptap.ProseMirror {
+  min-height: 100%;
+  outline: none;
+}

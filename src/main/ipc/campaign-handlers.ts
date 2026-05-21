@@ -23,6 +23,10 @@ export function registerCampaignHandlers(): void {
     return campaign
   })
 
+  ipcMain.handle(CMD.CAMPAIGN_DELETE, async (_e, campaignId: string) => {
+    await store.deleteCampaign(campaignId)
+  })
+
   ipcMain.handle(CMD.CAMPAIGN_LIST, async () => {
     return store.listCampaigns()
   })
@@ -137,16 +141,18 @@ async function broadcastCampaignState(): Promise<void> {
   if (!campaignId) return
 
   // Broadcast a summary of current state to DM renderer
-  const [campaign, creatures, encounters, locations, items, pcs, notes, noteTree, links] = await Promise.all([
+  const [campaign, creatures, encounters, locations, maps, items, pcs, notes, noteTree, links, annotations] = await Promise.all([
     store.getActiveCampaign(),
     store.listEntities('creature'),
     store.listEntities('encounter'),
     store.listEntities('location'),
+    store.listEntities('map'),
     store.listEntities('item'),
     store.listEntities('player-character'),
     store.listEntities('note'),
     store.getNoteTree(),
     store.getLinks(),
+    store.loadAnnotations(campaignId),
   ])
 
   broadcastToDm(SYNC.CAMPAIGN_STATE, {
@@ -155,10 +161,12 @@ async function broadcastCampaignState(): Promise<void> {
     creatures,
     encounters,
     locations,
+    maps,
     items,
     playerCharacters: pcs,
     notes,
     noteTree,
     links,
+    annotations,
   })
 }

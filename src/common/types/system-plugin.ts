@@ -92,6 +92,13 @@ export interface AppliedCondition {
   value?: number
   duration?: { type: DurationType; remaining?: number; note?: string; expiresOnId?: string }
   sourceId?: string                   // Who applied it
+  customColor?: string                // Optional override for the pill background (e.g. class marks use the source PC's chip color)
+  customIcon?: string                 // Optional override for the pill icon (e.g. defender marks use the class feature's icon)
+  // Only meaningful for `combat-advantage`: who the affected creature grants CA to.
+  //   'all'           — every attacker (default, e.g. plain "grants CA", prone)
+  //   'source'        — only the creature in `sourceId` (e.g. "grants CA to the bugbear")
+  //   'source-allies' — allies of `sourceId` (e.g. "grants CA to the hag's allies")
+  grantsCATo?: 'all' | 'source' | 'source-allies'
 }
 
 export interface SystemTheme {
@@ -169,6 +176,16 @@ export interface CreatureBuilderConfig {
   triggeredActionTypes?: string[]
 }
 
+/** A user-facing setting exposed by a system plugin (e.g. "Hide power type text"). */
+export interface SystemSettingDef {
+  key: string
+  label: string
+  type: 'boolean' | 'string' | 'number' | 'select'
+  default: unknown
+  description?: string
+  options?: { value: string; label: string }[]  // for type: 'select'
+}
+
 export interface SystemPlugin {
   id: string
   name: string
@@ -183,4 +200,5 @@ export interface SystemPlugin {
   creatureBuilder?: CreatureBuilderConfig  // System-specific creature builder
   rechargeRoll?: { die: string; defaultThreshold: number }  // e.g. { die: '1d6', defaultThreshold: 4 }
   theme?: SystemTheme                      // v2
+  settings?: SystemSettingDef[]            // Plugin-defined user settings
 }

@@ -1,4 +1,5 @@
 import { getConditionStyle } from './condition-styles'
+import { CLASS_MARK_BY_CONDITION_ID } from '../../../../plugins/dnd-4e/class-marks'
 
 /** Build a display label for a condition from its data fields */
 export function buildConditionLabel(opts: {
@@ -15,22 +16,35 @@ export function buildConditionLabel(opts: {
   if (conditionId.startsWith('ongoing-damage')) {
     return `Ongoing ${value ?? ''}${opts.damageType ? ' ' + opts.damageType : ''}`
   }
+  // Class marks: "Quarried by Bob" (use the class mark's short name, not the raw id)
+  const classMark = CLASS_MARK_BY_CONDITION_ID[conditionId]
+  if (classMark) {
+    let label = classMark.shortName
+    if (customDescription) label += ` ${customDescription}`
+    return label
+  }
   let label = name
   // Marked: append "by X"
   if (conditionId === 'marked' && customDescription) label += ` ${customDescription}`
+  // Grants CA: append "to X" / "to X's allies" — recipient is preformatted into
+  // customDescription at apply time (undefined for the 'all' case, which renders
+  // as the bare condition name).
+  if (conditionId === 'combat-advantage' && customDescription) label += ` ${customDescription}`
   return label
 }
 
 /** Shared condition pill component — used in initiative cards, right-click menu, etc. */
-export function ConditionPill({ conditionId, label, damageType, title, onClick, style: extraStyle }: {
+export function ConditionPill({ conditionId, label, damageType, customColor, customIcon, title, onClick, style: extraStyle }: {
   conditionId: string
   label: string
   damageType?: string
+  customColor?: string
+  customIcon?: string
   title?: string
   onClick?: () => void
   style?: React.CSSProperties
 }) {
-  const style = getConditionStyle(conditionId, damageType)
+  const style = getConditionStyle(conditionId, damageType, customColor, customIcon)
   const background = style.color2
     ? `linear-gradient(135deg, ${style.color} 45%, ${style.color2} 55%)`
     : style.color

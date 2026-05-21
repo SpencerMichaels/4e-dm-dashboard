@@ -47,6 +47,11 @@ export async function ensureDir(dirPath: string): Promise<void> {
   }
 }
 
+export async function deleteDir(dirPath: string): Promise<void> {
+  const { rm } = await import('fs/promises')
+  await rm(dirPath, { recursive: true, force: true })
+}
+
 export async function copyFile(src: string, dest: string): Promise<void> {
   const dir = dirname(dest)
   await ensureDir(dir)

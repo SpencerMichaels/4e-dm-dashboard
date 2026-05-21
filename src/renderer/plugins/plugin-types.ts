@@ -45,6 +45,7 @@ export interface PluginCombatPanelProps {
   combat: CombatState
   isCurrent: boolean
   isDelayed: boolean
+  isReadied?: boolean
   onUsePower: (powerIndex: number) => void
   onUnusePower: (powerIndex: number) => void
   onQuickDamage: (amount: number) => void
@@ -54,6 +55,9 @@ export interface PluginCombatPanelProps {
   onAddEffect: () => void
   onDelay: () => void
   onUndelay: () => void
+  onReady?: () => void
+  onResolveReady?: () => void
+  onCancelReady?: () => void
   onRemove: () => void
   conditions: ConditionDef[]
   notifications: CombatNotification[]
@@ -61,6 +65,8 @@ export interface PluginCombatPanelProps {
   pinnedKeys: Set<string>
   onPopoutStatblock?: (combatantId: string) => void
   onApplyConditionToTargets: (condition: { conditionId: string; value?: number; customDescription?: string; sourceId?: string; duration?: { type: string; remaining?: number; expiresOnId?: string } }, multi: boolean) => void
+  /** When true, hide powers that require a standard, move, or minor action */
+  hideMainActionPowers?: boolean
 }
 
 /** What a plugin UI module exports */

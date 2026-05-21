@@ -8,10 +8,12 @@ import { useCompendium } from './use-compendium'
 import { useGlossary } from './use-glossary'
 import { XP_BY_LEVEL, xpForCreature, encounterBudget, encounterLevel, encounterDifficulty, ENCOUNTER_TEMPLATES, type EncounterTemplate } from './dnd4e-utils'
 import { MONSTER_TEMPLATES, meetsPrerequisite, applyMonsterTemplate, type MonsterTemplate } from './monster-templates'
-import { CreatureCompendiumList } from './CreatureCompendiumList'
+import { MONSTER_THEMES, applyMonsterTheme, parseSkillModifications, type MonsterTheme, type ThemePower } from './monster-themes'
+import { CompendiumSearchPanel } from './CompendiumSearchPanel'
 import { Dnd4eCreatureViewer, type TemplateChip } from './Dnd4eCreatureViewer'
 import { TemplateViewer } from './Dnd4eTemplateBrowser'
 import { VirtualizedList } from './VirtualizedList'
+import { FloatingPanel } from '@renderer/components/shared/FloatingPanel'
 import { useUiStore } from '@renderer/stores/ui-store'
 import { useCampaignStore } from '@renderer/stores/campaign-store'
 import { generateId } from '@common/utils/id'
@@ -21,6 +23,120 @@ import './statblock.css'
 /** Get a unique key for an encounter creature entry */
 function ecKey(ec: EncounterCreature): string {
   return ec.creatureId ?? ec.compendiumId ?? ''
+}
+
+/** Adjust the flat modifier in a damage expression by `delta`.
+ *  "2d6+3" +1 → "2d6+4"; "2d6" +1 → "2d6+1"; "3" +1 → "4" */
+function adjustDamageExpr(expr: string, delta: number): string {
+  if (!expr || !delta) return expr
+  // Match trailing +N or -N
+  const m = expr.match(/^(.+?)([+-]\d+)$/)
+  if (m) {
+    const newMod = parseInt(m[2]) + delta
+    if (newMod === 0) return m[1]
+    return `${m[1]}${newMod >= 0 ? '+' : ''}${newMod}`
+  }
+  // Pure number (flat damage)
+  const flat = parseInt(expr)
+  if (!isNaN(flat) && String(flat) === expr.trim()) return String(flat + delta)
+  // Has dice but no modifier — append one
+  if (/\d+d\d+/.test(expr)) return `${expr}${delta >= 0 ? '+' : ''}${delta}`
+  return expr
+}
+
+/** Apply DMG p.174 level adjustment (±1 to ±5) to a stat block.
+ *  Per level: ±1 attack, ±1 defenses, ±HP (role-based), ±1 damage per 2 levels. */
+function applyLevelAdjustment(sb: Record<string, unknown>, delta: number): Record<string, unknown> {
+  if (!delta) return sb
+  sb = { ...sb }
+  const role = (sb.role as string) ?? ''
+  const source = `Level ${delta > 0 ? '+' : ''}${delta}`
+  const diffs = [...(sb._templateDiffs as any[] ?? [])]
+
+  // Level
+  const oldLevel = (sb.level as number) ?? 1
+  sb.level = oldLevel + delta
+
+  // AC
+  const oldAc = (sb.ac as number) ?? 0
+  sb.ac = oldAc + delta
+  diffs.push({ field: 'ac', before: oldAc, after: sb.ac, source, sourceIndex: -2 })
+
+  // Defenses
+  const oldDefs = (sb.defenses as Record<string, number>) ?? {}
+  const newDefs = { ...oldDefs }
+  for (const key of ['fortitude', 'reflex', 'will']) {
+    if (newDefs[key] != null) {
+      const before = newDefs[key]
+      newDefs[key] = before + delta
+      diffs.push({ field: `defenses.${key}`, before, after: newDefs[key], source, sourceIndex: -2 })
+    }
+  }
+  sb.defenses = newDefs
+
+  // HP
+  const hpPerLevel: Record<string, number> = {
+    brute: 10, skirmisher: 8, soldier: 8, controller: 8, lurker: 6, artillery: 6
+  }
+  const perLevel = hpPerLevel[role] ?? 8
+  const oldHp = (sb.hp as number) ?? 1
+  sb.hp = Math.max(1, oldHp + delta * perLevel)
+  diffs.push({ field: 'hp', before: oldHp, after: sb.hp, source, sourceIndex: -2 })
+
+  // Attack bonuses + damage on powers
+  const damageDelta = Math.sign(delta) * Math.floor(Math.abs(delta) / 2)
+  sb.actions = (sb.actions as any[] ?? []).map((a: any) => {
+    const patched = { ...a }
+    const hasAttackAdj = patched.attackBonus != null
+    const hasDamageAdj = damageDelta !== 0 && (Array.isArray(patched.damage) && patched.damage.length > 0 || (patched.hit && /^\d+d\d+/.test(patched.hit)))
+    if (hasAttackAdj) patched.attackBonus += delta
+    if (damageDelta !== 0 && Array.isArray(patched.damage)) {
+      patched.damage = patched.damage.map((d: any) => ({ ...d, expr: adjustDamageExpr(d.expr, damageDelta) }))
+    }
+    // Also adjust damage in hit text if it contains a simple "Xd6+N" at the start
+    if (damageDelta !== 0 && patched.hit && /^\d+d\d+/.test(patched.hit)) {
+      patched.hit = adjustDamageExpr(patched.hit.split(/\s/)[0], damageDelta) + patched.hit.substring(patched.hit.indexOf(' '))
+    }
+    // Store adjustment metadata for display attribution
+    if (hasAttackAdj || hasDamageAdj) {
+      patched._levelAdjust = { attackDelta: hasAttackAdj ? delta : 0, damageDelta: hasDamageAdj ? damageDelta : 0, source }
+    }
+    return patched
+  })
+
+  sb._templateDiffs = diffs
+  return sb
+}
+
+/** Apply templates + solo upgrade + theme + level adjustment to a base statBlock.
+ *  Shared by the preview resolver and the combat start handler so the logic is
+ *  in one place. Returns a new statBlock — does not mutate the input. */
+function applyEncounterOverrides(
+  baseSb: Record<string, unknown>,
+  ec: EncounterCreature,
+  themeOverride?: { name: string; attackPower: string; utilityPower: string; skillChoice?: number } | null,
+): Record<string, unknown> {
+  let sb = { ...baseSb }
+  const tNames = ec.monsterTemplates ?? []
+  tNames.forEach((tName, i) => {
+    const t = MONSTER_TEMPLATES.find(t => t.name === tName)
+    if (t) sb = applyMonsterTemplate(sb, t, i)
+  })
+  if (tNames.length >= 2) {
+    sb = { ...sb, monsterModifier: 'solo', savingThrowBonus: 5 }
+  }
+  const effectiveTheme = themeOverride !== undefined ? themeOverride : ec.monsterTheme
+  if (effectiveTheme) {
+    const theme = MONSTER_THEMES.find(t => t.name === effectiveTheme.name)
+    if (theme) sb = applyMonsterTheme(sb, theme, effectiveTheme.attackPower, effectiveTheme.utilityPower, effectiveTheme.skillChoice)
+  }
+  if (ec.levelAdjust) {
+    sb = applyLevelAdjustment(sb, ec.levelAdjust)
+  }
+  if (ec.isMinion) {
+    sb = { ...sb, hp: 1, isMinion: true }
+  }
+  return sb
 }
 
 /** Check if an encounter creature matches a given key */
@@ -47,10 +163,19 @@ export function Dnd4eEncounterEditor({ encounter, onSave, creatures, onNavigate 
   const { tooltip } = useGlossary()
   // Lazy cache of compendium creature statblocks (so we can evaluate template prerequisites for compendium-only entries)
   const [compStatBlocks, setCompStatBlocks] = useState<Record<string, Record<string, unknown>>>({})
+  // Popped-out stat block panels
+  const [poppedOut, setPoppedOut] = useState<{ id: string; creature: Creature }[]>([])
   // Template-application mode state
   const [templateModeKey, setTemplateModeKey] = useState<string | null>(null)
   const [previewTemplateName, setPreviewTemplateName] = useState<string | null>(null)
   const [templateInfoPopup, setTemplateInfoPopup] = useState<MonsterTemplate | null>(null)
+  // Theme-application mode state
+  const [themePickerKey, setThemePickerKey] = useState<string | null>(null)
+  // Live preview of in-progress theme selections (before "Apply" is clicked)
+  const [pendingTheme, setPendingTheme] = useState<{ name: string; attackPower: string; utilityPower: string; skillChoice?: number } | null>(null)
+  // Inline rename state
+  const [renamingKey, setRenamingKey] = useState<string | null>(null)
+  const [renameValue, setRenameValue] = useState('')
   // Encounter row selection (click a row in the encounter list to preview it on the right)
   const [selectedRowKey, setSelectedRowKey] = useState<string | null>(null)
 
@@ -72,12 +197,13 @@ export function Dnd4eEncounterEditor({ encounter, onSave, creatures, onNavigate 
       const creature = creatures.find(c => c.id === ec.creatureId)
       if (!creature) return null
       const sb = creature.statBlock
-      return { name: creature.name, level: (sb.level as number) ?? 1, role: (sb.role as string) ?? '', modifier: (sb.monsterModifier as string) ?? '', imageId: creature.imageId, statBlock: sb }
+      const baseLevel = (sb.level as number) ?? 1
+      return { name: ec.overrideName || creature.name, level: baseLevel + (ec.levelAdjust ?? 0), role: (sb.role as string) ?? '', modifier: (sb.monsterModifier as string) ?? '', imageId: creature.imageId, statBlock: sb }
     }
     if (ec.compendiumId && comp.index) {
       const entry = comp.index.find(e => e.id === ec.compendiumId)
       if (!entry) return null
-      return { name: entry.name, level: entry.level, role: entry.role, modifier: entry.modifier, statBlock: compStatBlocks[ec.compendiumId] }
+      return { name: ec.overrideName || entry.name, level: entry.level + (ec.levelAdjust ?? 0), role: entry.role, modifier: entry.modifier, statBlock: compStatBlocks[ec.compendiumId] }
     }
     return null
   }, [creatures, comp.index, compStatBlocks])
@@ -88,7 +214,7 @@ export function Dnd4eEncounterEditor({ encounter, onSave, creatures, onNavigate 
     for (const ec of encounter.creatures) {
       const info = resolveInfo(ec)
       if (!info) continue
-      if (ec.isMinion) {
+      if (ec.isMinion || info.statBlock?.isMinion) {
         xp += Math.round(xpForCreature(info.level, '') / 4) * ec.count
         continue
       }
@@ -125,7 +251,8 @@ export function Dnd4eEncounterEditor({ encounter, onSave, creatures, onNavigate 
       const existing = encounter.creatures.find(c => ecMatches(c, entryId))
       // Auto-detect native minions by name suffix
       const entryName = campaignCreature?.name ?? comp.index?.find(e => e.id === entryId)?.name ?? ''
-      const autoMinion = /\bminion\b/i.test(entryName)
+      // Auto-detect minions: check the name AND the statBlock isMinion field
+      const autoMinion = /\bminion\b/i.test(entryName) || !!(campaignCreature?.statBlock?.isMinion) || !!(compStatBlocks[entryId]?.isMinion)
       if (existing) {
         save({
           creatures: encounter.creatures.map(c =>
@@ -182,8 +309,9 @@ export function Dnd4eEncounterEditor({ encounter, onSave, creatures, onNavigate 
     return () => { cancelled = true }
   }, [encounter.creatures, compStatBlocks])
 
-  // Resolve the live (post-applied-templates) statBlock + name for an encounter row
-  const resolveCurrentSb = useCallback((ec: EncounterCreature): { name: string; sb: Record<string, unknown> } | null => {
+  // Resolve the live (post-applied-templates) statBlock + name for an encounter row.
+  // Optional themeOverride replaces ec.monsterTheme for live preview purposes.
+  const resolveCurrentSb = useCallback((ec: EncounterCreature, themeOverride?: { name: string; attackPower: string; utilityPower: string; skillChoice?: number } | null): { name: string; sb: Record<string, unknown> } | null => {
     let baseSb: Record<string, unknown> | undefined
     let name = ''
     if (ec.creatureId) {
@@ -192,19 +320,14 @@ export function Dnd4eEncounterEditor({ encounter, onSave, creatures, onNavigate 
       baseSb = { ...c.statBlock }
       // Imported creatures store HP on the wrapper, not in statBlock
       if (baseSb.hp == null) baseSb.hp = c.maxHp ?? c.hp
-      name = c.name
+      name = ec.overrideName || c.name
     } else if (ec.compendiumId) {
       baseSb = compStatBlocks[ec.compendiumId]
       const entry = comp.index?.find(e => e.id === ec.compendiumId)
-      name = entry?.name ?? ''
+      name = ec.overrideName || (entry?.name ?? '')
       if (!baseSb) return null
     } else return null
-    let sb = { ...baseSb }
-    const tNames = ec.monsterTemplates ?? []
-    tNames.forEach((tName, i) => {
-      const t = MONSTER_TEMPLATES.find(t => t.name === tName)
-      if (t) sb = applyMonsterTemplate(sb, t, i)
-    })
+    const sb = applyEncounterOverrides(baseSb, ec, themeOverride)
     return { name, sb }
   }, [creatures, compStatBlocks, comp.index])
 
@@ -291,6 +414,30 @@ export function Dnd4eEncounterEditor({ encounter, onSave, creatures, onNavigate 
     })
   }
 
+  const setTheme = (key: string, theme: { name: string; attackPower: string; utilityPower: string } | undefined) => {
+    save({
+      creatures: encounter.creatures.map(c =>
+        ecMatches(c, key) ? { ...c, monsterTheme: theme } : c
+      ),
+    })
+  }
+
+  const renameCreature = (key: string, name: string | undefined) => {
+    save({
+      creatures: encounter.creatures.map(c =>
+        ecMatches(c, key) ? { ...c, overrideName: name || undefined } : c
+      ),
+    })
+  }
+
+  const setLevelAdjust = (key: string, delta: number | undefined) => {
+    save({
+      creatures: encounter.creatures.map(c =>
+        ecMatches(c, key) ? { ...c, levelAdjust: delta || undefined } : c
+      ),
+    })
+  }
+
   const removeCreature = (key: string) => {
     save({ creatures: encounter.creatures.filter(c => !ecMatches(c, key)) })
   }
@@ -345,7 +492,7 @@ export function Dnd4eEncounterEditor({ encounter, onSave, creatures, onNavigate 
     await window.api.combat.init(encounter.id)
 
     // First pass: build all combatant entries with base names
-    const pending: { baseName: string; hp: number; maxHp: number; sb: any; imageId?: string; tokenImageId?: string; entityId?: string }[] = []
+    const pending: { baseName: string; hp: number; maxHp: number; sb: any; imageId?: string; tokenImageId?: string; entityId?: string; initiativeGroupId?: string }[] = []
     for (const ec of encounter.creatures) {
       let creature: Creature | null = null
 
@@ -358,53 +505,40 @@ export function Dnd4eEncounterEditor({ encounter, onSave, creatures, onNavigate 
           creature = override
         } else {
           creature = await window.api.compendium.resolve('dnd-4e', ec.compendiumId)
-          // Apply annotation image if present
+          // Apply annotation image/token if present
           const ann = annotations[ec.compendiumId]
-          if (ann?.imageId && creature) creature.imageId = ann.imageId
+          if (creature && ann) {
+            if (ann.imageId) creature.imageId = ann.imageId
+            if (ann.tokenImageId) creature.tokenImageId = ann.tokenImageId
+          }
         }
       }
       if (!creature) continue
 
-      const templateNames = ec.monsterTemplates ?? []
-      const templates = templateNames.map(n => MONSTER_TEMPLATES.find(t => t.name === n)).filter(Boolean)
-      // Ensure statBlock.hp is set before applying templates (imported creatures store HP on creature, not statBlock)
-      let sb = { ...creature.statBlock }
-      if (sb.hp == null) sb.hp = creature.maxHp ?? creature.hp
-      templates.forEach((tmpl, ti) => { sb = applyMonsterTemplate(sb, tmpl!, ti) })
-      if (templates.length >= 2) {
-        sb = { ...sb, monsterModifier: 'solo', savingThrowBonus: 5 }
-      }
-      if (ec.isMinion) {
-        sb = { ...sb, hp: 1, isMinion: true }
-      }
+      // Ensure statBlock.hp is set before applying overrides (imported creatures store HP on creature, not statBlock)
+      const baseSb = { ...creature.statBlock }
+      if (baseSb.hp == null) baseSb.hp = creature.maxHp ?? creature.hp
+      const sb = applyEncounterOverrides(baseSb, ec)
       const combatHp = ec.isMinion ? 1 : (ec.overrideHp ?? (sb.hp as number) ?? creature.maxHp)
-      const baseName = creature.name
+      const baseName = ec.overrideName || creature.name
 
+      // Creatures from the same encounter row share a groupId for initiative grouping
+      const groupId = ec.count > 1 ? generateId() : undefined
       for (let i = 0; i < ec.count; i++) {
-        pending.push({ baseName, hp: combatHp, maxHp: combatHp, sb, imageId: creature.imageId, tokenImageId: creature.tokenImageId, entityId: creature.id })
+        pending.push({ baseName, hp: combatHp, maxHp: combatHp, sb, imageId: creature.imageId, tokenImageId: creature.tokenImageId, entityId: creature.id, initiativeGroupId: groupId })
       }
     }
 
-    // Second pass: detect duplicate names and suffix with letters
-    const nameCounts = new Map<string, number>()
-    for (const p of pending) nameCounts.set(p.baseName, (nameCounts.get(p.baseName) ?? 0) + 1)
-    const nameIndexes = new Map<string, number>()
-
+    // Add each creature — no letter suffixes; the DM assigns colors/numbers
+    // during initiative entry to distinguish duplicates.
     for (const p of pending) {
-      const total = nameCounts.get(p.baseName)!
-      let name = p.baseName
-      let indicator: string | undefined
-      if (total > 1) {
-        const idx = nameIndexes.get(p.baseName) ?? 0
-        nameIndexes.set(p.baseName, idx + 1)
-        indicator = String.fromCharCode(65 + idx)
-        name = `${p.baseName} ${indicator}`
-      }
       await window.api.combat.addCombatant({
         id: generateId(),
-        name, isPC: false, hp: p.hp, maxHp: p.maxHp,
-        miniIndicator: indicator, statBlock: p.sb,
+        name: p.baseName, baseName: p.baseName,
+        isPC: false, hp: p.hp, maxHp: p.maxHp,
+        statBlock: p.sb,
         imageId: p.imageId, tokenImageId: p.tokenImageId, entityId: p.entityId,
+        initiativeGroupId: p.initiativeGroupId,
       })
     }
 
@@ -523,7 +657,7 @@ export function Dnd4eEncounterEditor({ encounter, onSave, creatures, onNavigate 
         )}
 
         {/* Creature list */}
-        <div style={{ borderTop: encounter.creatures.length === 0 ? '1px solid var(--sb-separator)' : 'none', flex: 1, overflow: 'auto', minHeight: 0 }}>
+        <div style={{ borderTop: encounter.creatures.length === 0 ? '1px solid var(--sb-separator)' : 'none', flex: 1, overflowX: 'hidden', overflowY: 'auto', minHeight: 0 }}>
           {encounter.creatures.length === 0 ? (
             <div className="sb-row" style={{ color: 'var(--color-text-muted)', fontStyle: 'italic' }}>
               Add creatures from the compendium →
@@ -539,11 +673,13 @@ export function Dnd4eEncounterEditor({ encounter, onSave, creatures, onNavigate 
               const templates = (ec.monsterTemplates ?? []).map(n => MONSTER_TEMPLATES.find(t => t.name === n)).filter(Boolean)
               const effectiveRole = templates.length > 0 ? templates[templates.length - 1]!.role : baseRole
               const templateCount = templates.length
+              // Template prerequisites — use statBlock if available (campaign creature), else skip
+              const sb = info.statBlock
               const modifierLevels = ['', 'standard', 'elite', 'solo']
               const baseIdx = baseModifier === 'solo' ? 3 : baseModifier === 'elite' ? 2 : 1
               const effectiveIdx = Math.min(baseIdx + templateCount, 3)
               const effectiveModifier = modifierLevels[effectiveIdx] === 'standard' ? '' : modifierLevels[effectiveIdx]
-              const isMinion = !!ec.isMinion
+              const isMinion = !!ec.isMinion || !!sb?.isMinion
               const creatureXP = isMinion
                 ? Math.round(xpForCreature(level, '') / 4)
                 : xpForCreature(level, effectiveModifier)
@@ -553,14 +689,13 @@ export function Dnd4eEncounterEditor({ encounter, onSave, creatures, onNavigate 
               const levelDelta = partyLevel != null ? Math.abs(level - partyLevel) : 0
               const outOfRange = partyLevel != null && levelDelta > 4
               const appliedNames = ec.monsterTemplates ?? []
-              // Template prerequisites — use statBlock if available (campaign creature), else skip
-              const sb = info.statBlock
               const availableTemplates = sb ? MONSTER_TEMPLATES.filter(t => meetsPrerequisite(sb, t) && !appliedNames.includes(t.name)) : []
               const maxTemplates = baseModifier === 'solo' ? 0 : baseModifier === 'elite' ? 1 : 2
               const canAddTemplate = !isMinion && templateCount < maxTemplates && availableTemplates.length > 0
               const hasTemplates = appliedNames.length > 0
               // Minion toggle is incompatible with elite/solo (base or via templates)
-              const canBeMinion = baseModifier !== 'elite' && baseModifier !== 'solo' && templateCount === 0
+              const nativeMinion = !!(sb?.isMinion)
+              const canBeMinion = !nativeMinion && baseModifier !== 'elite' && baseModifier !== 'solo' && templateCount === 0
 
               const inTemplateMode = templateModeKey === key
               const templateBtnDisabled = isMinion || !sb || templateCount >= maxTemplates || availableTemplates.length === 0
@@ -571,7 +706,7 @@ export function Dnd4eEncounterEditor({ encounter, onSave, creatures, onNavigate 
               }
 
               const isRowSelected = selectedRowKey === key
-              const ENC_ROW_COLS = '1fr 24px 70px 50px 28px 50px 70px'
+              const ENC_ROW_COLS = 'minmax(0, 1fr) 40px 60px 46px 28px 46px auto'
               const xsStyle = { fontSize: 'var(--font-size-xs)' }
               const mutedCell: React.CSSProperties = { ...xsStyle, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: 'var(--color-text-muted)' }
               return (
@@ -589,11 +724,43 @@ export function Dnd4eEncounterEditor({ encounter, onSave, creatures, onNavigate 
                     padding: '4px var(--space-2)',
                     minHeight: 28,
                   }}>
-                    <span style={{ ...xsStyle, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: isRowSelected ? 600 : 400 }}>
+                    <span style={{ ...xsStyle, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: isRowSelected ? 600 : 400, minWidth: 0 }}
+                      onDoubleClick={(e) => { e.stopPropagation(); setRenamingKey(key); setRenameValue(ec.overrideName || info.name) }}>
                       {outOfRange && <span title={`${levelDelta} levels from party — DMG recommends ±4`} style={{ color: '#c0392b', marginRight: 2 }}>⚠</span>}
-                      {info.name}
+                      {renamingKey === key ? (
+                        <input
+                          autoFocus
+                          value={renameValue}
+                          onChange={e => setRenameValue(e.target.value)}
+                          onBlur={() => { renameCreature(key, renameValue); setRenamingKey(null) }}
+                          onKeyDown={e => {
+                            if (e.key === 'Enter') { renameCreature(key, renameValue); setRenamingKey(null) }
+                            if (e.key === 'Escape') setRenamingKey(null)
+                          }}
+                          onClick={e => e.stopPropagation()}
+                          style={{ width: '100%', ...xsStyle, padding: '0 2px', border: '1px solid var(--color-border)', borderRadius: 2, background: 'var(--color-bg-primary)', color: 'var(--color-text-primary)' }}
+                        />
+                      ) : (
+                        <span title="Double-click to rename" style={{ color: ec.overrideName ? '#0d9488' : undefined }}>
+                          {info.name}
+                        </span>
+                      )}
                     </span>
-                    <span style={mutedCell}>{level}</span>
+                    <span style={{ ...mutedCell, display: 'inline-flex', alignItems: 'center', gap: 1 }}
+                      onClick={e => e.stopPropagation()}>
+                      <button onClick={() => setLevelAdjust(key, Math.max(-5, (ec.levelAdjust ?? 0) - 1))}
+                        disabled={(ec.levelAdjust ?? 0) <= -5}
+                        style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, fontSize: 8, color: 'var(--color-text-muted)', lineHeight: 1, opacity: (ec.levelAdjust ?? 0) <= -5 ? 0.3 : 1 }}>
+                        ▼</button>
+                      <span title={ec.levelAdjust ? `Base level ${level - (ec.levelAdjust ?? 0)}, adjusted ${ec.levelAdjust > 0 ? '+' : ''}${ec.levelAdjust}` : undefined}
+                        style={{ color: ec.levelAdjust ? '#c47a1a' : undefined, fontWeight: ec.levelAdjust ? 600 : undefined, minWidth: 14, textAlign: 'center' }}>
+                        {level}
+                      </span>
+                      <button onClick={() => setLevelAdjust(key, Math.min(5, (ec.levelAdjust ?? 0) + 1))}
+                        disabled={(ec.levelAdjust ?? 0) >= 5}
+                        style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, fontSize: 8, color: 'var(--color-text-muted)', lineHeight: 1, opacity: (ec.levelAdjust ?? 0) >= 5 ? 0.3 : 1 }}>
+                        ▲</button>
+                    </span>
                     <span style={mutedCell}>{effectiveRole}{modLbl}</span>
                     <span style={mutedCell}>{creatureXP.toLocaleString()}</span>
                     <span onClick={e => e.stopPropagation()}>
@@ -639,12 +806,28 @@ export function Dnd4eEncounterEditor({ encounter, onSave, creatures, onNavigate 
                           opacity: templateBtnDisabled ? 0.4 : 1, lineHeight: 1.2,
                         }}
                       >T</button>
+                      <button
+                        onClick={() => {
+                          if (themePickerKey === key) { setThemePickerKey(null); setPendingTheme(null) }
+                          else { setThemePickerKey(key); setPendingTheme(null); setSelectedRowKey(key) }
+                        }}
+                        title={ec.monsterTheme ? `Theme: ${ec.monsterTheme.name} (click to change)` : 'Add a theme'}
+                        style={{
+                          padding: '0 5px', borderRadius: 'var(--radius-sm)',
+                          ...xsStyle, fontWeight: 600,
+                          cursor: 'pointer',
+                          background: themePickerKey === key ? '#0d9488' : ec.monsterTheme ? '#0d948840' : 'var(--color-bg-hover)',
+                          color: themePickerKey === key ? '#fff' : ec.monsterTheme ? '#0d9488' : 'var(--color-text-muted)',
+                          border: '1px solid var(--color-border)', lineHeight: 1.2,
+                        }}
+                      >Th</button>
                       <button onClick={() => removeCreature(key)}
                         title="Remove from encounter"
                         style={{ color: 'var(--color-text-muted)', padding: '0 4px', lineHeight: 1, cursor: 'pointer', background: 'transparent', border: 'none' }}>×</button>
                     </span>
                   </div>
-                  {hasTemplates && (
+                  {/* Template + theme chips */}
+                  {(hasTemplates || ec.monsterTheme) && (
                   <div style={{ display: 'flex', gap: 4, alignItems: 'center', padding: '0 var(--space-2) 4px var(--space-4)', flexWrap: 'wrap', ...xsStyle }}
                     onClick={e => e.stopPropagation()}>
                     {appliedNames.map((tName, ti) => (
@@ -658,7 +841,28 @@ export function Dnd4eEncounterEditor({ encounter, onSave, creatures, onNavigate 
                           style={{ color: 'var(--color-text-muted)', padding: 0, lineHeight: 1, cursor: 'pointer', fontSize: '0.9em', background: 'transparent', border: 'none' }}>×</button>
                       </span>
                     ))}
+                    {ec.monsterTheme && (
+                      <span style={{
+                        display: 'inline-flex', alignItems: 'center', gap: 2,
+                        padding: '0 5px', borderRadius: 'var(--radius-sm)',
+                        background: '#0d948830', color: '#0d9488',
+                      }}>
+                        {ec.monsterTheme.name}
+                        <button onClick={() => setTheme(key, undefined)}
+                          style={{ color: '#0d9488', padding: 0, lineHeight: 1, cursor: 'pointer', fontSize: '0.9em', background: 'transparent', border: 'none' }}>×</button>
+                      </span>
+                    )}
                   </div>
+                  )}
+                  {/* Theme picker dropdown */}
+                  {themePickerKey === key && (
+                    <ThemePicker
+                      currentTheme={ec.monsterTheme}
+                      onApply={(theme) => { setTheme(key, theme); setThemePickerKey(null); setPendingTheme(null) }}
+                      onRemove={() => { setTheme(key, undefined); setThemePickerKey(null); setPendingTheme(null) }}
+                      onClose={() => { setThemePickerKey(null); setPendingTheme(null) }}
+                      onPreview={setPendingTheme}
+                    />
                   )}
                 </div>
               )
@@ -711,8 +915,8 @@ export function Dnd4eEncounterEditor({ encounter, onSave, creatures, onNavigate 
           />
         )
       })() : (
-        <CompendiumPanel comp={comp} onActivate={addCreature} onSelect={selectPreview}
-          selectedId={previewId} maxCreatureXP={targetXP} />
+        <CompendiumSearchPanel comp={comp} onActivate={addCreature} onSelect={selectPreview}
+          selectedId={previewId} maxCreatureXP={targetXP} tooltip={tooltip} />
       )}
       </div>{/* end left column */}
 
@@ -760,26 +964,87 @@ export function Dnd4eEncounterEditor({ encounter, onSave, creatures, onNavigate 
           // Selected encounter row: show its current merged stat block (no template overlay)
           if (selectedRowKey) {
             const targetEc = encounter.creatures.find(c => ecMatches(c, selectedRowKey))
-            const targetCurrent = targetEc ? resolveCurrentSb(targetEc) : null
+            // When the theme picker is open for this row, use pendingTheme for live preview
+            const themeOverride = themePickerKey === selectedRowKey ? pendingTheme : undefined
+            const targetCurrent = targetEc ? resolveCurrentSb(targetEc, themeOverride) : null
             if (targetCurrent) {
+              const isCustom = !!targetEc?.creatureId
+              const entityKey = targetEc?.creatureId ?? targetEc?.compendiumId
+              const customCreature = isCustom ? creatures.find(c => c.id === targetEc?.creatureId) : undefined
               const synthetic: Creature = {
                 id: 'selected', name: targetCurrent.name,
                 hp: (targetCurrent.sb.hp as number) ?? 0, maxHp: (targetCurrent.sb.hp as number) ?? 0,
                 statBlock: targetCurrent.sb, createdAt: '', updatedAt: '',
+                imageId: customCreature?.imageId,
+                tokenImageId: customCreature?.tokenImageId,
+                tokenCrop: (customCreature as any)?.tokenCrop,
               }
               const chips: TemplateChip[] = (targetEc?.monsterTemplates ?? []).map((name, slot) => ({ name, slot }))
               return <Dnd4eCreatureViewer creature={synthetic} tooltip={tooltip}
+                compendiumId={targetEc?.compendiumId}
                 templateChips={chips.length > 0 ? chips : undefined}
                 onTemplateChipClick={(name) => {
                   const t = MONSTER_TEMPLATES.find(t => t.name === name)
                   if (t) setTemplateInfoPopup(t)
-                }} />
+                }}
+                onPopout={() => {
+                  if (!poppedOut.some(p => p.id === synthetic.id))
+                    setPoppedOut(prev => [...prev, { id: synthetic.id, creature: synthetic }])
+                }}
+                onImageChange={isCustom
+                  ? async (imageId) => {
+                      const c = creatures.find(x => x.id === targetEc?.creatureId)
+                      if (c) await window.api.entity.save('creature', { ...c, imageId, updatedAt: new Date().toISOString() })
+                    }
+                  : entityKey ? async (imageId) => {
+                      await window.api.annotation.save(entityKey, { ...(annotations[entityKey] ?? {}), imageId })
+                    } : undefined
+                }
+                onTokenChange={isCustom
+                  ? async (tokenImageId, crop) => {
+                      const c = creatures.find(x => x.id === targetEc?.creatureId)
+                      if (c) await window.api.entity.save('creature', { ...c, tokenImageId, tokenCrop: crop, updatedAt: new Date().toISOString() })
+                    }
+                  : entityKey ? async (tokenImageId, crop) => {
+                      await window.api.annotation.save(entityKey, { ...(annotations[entityKey] ?? {}), tokenImageId, tokenCrop: crop })
+                    } : undefined
+                }
+              />
             }
           }
           if (previewCreature) {
+            const previewIsCustom = !!creatures.find(c => c.id === previewId)
             return (
               <Dnd4eCreatureViewer creature={previewCreature} tooltip={tooltip}
-                imageId={previewId ? annotations[previewId]?.imageId : undefined} />
+                compendiumId={!previewIsCustom ? previewId ?? undefined : undefined}
+                onPopout={previewCreature ? () => {
+                  const pid = previewId ?? previewCreature.id
+                  if (!poppedOut.some(p => p.id === pid))
+                    setPoppedOut(prev => [...prev, { id: pid, creature: previewCreature }])
+                } : undefined}
+                onImageChange={previewIsCustom
+                  ? async (imageId) => {
+                      const updated = { ...previewCreature, imageId, updatedAt: new Date().toISOString() }
+                      setPreviewCreature(updated)
+                      await window.api.entity.save('creature', updated)
+                    }
+                  : previewId ? async (imageId) => {
+                      const existing = annotations[previewId] ?? {}
+                      await window.api.annotation.save(previewId, { ...existing, imageId })
+                    } : undefined
+                }
+                onTokenChange={previewIsCustom
+                  ? async (tokenImageId, crop) => {
+                      const updated = { ...previewCreature, tokenImageId, tokenCrop: crop, updatedAt: new Date().toISOString() }
+                      setPreviewCreature(updated)
+                      await window.api.entity.save('creature', updated)
+                    }
+                  : previewId ? async (tokenImageId, crop) => {
+                      const existing = annotations[previewId] ?? {}
+                      await window.api.annotation.save(previewId, { ...existing, tokenImageId, tokenCrop: crop })
+                    } : undefined
+                }
+              />
             )
           }
           return (
@@ -794,6 +1059,22 @@ export function Dnd4eEncounterEditor({ encounter, onSave, creatures, onNavigate 
       {templateInfoPopup && (
         <DraggableTemplateWindow template={templateInfoPopup} onClose={() => setTemplateInfoPopup(null)} />
       )}
+
+      {/* Popped-out stat block floating panels */}
+      {poppedOut.map((p, i) => (
+        <FloatingPanel
+          key={p.id}
+          title={`📑 ${p.creature.name}`}
+          initialX={120 + i * 30}
+          initialY={80 + i * 30}
+          width={420}
+          maxHeight="80vh"
+          onClose={() => setPoppedOut(prev => prev.filter(x => x.id !== p.id))}
+        >
+          <Dnd4eCreatureViewer creature={p.creature} tooltip={tooltip}
+            compendiumId={p.creature.compendiumId ?? p.id} />
+        </FloatingPanel>
+      ))}
     </div>
   )
 }
@@ -979,104 +1260,6 @@ function TemplatePanel({ targetSb, appliedNames, previewTemplateName, onSelect, 
   )
 }
 
-// ─── Compendium Panel (right side) ───
-
-function CompendiumPanel({ comp, onActivate, onSelect, selectedId, maxCreatureXP }: {
-  comp: ReturnType<typeof useCompendium>
-  onActivate: (monsterId: string) => void
-  onSelect: (monsterId: string) => void
-  selectedId: string | null
-  maxCreatureXP?: number
-}) {
-  const { filters, filtered: allFiltered, filterOptions, updateFilter, resetFilters, hasActiveFilters, searchRef, totalCount, loading, filtering } = comp
-
-  const filtered = useMemo(() => {
-    if (maxCreatureXP == null) return allFiltered
-    return allFiltered.filter(c => xpForCreature(c.level, c.modifier) <= maxCreatureXP)
-  }, [allFiltered, maxCreatureXP])
-
-  return (
-    <div className="stat-block-4e" style={{ flex: '1 1 0', display: 'flex', flexDirection: 'column', minHeight: 0, fontSize: 12 }}>
-      {/* Search header */}
-      <div className="sb-header" style={{ flexShrink: 0, marginBottom: 0 }}>
-        <input className="ghost sb-name" ref={searchRef} value={filters.search}
-          onChange={e => updateFilter('search', e.target.value)}
-          placeholder="Search..."
-          style={{ color: 'inherit', width: 'auto', fieldSizing: 'content' as any }} />
-        <span style={{ display: 'flex', alignItems: 'baseline', gap: 6, whiteSpace: 'nowrap' }}>
-          <span>Level <input className="ghost" value={filters.level}
-            onChange={e => updateFilter('level', e.target.value.replace(/-/g, '–'))}
-            placeholder="1–30" style={{ width: 40, color: 'inherit', textAlign: 'center' }} /></span>
-          <select className="ghost" value={filters.modifier} onChange={e => updateFilter('modifier', e.target.value)}
-            style={{ color: 'inherit' }}>
-            <option value="">modifier</option>
-            <option value="standard">standard</option>
-            <option value="elite">elite</option>
-            <option value="solo">solo</option>
-          </select>
-          <MultiSelectDropdown className="ghost"
-            options={filterOptions.roles}
-            selected={filters.role}
-            onChange={(roles) => updateFilter('role', roles)}
-            placeholder="role" />
-        </span>
-      </div>
-      <div className="sb-subheader" style={{ flexShrink: 0, marginBottom: 0 }}>
-        <span style={{ display: 'flex', gap: 4 }}>
-          <select className="ghost" value={filters.size} onChange={e => updateFilter('size', e.target.value)}
-            style={{ color: 'inherit' }}>
-            <option value="">size</option>
-            {filterOptions.sizes.map(s => <option key={s} value={s}>{s}</option>)}
-          </select>
-          <select className="ghost" value={filters.origin} onChange={e => updateFilter('origin', e.target.value)}
-            style={{ color: 'inherit' }}>
-            <option value="">origin</option>
-            {filterOptions.origins.map(o => <option key={o} value={o}>{o}</option>)}
-          </select>
-          <select className="ghost" value={filters.type} onChange={e => updateFilter('type', e.target.value)}
-            style={{ color: 'inherit' }}>
-            <option value="">type</option>
-            {filterOptions.types.map(t => <option key={t} value={t}>{t}</option>)}
-          </select>
-          <select className="ghost" value={filters.source} onChange={e => updateFilter('source', e.target.value)}
-            style={{ color: 'inherit' }}>
-            <option value="">source</option>
-            {filterOptions.sources.map(s => <option key={s} value={s}>{s}</option>)}
-          </select>
-        </span>
-      </div>
-
-      {/* List */}
-      {loading ? (
-        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--color-text-muted)' }}>
-          Loading...
-        </div>
-      ) : (
-        <CreatureCompendiumList items={filtered} onSelect={onSelect} onActivate={onActivate} selectedId={selectedId} />
-      )}
-
-      {/* Status */}
-      <div style={{ color: 'var(--color-text-muted)', padding: 'var(--space-2)', flexShrink: 0, opacity: filtering ? 0.5 : 1, fontSize: 'var(--font-size-xs)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 'var(--space-2)' }}>
-        <span>{loading ? '\u00A0' : `${filtered.length.toLocaleString()} of ${totalCount.toLocaleString()}`}</span>
-        <button onClick={resetFilters} disabled={!hasActiveFilters}
-          title={hasActiveFilters ? 'Clear all filters' : 'No filters active'}
-          style={{
-            padding: '2px 8px', borderRadius: 'var(--radius-sm)',
-            border: '1px solid var(--color-border)',
-            background: hasActiveFilters ? 'var(--color-bg-active)' : 'transparent',
-            color: hasActiveFilters ? 'var(--color-text-primary)' : 'var(--color-text-muted)',
-            cursor: hasActiveFilters ? 'pointer' : 'default',
-            opacity: hasActiveFilters ? 1 : 0.4,
-            fontSize: 'var(--font-size-xs)', fontWeight: 600,
-            whiteSpace: 'nowrap',
-          }}>
-          ✕ Clear filters
-        </button>
-      </div>
-    </div>
-  )
-}
-
 // ─── Difficulty Bar ───
 
 // Each level cell in the bar: delta from party level, which difficulty zone it belongs to
@@ -1232,6 +1415,193 @@ function DifficultyBar({ totalXP, partySize, partyLevel, difficulty, targetXP, t
         </div>
       )}
 
+    </div>
+  )
+}
+
+// ─── Theme Picker ──────────────────────────────────────────────────────────
+
+function ThemePicker({ currentTheme, onApply, onRemove, onClose, onPreview }: {
+  currentTheme?: { name: string; attackPower: string; utilityPower: string; skillChoice?: number }
+  onApply: (theme: { name: string; attackPower: string; utilityPower: string; skillChoice?: number }) => void
+  onRemove: () => void
+  onClose: () => void
+  onPreview: (preview: { name: string; attackPower: string; utilityPower: string; skillChoice?: number } | null) => void
+}) {
+  const [selectedThemeName, setSelectedThemeName] = useState<string>(currentTheme?.name ?? '')
+  const [selectedAttack, setSelectedAttack] = useState<string>(currentTheme?.attackPower ?? '')
+  const [selectedUtility, setSelectedUtility] = useState<string>(currentTheme?.utilityPower ?? '')
+  const [skillChoice, setSkillChoice] = useState<number>(currentTheme?.skillChoice ?? 0)
+
+  // Push current selections as live preview whenever they change
+  useEffect(() => {
+    if (selectedThemeName) {
+      onPreview({ name: selectedThemeName, attackPower: selectedAttack, utilityPower: selectedUtility, skillChoice })
+    } else {
+      onPreview(null)
+    }
+  }, [selectedThemeName, selectedAttack, selectedUtility, skillChoice])
+
+  const theme = MONSTER_THEMES.find(t => t.name === selectedThemeName)
+  const attackPowers = theme?.powers.filter(p => p.category === 'attack') ?? []
+  const utilityPowers = theme?.powers.filter(p => p.category === 'utility') ?? []
+  const parsedSkills = theme?.skillModifications ? parseSkillModifications(theme.skillModifications) : null
+  const hasSkillChoice = !!parsedSkills?.choices && parsedSkills.choices.length > 1
+
+  const canApply = !!theme && !!selectedAttack && !!selectedUtility
+
+  // When theme changes, reset power selections
+  const handleThemeChange = (name: string) => {
+    setSelectedThemeName(name)
+    setSelectedAttack('')
+    setSelectedUtility('')
+    setSkillChoice(0)
+  }
+
+  /** Get summary text for a power — prefer description, fall back to hit, then flavorText */
+  const powerSummary = (p: ThemePower): string => {
+    const text = p.description || (p as any).hit || p.flavorText || ''
+    return text.length > 150 ? text.substring(0, 150) + '…' : text
+  }
+
+  return (
+    <div style={{
+      padding: 'var(--space-2) var(--space-3)',
+      background: 'var(--color-bg-surface)',
+      borderTop: '1px solid #0d948844',
+      fontSize: 'var(--font-size-xs)',
+    }}
+      onClick={e => e.stopPropagation()}
+    >
+      {/* Theme selector */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', marginBottom: 'var(--space-2)' }}>
+        <span style={{ color: '#0d9488', fontWeight: 600 }}>Theme:</span>
+        <select
+          value={selectedThemeName}
+          onChange={e => handleThemeChange(e.target.value)}
+          style={{ flex: 1, fontSize: 'var(--font-size-xs)' }}
+        >
+          <option value="">— Select a theme —</option>
+          {MONSTER_THEMES.map(t => (
+            <option key={t.name} value={t.name}>{t.name} ({t.source})</option>
+          ))}
+        </select>
+        {currentTheme && (
+          <button onClick={onRemove} title="Remove theme"
+            style={{ color: 'var(--color-danger)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 'var(--font-size-xs)' }}>
+            Remove
+          </button>
+        )}
+        <button onClick={onClose}
+          style={{ color: 'var(--color-text-muted)', background: 'none', border: 'none', cursor: 'pointer' }}>
+          ✕
+        </button>
+      </div>
+
+      {theme && (
+        <>
+          {theme.originChange && (
+            <div style={{ color: 'var(--color-text-muted)', marginBottom: 'var(--space-1)', fontStyle: 'italic' }}>
+              {theme.originChange}
+            </div>
+          )}
+
+          {/* Skill modifications — with choice UI when there are alternatives */}
+          {parsedSkills && (parsedSkills.always.length > 0 || parsedSkills.choices) && (
+            <div style={{ marginBottom: 'var(--space-2)' }}>
+              <div style={{ color: 'var(--color-text-muted)', fontStyle: 'italic' }}>
+                Skills: {parsedSkills.always.length > 0 && (
+                  <span>{parsedSkills.always.map(s => `${s.charAt(0).toUpperCase() + s.slice(1)} +${parsedSkills.bonus}`).join(', ')}</span>
+                )}
+              </div>
+              {hasSkillChoice && (
+                <div style={{ marginTop: 4 }}>
+                  <div style={{ fontWeight: 600, color: '#0d9488', marginBottom: 2 }}>Choose skill bonus:</div>
+                  {parsedSkills.choices!.map((group, gi) => (
+                    <label key={gi} style={{
+                      display: 'flex', alignItems: 'center', gap: 'var(--space-2)',
+                      padding: '1px 4px', cursor: 'pointer',
+                      background: skillChoice === gi ? '#0d948820' : 'transparent',
+                      borderRadius: 'var(--radius-sm)',
+                    }}>
+                      <input type="radio" name="skillChoice" checked={skillChoice === gi}
+                        onChange={() => setSkillChoice(gi)} />
+                      <span>+{parsedSkills.bonus} to {group.map(s => s.charAt(0).toUpperCase() + s.slice(1)).join(', ')}</span>
+                    </label>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Attack power selection */}
+          <div style={{ marginBottom: 'var(--space-2)' }}>
+            <div style={{ fontWeight: 600, color: '#0d9488', marginBottom: 2 }}>Choose one attack power:</div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+              {attackPowers.map(p => (
+                <label key={p.name} style={{
+                  display: 'flex', alignItems: 'flex-start', gap: 'var(--space-2)',
+                  padding: '2px 4px', borderRadius: 'var(--radius-sm)',
+                  background: selectedAttack === p.name ? '#0d948820' : 'transparent',
+                  cursor: 'pointer',
+                }}>
+                  <input type="radio" name="attack" checked={selectedAttack === p.name}
+                    onChange={() => setSelectedAttack(p.name)}
+                    style={{ marginTop: 2 }} />
+                  <div>
+                    <span style={{ fontWeight: 600 }}>{p.name}</span>
+                    {p.action && <span style={{ color: 'var(--color-text-muted)' }}> ({p.action})</span>}
+                    <div style={{ color: 'var(--color-text-muted)', lineHeight: 1.3, marginTop: 1 }}>
+                      {powerSummary(p)}
+                    </div>
+                  </div>
+                </label>
+              ))}
+            </div>
+          </div>
+
+          {/* Utility power selection */}
+          <div style={{ marginBottom: 'var(--space-2)' }}>
+            <div style={{ fontWeight: 600, color: '#0d9488', marginBottom: 2 }}>Choose one utility power:</div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+              {utilityPowers.map(p => (
+                <label key={p.name} style={{
+                  display: 'flex', alignItems: 'flex-start', gap: 'var(--space-2)',
+                  padding: '2px 4px', borderRadius: 'var(--radius-sm)',
+                  background: selectedUtility === p.name ? '#0d948820' : 'transparent',
+                  cursor: 'pointer',
+                }}>
+                  <input type="radio" name="utility" checked={selectedUtility === p.name}
+                    onChange={() => setSelectedUtility(p.name)}
+                    style={{ marginTop: 2 }} />
+                  <div>
+                    <span style={{ fontWeight: 600 }}>{p.name}</span>
+                    {p.action && <span style={{ color: 'var(--color-text-muted)' }}> ({p.action})</span>}
+                    <div style={{ color: 'var(--color-text-muted)', lineHeight: 1.3, marginTop: 1 }}>
+                      {powerSummary(p)}
+                    </div>
+                  </div>
+                </label>
+              ))}
+            </div>
+          </div>
+
+          {/* Apply button */}
+          <button
+            disabled={!canApply}
+            onClick={() => canApply && onApply({ name: theme.name, attackPower: selectedAttack, utilityPower: selectedUtility, skillChoice: hasSkillChoice ? skillChoice : undefined })}
+            style={{
+              padding: '3px 12px', borderRadius: 'var(--radius-sm)',
+              background: canApply ? '#0d9488' : 'var(--color-bg-hover)',
+              color: canApply ? '#fff' : 'var(--color-text-muted)',
+              border: 'none', cursor: canApply ? 'pointer' : 'not-allowed',
+              fontWeight: 600, fontSize: 'var(--font-size-xs)',
+            }}
+          >
+            Apply Theme
+          </button>
+        </>
+      )}
     </div>
   )
 }

@@ -17,7 +17,7 @@ const navSections: { title: string; items: NavItem[] }[] = [
       { icon: '🏠', label: 'Home', view: { type: 'home' } },
       { icon: '📝', label: 'Notes', view: { type: 'entity-list', entityType: 'note' } },
       { icon: '⚔️', label: 'Encounters', view: { type: 'entity-list', entityType: 'encounter' } },
-      { icon: '📍', label: 'Locations', view: { type: 'entity-list', entityType: 'location' } },
+      { icon: '🗺️', label: 'Maps', view: { type: 'entity-list', entityType: 'map' } },
       { icon: '🧑', label: 'PCs', view: { type: 'entity-list', entityType: 'player-character' } },
     ],
   },
@@ -36,9 +36,10 @@ const navSections: { title: string; items: NavItem[] }[] = [
 
 interface SidebarProps {
   onShowHotkeys: () => void
+  onShowSettings: () => void
 }
 
-export function Sidebar({ onShowHotkeys }: SidebarProps) {
+export function Sidebar({ onShowHotkeys, onShowSettings }: SidebarProps) {
   const { view, setView, toggleTheme, setCommandPaletteOpen } = useUiStore()
   const combat = useCombatStore((s) => s.combat)
   const noteTree = useCampaignStore((s) => s.noteTree)
@@ -125,8 +126,10 @@ export function Sidebar({ onShowHotkeys }: SidebarProps) {
       </div>
 
       <div className={styles.actionRow} style={{ marginTop: 'auto' }}>
+        <button className={styles.iconBtn} onClick={() => window.api.playerWindow.show()} title="Show player window">👁</button>
         <button className={styles.iconBtn} onClick={() => setCommandPaletteOpen(true)} title="Command palette (Ctrl+K)">/</button>
         <button className={styles.iconBtn} onClick={toggleTheme} title="Toggle theme">◐</button>
+        <button className={styles.iconBtn} onClick={onShowSettings} title="Settings">⚙</button>
         <button className={styles.iconBtn} onClick={onShowHotkeys} title="Keyboard shortcuts (?)">?</button>
       </div>
 

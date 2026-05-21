@@ -1,0 +1,3 @@
+- I'm not seeing the keyword detection, at least on the Gibberling Bunch's 2 abilities that apply the prone condition.
+- Pressing 'a' should prompt to select a single creature, not automatically target the currently selected creature (which is probably the creature _doing_ the attack actually). The single selection dialog that appears on top should not show "backspace = undo" because there is no previous selection to undo.
+- When doing the hit/miss sequence down the list of selected creatures, the creature's initiative card should expand downward slightly and show a row indicating its 4 defenses. The statblock viewer on the right pane should also change to that creature's statblock (in case the Dm needs to consult it for more details).

@@ -7,11 +7,13 @@ import { Sidebar } from './Sidebar'
 import { ContentArea } from './ContentArea'
 import { CommandPalette } from './CommandPalette'
 import { HotkeysModal, GLOBAL_HOTKEYS, COMBAT_HOTKEYS } from '../combat/HotkeysModal'
+import { SettingsModal } from './SettingsModal'
 import styles from './AppShell.module.css'
 
 export function AppShell() {
   useIpcSync()
   const [showHotkeys, setShowHotkeys] = useState(false)
+  const [showSettings, setShowSettings] = useState(false)
 
   const { view, sidebarCollapsed, toggleSidebar, setCommandPaletteOpen, commandPaletteOpen, setView } = useUiStore()
   const combat = useCombatStore((s) => s.combat)
@@ -41,7 +43,9 @@ export function AppShell() {
   return (
     <div className={styles.shell}>
       <div className={`${styles.sidebar} ${sidebarCollapsed ? styles.collapsed : ''}`}>
-        <Sidebar onShowHotkeys={() => setShowHotkeys(true)} />
+        <Sidebar
+          onShowHotkeys={() => setShowHotkeys(true)}
+          onShowSettings={() => setShowSettings(true)} />
       </div>
       <div className={styles.content}>
         <div className={styles.main}>
@@ -58,6 +62,7 @@ export function AppShell() {
           onClose={() => setShowHotkeys(false)}
         />
       )}
+      {showSettings && <SettingsModal onClose={() => setShowSettings(false)} />}
     </div>
   )
 }

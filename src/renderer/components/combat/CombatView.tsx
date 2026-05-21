@@ -4,18 +4,18 @@ import { useUiStore } from '../../stores/ui-store'
 import { useHotkeys } from '../../hooks/use-hotkeys'
 import { getPluginUI } from '../../plugins/registry'
 import type { PluginUIComponents } from '../../plugins/plugin-types'
-import type { CombatNotification } from '@common/types'
+import type { CombatNotification, CombatantState } from '@common/types'
 import { InitiativeEntry } from './InitiativeEntry'
 import { InitiativeList } from './InitiativeList'
 import { CombatantDetail } from './CombatantDetail'
 import { DamageHealDialog } from './DamageHealDialog'
 import { ConditionDialog } from './ConditionDialog'
-import { ReactionsPanel } from './ReactionsPanel'
 import { PinnedCardsPanel, type PinnedCard } from './PinnedCardsPanel'
 import { QuickConditionMenu } from './QuickConditionMenu'
 import { CombatLogPanel } from './CombatLogPanel'
 import { PopoutStatblockPanel } from './PopoutStatblockPanel'
 import { AttackApplyPanel } from './AttackApplyPanel'
+import { ReadyActionDialog } from './ReadyActionDialog'
 
 export interface AttackMode {
   phase: 'select' | 'resolve' | 'apply'
@@ -30,7 +30,15 @@ export function CombatView() {
   const combat = useCombatStore((s) => s.combat)
   const { setView } = useUiStore()
   const systemPlugin = useUiStore((s) => s.systemPlugin)
-  const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [selectedIds, setSelectedIds] = useState<string[]>([])
+
+  const handleSelect = useCallback((id: string, event?: React.MouseEvent) => {
+    if (event?.shiftKey) {
+      setSelectedIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id])
+    } else {
+      setSelectedIds(prev => prev.length === 1 && prev[0] === id ? [] : [id])
+    }
+  }, [])
   const [pluginUI, setPluginUI] = useState<PluginUIComponents | null>(null)
   const [notifications, setNotifications] = useState<CombatNotification[]>([])
   const [combatEvents, setCombatEvents] = useState<import('@common/types').CombatEvent[]>([])
@@ -40,8 +48,10 @@ export function CombatView() {
   const [showSettings, setShowSettings] = useState(false)
   const [contextMenu, setContextMenu] = useState<{ combatantId: string; x: number; y: number } | null>(null)
   const [attackMode, setAttackMode] = useState<AttackMode | null>(null)
-  const [pendingCondition, setPendingCondition] = useState<{ conditionId: string; value?: number; customDescription?: string; sourceId?: string; duration?: any; multi: boolean } | null>(null)
+  const [hideInspectedActions, setHideInspectedActions] = useState(true)
+  const [pendingCondition, setPendingCondition] = useState<{ conditionId: string; value?: number; customDescription?: string; sourceId?: string; duration?: any; multi: boolean; grantsCATo?: 'all' | 'source' | 'source-allies' } | null>(null)
   const [pendingAction, setPendingAction] = useState<{ type: 'damage' | 'heal'; multi: boolean } | null>(null)
+  const [readyDialog, setReadyDialog] = useState<{ combatantId: string } | null>(null)
   const [dialog, setDialog] = useState<
     | { type: 'damage' | 'heal'; combatantId: string; initialAmount?: number; multiTargetIds?: string[] }
     | { type: 'condition'; combatantId: string }
@@ -153,19 +163,15 @@ export function CombatView() {
 
 
 
-  // Auto-select current combatant on turn change + log first turn
+  // Log the very first turn-start when combat begins
   const firstTurnLogged = useRef(false)
   useEffect(() => {
     if (combat?.phase === 'active') {
       const currentId = combat.initiativeOrder[combat.turnIndex]
-      if (currentId) {
-        setSelectedId(currentId)
-        // Log the very first turn-start when combat begins
-        if (!firstTurnLogged.current) {
-          firstTurnLogged.current = true
-          const name = combat.combatants[currentId]?.name
-          if (name) addEvent('turn-start', currentId, name, {}, undefined, undefined, combat.round)
-        }
+      if (currentId && !firstTurnLogged.current) {
+        firstTurnLogged.current = true
+        const name = combat.combatants[currentId]?.name
+        if (name) addEvent('turn-start', currentId, name, {}, undefined, undefined, combat.round)
       }
     } else {
       firstTurnLogged.current = false
@@ -176,7 +182,7 @@ export function CombatView() {
   useEffect(() => {
     if (attackMode?.phase === 'resolve') {
       const targetId = attackMode.targetIds[attackMode.currentIndex]
-      if (targetId) setSelectedId(targetId)
+      if (targetId) setSelectedIds([targetId])
     }
   }, [attackMode?.phase, attackMode?.currentIndex])
 
@@ -246,7 +252,10 @@ export function CombatView() {
   const handleDamage = useCallback(async (combatantId: string, amount: number, wasHit: boolean = true) => {
     const name = combat?.combatants[combatantId]?.name ?? 'Creature'
     addEvent('damage', combatantId, name, { amount })
-    const result = await window.api.combat.damage(combatantId, amount, wasHit)
+    // Damage is almost always dealt by whoever's turn it currently is — pass
+    // that as the source for player-toast attribution.
+    const sourceId = combat?.initiativeOrder[combat?.turnIndex ?? 0]
+    const result = await window.api.combat.damage(combatantId, amount, wasHit, sourceId)
     if (result?.notifications?.length) {
       setNotifications(prev => [...prev, ...result.notifications])
       addNotificationsToLog(result.notifications)
@@ -270,6 +279,24 @@ export function CombatView() {
     setAttackMode({ phase: 'select', targetIds: [], results: {}, currentIndex: 0, singleTarget: !multi } as any)
   }, [combat])
 
+  // Resolve a condition's duration before applying. For EONT/SONT durations
+  // without an explicit expiresOnId, pin to the *source* (attacker) — the
+  // ambiguous case "the cultist's next turn" in a power written about the
+  // attacker's own creature type means the attacker's next turn, not the
+  // target's. Also: if the source is currently taking their turn, set
+  // remaining=1 so the condition survives this turn-end.
+  const resolveDurationForApply = useCallback((duration: any | undefined, sourceId?: string): any => {
+    const dur: any = { ...(duration ?? { type: 'save-ends' }) }
+    if ((dur.type === 'eont' || dur.type === 'sont') && !dur.expiresOnId && sourceId) {
+      dur.expiresOnId = sourceId
+    }
+    if (combat && (dur.type === 'eont' || dur.type === 'sont') && dur.expiresOnId) {
+      const currentId = combat.initiativeOrder[combat.turnIndex]
+      if (dur.expiresOnId === currentId && dur.remaining == null) dur.remaining = 1
+    }
+    return dur
+  }, [combat])
+
   const attackModeToggleTarget = useCallback((id: string) => {
     if (!attackMode || attackMode.phase !== 'select') return
     if (attackMode.singleTarget) {
@@ -279,7 +306,8 @@ export function CombatView() {
           value: pendingCondition.value,
           customDescription: pendingCondition.customDescription,
           sourceId: pendingCondition.sourceId,
-          duration: pendingCondition.duration ?? { type: 'save-ends' },
+          duration: resolveDurationForApply(pendingCondition.duration, pendingCondition.sourceId),
+          grantsCATo: pendingCondition.grantsCATo,
         })
         setPendingCondition(null)
         setAttackMode(null)
@@ -315,7 +343,8 @@ export function CombatView() {
           value: pendingCondition.value,
           customDescription: pendingCondition.customDescription,
           sourceId: pendingCondition.sourceId,
-          duration: pendingCondition.duration ?? { type: 'save-ends' },
+          duration: resolveDurationForApply(pendingCondition.duration, pendingCondition.sourceId),
+          grantsCATo: pendingCondition.grantsCATo,
         })
       }
       setPendingCondition(null)
@@ -362,13 +391,24 @@ export function CombatView() {
   }, [])
 
   // Keyboard shortcuts — context-dependent on attack mode
-  const hasModal = !!dialog || showSettings || !!contextMenu
+  const hasModal = !!dialog || showSettings || !!contextMenu || !!readyDialog
   const inStepper = combat?.turnPhase === 'end-of-turn' || combat?.turnPhase === 'start-of-turn'
   const inAttackMode = !!attackMode
   useHotkeys([
     // Damage: d = single target, Shift+D = multi target
+    // Pressing d/h again while in select auto-targets the inspected pane creature(s)
     { key: 'd', handler: () => {
-      if (hasModal || inAttackMode) return
+      if (hasModal) return
+      if (attackMode?.phase === 'select' && pendingAction?.type === 'damage') {
+        const inspected = selectedIds.filter(id => id !== currentId)
+        if (inspected.length > 0) {
+          if (inspected.length === 1) { attackModeToggleTarget(inspected[0]); return }
+          setDialog({ type: 'damage', combatantId: inspected[0], multiTargetIds: inspected } as any)
+          setPendingAction(null); setAttackMode(null)
+          return
+        }
+      }
+      if (inAttackMode) return
       setPendingAction({ type: 'damage', multi: false })
       setAttackMode({ phase: 'select', targetIds: [], results: {}, currentIndex: 0, singleTarget: true })
     }},
@@ -380,7 +420,17 @@ export function CombatView() {
     // h = hit (in attack resolve) or heal target select
     { key: 'h', handler: () => {
       if (attackMode?.phase === 'resolve') { attackModeResolve('hit'); return }
-      if (hasModal || inAttackMode) return
+      if (hasModal) return
+      if (attackMode?.phase === 'select' && pendingAction?.type === 'heal') {
+        const inspected = selectedIds.filter(id => id !== currentId)
+        if (inspected.length > 0) {
+          if (inspected.length === 1) { attackModeToggleTarget(inspected[0]); return }
+          setDialog({ type: 'heal', combatantId: inspected[0], multiTargetIds: inspected } as any)
+          setPendingAction(null); setAttackMode(null)
+          return
+        }
+      }
+      if (inAttackMode) return
       setPendingAction({ type: 'heal', multi: false })
       setAttackMode({ phase: 'select', targetIds: [], results: {}, currentIndex: 0, singleTarget: true })
     }},
@@ -391,6 +441,8 @@ export function CombatView() {
     }},
     // Delay (yield) current creature
     { key: 'y', handler: () => { if (!hasModal && !inAttackMode && currentId) window.api.combat.delay(currentId) } },
+    // Ready an action
+    { key: 'r', handler: () => { if (!hasModal && !inAttackMode && currentId) setReadyDialog({ combatantId: currentId }) } },
     // Attack mode entry
     { key: 'a', handler: () => { if (!hasModal && !inAttackMode) startAttackMode(false) } },
     { key: 'A', shift: true, handler: () => { if (!hasModal && !inAttackMode) startAttackMode(true) } },
@@ -449,11 +501,67 @@ export function CombatView() {
   }
 
   const currentId = combat.initiativeOrder[combat.turnIndex]
-  const selected = selectedId ? combat.combatants[selectedId] : null
   const currentIsPC = currentId ? combat.combatants[currentId]?.isPC : false
 
   const PluginCombatPanel = pluginUI?.CombatPanel
   const conditionDefs = systemPlugin?.conditions ?? []
+
+  const currentCombatant = currentId ? combat.combatants[currentId] : null
+  const inspectedIds = selectedIds.filter(id => id !== currentId)
+  const showInspectPanel = inspectedIds.length > 0
+
+  const renderDetailPanel = (combatant: CombatantState, opts?: { hideMainActionPowers?: boolean }) => {
+    const isCurrent = combatant.id === currentId
+    if (PluginCombatPanel) {
+      return (
+        <PluginCombatPanel
+          combatant={combatant}
+          combat={combat}
+          isCurrent={isCurrent}
+          isDelayed={combat.delayedIds.includes(combatant.id)}
+          isReadied={(combat.readiedIds ?? []).includes(combatant.id)}
+          onUsePower={(idx) => window.api.combat.usePower(combatant.id, idx)}
+          onUnusePower={(idx) => window.api.combat.unusePower(combatant.id, idx)}
+          onQuickDamage={(amount) => setDialog({ type: 'damage', combatantId: combatant.id, initialAmount: amount })}
+          onDamage={() => setDialog({ type: 'damage', combatantId: combatant.id })}
+          onHeal={() => setDialog({ type: 'heal', combatantId: combatant.id })}
+          onAddCondition={() => setDialog({ type: 'condition', combatantId: combatant.id })}
+          onAddEffect={() => setDialog({ type: 'effect', combatantId: combatant.id })}
+          onDelay={() => window.api.combat.delay(combatant.id)}
+          onUndelay={() => window.api.combat.undelay(combatant.id, currentId)}
+          onReady={() => setReadyDialog({ combatantId: combatant.id })}
+          onResolveReady={() => window.api.combat.resolveReady(combatant.id)}
+          onCancelReady={() => window.api.combat.cancelReady(combatant.id)}
+          onRemove={() => { window.api.combat.removeCombatant(combatant.id); setSelectedIds(prev => prev.filter(x => x !== combatant.id)) }}
+          conditions={conditionDefs}
+          notifications={notifications.filter(n => n.combatantId === combatant.id)}
+          onPinCard={handlePinCard}
+          pinnedKeys={pinnedKeys}
+          onPopoutStatblock={(id) => setPoppedOutStatblockIds(prev => prev.includes(id) ? prev : [...prev, id])}
+          onApplyConditionToTargets={handleApplyConditionToTargets}
+          hideMainActionPowers={opts?.hideMainActionPowers}
+        />
+      )
+    }
+    return (
+      <CombatantDetail
+        combatant={combatant}
+        isCurrent={isCurrent}
+        isDelayed={combat.delayedIds.includes(combatant.id)}
+        isReadied={(combat.readiedIds ?? []).includes(combatant.id)}
+        onDamage={() => setDialog({ type: 'damage', combatantId: combatant.id })}
+        onHeal={() => setDialog({ type: 'heal', combatantId: combatant.id })}
+        onAddCondition={() => setDialog({ type: 'condition', combatantId: combatant.id })}
+        onAddEffect={() => setDialog({ type: 'effect', combatantId: combatant.id })}
+        onDelay={() => window.api.combat.delay(combatant.id)}
+        onUndelay={() => window.api.combat.undelay(combatant.id, currentId)}
+        onReady={() => setReadyDialog({ combatantId: combatant.id })}
+        onResolveReady={() => window.api.combat.resolveReady(combatant.id)}
+        onCancelReady={() => window.api.combat.cancelReady(combatant.id)}
+        onRemove={() => { window.api.combat.removeCombatant(combatant.id); setSelectedIds(prev => prev.filter(x => x !== combatant.id)) }}
+      />
+    )
+  }
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', position: 'relative' }}>
@@ -505,16 +613,17 @@ export function CombatView() {
         </div>
       )}
 
-      <div style={{ display: 'grid', gridTemplateColumns: '300px 1fr', gap: 'var(--space-4)', flex: 1, minHeight: 0 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '300px 1fr 1fr', gap: 'var(--space-4)', flex: 1, minHeight: 0 }}>
       {/* Left panel: initiative list + reactions */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)', minHeight: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
           <h2 style={{ fontSize: 'var(--font-size-lg)', margin: 0 }}>
-            Round {combat.round}
+            {combat.round === 0 ? 'Surprise Round' : `Round ${combat.round}`}
           </h2>
           <div style={{ display: 'flex', gap: 'var(--space-2)', alignItems: 'center' }}>
             <button onClick={handleEndTurn} title="End turn (Space)" disabled={combat.turnPhase !== 'active'}>Next</button>
             <button onClick={() => { if (currentId) window.api.combat.delay(currentId) }} title="Delay current creature (Y)">Delay</button>
+            <button onClick={() => { if (currentId) setReadyDialog({ combatantId: currentId }) }} title="Ready an action (R)">Ready</button>
             <button onClick={() => setShowLog(!showLog)} title="Combat log" style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 16, padding: '0 4px' }}>📋</button>
             <button onClick={() => setShowSettings(true)} title="Combat settings" style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 16, padding: '0 4px' }}>⚙</button>
           </div>
@@ -524,18 +633,16 @@ export function CombatView() {
           <InitiativeList
             combat={combat}
             currentId={currentId}
-            selectedId={selectedId}
-            onSelect={attackMode?.phase === 'select' ? attackModeToggleTarget : setSelectedId}
+            selectedIds={selectedIds}
+            onSelect={attackMode?.phase === 'select' ? (id: string, _e: React.MouseEvent) => attackModeToggleTarget(id) : handleSelect}
             onContextMenu={attackMode ? undefined : (id, e) => setContextMenu({ combatantId: id, x: e.clientX, y: e.clientY })}
             attackMode={attackMode ?? undefined}
             conditionDefs={conditionDefs}
+            notifications={notifications}
             onUndelay={(id) => window.api.combat.undelay(id, currentId)}
+            onResolveReady={(id) => window.api.combat.resolveReady(id)}
+            onCancelReady={(id) => window.api.combat.cancelReady(id)}
           />
-        </div>
-
-        {/* Reactions panel — always shown, excludes current combatant */}
-        <div style={{ flex: '0 1 auto', maxHeight: '40%', overflow: 'auto' }}>
-          <ReactionsPanel combat={combat} currentCombatantId={currentId} notifications={notifications} />
         </div>
 
         <button
@@ -546,7 +653,14 @@ export function CombatView() {
         </button>
       </div>
 
-      {/* Right panel: selected combatant detail OR attack apply panel */}
+      {/* Current turn detail panel */}
+      <div style={{ overflow: 'auto', minHeight: 0 }}>
+        {currentCombatant ? renderDetailPanel(currentCombatant) : (
+          <div style={{ color: 'var(--color-text-muted)', padding: 'var(--space-4)' }}>No current combatant.</div>
+        )}
+      </div>
+
+      {/* Inspected / attack-apply panel */}
       <div style={{ overflow: 'auto', minHeight: 0 }}>
         {attackMode?.phase === 'apply' ? (
           <AttackApplyPanel
@@ -560,11 +674,11 @@ export function CombatView() {
                 const currentTurnName = currentTurnId ? combat.combatants[currentTurnId]?.name : undefined
                 if (result === 'hit') {
                   addEvent('attack-hit', id, name, {}, currentTurnId, currentTurnName)
-                  if (hitDamage > 0) { addEvent('damage', id, name, { amount: hitDamage }); window.api.combat.damage(id, hitDamage) }
+                  if (hitDamage > 0) { addEvent('damage', id, name, { amount: hitDamage }); window.api.combat.damage(id, hitDamage, true, currentTurnId) }
                   for (const c of hitConditions) window.api.combat.addCondition(id, c)
                 } else if (result === 'miss') {
                   addEvent('attack-miss', id, name, {}, currentTurnId, currentTurnName)
-                  if (missDamage > 0) { addEvent('damage', id, name, { amount: missDamage }); window.api.combat.damage(id, missDamage, false) }
+                  if (missDamage > 0) { addEvent('damage', id, name, { amount: missDamage }); window.api.combat.damage(id, missDamage, false, currentTurnId) }
                   for (const c of missConditions) window.api.combat.addCondition(id, c)
                 }
               }
@@ -572,47 +686,20 @@ export function CombatView() {
             }}
             onCancel={attackModeCancel}
           />
-        ) : selected ? (
-          PluginCombatPanel ? (
-            <PluginCombatPanel
-              combatant={selected}
-              combat={combat}
-              isCurrent={selected.id === currentId}
-              isDelayed={combat.delayedIds.includes(selected.id)}
-              onUsePower={(idx) => window.api.combat.usePower(selected.id, idx)}
-              onUnusePower={(idx) => window.api.combat.unusePower(selected.id, idx)}
-              onQuickDamage={(amount) => setDialog({ type: 'damage', combatantId: selected.id, initialAmount: amount })}
-              onDamage={() => setDialog({ type: 'damage', combatantId: selected.id })}
-              onHeal={() => setDialog({ type: 'heal', combatantId: selected.id })}
-              onAddCondition={() => setDialog({ type: 'condition', combatantId: selected.id })}
-              onAddEffect={() => setDialog({ type: 'effect', combatantId: selected.id })}
-              onDelay={() => window.api.combat.delay(selected.id)}
-              onUndelay={() => window.api.combat.undelay(selected.id, currentId)}
-              onRemove={() => { window.api.combat.removeCombatant(selected.id); setSelectedId(null) }}
-              conditions={conditionDefs}
-              notifications={notifications.filter(n => n.combatantId === selected.id)}
-              onPinCard={handlePinCard}
-              pinnedKeys={pinnedKeys}
-              onPopoutStatblock={(id) => setPoppedOutStatblockIds(prev => prev.includes(id) ? prev : [...prev, id])}
-              onApplyConditionToTargets={handleApplyConditionToTargets}
-            />
-          ) : (
-            <CombatantDetail
-              combatant={selected}
-              isCurrent={selected.id === currentId}
-              isDelayed={combat.delayedIds.includes(selected.id)}
-              onDamage={() => setDialog({ type: 'damage', combatantId: selected.id })}
-              onHeal={() => setDialog({ type: 'heal', combatantId: selected.id })}
-              onAddCondition={() => setDialog({ type: 'condition', combatantId: selected.id })}
-              onAddEffect={() => setDialog({ type: 'effect', combatantId: selected.id })}
-              onDelay={() => window.api.combat.delay(selected.id)}
-              onUndelay={() => window.api.combat.undelay(selected.id, currentId)}
-              onRemove={() => { window.api.combat.removeCombatant(selected.id); setSelectedId(null) }}
-            />
-          )
+        ) : showInspectPanel ? (
+          <>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, color: 'var(--color-text-muted)', flexShrink: 0, cursor: 'pointer', marginBottom: 4 }}>
+              <input type="checkbox" checked={hideInspectedActions} onChange={(e) => setHideInspectedActions(e.target.checked)} />
+              Hide standard/move/minor powers
+            </label>
+            {inspectedIds.map((id, i) => {
+              const c = combat.combatants[id]
+              return c ? <div key={id} style={i > 0 ? { marginTop: 'var(--space-4)' } : undefined}>{renderDetailPanel(c, { hideMainActionPowers: hideInspectedActions })}</div> : null
+            })}
+          </>
         ) : (
           <div style={{ color: 'var(--color-text-muted)', padding: 'var(--space-4)' }}>
-            Select a combatant from the initiative list.
+            Click a combatant to inspect side-by-side
           </div>
         )}
       </div>
@@ -641,10 +728,11 @@ export function CombatView() {
             : combat.combatants[dialog.combatantId]?.name ?? ''}
           onSubmit={(amount) => {
             const targets = dialog.multiTargetIds ?? [dialog.combatantId]
+            const healSourceId = combat.initiativeOrder[combat.turnIndex]
             for (const id of targets) {
               const name = combat.combatants[id]?.name ?? 'Creature'
               addEvent('heal', id, name, { amount })
-              window.api.combat.heal(id, amount)
+              window.api.combat.heal(id, amount, healSourceId)
             }
             setDialog(null)
           }}
@@ -655,6 +743,16 @@ export function CombatView() {
         <ConditionDialog
           combatantId={dialog.combatantId}
           onClose={() => setDialog(null)}
+        />
+      )}
+      {readyDialog && (
+        <ReadyActionDialog
+          combatantName={combat.combatants[readyDialog.combatantId]?.name ?? ''}
+          onSubmit={(actionText) => {
+            window.api.combat.ready(readyDialog.combatantId, actionText)
+            setReadyDialog(null)
+          }}
+          onClose={() => setReadyDialog(null)}
         />
       )}
 

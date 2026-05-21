@@ -8,6 +8,7 @@ export const CMD = {
   CAMPAIGN_LIST: 'campaign:list',
   CAMPAIGN_GET_META: 'campaign:get-meta',
   CAMPAIGN_UPDATE: 'campaign:update',
+  CAMPAIGN_DELETE: 'campaign:delete',
 
   // Entities
   ENTITY_SAVE: 'entity:save',
@@ -33,6 +34,9 @@ export const CMD = {
   COMBAT_RESOLVE_DEATH_SAVE: 'combat:resolve-death-save',
   COMBAT_DELAY: 'combat:delay',
   COMBAT_UNDELAY: 'combat:undelay',
+  COMBAT_READY: 'combat:ready',
+  COMBAT_RESOLVE_READY: 'combat:resolve-ready',
+  COMBAT_CANCEL_READY: 'combat:cancel-ready',
   COMBAT_DAMAGE: 'combat:damage',
   COMBAT_HEAL: 'combat:heal',
   COMBAT_ADD_CONDITION: 'combat:add-condition',
@@ -45,6 +49,7 @@ export const CMD = {
   COMBAT_UPDATE_COMBATANT: 'combat:update-combatant',
   COMBAT_USE_POWER: 'combat:use-power',
   COMBAT_UNUSE_POWER: 'combat:unuse-power',
+  COMBAT_SET_SURPRISE: 'combat:set-surprise',
 
   // System
   SYSTEM_GET_PLUGIN: 'system:get-plugin',
@@ -83,6 +88,7 @@ export const CMD = {
 
   // Scene
   SCENE_SET: 'scene:set',
+  PLAYER_WINDOW_SHOW: 'player-window:show',
 } as const
 
 // Broadcasts (main process → all renderers via send)

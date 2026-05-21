@@ -47,6 +47,7 @@ function _parseMonsterHtml(html: string, warnings: string[]): Creature {
   let eliteSolo: string | undefined
   if (roleRaw.includes('solo')) eliteSolo = 'solo'
   else if (roleRaw.includes('elite')) eliteSolo = 'elite'
+  const isMinion = roleRaw.includes('minion')
   // Extract role by matching known 4e roles — avoids picking up origin words like "fey", "natural"
   const knownRoles = ['artillery', 'brute', 'controller', 'lurker', 'skirmisher', 'soldier']
   const roleMatch = knownRoles.find(r => roleRaw.includes(r))
@@ -144,7 +145,7 @@ function _parseMonsterHtml(html: string, warnings: string[]): Creature {
     hp,
     maxHp: hp,
     statBlock: {
-      size, level, role: cleanRole, monsterModifier: eliteSolo, ac,
+      size, level, role: cleanRole, monsterModifier: eliteSolo, isMinion: isMinion || undefined, ac,
       defenses: { fortitude: fort, reflex: ref, will },
       initiative, perception, senses,
       speed: land, speeds, speedNotes: speedNotes || undefined,
@@ -243,10 +244,14 @@ function parseOneAbility(headerHtml: string, bodyBlocks: string[], sectionDefaul
   const name = bolds[0] ?? afterIcon.match(/^([A-Z][\w\s'\-]+?)(?:\s+[✦(]|\s*$)/)?.[1]?.trim() ?? afterIcon.trim()
   if (!name || name.length < 2) return null
 
-  // Keywords = bold words after ✦ (filter out usage types that appear as bold keywords)
+  // Keywords = bold words after ✦ (filter out usage types that appear as bold keywords).
+  // Some entries pack multiple keywords into one <b> tag comma-separated (e.g. "<b>Healing, Weapon</b>"),
+  // so we split on commas after extracting.
   const usageWords = new Set(['at-will', 'encounter', 'daily'])
   const hasStarKeywords = headerText.includes('✦')
-  const keywords = hasStarKeywords ? bolds.slice(1).filter(k => !usageWords.has(k.toLowerCase())) : []
+  const keywords = hasStarKeywords
+    ? bolds.slice(1).flatMap(k => k.split(',').map(s => s.trim())).filter(k => k && !usageWords.has(k.toLowerCase()))
+    : []
 
   // Parse action paren
   const parenMatch = afterIcon.match(/\(([^)]+)\)/)
@@ -269,6 +274,24 @@ function parseOneAbility(headerHtml: string, bodyBlocks: string[], sectionDefaul
       const u = headerUsage.toLowerCase()
       if (u === 'encounter') finalUsage = 'encounter'
       else if (u === 'daily') finalUsage = 'daily'
+    }
+    // Detect "Recharge" as a bold keyword — condition text follows in the header
+    // e.g. "✦ <b>Recharge</b> if the attack misses" or "✦ <b>Recharge</b> 5 6"
+    if (bolds.slice(1).some(k => k.toLowerCase() === 'recharge')) {
+      finalUsage = 'recharge'
+      // Extract the recharge condition from the header text after "Recharge"
+      const rcMatch = afterIcon.match(/\bRecharge\b\s+(.+?)(?:\s*$)/i)
+      if (rcMatch) {
+        let rc = rcMatch[1].trim()
+        // Normalize dice notation: "5 6" → "5-6", single digit → "N-6"
+        rc = rc.replace(/[⚅]/g,'6').replace(/[⚄]/g,'5').replace(/[⚃]/g,'4').replace(/[⚂]/g,'3').replace(/[⚁]/g,'2').replace(/[⚀]/g,'1')
+        const diceRange = rc.match(/^[\d\s]+$/)
+        if (diceRange) {
+          const nums = rc.replace(/\s+/g,'').split('').map(Number).sort((a,b) => a - b)
+          rc = nums[0] + '-' + nums[nums.length - 1]
+        }
+        if (!rechargeCondition) rechargeCondition = rc
+      }
     }
   }
 
@@ -595,8 +618,8 @@ function splitDamageFromHit(text: string): { damage: string; hit: string; critic
     if (lower === 'ongoing' && nextTok && /^\d/.test(nextTok)) return true
     // "plus" — only if followed by another damage token
     if (lower === 'plus' && nextTok && isDamageToken(nextTok, tokens[tokens.indexOf(nextTok) + 1])) return true
-    // "and" between damage types: "fire and necrotic damage"
-    if (lower === 'and' && nextTok && DAMAGE_TYPES_SET.has(nextTok.toLowerCase().replace(/[.,;:]+$/, ''))) return true
+    // "and" / "or" between damage types: "fire and necrotic damage", "cold or fire damage"
+    if ((lower === 'and' || lower === 'or') && nextTok && DAMAGE_TYPES_SET.has(nextTok.toLowerCase().replace(/[.,;:]+$/, ''))) return true
     // Crit parens: "(crit ...)" or "(critical ...)" — may be unclosed in source
     if (tok.startsWith('(') && /crit/i.test(tok)) return true
     return false
@@ -613,15 +636,16 @@ function splitDamageFromHit(text: string): { damage: string; hit: string; critic
   }
 
   if (lastDmgIdx < 0) {
-    return { damage: '', hit: trimmed }
+    return { damage: '', hit: trimmed, critical: '' }
   }
 
   const dmgTokens = tokens.slice(0, lastDmgIdx + 1)
   const hitTokens = tokens.slice(lastDmgIdx + 1)
   let damage = dmgTokens.join(' ')
   let hit = hitTokens.join(' ')
-  // Strip leading punctuation and conjunctions from hit text
-  hit = hit.replace(/^[.,;:]+\s*/, '').replace(/^and\s+/i, '').replace(/^or\s+/i, '')
+  // Strip leading punctuation and conjunctions from hit text.
+  // Keep "or" when followed by a dice/number expression (it's an alternative damage, not a stray conjunction).
+  hit = hit.replace(/^[.,;:]+\s*/, '').replace(/^and\s+/i, '').replace(/^or\s+(?!\d)/i, '')
   // Extract critical hit info into a separate field
   let critical = ''
   if (/\bcritical hit\b/i.test(hit)) {
@@ -676,8 +700,8 @@ function parseDamageParts(raw: string, knownTypes: string[]): DamagePart[] {
       }
     }
 
-    // Clean up leftover punctuation, commas, "and" between stripped types
-    seg = seg.replace(/\s*,\s*/g, ' ').replace(/\s+and\s+/gi, ' ').trim()
+    // Clean up leftover punctuation, commas, "and"/"or" between stripped types
+    seg = seg.replace(/\s*,\s*/g, ' ').replace(/\s+(?:and|or)\s+/gi, ' ').trim()
     // Compact spaces around arithmetic operators and normalize dice (3D10 → 3d10)
     seg = seg.replace(/\s*([+\-])\s*/g, '$1').replace(/(\d+)D(\d+)/g, '$1d$2').trim()
     // Strip any remaining non-expression characters (parens with bonus info, etc.)
@@ -801,20 +825,24 @@ interface ParsedParen {
 
 function parseActionParen(str: string): ParsedParen {
   const lower = str.toLowerCase()
+  const hasActionKeyword = /\b(standard|minor|move|free|immediate interrupt|immediate reaction|no action)\b/i.test(lower)
   let actionType = 'standard'
   if (lower.match(/\bminor\b/)) actionType = 'minor'
   else if (lower.match(/\bmove\b/)) actionType = 'move'
   else if (lower.match(/\bfree\b/)) actionType = 'free'
   else if (lower.includes('immediate interrupt')) actionType = 'immediate-interrupt'
   else if (lower.includes('immediate reaction')) actionType = 'immediate-reaction'
+  // If paren has a trigger but no explicit action type, it's a triggered free action
+  else if (!hasActionKeyword && /\bwhen\b/i.test(lower)) actionType = 'free'
 
   let usage = 'at-will'
   if (lower.includes('encounter')) usage = 'encounter'
   else if (lower.includes('recharge')) usage = 'recharge'
 
   let trigger = ''
-  const triggerMatch = str.match(/,\s*when\s+(.+?)(?=;\s|,\s*(?:recharge|encounter|at-will|daily)|$)/i)
-  if (triggerMatch) trigger = triggerMatch[1].trim()
+  // Trigger can start with ", when ..." (after action type) or be the entire paren "when ..."
+  const triggerMatch = str.match(/(?:^|,)\s*when\s+(.+?)(?:;\s|,\s*(?:recharge|encounter|at-will|daily)|\s*$)/i)
+  if (triggerMatch) trigger = triggerMatch[1].trim().replace(/,\s*$/, '')
 
   let sustain = ''
   const sustainMatch = str.match(/sustain\s+(\w+)/i)
@@ -908,5 +936,8 @@ function parseRangeValue(rangePart: string): string {
     .replace(/^.*?(close burst|close blast|area burst|area wall|ranged|melee|reach)\s*/i, '')
     // Strip a trailing target parenthetical, e.g. "(creatures in the burst)"
     .replace(/\s*\(.*$/, '')
+    // Strip trailing punctuation (semicolon, comma, period) so it doesn't
+    // collide with the renderer's own delimiters.
+    .replace(/[;,.]+\s*$/, '')
     .trim()
 }

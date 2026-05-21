@@ -6,6 +6,7 @@ import { useHotkeys } from '../../hooks/use-hotkeys'
 import { getPluginUI } from '../../plugins/registry'
 import type { PluginUIComponents } from '../../plugins/plugin-types'
 import type { EntityType } from '@common/types'
+import { confirmDelete } from '../shared/confirm-delete'
 import { PCListView } from './PCListView'
 
 interface Props {
@@ -24,8 +25,8 @@ const labels: Record<string, string> = {
 
 export function EntityList({ entityType }: Props) {
   const { setView } = useUiStore()
-  const { creatures, encounters, locations, items, playerCharacters, notes } = useCampaignStore()
-  const { createNote, createCreature, createEncounter, createLocation, createItem, createPC } = useCampaignActions()
+  const { creatures, encounters, locations, maps, items, playerCharacters, notes } = useCampaignStore()
+  const { createNote, createCreature, createEncounter, createLocation, createItem, createPC, createMap } = useCampaignActions()
   const [importUrl, setImportUrl] = useState('')
   const [importing, setImporting] = useState(false)
   const [importError, setImportError] = useState('')
@@ -44,6 +45,7 @@ export function EntityList({ entityType }: Props) {
     creature: creatures,
     encounter: encounters,
     location: locations,
+    map: maps,
     item: items,
     'player-character': playerCharacters,
   }
@@ -60,6 +62,14 @@ export function EntityList({ entityType }: Props) {
       case 'creature': { const c = await createCreature('New Creature'); setView({ type: 'creature', creatureId: c.id }); break }
       case 'encounter': { const e = await createEncounter('New Encounter'); setView({ type: 'encounter', encounterId: e.id }); break }
       case 'location': { const l = await createLocation('New Location'); setView({ type: 'location', locationId: l.id }); break }
+      case 'map': {
+        // Prompt user to pick an image first — maps require a background image
+        const imageId = await window.api.image.importDialog()
+        if (!imageId) break
+        const m = await createMap('New Map', imageId)
+        setView({ type: 'map', mapId: m.id })
+        break
+      }
       case 'item': { const i = await createItem('New Item'); setView({ type: 'item', itemId: i.id }); break }
       case 'player-character': { await createPC('New PC', ''); break }
     }
@@ -92,6 +102,7 @@ export function EntityList({ entityType }: Props) {
       case 'creature': setView({ type: 'creature', creatureId: id }); break
       case 'encounter': setView({ type: 'encounter', encounterId: id }); break
       case 'location': setView({ type: 'location', locationId: id }); break
+      case 'map': setView({ type: 'map', mapId: id }); break
       case 'item': setView({ type: 'item', itemId: id }); break
     }
   }
@@ -194,7 +205,8 @@ export function EntityList({ entityType }: Props) {
               <button
                 onClick={(ev) => {
                   ev.stopPropagation()
-                  window.api.entity.delete(entityType, e.id)
+                  if (confirmDelete(e.name || e.title || 'Untitled', labels[entityType]))
+                    window.api.entity.delete(entityType, e.id)
                 }}
                 title="Delete"
                 style={{

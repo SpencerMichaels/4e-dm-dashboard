@@ -81,15 +81,18 @@ export function NoteEditor({ noteId }: Props) {
         }}
       />
       <div
+        onClick={() => editor?.commands.focus()}
         style={{
           minHeight: 300,
+          display: 'flex', flexDirection: 'column',
           background: 'var(--color-bg-surface)',
           border: '1px solid var(--color-border)',
           borderRadius: 'var(--radius-md)',
           padding: 'var(--space-4)',
+          cursor: 'text',
         }}
       >
-        <EditorContent editor={editor} />
+        <EditorContent editor={editor} style={{ flex: 1 }} />
       </div>
     </div>
   )

@@ -5,6 +5,15 @@ import { USAGE_COLORS, normalizeDamage, type DamagePart } from './dnd4e-utils'
 
 export type { DamagePart } from './dnd4e-utils'
 
+/** Like normalizeDamage but keeps empty-expr parts so the editor can show
+ *  blank rows for the user to fill in. */
+function rawDamageParts(damage: DamagePart[] | string | undefined): DamagePart[] {
+  if (!damage) return []
+  if (Array.isArray(damage)) return damage
+  if (typeof damage === 'string' && damage.trim()) return [{ expr: damage.trim(), type: '', ongoing: false }]
+  return []
+}
+
 // Unified data structure for creature/item powers
 export interface PowerEntry {
   name: string
@@ -202,7 +211,7 @@ function SimpleAttackRow({ entry: e, idx, config, level, atkBonusTables, onUpdat
       </div>
 
       {/* Row 3: damage parts */}
-      <DamagePartsEditor parts={normalizeDamage(e.damage)} config={config} level={level}
+      <DamagePartsEditor parts={rawDamageParts(e.damage)} config={config} level={level}
         onChange={(parts) => onUpdate(idx, { damage: parts })} />
 
       {/* Row 4: traits */}
@@ -401,7 +410,7 @@ function FullPowerRow({ entry: e, idx, config, level, statBlock, atkBonusTables,
         )}
 
         {/* Damage (not for personal powers) */}
-        {e.rangeType !== 'personal' && (normalizeDamage(e.damage).length > 0 || e.attackBonus != null) && (() => {
+        {e.rangeType !== 'personal' && (rawDamageParts(e.damage).length > 0 || e.attackBonus != null) && (() => {
           // Infer damage tier per DMG p.185:
           // Multi-target → low, brute/lurker single → high, other single → medium
           const rt = (e.rangeType || '').toLowerCase()
@@ -413,7 +422,7 @@ function FullPowerRow({ entry: e, idx, config, level, statBlock, atkBonusTables,
           const isHighDmg = role === 'brute' || role === 'lurker'
           const inferredTier = isMulti ? 'low' : isHighDmg ? 'high' : 'medium'
           return (
-            <DamagePartsEditor parts={normalizeDamage(e.damage)} config={config} level={level} usage={e.usage}
+            <DamagePartsEditor parts={rawDamageParts(e.damage)} config={config} level={level} usage={e.usage}
               inferredTier={inferredTier} onChange={(parts) => onUpdate(idx, { damage: parts })} />
           )
         })()}
@@ -445,7 +454,7 @@ function FullPowerRow({ entry: e, idx, config, level, statBlock, atkBonusTables,
           )}
           {e.rangeType !== 'personal' && e.attackBonus != null && !e.hit && <button onClick={() => addField('hit', ' ')} style={addBtn}>+ hit</button>}
           {e.rangeType !== 'personal' && e.attackBonus != null && !e.miss && <button onClick={() => addField('miss', ' ')} style={addBtn}>+ miss</button>}
-          {e.rangeType !== 'personal' && e.attackBonus != null && <button onClick={() => onUpdate(idx, { damage: [...normalizeDamage(e.damage), { expr: '', type: '', ongoing: false }] })} style={addBtn}>+ damage</button>}
+          {e.rangeType !== 'personal' && e.attackBonus != null && <button onClick={() => onUpdate(idx, { damage: [...rawDamageParts(e.damage), { expr: '', type: '', ongoing: false }] })} style={addBtn}>+ damage</button>}
           {!e.effect && <button onClick={() => addField('effect', ' ')} style={addBtn}>+ effect</button>}
           {!e.requirement && <button onClick={() => addField('requirement', ' ')} style={addBtn}>+ requirement</button>}
         </div>
