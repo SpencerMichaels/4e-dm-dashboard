@@ -4,3 +4,15 @@ dist/
 .DS_Store
 *.tmp
 campaigns/
+
+# Nix build symlink
+result
+
+# Local debug/log files
+*.log
+
+# Reference PDFs (bulky, not part of the source tree)
+4eBooks/
+
+# Local portrait/asset working directory (not bundled into the repo)
+images/
