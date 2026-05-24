@@ -859,9 +859,9 @@ export function CombatView() {
                 onChange={e => setHideInspectedActions(e.target.checked)}
                 style={{ marginTop: 2, cursor: 'pointer' }} />
               <span>
-                <div style={{ fontSize: 'var(--font-size-sm)', fontWeight: 500 }}>Hide main actions in inspected stat blocks</div>
+                <div style={{ fontSize: 'var(--font-size-sm)', fontWeight: 500 }}>Hide on-turn actions in target stat blocks</div>
                 <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)', marginTop: 1 }}>
-                  When inspecting other creatures during combat, hide standard/move/minor powers to focus on triggered actions and reactions.
+                  When inspecting off-turn creatures during combat, hide standard/move/minor powers to focus on triggered actions and reactions.
                 </div>
               </span>
             </label>
