@@ -6,7 +6,7 @@ import { useHotkeys } from '../../hooks/use-hotkeys'
 import { getPluginUI } from '../../plugins/registry'
 import type { PluginUIComponents } from '../../plugins/plugin-types'
 import type { EntityType } from '@common/types'
-import { confirmDelete } from '../shared/confirm-delete'
+import { ConfirmDialog } from '../shared/ConfirmDialog'
 import { PCListView } from './PCListView'
 
 interface Props {
@@ -32,6 +32,7 @@ export function EntityList({ entityType }: Props) {
   const [importError, setImportError] = useState('')
   const [importWarnings, setImportWarnings] = useState<string[]>([])
   const [pluginUI, setPluginUI] = useState<PluginUIComponents | null>(null)
+  const [pendingDelete, setPendingDelete] = useState<{ id: string; name: string } | null>(null)
   const systemPlugin = useUiStore((s) => s.systemPlugin)
 
   // Load plugin UI for creature list delegation
@@ -205,8 +206,7 @@ export function EntityList({ entityType }: Props) {
               <button
                 onClick={(ev) => {
                   ev.stopPropagation()
-                  if (confirmDelete(e.name || e.title || 'Untitled', labels[entityType]))
-                    window.api.entity.delete(entityType, e.id)
+                  setPendingDelete({ id: e.id, name: e.name || e.title || 'Untitled' })
                 }}
                 title="Delete"
                 style={{
@@ -223,6 +223,17 @@ export function EntityList({ entityType }: Props) {
             </div>
           ))}
         </div>
+      )}
+
+      {pendingDelete && (
+        <ConfirmDialog
+          message={`Delete ${labels[entityType]} "${pendingDelete.name}"? This cannot be undone.`}
+          onConfirm={() => {
+            window.api.entity.delete(entityType, pendingDelete.id)
+            setPendingDelete(null)
+          }}
+          onCancel={() => setPendingDelete(null)}
+        />
       )}
     </div>
   )

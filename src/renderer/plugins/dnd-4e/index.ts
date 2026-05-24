@@ -5,6 +5,7 @@ import { Dnd4eItemBrowser } from './Dnd4eItemBrowser'
 import { Dnd4eItemEditor } from './Dnd4eItemEditor'
 import { Dnd4eEncounterEditor } from './Dnd4eEncounterEditor'
 import { Dnd4eCombatPanel } from './Dnd4eCombatPanel'
+import { Dnd4eReactionsPanel } from './Dnd4eReactionsPanel'
 
 const components: PluginUIComponents = {
   CreatureDetails: Dnd4eCreatureDetails,
@@ -13,6 +14,7 @@ const components: PluginUIComponents = {
   ItemEditor: Dnd4eItemEditor,
   EncounterEditor: Dnd4eEncounterEditor,
   CombatPanel: Dnd4eCombatPanel,
+  ReactionsPanel: Dnd4eReactionsPanel,
 }
 
 export default components

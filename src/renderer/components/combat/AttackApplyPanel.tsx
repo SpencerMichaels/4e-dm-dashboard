@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import type { CombatState, AppliedCondition } from '@common/types'
 import type { ConditionDef } from '@common/types/system-plugin'
 import type { AttackMode } from './CombatView'
+import styles from './AttackApplyPanel.module.css'
 
 interface Props {
   combat: CombatState
@@ -67,29 +68,22 @@ export function AttackApplyPanel({ combat, attackMode, conditionDefs, onApply, o
     return () => window.removeEventListener('keydown', handler)
   }, [hitDamage, missDamage, hitConditionId, missConditionId, halfDamage])
 
-  const sectionStyle: React.CSSProperties = {
-    padding: 'var(--space-3)',
-    border: '1px solid var(--color-border)',
-    borderRadius: 'var(--radius-sm)',
-    marginBottom: 'var(--space-3)',
-  }
-
   return (
-    <div style={{ padding: 'var(--space-4)', maxWidth: 500 }}>
-      <h3 style={{ margin: '0 0 var(--space-3) 0', fontSize: 'var(--font-size-lg)' }}>Apply Attack Results</h3>
+    <div className={styles.container}>
+      <h3 className={styles.heading}>Apply Attack Results</h3>
 
       {/* Hit section */}
       {hitIds.length > 0 && (
-        <div style={sectionStyle}>
-          <div style={{ fontWeight: 600, color: 'var(--color-check)', marginBottom: 'var(--space-2)', fontSize: 13 }}>
+        <div className={styles.section}>
+          <div className={styles.hitHeader}>
             ⚔ Hit ({hitIds.length}): {hitIds.map(id => combat.combatants[id]?.name).join(', ')}
           </div>
-          <div style={{ display: 'flex', gap: 'var(--space-2)', alignItems: 'center', flexWrap: 'wrap' }}>
-            <label style={{ fontSize: 12 }}>Damage:</label>
+          <div className={styles.inputRow}>
+            <label className={styles.fieldLabel}>Damage:</label>
             <input type="number" min={0} value={hitDamage} onChange={e => setHitDamage(e.target.value)}
-              placeholder="0" style={{ width: 60, textAlign: 'center' }} autoFocus />
-            <label style={{ fontSize: 12 }}>Condition:</label>
-            <select value={hitConditionId} onChange={e => setHitConditionId(e.target.value)} style={{ fontSize: 12 }}>
+              placeholder="0" className={styles.damageInput} autoFocus />
+            <label className={styles.fieldLabel}>Condition:</label>
+            <select value={hitConditionId} onChange={e => setHitConditionId(e.target.value)} className={styles.selectInput}>
               <option value="">None</option>
               {conditionDefs.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
             </select>
@@ -99,20 +93,20 @@ export function AttackApplyPanel({ combat, attackMode, conditionDefs, onApply, o
 
       {/* Miss section */}
       {missIds.length > 0 && (
-        <div style={sectionStyle}>
-          <div style={{ fontWeight: 600, color: 'var(--color-miss)', marginBottom: 'var(--space-2)', fontSize: 13 }}>
+        <div className={styles.section}>
+          <div className={styles.missHeader}>
             ✕ Miss ({missIds.length}): {missIds.map(id => combat.combatants[id]?.name).join(', ')}
           </div>
-          <div style={{ display: 'flex', gap: 'var(--space-2)', alignItems: 'center', flexWrap: 'wrap' }}>
-            <label style={{ fontSize: 12 }}>Damage:</label>
+          <div className={styles.inputRow}>
+            <label className={styles.fieldLabel}>Damage:</label>
             <input type="number" min={0} value={missDamage} onChange={e => { setMissDamage(e.target.value); setHalfDamage(false) }}
-              placeholder="0" style={{ width: 60, textAlign: 'center' }} />
-            <label style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 12, cursor: 'pointer' }}>
+              placeholder="0" className={styles.damageInput} />
+            <label className={styles.halfDamageLabel}>
               <input type="checkbox" checked={halfDamage} onChange={e => setHalfDamage(e.target.checked)} />
               Half damage
             </label>
-            <label style={{ fontSize: 12 }}>Condition:</label>
-            <select value={missConditionId} onChange={e => setMissConditionId(e.target.value)} style={{ fontSize: 12 }}>
+            <label className={styles.fieldLabel}>Condition:</label>
+            <select value={missConditionId} onChange={e => setMissConditionId(e.target.value)} className={styles.selectInput}>
               <option value="">None</option>
               {conditionDefs.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
             </select>
@@ -120,12 +114,9 @@ export function AttackApplyPanel({ combat, attackMode, conditionDefs, onApply, o
         </div>
       )}
 
-      <div style={{ display: 'flex', gap: 'var(--space-2)', justifyContent: 'flex-end' }}>
-        <button onClick={onCancel} style={{ fontSize: 12 }}>Cancel</button>
-        <button onClick={handleApply} style={{
-          padding: '4px 16px', background: 'var(--color-accent)', color: 'var(--color-accent-text)',
-          borderRadius: 'var(--radius-sm)', border: 'none', cursor: 'pointer', fontSize: 12,
-        }}>
+      <div className={styles.footer}>
+        <button onClick={onCancel} className={styles.cancelBtn}>Cancel</button>
+        <button onClick={handleApply} className={styles.applyBtn}>
           Apply (Space)
         </button>
       </div>

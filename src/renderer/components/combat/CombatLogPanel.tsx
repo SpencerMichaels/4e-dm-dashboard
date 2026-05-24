@@ -2,6 +2,7 @@ import { useRef, useEffect } from 'react'
 import type { CombatEvent } from '@common/types'
 import { renderEvent, eventColor } from './combat-log-utils'
 import { FloatingPanel } from '../shared/FloatingPanel'
+import styles from './CombatLogPanel.module.css'
 
 interface Props {
   events: CombatEvent[]
@@ -31,7 +32,7 @@ export function CombatLogPanel({ events, onClose }: Props) {
     >
       <>
         {events.length === 0 ? (
-          <div style={{ padding: 8, color: 'var(--color-text-muted)', fontSize: 11, textAlign: 'center' }}>
+          <div className={styles.emptyState}>
             No events yet
           </div>
         ) : events.map((ev, i) => {
@@ -42,11 +43,8 @@ export function CombatLogPanel({ events, onClose }: Props) {
             lastRound = ev.round
             lastTurnTarget = ''
             elements.push(
-              <div key={`round-${ev.round}`} style={{
-                padding: '4px 8px', marginTop: i > 0 ? 6 : 0,
-                fontSize: 11, fontWeight: 700, color: 'var(--color-text-primary)',
-                borderTop: i > 0 ? '2px solid var(--color-border)' : 'none',
-              }}>
+              <div key={`round-${ev.round}`} className={i > 0 ? styles.roundHeaderSeparator : styles.roundHeader}
+                style={i > 0 ? { marginTop: 6 } : undefined}>
                 Round {ev.round}
               </div>
             )
@@ -56,11 +54,7 @@ export function CombatLogPanel({ events, onClose }: Props) {
           if (ev.type === 'turn-start') {
             lastTurnTarget = ev.targetName
             elements.push(
-              <div key={`turn-${i}`} style={{
-                padding: '2px 8px', marginTop: 2,
-                fontSize: 10, fontWeight: 600, color: 'var(--color-text-muted)',
-                borderTop: '1px solid var(--color-border)',
-              }}>
+              <div key={`turn-${i}`} className={styles.turnHeader}>
                 {ev.targetName}'s turn
               </div>
             )
@@ -73,8 +67,8 @@ export function CombatLogPanel({ events, onClose }: Props) {
           // Regular event
           const color = eventColor(ev.type)
           elements.push(
-            <div key={i} style={{ padding: '1px 8px 1px 16px', fontSize: 11 }}>
-              {color && <span style={{ color, marginRight: 3 }}>●</span>}
+            <div key={i} className={styles.eventRow}>
+              {color && <span className={styles.eventDot} style={{ color }}>●</span>}
               {renderEvent(ev)}
             </div>
           )

@@ -644,6 +644,13 @@ export function CombatView() {
             onResolveReady={(id) => window.api.combat.resolveReady(id)}
             onCancelReady={(id) => window.api.combat.cancelReady(id)}
           />
+          {pluginUI?.ReactionsPanel && (
+            <pluginUI.ReactionsPanel
+              combat={combat}
+              currentCombatantId={currentId}
+              notifications={notifications}
+            />
+          )}
         </div>
 
         <button

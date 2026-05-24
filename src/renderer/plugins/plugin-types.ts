@@ -69,6 +69,13 @@ export interface PluginCombatPanelProps {
   hideMainActionPowers?: boolean
 }
 
+/** Props for the system-specific reactions panel (shown in the left column during combat) */
+export interface PluginReactionsPanelProps {
+  combat: CombatState
+  currentCombatantId?: string
+  notifications?: CombatNotification[]
+}
+
 /** What a plugin UI module exports */
 export interface PluginUIComponents {
   CreatureDetails?: ComponentType<PluginCreatureDetailsProps>
@@ -77,4 +84,5 @@ export interface PluginUIComponents {
   ItemEditor?: ComponentType<PluginItemEditorProps>
   EncounterEditor?: ComponentType<PluginEncounterEditorProps>
   CombatPanel?: ComponentType<PluginCombatPanelProps>
+  ReactionsPanel?: ComponentType<PluginReactionsPanelProps>
 }

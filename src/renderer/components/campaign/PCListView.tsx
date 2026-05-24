@@ -1,10 +1,10 @@
-import { useCallback } from 'react'
+import { useCallback, useState } from 'react'
 import type { PlayerCharacter } from '@common/types'
 import { useCampaignStore } from '../../stores/campaign-store'
 import { useCampaignActions } from '../../hooks/use-campaign'
 import { useHotkeys } from '../../hooks/use-hotkeys'
 import { CreatureImageEditor } from '../shared/CreatureImageEditor'
-import { confirmDelete } from '../shared/confirm-delete'
+import { ConfirmDialog } from '../shared/ConfirmDialog'
 import { CLASS_MARKS } from '../../../../plugins/dnd-4e/class-marks'
 
 export function PCListView() {
@@ -88,6 +88,7 @@ interface PCCardProps {
 }
 
 function PCCard({ pc, onSave, onDelete }: PCCardProps) {
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const update = (patch: Partial<PlayerCharacter>) => onSave({ ...pc, ...patch })
   const isActive = pc.active !== false
 
@@ -156,7 +157,7 @@ function PCCard({ pc, onSave, onDelete }: PCCardProps) {
           }}
         />
         <button
-          onClick={() => confirmDelete(pc.name, 'PC') && onDelete(pc.id)}
+          onClick={() => setShowDeleteConfirm(true)}
           title="Delete character"
           style={{
             background: 'transparent', border: 'none',
@@ -245,6 +246,17 @@ function PCCard({ pc, onSave, onDelete }: PCCardProps) {
           />
         </div>
       </div>
+
+      {showDeleteConfirm && (
+        <ConfirmDialog
+          message={`Delete PC "${pc.name}"? This cannot be undone.`}
+          onConfirm={() => {
+            onDelete(pc.id)
+            setShowDeleteConfirm(false)
+          }}
+          onCancel={() => setShowDeleteConfirm(false)}
+        />
+      )}
     </div>
   )
 }

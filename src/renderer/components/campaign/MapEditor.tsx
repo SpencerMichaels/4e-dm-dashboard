@@ -5,7 +5,7 @@ import { useCampaignActions } from '../../hooks/use-campaign'
 import { useUiStore } from '../../stores/ui-store'
 import { useImage } from '../../hooks/use-image'
 import { generateId } from '@common/utils/id'
-import { confirmDelete } from '../shared/confirm-delete'
+import { ConfirmDialog } from '../shared/ConfirmDialog'
 
 interface Props {
   mapId?: string
@@ -15,6 +15,7 @@ export function MapEditor({ mapId }: Props) {
   const [map, setMap] = useState<MapData | null>(null)
   const [selectedPinId, setSelectedPinId] = useState<string | null>(null)
   const [selectedLocation, setSelectedLocation] = useState<Location | null>(null)
+  const [pendingDeletePinId, setPendingDeletePinId] = useState<string | null>(null)
   const mapImageRef = useRef<HTMLDivElement>(null)
   const viewportRef = useRef<HTMLDivElement>(null)
   const nameInputRef = useRef<HTMLInputElement>(null)
@@ -191,14 +192,13 @@ export function MapEditor({ mapId }: Props) {
         const tag = (e.target as HTMLElement).tagName
         if (tag === 'INPUT' || tag === 'TEXTAREA') return
         if (selectedPinId) {
-          const pin = map?.pins.find(p => p.id === selectedPinId)
-          if (pin && confirmDelete(pin.label || 'this location', 'Location')) handleDeletePin(selectedPinId)
+          setPendingDeletePinId(selectedPinId)
         }
       }
     }
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
-  }, [selectedPinId, handleDeletePin])
+  }, [selectedPinId])
 
   if (!map) {
     return <div style={{ padding: 'var(--space-4)', color: 'var(--color-text-muted)' }}>Loading map...</div>
@@ -351,11 +351,25 @@ export function MapEditor({ mapId }: Props) {
                 title: selectedLocation.name,
               })
             }}
-            onDelete={() => handleDeletePin(selectedPinId!)}
+            onDelete={() => setPendingDeletePinId(selectedPinId!)}
             onClose={() => setSelectedPinId(null)}
           />
         </div>
       )}
+
+      {pendingDeletePinId && (() => {
+        const pin = map?.pins.find(p => p.id === pendingDeletePinId)
+        return (
+          <ConfirmDialog
+            message={`Delete Location "${pin?.label || 'this location'}"? This cannot be undone.`}
+            onConfirm={() => {
+              handleDeletePin(pendingDeletePinId)
+              setPendingDeletePinId(null)
+            }}
+            onCancel={() => setPendingDeletePinId(null)}
+          />
+        )
+      })()}
     </div>
   )
 }
@@ -570,7 +584,7 @@ function LocationSidebar({ location, locationNameRef, encounters, onNameChange, 
 
         {/* Delete pin */}
         <div style={{ marginTop: 'auto', paddingTop: 'var(--space-3)' }}>
-          <button onClick={() => confirmDelete(location.name, 'Location') && onDelete()}
+          <button onClick={onDelete}
             style={{
               width: '100%', padding: 'var(--space-2)',
               background: 'transparent', border: '1px solid var(--color-danger)',

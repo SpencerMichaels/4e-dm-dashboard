@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useCampaignStore } from '../../stores/campaign-store'
 import { useUiStore } from '../../stores/ui-store'
+import { ConfirmDialog } from '../shared/ConfirmDialog'
 import type { Campaign } from '@common/types'
 
 export function HomeView() {
@@ -141,52 +142,37 @@ export function HomeView() {
                   {c.systemId} — Last opened {new Date(c.lastOpenedAt).toLocaleDateString()}
                 </div>
               </button>
-              {confirmDeleteId === c.id ? (
-                <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-1)', padding: 'var(--space-2)' }}>
-                  <span style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-danger)', whiteSpace: 'nowrap' }}>Delete?</span>
-                  <button
-                    onClick={async () => {
-                      await window.api.campaign.delete(c.id)
-                      setCampaigns(prev => prev.filter(p => p.id !== c.id))
-                      setConfirmDeleteId(null)
-                    }}
-                    style={{
-                      padding: '2px 8px', fontSize: 'var(--font-size-xs)',
-                      background: 'var(--color-danger)', color: 'var(--color-text-on-dark)',
-                      border: 'none', borderRadius: 'var(--radius-sm)', cursor: 'pointer',
-                    }}
-                  >
-                    Yes
-                  </button>
-                  <button
-                    onClick={() => setConfirmDeleteId(null)}
-                    style={{
-                      padding: '2px 8px', fontSize: 'var(--font-size-xs)',
-                      background: 'var(--color-bg-hover)',
-                      border: 'none', borderRadius: 'var(--radius-sm)', cursor: 'pointer',
-                    }}
-                  >
-                    No
-                  </button>
-                </div>
-              ) : (
-                <button
-                  onClick={(e) => { e.stopPropagation(); setConfirmDeleteId(c.id) }}
-                  title="Delete campaign"
-                  style={{
-                    padding: 'var(--space-2) var(--space-3)',
-                    background: 'transparent', border: 'none',
-                    cursor: 'pointer', color: 'var(--color-text-muted)',
-                    fontSize: 'var(--font-size-sm)',
-                  }}
-                >
-                  x
-                </button>
-              )}
+              <button
+                onClick={(e) => { e.stopPropagation(); setConfirmDeleteId(c.id) }}
+                title="Delete campaign"
+                style={{
+                  padding: 'var(--space-2) var(--space-3)',
+                  background: 'transparent', border: 'none',
+                  cursor: 'pointer', color: 'var(--color-text-muted)',
+                  fontSize: 'var(--font-size-sm)',
+                }}
+              >
+                x
+              </button>
             </div>
           ))}
         </div>
       )}
+
+      {confirmDeleteId && (() => {
+        const campaign = campaigns.find(c => c.id === confirmDeleteId)
+        return (
+          <ConfirmDialog
+            message={`Delete campaign "${campaign?.name ?? 'Unknown'}"? This cannot be undone.`}
+            onConfirm={async () => {
+              await window.api.campaign.delete(confirmDeleteId)
+              setCampaigns(prev => prev.filter(p => p.id !== confirmDeleteId))
+              setConfirmDeleteId(null)
+            }}
+            onCancel={() => setConfirmDeleteId(null)}
+          />
+        )
+      })()}
     </div>
   )
 }
