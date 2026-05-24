@@ -65,9 +65,9 @@ export function ReadyActionDialog({ combatantName, onSubmit, onClose }: Props) {
             type="submit"
             disabled={!text.trim()}
             style={{
-              background: '#39c',
-              color: '#fff',
-              padding: '4px 16px',
+              background: 'var(--color-readied)',
+              color: 'var(--color-text-on-dark)',
+              padding: 'var(--space-1) var(--space-4)',
               borderRadius: 'var(--radius-sm)',
               opacity: text.trim() ? 1 : 0.5,
             }}

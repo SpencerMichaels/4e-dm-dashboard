@@ -30,7 +30,7 @@ export function HotkeysModal({ sections, onClose }: Props) {
               <div key={key + desc} style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)', padding: '2px 0', fontSize: 12 }}>
                 <kbd style={{
                   minWidth: 80, textAlign: 'center',
-                  padding: '1px 6px', borderRadius: 3,
+                  padding: '1px 6px', borderRadius: 'var(--radius-sm)',
                   background: 'var(--color-bg-surface)', border: '1px solid var(--color-border)',
                   fontSize: 11, fontFamily: 'monospace', fontWeight: 600,
                 }}>{key}</kbd>

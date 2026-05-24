@@ -110,7 +110,7 @@ export function Dnd4eCombatPanel({
         title={isPinned ? 'Unpin' : 'Pin to overlay'}
         style={{
           background: 'none', border: 'none', cursor: 'pointer', padding: '0 2px',
-          fontSize: 10, color: isPinned ? '#e8a020' : 'var(--color-text-muted)',
+          fontSize: 10, color: isPinned ? 'var(--color-action-point)' : 'var(--color-text-muted)',
           opacity: isPinned ? 1 : 0.5,
         }}
       >
@@ -153,10 +153,10 @@ export function Dnd4eCombatPanel({
       {/* HP + AP line */}
       <div style={{ padding: '4px 8px', display: 'flex', alignItems: 'center', gap: 6, borderBottom: '1px solid var(--sb-separator)' }}>
         <b style={{ fontSize: 11 }}>HP</b>
-        <span style={{ fontWeight: 700, fontSize: 13, color: hpPct > 50 ? '#0a0' : hpPct > 25 ? '#c90' : hpPct > 0 ? '#c00' : 'var(--color-text-muted)' }}>{c.hp}</span>
+        <span style={{ fontWeight: 700, fontSize: 13, color: hpPct > 50 ? 'var(--color-hp-full)' : hpPct > 25 ? 'var(--color-hp-mid)' : hpPct > 0 ? 'var(--color-hp-low)' : 'var(--color-text-muted)' }}>{c.hp}</span>
         <span style={{ color: 'var(--color-text-muted)', fontSize: 11 }}>/ {c.maxHp}</span>
-        {c.tempHp > 0 && <span style={{ color: '#09f', fontSize: 11, fontWeight: 600 }}>+{c.tempHp} temp</span>}
-        {hpPct <= 50 && hpPct > 0 && <span style={{ color: '#c00', fontSize: 10, fontWeight: 700 }}>BLOODIED</span>}
+        {c.tempHp > 0 && <span style={{ color: 'var(--color-temp-hp)', fontSize: 11, fontWeight: 600 }}>+{c.tempHp} temp</span>}
+        {hpPct <= 50 && hpPct > 0 && <span style={{ color: 'var(--color-hp-low)', fontSize: 10, fontWeight: 700 }}>BLOODIED</span>}
         {totalAP > 0 && (
           <>
             <div style={{ flex: 1 }} />
@@ -173,7 +173,7 @@ export function Dnd4eCombatPanel({
             >
               <b style={{ fontSize: 11 }}>AP</b>
               {Array.from({ length: totalAP }, (_, i) => (
-                <span key={i} style={{ fontSize: 14, color: i < remainingAP ? '#e8a020' : 'var(--color-text-muted)', opacity: i < remainingAP ? 1 : 0.3 }}>
+                <span key={i} style={{ fontSize: 14, color: i < remainingAP ? 'var(--color-action-point)' : 'var(--color-text-muted)', opacity: i < remainingAP ? 1 : 0.3 }}>
                   {i < remainingAP ? '●' : '○'}
                 </span>
               ))}

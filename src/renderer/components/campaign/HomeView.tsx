@@ -152,7 +152,7 @@ export function HomeView() {
                     }}
                     style={{
                       padding: '2px 8px', fontSize: 'var(--font-size-xs)',
-                      background: 'var(--color-danger)', color: '#fff',
+                      background: 'var(--color-danger)', color: 'var(--color-text-on-dark)',
                       border: 'none', borderRadius: 'var(--radius-sm)', cursor: 'pointer',
                     }}
                   >

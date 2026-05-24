@@ -298,10 +298,10 @@ export function QuickConditionMenu({ combatantId, combatant, position, onClose, 
                 setDurationOverride({ type: d.type }); setShowTurnPicker(null)
               }}
               style={{
-                padding: '1px 5px', borderRadius: 6, fontSize: 9, fontWeight: 600,
+                padding: '1px 5px', borderRadius: 'var(--radius-md)', fontSize: 9, fontWeight: 600,
                 cursor: 'pointer', userSelect: 'none',
                 background: isOverride ? 'var(--color-accent)' : (showTurnPicker === d.type) ? 'rgba(92,124,250,0.3)' : isHoveredDefault ? 'rgba(128,128,128,0.3)' : 'rgba(128,128,128,0.1)',
-                color: isOverride ? 'var(--color-accent-text)' : isHoveredDefault ? 'var(--color-text)' : 'var(--color-text-muted)',
+                color: isOverride ? 'var(--color-accent-text)' : isHoveredDefault ? 'var(--color-text-primary)' : 'var(--color-text-muted)',
                 transition: 'background 0.1s',
               }}>
               {d.label}
@@ -318,8 +318,8 @@ export function QuickConditionMenu({ combatantId, combatant, position, onClose, 
               setDurationOverride({ type: showTurnPicker, expiresOnId: currentTurnId })
               setShowTurnPicker(null)
             }} style={{
-              padding: '1px 5px', borderRadius: 6, fontSize: 9, fontWeight: 600,
-              cursor: 'pointer', background: 'rgba(128,128,128,0.15)', color: 'var(--color-text)',
+              padding: '1px 5px', borderRadius: 'var(--radius-md)', fontSize: 9, fontWeight: 600,
+              cursor: 'pointer', background: 'rgba(128,128,128,0.15)', color: 'var(--color-text-primary)',
             }}>
               Attacker: {currentTurnName}
             </span>
@@ -328,8 +328,8 @@ export function QuickConditionMenu({ combatantId, combatant, position, onClose, 
             setDurationOverride({ type: showTurnPicker, expiresOnId: combatantId })
             setShowTurnPicker(null)
           }} style={{
-            padding: '1px 5px', borderRadius: 6, fontSize: 9, fontWeight: 600,
-            cursor: 'pointer', background: 'rgba(128,128,128,0.15)', color: 'var(--color-text)',
+            padding: '1px 5px', borderRadius: 'var(--radius-md)', fontSize: 9, fontWeight: 600,
+            cursor: 'pointer', background: 'rgba(128,128,128,0.15)', color: 'var(--color-text-primary)',
           }}>
             Target: {combatant.name}
           </span>
@@ -360,7 +360,7 @@ export function QuickConditionMenu({ combatantId, combatant, position, onClose, 
               onMouseLeave={() => setHoveredCondId(null)}
               style={{
                 display: 'flex', alignItems: 'center', gap: 4,
-                padding: '3px 6px', cursor: readOnly ? 'default' : 'pointer', borderRadius: 3,
+                padding: '3px 6px', cursor: readOnly ? 'default' : 'pointer', borderRadius: 'var(--radius-sm)',
                 background: active ? style.color + '30' : 'transparent',
                 opacity: readOnly ? 0.7 : 1,
               }}>
@@ -368,13 +368,13 @@ export function QuickConditionMenu({ combatantId, combatant, position, onClose, 
                 display: 'inline-flex', alignItems: 'center', gap: 3,
                 padding: '1px 6px', borderRadius: 8,
                 background: active ? style.color : ((markSourcePicker && c.id === 'marked') || (caRecipientPicker && c.id === 'combat-advantage')) ? style.color + '90' : style.color + '40',
-                color: active || (markSourcePicker && c.id === 'marked') || (caRecipientPicker && c.id === 'combat-advantage') ? style.textColor : 'var(--color-text)',
+                color: active || (markSourcePicker && c.id === 'marked') || (caRecipientPicker && c.id === 'combat-advantage') ? style.textColor : 'var(--color-text-primary)',
                 fontSize: 10, fontWeight: active || (markSourcePicker && c.id === 'marked') || (caRecipientPicker && c.id === 'combat-advantage') ? 600 : 400,
               }}>
                 <span style={{ fontSize: 9 }}>{style.icon}</span>
                 {c.name}
               </span>
-              {active && <span style={{ fontSize: 10, color: '#2a6' }}>✓</span>}
+              {active && <span style={{ fontSize: 10, color: 'var(--color-check)' }}>✓</span>}
             </div>
           )
         })}
@@ -390,20 +390,20 @@ export function QuickConditionMenu({ combatantId, combatant, position, onClose, 
               title="Apply ongoing damage"
               style={{
                 display: 'flex', alignItems: 'center', gap: 4,
-                padding: '3px 6px', cursor: 'pointer', borderRadius: 3,
+                padding: '3px 6px', cursor: 'pointer', borderRadius: 'var(--radius-sm)',
                 background: ongoingMode ? style.color + '30' : 'transparent',
               }}>
               <span style={{
                 display: 'inline-flex', alignItems: 'center', gap: 3,
                 padding: '1px 6px', borderRadius: 8,
                 background: ongoingMode ? style.color : style.color + '40',
-                color: ongoingMode ? style.textColor : 'var(--color-text)',
+                color: ongoingMode ? style.textColor : 'var(--color-text-primary)',
                 fontSize: 10, fontWeight: ongoingMode ? 600 : 400,
               }}>
                 <span style={{ fontSize: 9 }}>{style.icon}</span>
                 Ongoing Damage
               </span>
-              {active && <span style={{ fontSize: 10, color: '#2a6' }}>✓</span>}
+              {active && <span style={{ fontSize: 10, color: 'var(--color-check)' }}>✓</span>}
             </div>
           )
         })()}
@@ -418,7 +418,7 @@ export function QuickConditionMenu({ combatantId, combatant, position, onClose, 
             return (
               <div key={cond.conditionId} onClick={() => window.api.combat.removeCondition(combatantId, cond.conditionId)} style={{
                 display: 'flex', alignItems: 'center', gap: 4,
-                padding: '3px 6px', cursor: 'pointer', borderRadius: 3,
+                padding: '3px 6px', cursor: 'pointer', borderRadius: 'var(--radius-sm)',
               }}>
                 <span style={{
                   display: 'inline-flex', alignItems: 'center', gap: 3,
@@ -430,7 +430,7 @@ export function QuickConditionMenu({ combatantId, combatant, position, onClose, 
                   <span style={{ fontSize: 9 }}>{style.icon}</span>
                   Ongoing {cond.value ?? ''}{cond.customDescription ? ' ' + cond.customDescription : ''}
                 </span>
-                <span style={{ fontSize: 10, color: '#2a6' }}>✓</span>
+                <span style={{ fontSize: 10, color: 'var(--color-check)' }}>✓</span>
               </div>
             )
           })}
@@ -439,32 +439,32 @@ export function QuickConditionMenu({ combatantId, combatant, position, onClose, 
 
       {/* Grants CA recipient picker */}
       {caRecipientPicker && combat && (
-        <div style={{ padding: '4px 8px', background: 'var(--color-bg-surface)', margin: '2px 4px', borderRadius: 3 }}>
+        <div style={{ padding: '4px 8px', background: 'var(--color-bg-surface)', margin: '2px 4px', borderRadius: 'var(--radius-sm)' }}>
           <div style={{ display: 'flex', alignItems: 'center', marginBottom: 3 }}>
             <span style={{ fontSize: 10, color: 'var(--color-text-muted)', flex: 1 }}>Grants CA to whom?</span>
             <span onClick={() => setCaRecipientPicker(false)} style={{ fontSize: 10, color: 'var(--color-text-muted)', cursor: 'pointer' }}>✕</span>
           </div>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 3, marginBottom: 3 }}>
             <button onClick={() => applyGrantsCA('all')} style={{
-              fontSize: 10, padding: '2px 6px', borderRadius: 3, cursor: 'pointer',
+              fontSize: 10, padding: '2px 6px', borderRadius: 'var(--radius-sm)', cursor: 'pointer',
               background: 'var(--color-bg-hover)', border: '1px solid var(--color-border)',
-              color: 'var(--color-text)',
+              color: 'var(--color-text-primary)',
             }}>
               All attackers
             </button>
             {currentTurnId && currentTurnId !== combatantId && currentTurnName && (
               <>
                 <button onClick={() => applyGrantsCA('source', currentTurnId)} style={{
-                  fontSize: 10, padding: '2px 6px', borderRadius: 3, cursor: 'pointer',
+                  fontSize: 10, padding: '2px 6px', borderRadius: 'var(--radius-sm)', cursor: 'pointer',
                   background: 'rgba(92,124,250,0.2)', border: '1px solid rgba(92,124,250,0.5)',
-                  color: 'var(--color-text)', fontWeight: 600,
+                  color: 'var(--color-text-primary)', fontWeight: 600,
                 }}>
                   {currentTurnName}
                 </button>
                 <button onClick={() => applyGrantsCA('source-allies', currentTurnId)} style={{
-                  fontSize: 10, padding: '2px 6px', borderRadius: 3, cursor: 'pointer',
+                  fontSize: 10, padding: '2px 6px', borderRadius: 'var(--radius-sm)', cursor: 'pointer',
                   background: 'var(--color-bg-hover)', border: '1px solid var(--color-border)',
-                  color: 'var(--color-text)',
+                  color: 'var(--color-text-primary)',
                 }}>
                   {currentTurnName}'s allies
                 </button>
@@ -479,9 +479,9 @@ export function QuickConditionMenu({ combatantId, combatant, position, onClose, 
                 <div key={c.id} style={{ display: 'flex', gap: 3, alignItems: 'center' }}>
                   <button onClick={() => applyGrantsCA('source', c.id)} style={{
                     display: 'inline-flex', alignItems: 'center', gap: 4,
-                    fontSize: 10, padding: '2px 6px', borderRadius: 3, cursor: 'pointer',
+                    fontSize: 10, padding: '2px 6px', borderRadius: 'var(--radius-sm)', cursor: 'pointer',
                     background: 'var(--color-bg-hover)', border: '1px solid var(--color-border)',
-                    color: 'var(--color-text)', flex: 1, textAlign: 'left',
+                    color: 'var(--color-text-primary)', flex: 1, textAlign: 'left',
                   }}>
                     {c.color && (
                       <span style={{
@@ -494,7 +494,7 @@ export function QuickConditionMenu({ combatantId, combatant, position, onClose, 
                     {c.name}
                   </button>
                   <button onClick={() => applyGrantsCA('source-allies', c.id)} style={{
-                    fontSize: 9, padding: '2px 6px', borderRadius: 3, cursor: 'pointer',
+                    fontSize: 9, padding: '2px 6px', borderRadius: 'var(--radius-sm)', cursor: 'pointer',
                     background: 'var(--color-bg-hover)', border: '1px solid var(--color-border)',
                     color: 'var(--color-text-muted)',
                   }}>
@@ -508,7 +508,7 @@ export function QuickConditionMenu({ combatantId, combatant, position, onClose, 
 
       {/* Mark source picker */}
       {markSourcePicker && combat && (
-        <div style={{ padding: '4px 8px', background: 'var(--color-bg-surface)', margin: '2px 4px', borderRadius: 3 }}>
+        <div style={{ padding: '4px 8px', background: 'var(--color-bg-surface)', margin: '2px 4px', borderRadius: 'var(--radius-sm)' }}>
           <div style={{ display: 'flex', alignItems: 'center', marginBottom: 3 }}>
             <span style={{ fontSize: 10, color: 'var(--color-text-muted)', flex: 1 }}>Marked by whom?</span>
             <span onClick={() => setMarkSourcePicker(false)} style={{ fontSize: 10, color: 'var(--color-text-muted)', cursor: 'pointer' }}>✕</span>
@@ -523,10 +523,10 @@ export function QuickConditionMenu({ combatantId, combatant, position, onClose, 
                 return (
                   <button key={c.id} onClick={() => applyMark(c.id)} style={{
                     display: 'inline-flex', alignItems: 'center', gap: 4,
-                    fontSize: 10, padding: '2px 6px', borderRadius: 3, cursor: 'pointer',
+                    fontSize: 10, padding: '2px 6px', borderRadius: 'var(--radius-sm)', cursor: 'pointer',
                     background: isDefault ? 'rgba(92,124,250,0.2)' : 'var(--color-bg-hover)',
                     border: isDefault ? '1px solid rgba(92,124,250,0.5)' : '1px solid var(--color-border)',
-                    color: 'var(--color-text)',
+                    color: 'var(--color-text-primary)',
                     fontWeight: isDefault ? 600 : 400,
                   }}>
                     {c.color && (
@@ -567,7 +567,7 @@ export function QuickConditionMenu({ combatantId, combatant, position, onClose, 
               )
               const isDefault = defaultMarker && srcId === defaultMarker.combatantId
               const bg = active ? (color ?? mark.color) : 'transparent'
-              const fg = active ? '#1a1a1a' : 'var(--color-text)'
+              const fg = active ? 'var(--color-text-on-warning)' : 'var(--color-text-primary)'
               const border = active
                 ? '1px solid rgba(0,0,0,0.25)'
                 : isDefault
@@ -596,7 +596,7 @@ export function QuickConditionMenu({ combatantId, combatant, position, onClose, 
                   <span style={{ fontSize: 11 }}>{mark.icon}</span>
                   <span>{mark.shortName}</span>
                   <span style={{ opacity: 0.7 }}>· {pcName}</span>
-                  {active && <span style={{ color: active ? '#1a1a1a' : '#2a6' }}>✓</span>}
+                  {active && <span style={{ color: 'var(--color-text-on-warning)' }}>✓</span>}
                 </button>
               )
             })}
@@ -615,13 +615,13 @@ export function QuickConditionMenu({ combatantId, combatant, position, onClose, 
             title="Click to remove"
             style={{
               display: 'flex', alignItems: 'center', gap: 4,
-              padding: '3px 8px', cursor: 'pointer', borderRadius: 3,
+              padding: '3px 8px', cursor: 'pointer', borderRadius: 'var(--radius-sm)',
             }}>
             <ConditionPill
               conditionId={cond.conditionId}
               label={label}
             />
-            <span style={{ marginLeft: 'auto', fontSize: 10, color: '#2a6' }}>✓</span>
+            <span style={{ marginLeft: 'auto', fontSize: 10, color: 'var(--color-check)' }}>✓</span>
           </div>
         )
       })}
@@ -641,7 +641,7 @@ export function QuickConditionMenu({ combatantId, combatant, position, onClose, 
             />
             {[5, 10, 15, 20].map(v => (
               <span key={v} onClick={() => setOngoingValue(String(v))} style={{
-                padding: '1px 4px', borderRadius: 4, fontSize: 9, cursor: 'pointer',
+                padding: '1px 4px', borderRadius: 'var(--radius-sm)', fontSize: 9, cursor: 'pointer',
                 background: ongoingValue === String(v) ? 'var(--color-accent)' : 'rgba(128,128,128,0.15)',
                 color: ongoingValue === String(v) ? 'var(--color-accent-text)' : 'var(--color-text-muted)',
                 fontWeight: 600,
@@ -679,11 +679,11 @@ export function QuickConditionMenu({ combatantId, combatant, position, onClose, 
                     padding: '1px 5px', borderRadius: 8,
                     background: isSelected ? dtStyle.color
                       : hasValue ? dtStyle.color + 'cc' : dtStyle.color + '30',
-                    color: isSelected || hasValue ? '#fff' : 'var(--color-text-muted)',
+                    color: isSelected || hasValue ? 'var(--color-text-on-dark)' : 'var(--color-text-muted)',
                     fontSize: 9, fontWeight: isSelected ? 700 : 500,
                     cursor: hasValue ? 'pointer' : 'default',
                     opacity: hasValue ? 1 : 0.5,
-                    outline: isSelected ? '2px solid #fff' : 'none',
+                    outline: isSelected ? '2px solid var(--color-text-on-dark)' : 'none',
                     outlineOffset: -1,
                   }}>
                   <span style={{ fontSize: 8 }}>{dtStyle.icon}</span>

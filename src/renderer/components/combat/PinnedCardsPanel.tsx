@@ -46,7 +46,7 @@ export function PinnedCardsPanel({ cards, onUnpin }: Props) {
                   <button
                     onClick={() => onUnpin(card.key)}
                     title="Unpin"
-                    style={{ position: 'absolute', top: 2, right: 4, background: 'none', border: 'none', cursor: 'pointer', fontSize: 10, color: '#000', padding: 0, zIndex: 1, fontWeight: 700 }}
+                    style={{ position: 'absolute', top: 2, right: 4, background: 'none', border: 'none', cursor: 'pointer', fontSize: 10, color: 'var(--color-text-on-warning)', padding: 0, zIndex: 1, fontWeight: 700 }}
                   >
                     ×
                   </button>

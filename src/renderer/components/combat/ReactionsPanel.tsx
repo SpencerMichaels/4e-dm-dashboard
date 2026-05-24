@@ -189,7 +189,7 @@ export function ReactionsPanel({ combat, currentCombatantId, notifications = [] 
               marginBottom: 3,
               opacity: allUsed ? 0.4 : 1,
               transition: 'opacity 0.15s',
-              borderLeft: triggered ? '3px solid #e8a020' : 'none',
+              borderLeft: triggered ? '3px solid var(--color-action-point)' : 'none',
               paddingLeft: triggered ? 2 : 0,
               animation: triggered ? 'reaction-pulse 1.5s ease-in-out 2' : 'none',
             }}>
@@ -198,12 +198,12 @@ export function ReactionsPanel({ combat, currentCombatantId, notifications = [] 
                 onClick={() => setExpandedKey(isExpanded ? null : key)}
                 style={{
                   display: 'flex', alignItems: 'center', gap: 4, cursor: 'pointer',
-                  padding: '2px 4px', borderRadius: 3,
+                  padding: '2px 4px', borderRadius: 'var(--radius-sm)',
                 }}
               >
                 {/* Usage color bar */}
                 <div style={{ width: 3, height: 14, borderRadius: 1, background: usageColor, flexShrink: 0 }} />
-                {triggered && <span style={{ fontSize: 9, color: '#e8a020' }}>⚡</span>}
+                {triggered && <span style={{ fontSize: 9, color: 'var(--color-action-point)' }}>⚡</span>}
                 <span style={{ fontWeight: 600, fontSize: 11, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                   {r.card.name}
                 </span>
@@ -234,8 +234,8 @@ export function ReactionsPanel({ combat, currentCombatantId, notifications = [] 
                       fontSize: 10, padding: '1px 6px',
                       background: c.used ? 'transparent' : 'var(--color-bg-hover)',
                       border: '1px solid var(--color-border)',
-                      borderRadius: 3, cursor: 'pointer',
-                      color: 'var(--color-text)',
+                      borderRadius: 'var(--radius-sm)', cursor: 'pointer',
+                      color: 'var(--color-text-primary)',
                       opacity: c.used ? 0.4 : 1,
                       textDecoration: c.used ? 'line-through' : 'none',
                       transition: 'opacity 0.15s',

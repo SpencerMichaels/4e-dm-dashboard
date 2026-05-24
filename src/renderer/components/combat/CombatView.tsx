@@ -573,13 +573,13 @@ export function CombatView() {
           maxWidth: '90%', zIndex: 50, pointerEvents: 'none',
         }}>
           {notifications.map((n, i) => {
-            const bg = n.type === 'bloodied' ? '#c00' : n.type === 'death' ? '#600'
-              : n.type === 'recharge-success' || n.type === 'save-success' ? '#2a6'
-              : n.type === 'recharge-fail' || n.type === 'save-fail' ? '#a62' : '#666'
+            const bg = n.type === 'bloodied' ? 'var(--color-notify-bloodied)' : n.type === 'death' ? 'var(--color-notify-death)'
+              : n.type === 'recharge-success' || n.type === 'save-success' ? 'var(--color-notify-success)'
+              : n.type === 'recharge-fail' || n.type === 'save-fail' ? 'var(--color-notify-fail)' : 'var(--color-notify-neutral)'
             return (
               <div key={i} style={{
                 padding: '3px 10px', borderRadius: 'var(--radius-sm)', fontSize: 11, fontWeight: 600,
-                background: bg, color: '#fff',
+                background: bg, color: 'var(--color-text-on-dark)',
                 boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
               }}>
                 {n.message}
@@ -800,43 +800,43 @@ export function CombatView() {
             position: 'fixed', bottom: 0, left: 0, right: 0,
             padding: 'var(--space-3) var(--space-6)',
             background: 'var(--color-bg-secondary)',
-            borderTop: `2px solid ${isOngoing ? 'var(--color-danger)' : isDeathSave ? '#9c4444' : 'var(--color-accent)'}`,
+            borderTop: `2px solid ${isOngoing ? 'var(--color-danger)' : isDeathSave ? 'var(--color-miss)' : 'var(--color-accent)'}`,
             display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 'var(--space-4)',
             zIndex: 100,
           }}>
             <span style={{ fontWeight: 600 }}>{combatantName}:</span>
-            <span style={{ fontSize: 'var(--font-size-lg)', color: isOngoing ? 'var(--color-danger)' : isDeathSave ? '#c66' : undefined }}>
+            <span style={{ fontSize: 'var(--font-size-lg)', color: isOngoing ? 'var(--color-danger)' : isDeathSave ? 'var(--color-miss)' : undefined }}>
               {isDeathSave ? '💀 Death Save' : item.label}
             </span>
             <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
               {isOngoing ? (
                 <button onClick={() => handleResolveItem(true)} style={{
-                  padding: 'var(--space-2) var(--space-4)', background: 'var(--color-accent)', color: '#fff',
+                  padding: 'var(--space-2) var(--space-4)', background: 'var(--color-accent)', color: 'var(--color-text-on-dark)',
                   border: 'none', borderRadius: 'var(--radius-sm)', cursor: 'pointer', fontWeight: 600,
                 }}>Continue (Space)</button>
               ) : isDeathSave ? (
                 <>
                   <button onClick={() => handleResolveDeathSave('fail')} style={{
-                    padding: 'var(--space-2) var(--space-4)', background: '#a44', color: '#fff',
+                    padding: 'var(--space-2) var(--space-4)', background: 'var(--color-miss)', color: 'var(--color-text-on-dark)',
                     border: 'none', borderRadius: 'var(--radius-sm)', cursor: 'pointer', fontWeight: 600,
                   }}>Fail &lt;10 (F)</button>
                   <button onClick={() => handleResolveDeathSave('none')} style={{
-                    padding: 'var(--space-2) var(--space-4)', background: '#666', color: '#fff',
+                    padding: 'var(--space-2) var(--space-4)', background: 'var(--color-notify-neutral)', color: 'var(--color-text-on-dark)',
                     border: 'none', borderRadius: 'var(--radius-sm)', cursor: 'pointer', fontWeight: 600,
                   }}>10–19 (N)</button>
                   <button onClick={() => handleResolveDeathSave('success')} style={{
-                    padding: 'var(--space-2) var(--space-4)', background: '#2a6', color: '#fff',
+                    padding: 'var(--space-2) var(--space-4)', background: 'var(--color-check)', color: 'var(--color-text-on-dark)',
                     border: 'none', borderRadius: 'var(--radius-sm)', cursor: 'pointer', fontWeight: 600,
                   }}>20+ (S)</button>
                 </>
               ) : (
                 <>
                   <button onClick={() => handleResolveItem(true)} style={{
-                    padding: 'var(--space-2) var(--space-4)', background: '#2a6', color: '#fff',
+                    padding: 'var(--space-2) var(--space-4)', background: 'var(--color-check)', color: 'var(--color-text-on-dark)',
                     border: 'none', borderRadius: 'var(--radius-sm)', cursor: 'pointer', fontWeight: 600,
                   }}>{item.kind === 'save' ? 'Save (S)' : 'Success (S)'}</button>
                   <button onClick={() => handleResolveItem(false)} style={{
-                    padding: 'var(--space-2) var(--space-4)', background: '#a44', color: '#fff',
+                    padding: 'var(--space-2) var(--space-4)', background: 'var(--color-miss)', color: 'var(--color-text-on-dark)',
                     border: 'none', borderRadius: 'var(--radius-sm)', cursor: 'pointer', fontWeight: 600,
                   }}>Fail (F)</button>
                 </>

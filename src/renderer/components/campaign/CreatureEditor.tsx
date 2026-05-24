@@ -89,10 +89,10 @@ export function CreatureEditor({ creatureId }: Props) {
       {Array.isArray(creature.statBlock._importWarnings) && creature.statBlock._importWarnings.length > 0 && (
         <div style={{
           marginBottom: 'var(--space-4)', padding: 'var(--space-3)',
-          background: '#f08c0020', border: '1px solid #f08c00',
+          background: 'var(--color-import-warning-bg)', border: '1px solid var(--color-import-warning)',
           borderRadius: 'var(--radius-sm)', fontSize: 'var(--font-size-sm)',
         }}>
-          <div style={{ fontWeight: 600, marginBottom: 'var(--space-1)', color: '#f08c00' }}>Import warnings</div>
+          <div style={{ fontWeight: 600, marginBottom: 'var(--space-1)', color: 'var(--color-import-warning)' }}>Import warnings</div>
           {(creature.statBlock._importWarnings as string[]).map((w, i) => (
             <div key={i} style={{ color: 'var(--color-text-secondary)' }}>- {w}</div>
           ))}

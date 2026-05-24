@@ -91,8 +91,8 @@ export function SaveRechargeModal({ combatantName, prompts, onDone }: Props) {
     padding: '4px 12px', borderRadius: 'var(--radius-sm)',
     cursor: 'pointer', userSelect: 'none',
     background: active ? 'rgba(42, 170, 102, 0.2)' : 'rgba(128,128,128,0.1)',
-    border: active ? '1px solid #2a6' : '1px solid var(--color-border)',
-    color: active ? '#2a6' : 'var(--color-text)',
+    border: active ? '1px solid var(--color-check)' : '1px solid var(--color-border)',
+    color: active ? 'var(--color-check)' : 'var(--color-text-primary)',
     fontWeight: active ? 700 : 400,
     fontSize: 13,
   })

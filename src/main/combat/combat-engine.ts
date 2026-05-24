@@ -1,8 +1,124 @@
 import type { CombatState, CombatantState, CombatPhase, AppliedEffect, PlayerCombatState, PlayerCombatantState, PlayerTurnItem, CombatNotification, TurnPhase } from '@common/types'
-import type { AppliedCondition, SystemPlugin, TurnPrompt } from '@common/types'
+import type { AppliedCondition, ConditionDef, SystemPlugin, TurnPrompt } from '@common/types'
 import { generateId } from '@common/utils/id'
 import { resolveHpDescriptor } from '@common/utils/hp'
 import { rollD6, rollD20 } from '@common/utils/dice'
+
+// ──────────────────────────────────────────────────
+// Helpers — extracted to reduce duplication
+// ──────────────────────────────────────────────────
+
+/** Look up a condition definition from the plugin by id. Returns undefined when
+ *  plugin is missing or no matching def exists. */
+function getConditionDef(condId: string, plugin?: SystemPlugin): ConditionDef | undefined {
+  return plugin?.conditions.find(d => d.id === condId)
+}
+
+/** Check whether any of the given damage types match a resistance/immunity/
+ *  vulnerability type string. Handles compound types like "fire and acid". */
+function matchesDamageType(entryType: string, dmgTypes: string[]): boolean {
+  const lower = entryType.toLowerCase()
+  return dmgTypes.some(t => t && (lower === t || lower.includes(t)))
+}
+
+/** Data about a condition that is expiring on a particular combatant's turn boundary. */
+interface ExpiringConditionInfo {
+  /** The combatant carrying the condition */
+  carrier: CombatantState
+  /** The condition itself */
+  condition: AppliedCondition
+  /** Resolved display name */
+  name: string
+  /** Whether the carrier is the same as the combatant whose turn it is */
+  isSelf: boolean
+}
+
+/** Scan all combatants for conditions that expire on `expiringForId`'s turn
+ *  boundary of the given type ('eont' or 'sont'). Returns structured info
+ *  for each expiring condition. */
+function collectExpiringConditions(
+  combatants: Record<string, CombatantState>,
+  expiringForId: string,
+  durationType: 'eont' | 'sont',
+  plugin?: SystemPlugin,
+): ExpiringConditionInfo[] {
+  const results: ExpiringConditionInfo[] = []
+  for (const c of Object.values(combatants)) {
+    for (const cond of c.conditions) {
+      if (cond.duration?.type !== durationType) continue
+      const expiresOn = cond.duration.expiresOnId ?? c.id
+      if (expiresOn !== expiringForId) continue
+      if (cond.duration.remaining != null && cond.duration.remaining > 0) continue
+      const def = getConditionDef(cond.conditionId, plugin)
+      const name = cond.customName ?? def?.name ?? cond.conditionId
+      results.push({ carrier: c, condition: cond, name, isSelf: c.id === expiringForId })
+    }
+  }
+  return results
+}
+
+/** Build a PlayerTurnItem for an expiring condition. */
+function buildExpireItem(info: ExpiringConditionInfo, durationType: 'eont' | 'sont'): PlayerTurnItem {
+  const phase = durationType === 'eont' ? 'end' : 'start'
+  const kind = durationType === 'eont' ? 'eont-expire' : 'sont-expire'
+  const prefix = durationType === 'eont' ? 'eont' : 'sont'
+  return {
+    id: `${prefix}-${info.condition.conditionId}-${info.isSelf ? 'self' : info.carrier.id}`,
+    phase,
+    kind,
+    label: info.isSelf ? `${info.name} ends` : `${info.name} on ${info.carrier.name} ends`,
+    conditionId: info.condition.conditionId,
+    targetId: info.isSelf ? undefined : info.carrier.id,
+    targetName: info.isSelf ? undefined : info.carrier.name,
+  }
+}
+
+/** Remove expired conditions of the given duration type from all combatants.
+ *  Conditions with remaining > 0 are decremented instead of removed.
+ *  Also handles round-based decrement when durationType is 'eont'. */
+function removeExpiredConditions(
+  combatants: Record<string, CombatantState>,
+  expiringForId: string,
+  durationType: 'eont' | 'sont',
+): void {
+  for (const c of Object.values(combatants)) {
+    c.conditions = c.conditions.filter(cond => {
+      if (cond.duration?.type === durationType) {
+        const expiresOn = cond.duration.expiresOnId ?? c.id
+        if (expiresOn !== expiringForId) return true
+        if (cond.duration.remaining != null && cond.duration.remaining > 0) {
+          cond.duration.remaining--
+          return true
+        }
+        return false
+      }
+      // Round-based decrement only during EONT removal pass
+      if (durationType === 'eont' && cond.duration?.type === 'rounds' && cond.duration.remaining != null) {
+        cond.duration.remaining--
+        return cond.duration.remaining > 0
+      }
+      return true
+    })
+  }
+}
+
+/** Parse compound damage type string (e.g. "fire and acid") into individual types. */
+function parseDamageTypes(dmgTypeStr: string): string[] {
+  const trimmed = dmgTypeStr.trim().toLowerCase()
+  return trimmed.includes(' and ') ? trimmed.split(/\s+and\s+/).map(t => t.trim()) : [trimmed]
+}
+
+/** Check whether ongoing damage conditions inhibit regeneration. */
+function isRegenInhibitedByOngoing(
+  inhibitDamageTypes: string[],
+  ongoingConds: AppliedCondition[],
+): boolean {
+  for (const oc of ongoingConds) {
+    const dmgTypes = parseDamageTypes(oc.customDescription ?? '')
+    if (dmgTypes.some(t => t && inhibitDamageTypes.includes(t))) return true
+  }
+  return false
+}
 
 let combatState: CombatState | null = null
 
@@ -231,29 +347,11 @@ function buildSourceExpireItems(
   plugin?: SystemPlugin,
 ): PlayerTurnItem[] {
   if (!combatState) return []
-  const items: PlayerTurnItem[] = []
-  const phase = durationType === 'eont' ? 'end' : 'start'
-  const kind = durationType === 'eont' ? 'eont-expire' : 'sont-expire'
-  for (const c of Object.values(combatState.combatants)) {
-    if (c.id === expiringFor.id) continue  // self-bound EONT/SONT handled by the carrier's own scan
-    for (const cond of c.conditions) {
-      if (cond.duration?.type !== durationType) continue
-      if (cond.duration.expiresOnId !== expiringFor.id) continue
-      // Won't expire at the upcoming boundary if it still has remaining > 0
-      if (cond.duration.remaining != null && cond.duration.remaining > 0) continue
-      const def = plugin?.conditions.find(d => d.id === cond.conditionId)
-      const name = cond.customName ?? def?.name ?? cond.conditionId
-      items.push({
-        id: `${phase === 'end' ? 'eont' : 'sont'}-${cond.conditionId}-${c.id}`,
-        phase, kind,
-        label: `${name} on ${c.name} ends`,
-        conditionId: cond.conditionId,
-        targetId: c.id,
-        targetName: c.name,
-      })
-    }
-  }
-  return items
+  // collectExpiringConditions finds ALL expiring conditions including self-bound ones;
+  // filter to only those on other combatants (self-bound handled separately).
+  return collectExpiringConditions(combatState.combatants, expiringFor.id, durationType, plugin)
+    .filter(info => !info.isSelf)
+    .map(info => buildExpireItem(info, durationType))
 }
 
 function buildEndOfTurnPreview(combatant: CombatantState | null, plugin?: SystemPlugin): PlayerTurnItem[] {
@@ -270,7 +368,7 @@ function buildEndOfTurnPreview(combatant: CombatantState | null, plugin?: System
       const dmgType = cond.customDescription ? ` ${cond.customDescription}` : ''
       condName = `ongoing ${cond.value ?? ''}${dmgType} damage`
     } else {
-      const def = plugin?.conditions.find(d => d.id === cond.conditionId)
+      const def = getConditionDef(cond.conditionId, plugin)
       if (def) condName = def.name
     }
     items.push({
@@ -282,17 +380,12 @@ function buildEndOfTurnPreview(combatant: CombatantState | null, plugin?: System
   // EONT expirations on conditions this combatant applied to others
   items.push(...buildSourceExpireItems(combatant, 'eont', plugin))
   // Self-EONT expirations (conditions on this combatant whose duration pins to itself)
-  for (const cond of combatant.conditions) {
-    if (cond.duration?.type !== 'eont') continue
-    const expiresOn = cond.duration.expiresOnId ?? combatant.id
-    if (expiresOn !== combatant.id) continue
-    if (cond.duration.remaining != null && cond.duration.remaining > 0) continue
-    const def = plugin?.conditions.find(d => d.id === cond.conditionId)
-    const name = cond.customName ?? def?.name ?? cond.conditionId
-    items.push({
-      id: `eont-${cond.conditionId}-self`, phase: 'end', kind: 'eont-expire',
-      label: `${name} ends`, conditionId: cond.conditionId,
-    })
+  if (combatState) {
+    const selfExpiring = collectExpiringConditions(combatState.combatants, combatant.id, 'eont', plugin)
+      .filter(info => info.isSelf)
+    for (const info of selfExpiring) {
+      items.push(buildExpireItem(info, 'eont'))
+    }
   }
   // Death save for dying PCs
   if (combatant.isPC && combatant.conditions.some(c => c.conditionId === 'dying')) {
@@ -304,6 +397,48 @@ function buildEndOfTurnPreview(combatant: CombatantState | null, plugin?: System
   return items
 }
 
+/** Compute actual damage for an ongoing-damage condition after applying
+ *  immunities, resistances, and vulnerabilities from the combatant's stat block. */
+function computeOngoingDamage(
+  rawDmg: number,
+  dmgTypes: string[],
+  resistances: { type: string; value?: number }[],
+  immunities: { type: string }[],
+  vulnerabilities: { type: string; value?: number }[],
+): { actual: number; notes: string[] } {
+  const hasDmgType = dmgTypes.some(t => t !== '')
+
+  let immune = false
+  if (hasDmgType) {
+    for (const imm of immunities) {
+      if (matchesDamageType(imm.type, dmgTypes)) { immune = true; break }
+    }
+  }
+
+  let resistAmount = 0
+  if (hasDmgType && !immune) {
+    for (const r of resistances) {
+      if (matchesDamageType(r.type, dmgTypes)) resistAmount = Math.max(resistAmount, r.value ?? 0)
+    }
+  }
+
+  let vulnAmount = 0
+  if (hasDmgType && !immune) {
+    for (const v of vulnerabilities) {
+      if (matchesDamageType(v.type, dmgTypes)) vulnAmount = Math.max(vulnAmount, v.value ?? 0)
+    }
+  }
+
+  const actual = immune ? 0 : Math.max(0, rawDmg - resistAmount + vulnAmount)
+  const notes: string[] = []
+  if (immune) notes.push('immune')
+  else {
+    if (resistAmount > 0) notes.push(`resist ${resistAmount}`)
+    if (vulnAmount > 0) notes.push(`vulnerable ${vulnAmount}`)
+  }
+  return { actual, notes }
+}
+
 function buildOngoingDamageItems(combatant: CombatantState): PlayerTurnItem[] {
   const items: PlayerTurnItem[] = []
   const resistances = Array.isArray((combatant.statBlock as any)?.resistances) ? (combatant.statBlock as any).resistances as { type: string; value?: number }[] : []
@@ -312,21 +447,8 @@ function buildOngoingDamageItems(combatant: CombatantState): PlayerTurnItem[] {
 
   for (const cond of combatant.conditions.filter(c => c.conditionId.startsWith('ongoing-damage') && c.value)) {
     const rawDmg = cond.value ?? 0
-    const dmgType = cond.customDescription?.trim().toLowerCase() ?? ''
-    const dmgTypes = dmgType.includes(' and ') ? dmgType.split(/\s+and\s+/) : [dmgType]
-    const matchesType = (rType: string) => dmgTypes.some(t => t && (rType === t || rType.includes(t)))
-
-    let immune = false
-    if (dmgType) { for (const imm of immunities) { if (matchesType(imm.type.toLowerCase())) { immune = true; break } } }
-    let resistAmount = 0
-    if (dmgType && !immune) { for (const r of resistances) { if (matchesType(r.type.toLowerCase())) resistAmount = Math.max(resistAmount, r.value ?? 0) } }
-    let vulnAmount = 0
-    if (dmgType && !immune) { for (const v of vulnerabilities) { if (matchesType(v.type.toLowerCase())) vulnAmount = Math.max(vulnAmount, v.value ?? 0) } }
-
-    const actualDmg = immune ? 0 : Math.max(0, rawDmg - resistAmount + vulnAmount)
-    const notes: string[] = []
-    if (immune) notes.push('immune')
-    else { if (resistAmount > 0) notes.push(`resist ${resistAmount}`); if (vulnAmount > 0) notes.push(`vulnerable ${vulnAmount}`) }
+    const dmgTypes = parseDamageTypes(cond.customDescription ?? '')
+    const { actual: actualDmg, notes } = computeOngoingDamage(rawDmg, dmgTypes, resistances, immunities, vulnerabilities)
     const noteStr = notes.length > 0 ? ` (${notes.join(', ')})` : ''
     const dmgTypeLabel = cond.customDescription?.trim() ?? ''
 
@@ -378,6 +500,30 @@ function autoApplyStaticRegenCondition(combatant: CombatantState): void {
   })
 }
 
+/** Build a single netted regen-vs-ongoing PlayerTurnItem. */
+function buildNetRegenItem(regenValue: number, totalOngoing: number): PlayerTurnItem {
+  const net = regenValue - totalOngoing
+  if (net > 0) {
+    return {
+      id: 'regen-net', phase: 'start', kind: 'regeneration',
+      label: `Regeneration ${regenValue} − ${totalOngoing} ongoing = heal ${net}`,
+      value: net, result: 'none',
+    }
+  } else if (net < 0) {
+    return {
+      id: 'regen-net', phase: 'start', kind: 'ongoing-damage',
+      label: `${totalOngoing} ongoing − ${regenValue} regen = ${Math.abs(net)} damage`,
+      value: Math.abs(net),
+    }
+  } else {
+    return {
+      id: 'regen-net', phase: 'start', kind: 'regeneration',
+      label: `Regeneration ${regenValue} nets with ${totalOngoing} ongoing (no effect)`,
+      value: 0, result: 'none',
+    }
+  }
+}
+
 /**
  * Build start-of-turn items for regen and ongoing damage, netting them together.
  * If no regen condition, falls through to standard ongoing damage items.
@@ -395,65 +541,24 @@ function buildRegenAndOngoingItems(combatant: CombatantState): PlayerTurnItem[] 
   const regenValue = regenCond.value
 
   // Check inhibition from ongoing damage types
-  let inhibited = false
-  if (regenCond.inhibitDamageTypes?.length && ongoingConds.length) {
-    for (const oc of ongoingConds) {
-      const dmgType = oc.customDescription?.trim().toLowerCase() ?? ''
-      const dmgTypes = dmgType.includes(' and ')
-        ? dmgType.split(/\s+and\s+/).map(t => t.trim())
-        : [dmgType]
-      if (dmgTypes.some(t => t && regenCond.inhibitDamageTypes!.includes(t))) {
-        inhibited = true
-        break
-      }
-    }
-  }
+  const inhibited = !!(regenCond.inhibitDamageTypes?.length && ongoingConds.length
+    && isRegenInhibitedByOngoing(regenCond.inhibitDamageTypes, ongoingConds))
 
   if (inhibited) {
-    // Regen suppressed — show info item + normal ongoing damage
-    const items: PlayerTurnItem[] = [{
-      id: 'regen-suppressed', phase: 'start', kind: 'regeneration',
-      label: 'Regeneration suppressed',
-      value: 0, result: 'none',
-    }]
-    items.push(...buildOngoingDamageItems(combatant))
-    return items
+    return [
+      { id: 'regen-suppressed', phase: 'start', kind: 'regeneration', label: 'Regeneration suppressed', value: 0, result: 'none' },
+      ...buildOngoingDamageItems(combatant),
+    ]
   }
 
-  // Not inhibited — net regen with ongoing
+  // Pure regen, no ongoing damage
   if (ongoingConds.length === 0) {
-    // Pure regen, no ongoing damage
-    return [{
-      id: 'regen', phase: 'start', kind: 'regeneration',
-      label: `Regeneration ${regenValue}`,
-      value: regenValue, result: 'none',
-    }]
+    return [{ id: 'regen', phase: 'start', kind: 'regeneration', label: `Regeneration ${regenValue}`, value: regenValue, result: 'none' }]
   }
 
-  // Compute total ongoing damage (after resist/immune/vuln)
-  const ongoingItems = buildOngoingDamageItems(combatant)
-  const totalOngoing = ongoingItems.reduce((sum, item) => sum + (item.value ?? 0), 0)
-
-  const net = regenValue - totalOngoing
-  if (net > 0) {
-    return [{
-      id: 'regen-net', phase: 'start', kind: 'regeneration',
-      label: `Regeneration ${regenValue} − ${totalOngoing} ongoing = heal ${net}`,
-      value: net, result: 'none',
-    }]
-  } else if (net < 0) {
-    return [{
-      id: 'regen-net', phase: 'start', kind: 'ongoing-damage',
-      label: `${totalOngoing} ongoing − ${regenValue} regen = ${Math.abs(net)} damage`,
-      value: Math.abs(net),
-    }]
-  } else {
-    return [{
-      id: 'regen-net', phase: 'start', kind: 'regeneration',
-      label: `Regeneration ${regenValue} nets with ${totalOngoing} ongoing (no effect)`,
-      value: 0, result: 'none',
-    }]
-  }
+  // Net regen against total ongoing damage (after resist/immune/vuln)
+  const totalOngoing = buildOngoingDamageItems(combatant).reduce((sum, item) => sum + (item.value ?? 0), 0)
+  return [buildNetRegenItem(regenValue, totalOngoing)]
 }
 
 function buildSaveItems(actions: unknown[], combatantId: string): PlayerTurnItem[] {
@@ -518,41 +623,13 @@ export function endTurn(plugin?: SystemPlugin): { state: CombatState; notificati
     const combatant = combatState.combatants[currentId]
     if (combatant) {
       // Collect EONT expirations
-      for (const c of Object.values(combatState.combatants)) {
-        for (const cond of c.conditions) {
-          if (cond.duration?.type === 'eont') {
-            const expiresOn = cond.duration.expiresOnId ?? c.id
-            if (expiresOn !== currentId) continue
-            if (!cond.duration.remaining || cond.duration.remaining <= 0) {
-              const condDef = plugin?.conditions.find(d => d.id === cond.conditionId)
-              const name = cond.customName ?? condDef?.name ?? cond.conditionId
-              const isSelf = c.id === currentId
-              endItems.push({
-                id: `eont-${cond.conditionId}-${c.id}`,
-                phase: 'end',
-                kind: 'eont-expire',
-                label: isSelf ? `${name} ends` : `${name} on ${c.name} ends`,
-                conditionId: cond.conditionId,
-                targetId: isSelf ? undefined : c.id,
-                targetName: isSelf ? undefined : c.name,
-              })
-            }
-          }
-        }
+      const eontExpiring = collectExpiringConditions(combatState.combatants, currentId, 'eont', plugin)
+      for (const info of eontExpiring) {
+        endItems.push(buildExpireItem(info, 'eont'))
       }
 
       // Remove EONT + round-based conditions
-      for (const c of Object.values(combatState.combatants)) {
-        c.conditions = c.conditions.filter(cond => {
-          if (cond.duration?.type === 'eont') {
-            const expiresOn = cond.duration.expiresOnId ?? c.id
-            if (expiresOn !== currentId) return true
-            if (cond.duration.remaining != null && cond.duration.remaining > 0) { cond.duration.remaining--; return true }
-            return false
-          }
-          if (cond.duration?.type === 'rounds' && cond.duration.remaining != null) { cond.duration.remaining--; return cond.duration.remaining > 0 }
-          return true
-        })
+      removeExpiredConditions(combatState.combatants, currentId, 'eont')
       }
 
       // Plugin end-of-turn hooks → save items
@@ -657,7 +734,7 @@ export function resolveItem(index: number, success: boolean, plugin?: SystemPlug
       const carrier = combatState.combatants[currentId]
       const cond = carrier?.conditions.find(co => co.conditionId === item.conditionId)
       const isOngoing = item.conditionId?.startsWith('ongoing-damage')
-      const def = plugin?.conditions.find(d => d.id === (isOngoing ? 'ongoing-damage' : item.conditionId))
+      const def = getConditionDef(isOngoing ? 'ongoing-damage' : item.conditionId!, plugin)
       const displayName = isOngoing
         ? `Ongoing${cond?.value ? ' ' + cond.value : ''}${cond?.customDescription ? ' ' + cond.customDescription : ''} Damage`
         : (cond?.customName ?? def?.name ?? item.conditionId)
@@ -767,41 +844,13 @@ export function commitAndAdvance(plugin?: SystemPlugin, extraNotifications?: Com
     const combatant = combatState.combatants[newId]
     if (combatant) {
       // Collect SONT expirations
-      for (const c of Object.values(combatState.combatants)) {
-        for (const cond of c.conditions) {
-          if (cond.duration?.type === 'sont') {
-            const expiresOn = cond.duration.expiresOnId ?? c.id
-            if (expiresOn !== newId) continue
-            if (!cond.duration.remaining || cond.duration.remaining <= 0) {
-              const condDef = plugin?.conditions.find(d => d.id === cond.conditionId)
-              const name = cond.customName ?? condDef?.name ?? cond.conditionId
-              const isSelf = c.id === newId
-              startItems.push({
-                id: `sont-${cond.conditionId}-${c.id}`,
-                phase: 'start',
-                kind: 'sont-expire',
-                label: isSelf ? `${name} ends` : `${name} on ${c.name} ends`,
-                conditionId: cond.conditionId,
-                targetId: isSelf ? undefined : c.id,
-                targetName: isSelf ? undefined : c.name,
-              })
-            }
-          }
-        }
+      const sontExpiring = collectExpiringConditions(combatState.combatants, newId, 'sont', plugin)
+      for (const info of sontExpiring) {
+        startItems.push(buildExpireItem(info, 'sont'))
       }
 
       // Remove SONT conditions
-      for (const c of Object.values(combatState.combatants)) {
-        c.conditions = c.conditions.filter(cond => {
-          if (cond.duration?.type === 'sont') {
-            const expiresOn = cond.duration.expiresOnId ?? c.id
-            if (expiresOn !== newId) return true
-            if (cond.duration.remaining != null && cond.duration.remaining > 0) { cond.duration.remaining--; return true }
-            return false
-          }
-          return true
-        })
-      }
+      removeExpiredConditions(combatState.combatants, newId, 'sont')
 
       combatant.usedReaction = false
 
@@ -1142,7 +1191,7 @@ export function addCondition(combatantId: string, condition: AppliedCondition, p
   // Resolve display name. customName overrides everything (used by defender
   // class marks to render "Challenged" instead of "Marked"). Otherwise fall
   // back to the plugin's def name, then the raw id.
-  const def = plugin?.conditions.find(d => d.id === condition.conditionId)
+  const def = getConditionDef(condition.conditionId, plugin)
   const displayName = condition.customName ?? def?.name ?? condition.conditionId
   // Suppress notifications for engine-internal/hidden condition defs
   // (`bloodied`, `ongoing-damage` shim, etc.) — those are noise.
@@ -1316,7 +1365,7 @@ export function toPlayerCombatState(state: CombatState, plugin?: SystemPlugin): 
       hpPct,
       hpColor: color,
       conditions: c.conditions.map(cond => {
-        const def = plugin?.conditions.find(d => d.id === cond.conditionId)
+        const def = getConditionDef(cond.conditionId, plugin)
         const expiresOnId = cond.duration?.expiresOnId
         return {
           conditionId: cond.conditionId,

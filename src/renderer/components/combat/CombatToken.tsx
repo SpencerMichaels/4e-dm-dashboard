@@ -19,13 +19,13 @@ export function CombatToken({ name, imageId, tokenImageId, hp, maxHp, isDead, si
   // Ring width scales with token size — ~6% of size, min 2px
   const ringWidth = Math.max(2, Math.round(size * 0.06))
   const hpPct = maxHp > 0 ? (hp / maxHp) * 100 : 0
-  const hpColor = isDead ? '#555' : hpPct > 50 ? '#0a0' : hpPct > 25 ? '#c90' : '#c00'
+  const hpColor = isDead ? 'var(--color-hp-down)' : hpPct > 50 ? 'var(--color-hp-full)' : hpPct > 25 ? 'var(--color-hp-mid)' : 'var(--color-hp-low)'
   const hpAngle = isDead ? 0 : (hpPct / 100) * 360
 
   const bgColor = tokenColorFromName(name)
   const initial = name.charAt(0).toUpperCase()
 
-  const ringBg = isDead ? '#333'
+  const ringBg = isDead ? 'var(--color-token-badge-bg)'
     : hideHpRing ? (solidRingColor ?? 'rgba(128,128,128,0.5)')
     : `conic-gradient(${hpColor} ${hpAngle}deg, rgba(128,128,128,0.3) ${hpAngle}deg)`
 
@@ -42,7 +42,7 @@ export function CombatToken({ name, imageId, tokenImageId, hp, maxHp, isDead, si
         width: size - ringWidth * 2, height: size - ringWidth * 2, borderRadius: '50%',
         background: bgColor,
         display: 'flex', alignItems: 'center', justifyContent: 'center',
-        color: '#fff', fontSize: size * 0.4, fontWeight: 700,
+        color: 'var(--color-text-on-dark)', fontSize: size * 0.4, fontWeight: 700,
         overflow: 'hidden',
       }}>
         {tokenUrl ? (
@@ -55,9 +55,9 @@ export function CombatToken({ name, imageId, tokenImageId, hp, maxHp, isDead, si
         <div style={{
           position: 'absolute', bottom: -1, right: -1,
           width: badgeSize, height: badgeSize, borderRadius: '50%',
-          background: '#222', border: '1.5px solid #888',
+          background: 'var(--color-token-badge-bg)', border: '1.5px solid var(--color-token-badge-border)',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
-          color: '#fff', fontSize: badgeSize * 0.65, fontWeight: 700,
+          color: 'var(--color-text-on-dark)', fontSize: badgeSize * 0.65, fontWeight: 700,
           lineHeight: 1,
         }}>
           {miniNumber}

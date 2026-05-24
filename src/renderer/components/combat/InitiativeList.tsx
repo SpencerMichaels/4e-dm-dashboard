@@ -194,7 +194,7 @@ export function InitiativeList({ combat, currentId, selectedIds, onSelect, onCon
                 <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', textDecoration: isDead ? 'line-through' : 'none' }}>
                   {c.name}
                   {isDelayed && <span style={{ fontSize: 'var(--font-size-xs)', marginLeft: 'var(--space-1)' }}>[D]</span>}
-                  {isReadied && <span style={{ fontSize: 'var(--font-size-xs)', marginLeft: 'var(--space-1)', color: '#39c' }}>[R]</span>}
+                  {isReadied && <span style={{ fontSize: 'var(--font-size-xs)', marginLeft: 'var(--space-1)', color: 'var(--color-readied)' }}>[R]</span>}
                   {isHidden && <span style={{ fontSize: 'var(--font-size-xs)', marginLeft: 'var(--space-1)', opacity: 0.6 }}>👁‍🗨</span>}
                 </span>
                 {c.isPC && (c.deathSaveFailures != null && c.deathSaveFailures > 0 || c.conditions.some(cd => cd.conditionId === 'dying')) && (
@@ -207,7 +207,7 @@ export function InitiativeList({ combat, currentId, selectedIds, onSelect, onCon
                 )}
               </div>
               {isReadied && c.readiedAction && (
-                <div style={{ fontSize: 'var(--font-size-xs)', color: '#39c', marginTop: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+                <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-readied)', marginTop: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
                   title={c.readiedAction}>
                   {c.readiedAction}
                 </div>
@@ -242,8 +242,8 @@ export function InitiativeList({ combat, currentId, selectedIds, onSelect, onCon
 
 
             {/* Attack mode: hit/miss indicator */}
-            {attackResult === 'hit' && <span style={{ fontSize: 14, color: '#2a6' }} title="Hit">⚔</span>}
-            {attackResult === 'miss' && <span style={{ fontSize: 14, color: '#a44' }} title="Miss">✕</span>}
+            {attackResult === 'hit' && <span style={{ fontSize: 14, color: 'var(--color-check)' }} title="Hit">⚔</span>}
+            {attackResult === 'miss' && <span style={{ fontSize: 14, color: 'var(--color-miss)' }} title="Miss">✕</span>}
 
             {/* Attack mode: selection checkmark */}
             {attackMode?.phase === 'select' && isAttackTarget && <span style={{ fontSize: 12, color: 'rgba(92,124,250,0.8)' }}>✓</span>}
@@ -251,7 +251,7 @@ export function InitiativeList({ combat, currentId, selectedIds, onSelect, onCon
           {/* Undelay button for delayed creatures */}
           {isDelayed && onUndelay && (
             <button onClick={() => onUndelay(id)} title="Undelay"
-              style={{ padding: '2px 8px', borderRadius: 'var(--radius-sm)', cursor: 'pointer', background: 'var(--color-bg-hover)', border: '1px solid var(--color-border)', color: 'var(--color-text)', fontSize: 11, whiteSpace: 'nowrap' }}>
+              style={{ padding: '2px 8px', borderRadius: 'var(--radius-sm)', cursor: 'pointer', background: 'var(--color-bg-hover)', border: '1px solid var(--color-border)', color: 'var(--color-text-primary)', fontSize: 11, whiteSpace: 'nowrap' }}>
               ▶ Undelay
             </button>
           )}
@@ -260,13 +260,13 @@ export function InitiativeList({ combat, currentId, selectedIds, onSelect, onCon
             <div style={{ display: 'flex', gap: 2 }}>
               {onResolveReady && (
                 <button onClick={() => onResolveReady(id)} title="Resolve readied action"
-                  style={{ padding: '2px 8px', borderRadius: 'var(--radius-sm)', cursor: 'pointer', background: '#39c', border: '1px solid #2a8abf', color: '#fff', fontSize: 11, whiteSpace: 'nowrap' }}>
+                  style={{ padding: '2px 8px', borderRadius: 'var(--radius-sm)', cursor: 'pointer', background: 'var(--color-readied)', border: '1px solid var(--color-readied-border)', color: 'var(--color-text-on-dark)', fontSize: 11, whiteSpace: 'nowrap' }}>
                   ▶ Resolve
                 </button>
               )}
               {onCancelReady && (
                 <button onClick={() => onCancelReady(id)} title="Cancel readied action"
-                  style={{ padding: '2px 8px', borderRadius: 'var(--radius-sm)', cursor: 'pointer', background: 'var(--color-bg-hover)', border: '1px solid var(--color-border)', color: 'var(--color-text)', fontSize: 11, whiteSpace: 'nowrap' }}>
+                  style={{ padding: '2px 8px', borderRadius: 'var(--radius-sm)', cursor: 'pointer', background: 'var(--color-bg-hover)', border: '1px solid var(--color-border)', color: 'var(--color-text-primary)', fontSize: 11, whiteSpace: 'nowrap' }}>
                   ✕
                 </button>
               )}
@@ -365,7 +365,7 @@ function CreatureReactions({ combatantId, combatant, isCurrent, notifications, t
           <div key={key} style={{
             opacity: r.used ? 0.4 : 1,
             transition: 'opacity 0.15s',
-            borderLeft: triggered ? '3px solid #e8a020' : '3px solid transparent',
+            borderLeft: triggered ? '3px solid var(--color-action-point)' : '3px solid transparent',
             paddingLeft: 1,
             animation: triggered ? 'reaction-pulse 1.5s ease-in-out 2' : 'none',
             position: 'relative',
@@ -383,7 +383,7 @@ function CreatureReactions({ combatantId, combatant, isCurrent, notifications, t
                 style={{
                   padding: '2px 32px 2px 8px',
                   fontSize: 'var(--font-size-xs)', lineHeight: 1.5,
-                  background: usageColor, color: '#fff',
+                  background: usageColor, color: 'var(--color-text-on-dark)',
                   cursor: 'pointer',
                   overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
                   textDecoration: r.used ? 'line-through' : 'none',
@@ -395,7 +395,7 @@ function CreatureReactions({ combatantId, combatant, isCurrent, notifications, t
                     {ACTION_ICONS[r.power.actionType]}
                   </span>
                 )}
-                {triggered && <span title="Triggered" style={{ marginRight: 4, color: '#ffd44a' }}>⚡</span>}
+                {triggered && <span title="Triggered" style={{ marginRight: 4, color: 'var(--color-turn-active)' }}>⚡</span>}
                 <b>{r.card.name}</b>
                 {r.card.keywords && r.card.keywords.length > 0 && (
                   <span style={{ color: 'rgba(255,255,255,0.7)' }}> ({r.card.keywords.join(', ')})</span>

@@ -361,7 +361,7 @@ export function InitiativeEntry({ combat }: Props) {
                         placeholder="auto"
                         style={{
                           width: 48, textAlign: 'center', padding: '1px 2px',
-                          fontSize: 'var(--font-size-xs)', borderRadius: 3,
+                          fontSize: 'var(--font-size-xs)', borderRadius: 'var(--radius-sm)',
                           background: 'var(--color-bg-primary)', border: '1px solid var(--color-border)',
                           color: 'var(--color-text-primary)',
                         }}
@@ -431,7 +431,7 @@ export function InitiativeEntry({ combat }: Props) {
                         placeholder="auto"
                         style={{
                           width: 48, textAlign: 'center', padding: '1px 2px',
-                          fontSize: 'var(--font-size-xs)', borderRadius: 3,
+                          fontSize: 'var(--font-size-xs)', borderRadius: 'var(--radius-sm)',
                           background: 'var(--color-bg-primary)', border: '1px solid var(--color-border)',
                           color: 'var(--color-text-primary)',
                         }}
@@ -575,7 +575,7 @@ function MonsterIdentityRow({ combatantId, combatant: c, recentColors, onCustomC
       <input type="number" min={1} max={99} value={c.miniNumber ?? ''}
         onChange={e => { const v = e.target.value ? parseInt(e.target.value) : undefined; setIdentity(c.color, v, c.miniDescriptor) }}
         style={{
-          width: 28, textAlign: 'center', padding: '1px 2px', fontSize: 11, borderRadius: 3,
+          width: 28, textAlign: 'center', padding: '1px 2px', fontSize: 11, borderRadius: 'var(--radius-sm)',
           background: 'var(--color-bg-primary)', border: '1px solid var(--color-border)',
           color: 'var(--color-text-primary)',
         }}
@@ -585,7 +585,7 @@ function MonsterIdentityRow({ combatantId, combatant: c, recentColors, onCustomC
         onChange={e => setIdentity(c.color, c.miniNumber, e.target.value)}
         placeholder="desc"
         style={{
-          width: 60, padding: '1px 4px', fontSize: 11, borderRadius: 3,
+          width: 60, padding: '1px 4px', fontSize: 11, borderRadius: 'var(--radius-sm)',
           background: 'var(--color-bg-primary)', border: '1px solid var(--color-border)',
           color: 'var(--color-text-primary)', marginLeft: 4,
         }}

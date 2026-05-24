@@ -143,7 +143,7 @@ export function Dnd4eCreatureViewer({ creature, tooltip: tip, compendiumId: comp
                 display: 'inline-flex', alignItems: 'center',
                 padding: '0 6px', borderRadius: 'var(--radius-sm)',
                 background: templateColor(chip.slot),
-                color: '#fff',
+                color: 'var(--color-text-on-dark)',
                 border: chip.preview ? '1px dashed rgba(255,255,255,0.6)' : 'none',
                 fontSize: 10, fontWeight: 700,
                 cursor: onTemplateChipClick ? 'pointer' : 'default',
@@ -157,7 +157,7 @@ export function Dnd4eCreatureViewer({ creature, tooltip: tip, compendiumId: comp
             <span style={{
               display: 'inline-flex', alignItems: 'center',
               padding: '0 6px', borderRadius: 'var(--radius-sm)',
-              background: THEME_COLOR, color: '#fff',
+              background: THEME_COLOR, color: 'var(--color-text-on-dark)',
               fontSize: 10, fontWeight: 700,
               fontFamily: "'MentorSans', 'Mentor', sans-serif",
               textTransform: 'uppercase', letterSpacing: '0.03em',
@@ -411,7 +411,7 @@ function CopiedFlash() {
       background: 'rgba(40,167,69,0.2)',
       display: 'flex', alignItems: 'center', justifyContent: 'center',
       pointerEvents: 'none',
-      fontSize: 11, fontWeight: 700, color: '#2f9e44',
+      fontSize: 11, fontWeight: 700, color: 'var(--color-hp-full)',
       borderRadius: 2,
     }}>
       Copied

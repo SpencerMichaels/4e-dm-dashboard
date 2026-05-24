@@ -79,7 +79,7 @@ export function PowerCardView({ entry: e, selectedLevel, detectedConditions, onC
         onClick={(ev) => { ev.stopPropagation(); onConditionClick(seg.detection!, ev.shiftKey) }}
         style={{
           textDecoration: 'underline', textDecorationStyle: 'dotted',
-          cursor: 'pointer', color: '#e8a020', fontWeight: 600,
+          cursor: 'pointer', color: 'var(--color-action-point)', fontWeight: 600,
           userSelect: 'none',
         }}
         title={`Click to apply ${seg.detection.conditionName} (shift-click to apply to multiple targets)`}

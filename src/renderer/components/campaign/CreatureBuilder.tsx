@@ -163,7 +163,7 @@ export function CreatureBuilder({ statBlock, hp, maxHp, onUpdate, config }: Prop
                       padding: '1px 3px', fontSize: '9px',
                       fontWeight: isMatch ? 700 : 400,
                       background: isMatch ? tierColor(tier, config) : 'transparent',
-                      color: isMatch ? '#fff' : 'var(--color-text-muted)',
+                      color: isMatch ? 'var(--color-text-on-dark)' : 'var(--color-text-muted)',
                       border: isMatch ? 'none' : '1px solid var(--color-border)',
                       borderRadius: 'var(--radius-sm)', cursor: 'pointer',
                     }}>{tierShort(tier, config)}</button>

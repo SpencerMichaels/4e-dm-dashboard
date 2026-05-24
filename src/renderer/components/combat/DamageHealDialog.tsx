@@ -76,9 +76,9 @@ export function DamageHealDialog({ mode, combatantName, initialAmount, onSubmit,
           <button
             type="submit"
             style={{
-              background: mode === 'damage' ? '#c00' : '#0a0',
-              color: '#fff',
-              padding: '4px 16px',
+              background: mode === 'damage' ? 'var(--color-damage)' : 'var(--color-heal)',
+              color: 'var(--color-text-on-dark)',
+              padding: 'var(--space-1) var(--space-4)',
               borderRadius: 'var(--radius-sm)',
             }}
           >

@@ -128,11 +128,11 @@ export function LocationEditor({ locationId }: Props) {
             <img src={sceneImageUrl} style={{ width: '100%', display: 'block', borderRadius: 'var(--radius-sm)' }} alt="" />
             <div style={{ position: 'absolute', top: 4, right: 4, display: 'flex', gap: 4 }}>
               <button onClick={handleImageUpload}
-                style={{ fontSize: 'var(--font-size-xs)', padding: '2px 8px', borderRadius: 4, background: 'rgba(0,0,0,0.6)', color: '#fff', border: 'none', cursor: 'pointer' }}>
+                style={{ fontSize: 'var(--font-size-xs)', padding: '2px 8px', borderRadius: 'var(--radius-sm)', background: 'var(--color-overlay-bg)', color: 'var(--color-text-on-dark)', border: 'none', cursor: 'pointer' }}>
                 Replace
               </button>
               <button onClick={() => save({ ...location, sceneImageId: undefined })}
-                style={{ fontSize: 'var(--font-size-xs)', padding: '2px 8px', borderRadius: 4, background: 'rgba(0,0,0,0.6)', color: '#fff', border: 'none', cursor: 'pointer' }}>
+                style={{ fontSize: 'var(--font-size-xs)', padding: '2px 8px', borderRadius: 'var(--radius-sm)', background: 'var(--color-overlay-bg)', color: 'var(--color-text-on-dark)', border: 'none', cursor: 'pointer' }}>
                 Remove
               </button>
             </div>

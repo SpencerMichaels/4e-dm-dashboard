@@ -44,7 +44,7 @@ export function CombatLogPanel({ events, onClose }: Props) {
             elements.push(
               <div key={`round-${ev.round}`} style={{
                 padding: '4px 8px', marginTop: i > 0 ? 6 : 0,
-                fontSize: 11, fontWeight: 700, color: 'var(--color-text)',
+                fontSize: 11, fontWeight: 700, color: 'var(--color-text-primary)',
                 borderTop: i > 0 ? '2px solid var(--color-border)' : 'none',
               }}>
                 Round {ev.round}

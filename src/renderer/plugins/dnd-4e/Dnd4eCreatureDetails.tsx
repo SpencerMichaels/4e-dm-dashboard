@@ -438,7 +438,7 @@ export function Dnd4eCreatureDetails({ creature, onSave: save, config, compact }
                       padding: '0 3px', fontSize: '10px', textTransform: 'uppercase',
                       fontWeight: primaryAbility === ab ? 700 : 400,
                       background: primaryAbility === ab ? 'var(--sb-header-bg)' : 'transparent',
-                      color: primaryAbility === ab ? '#fff' : 'var(--color-text-muted)',
+                      color: primaryAbility === ab ? 'var(--color-text-on-dark)' : 'var(--color-text-muted)',
                       border: primaryAbility === ab ? 'none' : '1px solid var(--color-border)',
                       borderRadius: 'var(--radius-sm)', cursor: 'pointer',
                     }}>{ab}</button>
@@ -502,7 +502,7 @@ export function Dnd4eCreatureDetails({ creature, onSave: save, config, compact }
               <button onClick={() => addEntry('aura')} style={addBtn}>+ Aura</button>
               {clipboardName && (
                 <button onClick={() => { const p = getPastedPower(); if (p) u('actions', [p, ...actions]) }}
-                  style={{ ...addBtn, color: '#2f9e44', borderColor: '#2f9e44' }}
+                  style={{ ...addBtn, color: 'var(--color-success)', borderColor: 'var(--color-success)' }}
                   title={`Paste "${clipboardName}" from clipboard`}>
                   Paste: {clipboardName}
                 </button>

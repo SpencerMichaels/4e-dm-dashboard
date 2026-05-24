@@ -58,8 +58,8 @@ export function CombatantDetail({
         )}
         {isDelayed && (
           <span style={{
-            background: '#c90',
-            color: '#000',
+            background: 'var(--color-turn-delayed)',
+            color: 'var(--color-text-on-dark)',
             padding: '2px 10px',
             borderRadius: 'var(--radius-sm)',
             fontSize: 'var(--font-size-sm)',
@@ -70,8 +70,8 @@ export function CombatantDetail({
         )}
         {isReadied && (
           <span style={{
-            background: '#39c',
-            color: '#fff',
+            background: 'var(--color-readied)',
+            color: 'var(--color-text-on-dark)',
             padding: '2px 10px',
             borderRadius: 'var(--radius-sm)',
             fontSize: 'var(--font-size-sm)',
@@ -88,20 +88,20 @@ export function CombatantDetail({
           <span style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text-secondary)' }}>HP</span>
           <span style={{ fontWeight: 600 }}>
             {c.hp} / {c.maxHp}
-            {c.tempHp > 0 && <span style={{ color: '#09f', marginLeft: 'var(--space-1)' }}>+{c.tempHp} temp</span>}
+            {c.tempHp > 0 && <span style={{ color: 'var(--color-temp-hp)', marginLeft: 'var(--space-1)' }}>+{c.tempHp} temp</span>}
           </span>
         </div>
         <div style={{
           width: '100%',
           height: 10,
           background: 'var(--color-border)',
-          borderRadius: 5,
+          borderRadius: 'var(--radius-sm)',
           overflow: 'hidden',
         }}>
           <div style={{
             width: `${hpPct}%`,
             height: '100%',
-            background: hpPct > 50 ? '#0a0' : hpPct > 25 ? '#c90' : '#c00',
+            background: hpPct > 50 ? 'var(--color-hp-full)' : hpPct > 25 ? 'var(--color-hp-mid)' : 'var(--color-hp-low)',
             transition: 'width 0.2s',
           }} />
         </div>
@@ -128,7 +128,7 @@ export function CombatantDetail({
                 style={{
                   display: 'inline-flex', alignItems: 'center', gap: 4,
                   padding: '2px 8px', borderRadius: 10,
-                  background: cond.customColor ?? '#c90', color: '#000',
+                  background: cond.customColor ?? 'var(--color-condition-default)', color: 'var(--color-text-on-warning)',
                   fontSize: 'var(--font-size-xs)', fontWeight: 600,
                   whiteSpace: 'nowrap',
                 }}
@@ -155,11 +155,11 @@ export function CombatantDetail({
         <div style={{
           padding: 'var(--space-2) var(--space-3)',
           marginBottom: 'var(--space-3)',
-          background: 'rgba(51, 153, 204, 0.1)',
-          border: '1px solid rgba(51, 153, 204, 0.3)',
+          background: 'var(--color-readied-bg)',
+          border: '1px solid var(--color-readied-border)',
           borderRadius: 'var(--radius-sm)',
           fontSize: 'var(--font-size-sm)',
-          color: '#39c',
+          color: 'var(--color-readied)',
         }}>
           {c.readiedAction}
         </div>
@@ -167,37 +167,37 @@ export function CombatantDetail({
 
       {/* Action buttons */}
       <div style={{ display: 'flex', gap: 'var(--space-2)', flexWrap: 'wrap', marginBottom: 'var(--space-4)' }}>
-        <button onClick={onDamage} style={{ background: '#c00', color: '#fff', padding: '4px 12px', borderRadius: 'var(--radius-sm)' }}>
+        <button onClick={onDamage} style={{ background: 'var(--color-damage)', color: 'var(--color-text-on-dark)', padding: 'var(--space-1) var(--space-3)', borderRadius: 'var(--radius-sm)' }}>
           Damage
         </button>
-        <button onClick={onHeal} style={{ background: '#0a0', color: '#fff', padding: '4px 12px', borderRadius: 'var(--radius-sm)' }}>
+        <button onClick={onHeal} style={{ background: 'var(--color-heal)', color: 'var(--color-text-on-dark)', padding: 'var(--space-1) var(--space-3)', borderRadius: 'var(--radius-sm)' }}>
           Heal
         </button>
-        <button onClick={onAddCondition} style={{ padding: '4px 12px', borderRadius: 'var(--radius-sm)' }}>
+        <button onClick={onAddCondition} style={{ padding: 'var(--space-1) var(--space-3)', borderRadius: 'var(--radius-sm)' }}>
           + Condition
         </button>
-        <button onClick={onAddEffect} style={{ padding: '4px 12px', borderRadius: 'var(--radius-sm)' }}>
+        <button onClick={onAddEffect} style={{ padding: 'var(--space-1) var(--space-3)', borderRadius: 'var(--radius-sm)' }}>
           + Effect
         </button>
         {isReadied ? (
           <>
-            {onResolveReady && <button onClick={onResolveReady} style={{ padding: '4px 12px', borderRadius: 'var(--radius-sm)', background: '#39c', color: '#fff' }}>
+            {onResolveReady && <button onClick={onResolveReady} style={{ padding: 'var(--space-1) var(--space-3)', borderRadius: 'var(--radius-sm)', background: 'var(--color-readied)', color: 'var(--color-text-on-dark)' }}>
               Resolve Ready
             </button>}
-            {onCancelReady && <button onClick={onCancelReady} style={{ padding: '4px 12px', borderRadius: 'var(--radius-sm)' }}>
+            {onCancelReady && <button onClick={onCancelReady} style={{ padding: 'var(--space-1) var(--space-3)', borderRadius: 'var(--radius-sm)' }}>
               Cancel Ready
             </button>}
           </>
         ) : isDelayed ? (
-          <button onClick={onUndelay} style={{ padding: '4px 12px', borderRadius: 'var(--radius-sm)' }}>
+          <button onClick={onUndelay} style={{ padding: 'var(--space-1) var(--space-3)', borderRadius: 'var(--radius-sm)' }}>
             Undelay
           </button>
         ) : (
           <>
-            <button onClick={onDelay} style={{ padding: '4px 12px', borderRadius: 'var(--radius-sm)' }}>
+            <button onClick={onDelay} style={{ padding: 'var(--space-1) var(--space-3)', borderRadius: 'var(--radius-sm)' }}>
               Delay
             </button>
-            {onReady && <button onClick={onReady} style={{ padding: '4px 12px', borderRadius: 'var(--radius-sm)' }}>
+            {onReady && <button onClick={onReady} style={{ padding: 'var(--space-1) var(--space-3)', borderRadius: 'var(--radius-sm)' }}>
               Ready
             </button>}
           </>

@@ -726,7 +726,7 @@ export function Dnd4eEncounterEditor({ encounter, onSave, creatures, onNavigate 
                   }}>
                     <span style={{ ...xsStyle, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: isRowSelected ? 600 : 400, minWidth: 0 }}
                       onDoubleClick={(e) => { e.stopPropagation(); setRenamingKey(key); setRenameValue(ec.overrideName || info.name) }}>
-                      {outOfRange && <span title={`${levelDelta} levels from party — DMG recommends ±4`} style={{ color: '#c0392b', marginRight: 2 }}>⚠</span>}
+                      {outOfRange && <span title={`${levelDelta} levels from party — DMG recommends ±4`} style={{ color: 'var(--color-danger)', marginRight: 2 }}>⚠</span>}
                       {renamingKey === key ? (
                         <input
                           autoFocus
@@ -817,7 +817,7 @@ export function Dnd4eEncounterEditor({ encounter, onSave, creatures, onNavigate 
                           ...xsStyle, fontWeight: 600,
                           cursor: 'pointer',
                           background: themePickerKey === key ? '#0d9488' : ec.monsterTheme ? '#0d948840' : 'var(--color-bg-hover)',
-                          color: themePickerKey === key ? '#fff' : ec.monsterTheme ? '#0d9488' : 'var(--color-text-muted)',
+                          color: themePickerKey === key ? 'var(--color-text-on-dark)' : ec.monsterTheme ? '#0d9488' : 'var(--color-text-muted)',
                           border: '1px solid var(--color-border)', lineHeight: 1.2,
                         }}
                       >Th</button>
@@ -1373,7 +1373,7 @@ function DifficultyBar({ totalXP, partySize, partyLevel, difficulty, targetXP, t
       </div>
 
       {/* Level cells */}
-      <div style={{ position: 'relative', display: 'flex', height: 22, borderRadius: 3, overflow: 'hidden' }}>
+      <div style={{ position: 'relative', display: 'flex', height: 22, borderRadius: 'var(--radius-sm)', overflow: 'hidden' }}>
         {LEVEL_CELLS.map((cell) => {
           const isTarget = cell.delta === targetDelta
           return (
@@ -1593,7 +1593,7 @@ function ThemePicker({ currentTheme, onApply, onRemove, onClose, onPreview }: {
             style={{
               padding: '3px 12px', borderRadius: 'var(--radius-sm)',
               background: canApply ? '#0d9488' : 'var(--color-bg-hover)',
-              color: canApply ? '#fff' : 'var(--color-text-muted)',
+              color: canApply ? 'var(--color-text-on-dark)' : 'var(--color-text-muted)',
               border: 'none', cursor: canApply ? 'pointer' : 'not-allowed',
               fontWeight: 600, fontSize: 'var(--font-size-xs)',
             }}

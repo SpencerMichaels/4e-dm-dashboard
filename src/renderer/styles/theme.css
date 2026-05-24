@@ -59,7 +59,7 @@
   --color-success: #859900;
   --color-warning: #b58900;
 
-  /* Combat-specific */
+  /* Combat-specific — HP bar thresholds */
   --color-hp-full: #2f9e44;
   --color-hp-high: #74b816;
   --color-hp-mid: #f08c00;
@@ -68,6 +68,44 @@
 
   --color-turn-active: #ffd43b;
   --color-turn-delayed: #868e96;
+
+  /* Semantic action colors */
+  --color-damage: #cc0000;
+  --color-heal: #00aa00;
+  --color-temp-hp: #0099ff;
+  --color-readied: #3399cc;
+  --color-readied-bg: rgba(51, 153, 204, 0.1);
+  --color-readied-border: rgba(51, 153, 204, 0.3);
+  --color-action-point: #e8a020;
+
+  /* Text on colored backgrounds (buttons, badges) */
+  --color-text-on-dark: #ffffff;
+  --color-text-on-warning: #000000;
+
+  /* Condition badge default */
+  --color-condition-default: #cc9900;
+
+  /* Notification toast colors */
+  --color-notify-bloodied: #cc0000;
+  --color-notify-death: #660000;
+  --color-notify-success: #22aa66;
+  --color-notify-fail: #aa6622;
+  --color-notify-neutral: #666666;
+
+  /* Check marks, hit/miss indicators */
+  --color-check: #22aa66;
+  --color-miss: #aa4444;
+
+  /* Token mini-badge */
+  --color-token-badge-bg: #222222;
+  --color-token-badge-border: #888888;
+
+  /* Overlay buttons (on images) */
+  --color-overlay-bg: rgba(0, 0, 0, 0.6);
+
+  /* Import warning */
+  --color-import-warning: #f08c00;
+  --color-import-warning-bg: #f08c0020;
 
   /* Typography */
   --font-body: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
@@ -129,6 +167,11 @@
   --color-danger: #dc322f;
   --color-success: #859900;
   --color-warning: #b58900;
+
+  --color-text-on-warning: #1a1a1a;
+
+  --color-token-badge-bg: #555555;
+  --color-token-badge-border: #999999;
 
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.06);
   --shadow-md: 0 4px 8px rgba(0, 0, 0, 0.08);

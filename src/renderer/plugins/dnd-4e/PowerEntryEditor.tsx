@@ -200,7 +200,7 @@ function SimpleAttackRow({ entry: e, idx, config, level, atkBonusTables, onUpdat
                     padding: '1px 4px', fontSize: '10px',
                     fontWeight: e.attackBonus === val ? 700 : 400,
                     background: e.attackBonus === val ? (getTierColor(tier, config)) : 'transparent',
-                    color: e.attackBonus === val ? '#fff' : 'var(--color-text-muted)',
+                    color: e.attackBonus === val ? 'var(--color-text-on-dark)' : 'var(--color-text-muted)',
                     border: e.attackBonus === val ? 'none' : '1px solid var(--color-border)',
                     borderRadius: 'var(--radius-sm)', cursor: 'pointer', lineHeight: 1.4,
                   }}>{getTierLabel(tier, config)}</button>
@@ -320,7 +320,7 @@ function FullPowerRow({ entry: e, idx, config, level, statBlock, atkBonusTables,
       <div style={{ flex: 1, minWidth: 0 }}>
       {/* Header line 1: Name (action; usage) ✦ Keywords */}
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 4, padding: '2px 8px',
-        background: usageColor, color: '#fff', ...hdrColors }}>
+        background: usageColor, color: 'var(--color-text-on-dark)', ...hdrColors }}>
         <input className="ghost" value={e.name} onChange={(ev) => onUpdate(idx, { name: ev.target.value })}
           placeholder="Power name" style={{ fontWeight: 700, fontSize: 'var(--font-size-sm)', color: 'inherit' }} />
         <span style={{ color: 'rgba(255,255,255,0.8)' }}>(
@@ -347,7 +347,7 @@ function FullPowerRow({ entry: e, idx, config, level, statBlock, atkBonusTables,
       {/* Header line 2: Attack — range, target, bonus vs defense */}
       {(e.attackBonus != null || e.target || e.rangeValue) && (
         <div style={{ display: 'flex', gap: 4, alignItems: 'center', flexWrap: 'wrap', padding: '1px 8px',
-          background: usageColor + '88', color: '#fff', ...hdrColors }}>
+          background: usageColor + '88', color: 'var(--color-text-on-dark)', ...hdrColors }}>
           <select className="ghost" style={hdrSelect} value={e.rangeType} onChange={(ev) => onUpdate(idx, { rangeType: ev.target.value })}>
             {(config.rangeTypes ?? []).map((rt) => <option key={rt.value} value={rt.value}>{rt.label}</option>)}
           </select>
@@ -496,7 +496,7 @@ function DiceTierButtons({ table, level, currentDice, onSelect, config }: {
             padding: '1px 4px', fontSize: '9px',
             fontWeight: currentDice === dice ? 700 : 400,
             background: currentDice === dice ? (getTierColor(tier, config)) : 'transparent',
-            color: currentDice === dice ? '#fff' : 'var(--color-text-muted)',
+            color: currentDice === dice ? 'var(--color-text-on-dark)' : 'var(--color-text-muted)',
             border: currentDice === dice ? 'none' : '1px solid var(--color-border)',
             borderRadius: 'var(--radius-sm)', cursor: 'pointer', textTransform: 'capitalize',
           }}>{getTierLabel(tier, config)}</button>

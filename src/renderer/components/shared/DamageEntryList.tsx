@@ -169,7 +169,7 @@ export function DamageEntryList({ entries, onChange, suggestions, showValue, pla
                     padding: '1px 4px', fontSize: '10px',
                     background: 'transparent', border: '1px solid var(--color-border)',
                     borderRadius: 'var(--radius-sm)', cursor: 'pointer',
-                    color: '#1c7ed6',
+                    color: 'var(--color-accent)',
                   }}
                   title="Low"
                 >{valueRange.min}</button>
@@ -179,7 +179,7 @@ export function DamageEntryList({ entries, onChange, suggestions, showValue, pla
                     padding: '1px 4px', fontSize: '10px',
                     background: 'transparent', border: '1px solid var(--color-border)',
                     borderRadius: 'var(--radius-sm)', cursor: 'pointer',
-                    color: '#2f9e44',
+                    color: 'var(--color-check)',
                   }}
                   title="Mid"
                 >{Math.round((valueRange.min + valueRange.max) / 2)}</button>
@@ -189,7 +189,7 @@ export function DamageEntryList({ entries, onChange, suggestions, showValue, pla
                     padding: '1px 4px', fontSize: '10px',
                     background: 'transparent', border: '1px solid var(--color-border)',
                     borderRadius: 'var(--radius-sm)', cursor: 'pointer',
-                    color: '#e03131',
+                    color: 'var(--color-hp-low)',
                   }}
                   title="High"
                 >{valueRange.max}</button>

@@ -81,7 +81,7 @@ export function AttackApplyPanel({ combat, attackMode, conditionDefs, onApply, o
       {/* Hit section */}
       {hitIds.length > 0 && (
         <div style={sectionStyle}>
-          <div style={{ fontWeight: 600, color: '#2a6', marginBottom: 'var(--space-2)', fontSize: 13 }}>
+          <div style={{ fontWeight: 600, color: 'var(--color-check)', marginBottom: 'var(--space-2)', fontSize: 13 }}>
             ⚔ Hit ({hitIds.length}): {hitIds.map(id => combat.combatants[id]?.name).join(', ')}
           </div>
           <div style={{ display: 'flex', gap: 'var(--space-2)', alignItems: 'center', flexWrap: 'wrap' }}>
@@ -100,7 +100,7 @@ export function AttackApplyPanel({ combat, attackMode, conditionDefs, onApply, o
       {/* Miss section */}
       {missIds.length > 0 && (
         <div style={sectionStyle}>
-          <div style={{ fontWeight: 600, color: '#a44', marginBottom: 'var(--space-2)', fontSize: 13 }}>
+          <div style={{ fontWeight: 600, color: 'var(--color-miss)', marginBottom: 'var(--space-2)', fontSize: 13 }}>
             ✕ Miss ({missIds.length}): {missIds.map(id => combat.combatants[id]?.name).join(', ')}
           </div>
           <div style={{ display: 'flex', gap: 'var(--space-2)', alignItems: 'center', flexWrap: 'wrap' }}>

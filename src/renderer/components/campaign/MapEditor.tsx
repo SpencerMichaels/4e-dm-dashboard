@@ -315,7 +315,7 @@ export function MapEditor({ mapId }: Props) {
                     whiteSpace: 'nowrap',
                     fontSize: 10,
                     fontWeight: 600,
-                    color: '#fff',
+                    color: 'var(--color-text-on-dark)',
                     textShadow: '0 1px 3px rgba(0,0,0,0.8), 0 0 6px rgba(0,0,0,0.5)',
                     pointerEvents: 'none',
                     marginTop: 2,
@@ -460,11 +460,11 @@ function LocationSidebar({ location, locationNameRef, encounters, onNameChange, 
               <img src={sceneImageUrl} style={{ width: '100%', display: 'block', borderRadius: 'var(--radius-sm)' }} alt="" />
               <div style={{ position: 'absolute', top: 4, right: 4, display: 'flex', gap: 2 }}>
                 <button onClick={handleImageUpload} title="Replace image"
-                  style={{ fontSize: 10, padding: '2px 6px', borderRadius: 4, background: 'rgba(0,0,0,0.6)', color: '#fff', border: 'none', cursor: 'pointer' }}>
+                  style={{ fontSize: 10, padding: '2px 6px', borderRadius: 'var(--radius-sm)', background: 'var(--color-overlay-bg)', color: 'var(--color-text-on-dark)', border: 'none', cursor: 'pointer' }}>
                   Replace
                 </button>
                 <button onClick={() => onSave({ ...location, sceneImageId: undefined })} title="Remove image"
-                  style={{ fontSize: 10, padding: '2px 6px', borderRadius: 4, background: 'rgba(0,0,0,0.6)', color: '#fff', border: 'none', cursor: 'pointer' }}>
+                  style={{ fontSize: 10, padding: '2px 6px', borderRadius: 'var(--radius-sm)', background: 'var(--color-overlay-bg)', color: 'var(--color-text-on-dark)', border: 'none', cursor: 'pointer' }}>
                   ✕
                 </button>
               </div>
