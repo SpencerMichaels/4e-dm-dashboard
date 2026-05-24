@@ -73,6 +73,14 @@ function getDesignator(c: CombatantState): string {
   return parts.length > 0 ? parts.join(' ') : c.name
 }
 
+/** Naive English pluralization for creature names */
+function pluralize(name: string): string {
+  const lower = name.toLowerCase()
+  if (lower.endsWith('s') || lower.endsWith('x') || lower.endsWith('z') || lower.endsWith('sh') || lower.endsWith('ch')) return name + 'es'
+  if (lower.endsWith('y') && !/[aeiou]y$/i.test(name)) return name.slice(0, -1) + 'ies'
+  return name + 's'
+}
+
 /** Default designator color when combatant has no color assigned */
 const DEFAULT_DESIGNATOR_BG = '#666'
 
@@ -132,10 +140,10 @@ export function Dnd4eGroupedCombatPanel({
   return (
     <div className={`stat-block-4e ${styles.container}`}>
 
-      {/* Header: base name with count and level/role */}
+      {/* Header: pluralized base name and level/role */}
       <div className="sb-header">
         <span className="sb-name" style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-          {baseName} ({'\u00D7'}{combatants.length})
+          {pluralize(baseName)}
         </span>
         <span>Level {sb.level} {(() => {
           const mod = sb.monsterModifier as string | undefined
