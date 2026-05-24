@@ -33,10 +33,10 @@ export function EffectDialog({ combatantId, onClose }: Props) {
       <form onSubmit={handleSubmit}>
         <h3 style={{ marginBottom: 'var(--space-3)' }}>Add Effect</h3>
 
-        <div style={{ marginBottom: 'var(--space-3)' }}>
-          <label style={{ display: 'block', fontSize: 'var(--font-size-sm)', color: 'var(--color-text-secondary)', marginBottom: 'var(--space-1)' }}>
+        <label style={{ display: 'block', marginBottom: 'var(--space-3)' }}>
+          <span style={{ display: 'block', fontSize: 'var(--font-size-sm)', color: 'var(--color-text-secondary)', marginBottom: 'var(--space-1)' }}>
             Name
-          </label>
+          </span>
           <input
             value={name}
             onChange={(e) => setName(e.target.value)}
@@ -44,24 +44,24 @@ export function EffectDialog({ combatantId, onClose }: Props) {
             style={{ width: '100%' }}
             autoFocus
           />
-        </div>
+        </label>
 
-        <div style={{ marginBottom: 'var(--space-3)' }}>
-          <label style={{ display: 'block', fontSize: 'var(--font-size-sm)', color: 'var(--color-text-secondary)', marginBottom: 'var(--space-1)' }}>
+        <label style={{ display: 'block', marginBottom: 'var(--space-3)' }}>
+          <span style={{ display: 'block', fontSize: 'var(--font-size-sm)', color: 'var(--color-text-secondary)', marginBottom: 'var(--space-1)' }}>
             Description (optional)
-          </label>
+          </span>
           <input
             value={description}
             onChange={(e) => setDescription(e.target.value)}
             placeholder="Brief description..."
             style={{ width: '100%' }}
           />
-        </div>
+        </label>
 
-        <div style={{ marginBottom: 'var(--space-3)' }}>
-          <label style={{ display: 'block', fontSize: 'var(--font-size-sm)', color: 'var(--color-text-secondary)', marginBottom: 'var(--space-1)' }}>
+        <label style={{ display: 'block', marginBottom: 'var(--space-3)' }}>
+          <span style={{ display: 'block', fontSize: 'var(--font-size-sm)', color: 'var(--color-text-secondary)', marginBottom: 'var(--space-1)' }}>
             Duration
-          </label>
+          </span>
           <select
             value={durationType}
             onChange={(e) => setDurationType(e.target.value as DurationType)}
@@ -71,7 +71,7 @@ export function EffectDialog({ combatantId, onClose }: Props) {
             <option value="encounter">Until end of encounter</option>
             <option value="rounds">Rounds</option>
           </select>
-        </div>
+        </label>
 
         {durationType === 'rounds' && (
           <div style={{ marginBottom: 'var(--space-3)' }}>

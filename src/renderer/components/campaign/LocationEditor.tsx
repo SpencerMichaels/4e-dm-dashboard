@@ -68,12 +68,12 @@ export function LocationEditor({ locationId }: Props) {
   }
 
   const sectionLabel = (text: string) => (
-    <div style={{
-      fontSize: 'var(--font-size-xs)', fontWeight: 600, color: 'var(--color-text-muted)',
-      marginBottom: 'var(--space-1)', textTransform: 'uppercase', letterSpacing: '0.05em',
+    <span style={{
+      display: 'block', fontSize: 'var(--font-size-sm)', color: 'var(--color-text-secondary)',
+      marginBottom: 'var(--space-1)',
     }}>
       {text}
-    </div>
+    </span>
   )
 
   const showToPlayers = () => {
@@ -121,7 +121,7 @@ export function LocationEditor({ locationId }: Props) {
       </div>
 
       {/* Background image */}
-      <div style={{ marginBottom: 'var(--space-4)' }}>
+      <div style={{ marginBottom: 'var(--space-3)' }}>
         {sectionLabel('Background Image')}
         {sceneImageUrl ? (
           <div style={{ position: 'relative', borderRadius: 'var(--radius-sm)', overflow: 'hidden' }}>
@@ -151,7 +151,7 @@ export function LocationEditor({ locationId }: Props) {
       </div>
 
       {/* Notes */}
-      <div style={{ marginBottom: 'var(--space-4)' }}>
+      <div style={{ marginBottom: 'var(--space-3)' }}>
         {sectionLabel('Notes')}
         <textarea
           value={location.description}
@@ -171,7 +171,7 @@ export function LocationEditor({ locationId }: Props) {
       </div>
 
       {/* Encounters */}
-      <div style={{ marginBottom: 'var(--space-4)' }}>
+      <div style={{ marginBottom: 'var(--space-3)' }}>
         {sectionLabel('Encounters')}
         {linkedEncounters.length > 0 && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-1)', marginBottom: 'var(--space-2)' }}>

@@ -37,7 +37,7 @@ export function DamageHealDialog({ mode, combatantName, initialAmount, onSubmit,
           autoFocus
         />
         {mode === 'damage' && (
-          <label style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', marginBottom: 'var(--space-3)', fontSize: 'var(--font-size-sm)', color: 'var(--color-text-muted)', cursor: 'pointer' }}>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', marginBottom: 'var(--space-3)', fontSize: 'var(--font-size-sm)', color: 'var(--color-text-secondary)', cursor: 'pointer' }}>
             <input type="checkbox" checked={missDamage} onChange={e => setMissDamage(e.target.checked)} />
             Miss damage (minions ignore)
           </label>

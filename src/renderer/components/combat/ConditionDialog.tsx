@@ -65,10 +65,10 @@ export function ConditionDialog({ combatantId, onClose }: Props) {
 
         {isCustom && (
           <>
-            <div style={{ marginBottom: 'var(--space-3)' }}>
-              <label style={{ display: 'block', fontSize: 'var(--font-size-sm)', color: 'var(--color-text-secondary)', marginBottom: 'var(--space-1)' }}>
+            <label style={{ display: 'block', marginBottom: 'var(--space-3)' }}>
+              <span style={{ display: 'block', fontSize: 'var(--font-size-sm)', color: 'var(--color-text-secondary)', marginBottom: 'var(--space-1)' }}>
                 Name
-              </label>
+              </span>
               <input
                 value={customName}
                 onChange={(e) => setCustomName(e.target.value)}
@@ -76,26 +76,26 @@ export function ConditionDialog({ combatantId, onClose }: Props) {
                 style={{ width: '100%' }}
                 autoFocus
               />
-            </div>
-            <div style={{ marginBottom: 'var(--space-3)' }}>
-              <label style={{ display: 'block', fontSize: 'var(--font-size-sm)', color: 'var(--color-text-secondary)', marginBottom: 'var(--space-1)' }}>
+            </label>
+            <label style={{ display: 'block', marginBottom: 'var(--space-3)' }}>
+              <span style={{ display: 'block', fontSize: 'var(--font-size-sm)', color: 'var(--color-text-secondary)', marginBottom: 'var(--space-1)' }}>
                 Description (optional)
-              </label>
+              </span>
               <input
                 value={customDescription}
                 onChange={(e) => setCustomDescription(e.target.value)}
                 placeholder="Brief description of the effect..."
                 style={{ width: '100%' }}
               />
-            </div>
+            </label>
           </>
         )}
 
         {selectedDef?.hasValue && (
-          <div style={{ marginBottom: 'var(--space-3)' }}>
-            <label style={{ display: 'block', fontSize: 'var(--font-size-sm)', color: 'var(--color-text-secondary)', marginBottom: 'var(--space-1)' }}>
+          <label style={{ display: 'block', marginBottom: 'var(--space-3)' }}>
+            <span style={{ display: 'block', fontSize: 'var(--font-size-sm)', color: 'var(--color-text-secondary)', marginBottom: 'var(--space-1)' }}>
               Value
-            </label>
+            </span>
             <input
               type="number"
               min={1}
@@ -104,13 +104,13 @@ export function ConditionDialog({ combatantId, onClose }: Props) {
               placeholder="e.g. 2"
               style={{ width: '100%' }}
             />
-          </div>
+          </label>
         )}
 
-        <div style={{ marginBottom: 'var(--space-3)' }}>
-          <label style={{ display: 'block', fontSize: 'var(--font-size-sm)', color: 'var(--color-text-secondary)', marginBottom: 'var(--space-1)' }}>
+        <label style={{ display: 'block', marginBottom: 'var(--space-3)' }}>
+          <span style={{ display: 'block', fontSize: 'var(--font-size-sm)', color: 'var(--color-text-secondary)', marginBottom: 'var(--space-1)' }}>
             Duration
-          </label>
+          </span>
           <select
             value={durationType}
             onChange={(e) => setDurationType(e.target.value as DurationType)}
@@ -122,7 +122,7 @@ export function ConditionDialog({ combatantId, onClose }: Props) {
             <option value="indefinite">Never (manual removal)</option>
             <option value="custom">Custom...</option>
           </select>
-        </div>
+        </label>
 
         {durationType === 'custom' && (
           <div style={{ marginBottom: 'var(--space-3)' }}>

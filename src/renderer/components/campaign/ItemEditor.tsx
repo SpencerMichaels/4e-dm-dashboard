@@ -66,7 +66,7 @@ export function ItemEditor({ itemId }: Props) {
           border: 'none', background: 'transparent', marginBottom: 'var(--space-4)', padding: 0,
         }}
       />
-      <label style={{ display: 'block', marginBottom: 'var(--space-4)' }}>
+      <label style={{ display: 'block', marginBottom: 'var(--space-3)' }}>
         <span style={{ display: 'block', fontSize: 'var(--font-size-sm)', color: 'var(--color-text-secondary)', marginBottom: 'var(--space-1)' }}>
           Description
         </span>

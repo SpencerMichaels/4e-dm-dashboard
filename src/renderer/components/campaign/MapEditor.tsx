@@ -452,9 +452,9 @@ function LocationSidebar({ location, locationNameRef, encounters, onNameChange, 
 
         {/* Background image */}
         <div>
-          <div style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: 'var(--color-text-muted)', marginBottom: 'var(--space-1)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+          <span style={{ display: 'block', fontSize: 'var(--font-size-sm)', color: 'var(--color-text-secondary)', marginBottom: 'var(--space-1)' }}>
             Background Image
-          </div>
+          </span>
           {sceneImageUrl ? (
             <div style={{ position: 'relative', borderRadius: 'var(--radius-sm)', overflow: 'hidden' }}>
               <img src={sceneImageUrl} style={{ width: '100%', display: 'block', borderRadius: 'var(--radius-sm)' }} alt="" />
@@ -484,9 +484,9 @@ function LocationSidebar({ location, locationNameRef, encounters, onNameChange, 
 
         {/* Description / notes */}
         <div>
-          <div style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: 'var(--color-text-muted)', marginBottom: 'var(--space-1)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+          <span style={{ display: 'block', fontSize: 'var(--font-size-sm)', color: 'var(--color-text-secondary)', marginBottom: 'var(--space-1)' }}>
             Notes
-          </div>
+          </span>
           <textarea
             value={location.description}
             onChange={e => onSave({ ...location, description: e.target.value })}
@@ -506,9 +506,9 @@ function LocationSidebar({ location, locationNameRef, encounters, onNameChange, 
 
         {/* Encounters */}
         <div>
-          <div style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: 'var(--color-text-muted)', marginBottom: 'var(--space-1)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+          <span style={{ display: 'block', fontSize: 'var(--font-size-sm)', color: 'var(--color-text-secondary)', marginBottom: 'var(--space-1)' }}>
             Encounters
-          </div>
+          </span>
           {linkedEncounters.length > 0 && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-1)', marginBottom: 'var(--space-2)' }}>
               {linkedEncounters.map(enc => (

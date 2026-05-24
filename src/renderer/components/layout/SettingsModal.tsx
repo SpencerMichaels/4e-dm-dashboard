@@ -102,7 +102,7 @@ function SystemSettingRow({ def, value, onChange }: {
   }
   if (def.type === 'select' && def.options) {
     return (
-      <label style={{ display: 'flex', flexDirection: 'column', gap: 4, padding: '4px 0' }}>
+      <label style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-1)', padding: '4px 0' }}>
         <span style={{ fontSize: 'var(--font-size-sm)', fontWeight: 500 }}>{def.label}</span>
         {def.description && (
           <span style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)' }}>{def.description}</span>
@@ -115,7 +115,7 @@ function SystemSettingRow({ def, value, onChange }: {
   }
   if (def.type === 'number') {
     return (
-      <label style={{ display: 'flex', flexDirection: 'column', gap: 4, padding: '4px 0' }}>
+      <label style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-1)', padding: '4px 0' }}>
         <span style={{ fontSize: 'var(--font-size-sm)', fontWeight: 500 }}>{def.label}</span>
         {def.description && (
           <span style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)' }}>{def.description}</span>
@@ -127,7 +127,7 @@ function SystemSettingRow({ def, value, onChange }: {
   }
   // string
   return (
-    <label style={{ display: 'flex', flexDirection: 'column', gap: 4, padding: '4px 0' }}>
+    <label style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-1)', padding: '4px 0' }}>
       <span style={{ fontSize: 'var(--font-size-sm)', fontWeight: 500 }}>{def.label}</span>
       {def.description && (
         <span style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)' }}>{def.description}</span>

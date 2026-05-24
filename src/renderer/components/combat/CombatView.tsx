@@ -688,7 +688,7 @@ export function CombatView() {
           />
         ) : showInspectPanel ? (
           <>
-            <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, color: 'var(--color-text-muted)', flexShrink: 0, cursor: 'pointer', marginBottom: 4 }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)', flexShrink: 0, cursor: 'pointer', marginBottom: 'var(--space-1)' }}>
               <input type="checkbox" checked={hideInspectedActions} onChange={(e) => setHideInspectedActions(e.target.checked)} />
               Hide standard/move/minor powers
             </label>
@@ -857,25 +857,27 @@ export function CombatView() {
             borderRadius: 'var(--radius-md)', padding: 'var(--space-6)', minWidth: 350,
           }} onClick={e => e.stopPropagation()}>
             <h3 style={{ marginBottom: 'var(--space-4)' }}>Combat Settings</h3>
-            <label style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)', cursor: 'pointer' }}>
+            <label style={{ display: 'flex', alignItems: 'flex-start', gap: 'var(--space-2)', cursor: 'pointer' }}>
               <input type="checkbox" checked={combat.playerExpandConditions ?? true}
-                onChange={e => window.api.combat.setPlayerExpandConditions(e.target.checked)} />
-              <div>
-                <div style={{ fontWeight: 600 }}>Show condition details on player display</div>
-                <div style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text-muted)' }}>
+                onChange={e => window.api.combat.setPlayerExpandConditions(e.target.checked)}
+                style={{ marginTop: 2, cursor: 'pointer' }} />
+              <span>
+                <div style={{ fontSize: 'var(--font-size-sm)', fontWeight: 500 }}>Show condition details on player display</div>
+                <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)', marginTop: 1 }}>
                   Show full condition descriptions under the active creature on the player-facing screen. When off, only shows condition pills.
                 </div>
-              </div>
+              </span>
             </label>
-            <label style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)', cursor: 'pointer', marginTop: 'var(--space-3)' }}>
+            <label style={{ display: 'flex', alignItems: 'flex-start', gap: 'var(--space-2)', cursor: 'pointer', marginTop: 'var(--space-3)' }}>
               <input type="checkbox" checked={combat.autoHideDeadCreatures ?? false}
-                onChange={e => window.api.combat.setAutoHideDeadCreatures(e.target.checked)} />
-              <div>
-                <div style={{ fontWeight: 600 }}>Auto-hide dead creatures</div>
-                <div style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text-muted)' }}>
+                onChange={e => window.api.combat.setAutoHideDeadCreatures(e.target.checked)}
+                style={{ marginTop: 2, cursor: 'pointer' }} />
+              <span>
+                <div style={{ fontSize: 'var(--font-size-sm)', fontWeight: 500 }}>Auto-hide dead creatures</div>
+                <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)', marginTop: 1 }}>
                   Remove dead creatures from the initiative list once no effects are tied to their turn. Creatures with regeneration are kept visible.
                 </div>
-              </div>
+              </span>
             </label>
             <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 'var(--space-4)' }}>
               <button onClick={() => setShowSettings(false)}>Close</button>
