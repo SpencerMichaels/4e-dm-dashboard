@@ -337,7 +337,7 @@ export function InitiativeEntry({ combat }: Props) {
                         {expanded ? '▼' : '▶'}
                       </button>
                     )}
-                    <CombatToken name={firstC.name} imageId={firstC.imageId} tokenImageId={firstC.tokenImageId}
+                    <CombatToken name={firstC.name} baseName={firstC.baseName} imageId={firstC.imageId} tokenImageId={firstC.tokenImageId}
                       hp={firstC.hp} maxHp={firstC.maxHp} size={24}
                       hideHpRing={!!firstC.color} solidRingColor={firstC.color} />
                     <span style={{ flex: 1, fontWeight: 400, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
@@ -380,7 +380,7 @@ export function InitiativeEntry({ combat }: Props) {
                           borderLeft: '2px solid var(--color-border)',
                           opacity: c.hidden ? 0.4 : 1,
                         }}>
-                          <CombatToken name={c.name} imageId={c.imageId} tokenImageId={c.tokenImageId}
+                          <CombatToken name={c.name} baseName={c.baseName} imageId={c.imageId} tokenImageId={c.tokenImageId}
                             hp={c.hp} maxHp={c.maxHp} size={20}
                             hideHpRing={!!c.color} solidRingColor={c.color} miniNumber={c.miniNumber} />
                           <span style={{ flex: 1, fontSize: 'var(--font-size-xs)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
@@ -491,7 +491,7 @@ function CombatantRow({ c, isCurrent, isDone, isStaging, isHidden, leading, chil
       opacity: isHidden ? 0.4 : (!isDone && !isCurrent && !isStaging) ? 0.5 : 1,
     }}>
       {leading}
-      <CombatToken name={c.name} imageId={c.imageId} tokenImageId={c.tokenImageId}
+      <CombatToken name={c.name} baseName={c.baseName} imageId={c.imageId} tokenImageId={c.tokenImageId}
         hp={c.hp} maxHp={c.maxHp} size={24}
         hideHpRing={!!c.color}
         solidRingColor={c.color}

@@ -182,7 +182,7 @@ export function InitiativeList({ combat, currentId, selectedIds, onSelect, onCon
             }}
           >
             <div style={{ marginLeft: 2, marginRight: 4, flexShrink: 0 }}>
-              <CombatToken name={c.name} imageId={c.imageId} tokenImageId={c.tokenImageId}
+              <CombatToken name={c.name} baseName={c.baseName} imageId={c.imageId} tokenImageId={c.tokenImageId}
                 hp={c.hp} maxHp={c.maxHp} isDead={isDead} size={32}
                 hideHpRing={!!c.color}
                 solidRingColor={c.color}

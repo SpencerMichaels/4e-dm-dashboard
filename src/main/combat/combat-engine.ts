@@ -1358,7 +1358,7 @@ export function toPlayerCombatState(state: CombatState, plugin?: SystemPlugin): 
     }
 
     combatants[id] = {
-      id: c.id, name: c.name, isPC: c.isPC, playerName: c.playerName, initiative: c.initiative,
+      id: c.id, name: c.name, baseName: c.baseName, isPC: c.isPC, playerName: c.playerName, initiative: c.initiative,
       dead: c.dead, deathSaveFailures: c.deathSaveFailures,
       hpDescriptor: label,
       hpPct,

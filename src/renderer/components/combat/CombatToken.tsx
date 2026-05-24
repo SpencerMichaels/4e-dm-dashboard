@@ -4,6 +4,7 @@ import { hpPercentage, hpColor } from '../../utils/combat-utils'
 
 interface Props {
   name: string
+  baseName?: string          // Original creature name without color/number — token bg color derived from this
   imageId?: string
   tokenImageId?: string
   hp: number
@@ -15,7 +16,7 @@ interface Props {
   miniNumber?: number        // Numbered marker badge shown at bottom-right
 }
 
-export function CombatToken({ name, imageId, tokenImageId, hp, maxHp, isDead, size = 36, hideHpRing, solidRingColor, miniNumber }: Props) {
+export function CombatToken({ name, baseName, imageId, tokenImageId, hp, maxHp, isDead, size = 36, hideHpRing, solidRingColor, miniNumber }: Props) {
   const tokenUrl = useImage(tokenImageId ?? imageId)
   // Ring width scales with token size — ~6% of size, min 2px
   const ringWidth = Math.max(2, Math.round(size * 0.06))
@@ -23,7 +24,7 @@ export function CombatToken({ name, imageId, tokenImageId, hp, maxHp, isDead, si
   const hpCol = isDead ? 'var(--color-hp-down)' : hpColor(hpPct)
   const hpAngle = isDead ? 0 : (hpPct / 100) * 360
 
-  const bgColor = tokenColorFromName(name)
+  const bgColor = tokenColorFromName(baseName ?? name)
   const initial = name.charAt(0).toUpperCase()
 
   const ringBg = isDead ? 'var(--color-token-badge-bg)'

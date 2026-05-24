@@ -174,6 +174,7 @@ export interface PlayerCombatState {
 export interface PlayerCombatantState {
   id: string
   name: string
+  baseName?: string
   isPC: boolean
   playerName?: string
   initiative?: number

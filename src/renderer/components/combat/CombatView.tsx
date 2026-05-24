@@ -13,6 +13,7 @@ import { ConditionDialog } from './ConditionDialog'
 import { PinnedCardsPanel, type PinnedCard } from './PinnedCardsPanel'
 import { QuickConditionMenu } from './QuickConditionMenu'
 import { CombatLogPanel } from './CombatLogPanel'
+import { Modal } from '../shared/Modal'
 import { PopoutStatblockPanel } from './PopoutStatblockPanel'
 import { AttackApplyPanel } from './AttackApplyPanel'
 import { ReadyActionDialog } from './ReadyActionDialog'
@@ -644,13 +645,6 @@ export function CombatView() {
             onResolveReady={(id) => window.api.combat.resolveReady(id)}
             onCancelReady={(id) => window.api.combat.cancelReady(id)}
           />
-          {pluginUI?.ReactionsPanel && (
-            <pluginUI.ReactionsPanel
-              combat={combat}
-              currentCombatantId={currentId}
-              notifications={notifications}
-            />
-          )}
         </div>
 
         <button
@@ -696,10 +690,6 @@ export function CombatView() {
           />
         ) : showInspectPanel ? (
           <>
-            <label style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)', flexShrink: 0, cursor: 'pointer', marginBottom: 'var(--space-1)' }}>
-              <input type="checkbox" checked={hideInspectedActions} onChange={(e) => setHideInspectedActions(e.target.checked)} />
-              Hide standard/move/minor powers
-            </label>
             {inspectedIds.map((id, i) => {
               const c = combat.combatants[id]
               return c ? <div key={id} style={i > 0 ? { marginTop: 'var(--space-4)' } : undefined}>{renderDetailPanel(c, { hideMainActionPowers: hideInspectedActions })}</div> : null
@@ -862,16 +852,20 @@ export function CombatView() {
 
       {/* Settings modal */}
       {showSettings && (
-        <div style={{
-          position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100,
-        }} onClick={() => setShowSettings(false)}>
-          <div style={{
-            background: 'var(--color-bg-primary)', border: '1px solid var(--color-border)',
-            borderRadius: 'var(--radius-md)', padding: 'var(--space-6)', minWidth: 350,
-          }} onClick={e => e.stopPropagation()}>
+        <Modal onClose={() => setShowSettings(false)} minWidth={350}>
             <h3 style={{ marginBottom: 'var(--space-4)' }}>Combat Settings</h3>
             <label style={{ display: 'flex', alignItems: 'flex-start', gap: 'var(--space-2)', cursor: 'pointer' }}>
+              <input type="checkbox" checked={hideInspectedActions}
+                onChange={e => setHideInspectedActions(e.target.checked)}
+                style={{ marginTop: 2, cursor: 'pointer' }} />
+              <span>
+                <div style={{ fontSize: 'var(--font-size-sm)', fontWeight: 500 }}>Hide standard/move/minor powers</div>
+                <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)', marginTop: 1 }}>
+                  Hide powers that require a standard, move, or minor action in inspected stat blocks. Useful for focusing on triggered actions.
+                </div>
+              </span>
+            </label>
+            <label style={{ display: 'flex', alignItems: 'flex-start', gap: 'var(--space-2)', cursor: 'pointer', marginTop: 'var(--space-3)' }}>
               <input type="checkbox" checked={combat.playerExpandConditions ?? true}
                 onChange={e => window.api.combat.setPlayerExpandConditions(e.target.checked)}
                 style={{ marginTop: 2, cursor: 'pointer' }} />
@@ -896,8 +890,7 @@ export function CombatView() {
             <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 'var(--space-4)' }}>
               <button onClick={() => setShowSettings(false)}>Close</button>
             </div>
-          </div>
-        </div>
+        </Modal>
       )}
     </div>
     </div>

@@ -265,7 +265,7 @@ function InitiativeEntryList({ sortedIds, combatants, focusedId }: {
             opacity: !hasInit && !isFocused ? 0.4 : 1,
           }}>
             <div style={{ marginLeft: 5, flexShrink: 0 }}>
-              <CombatToken name={c.name} imageId={c.imageId} tokenImageId={c.tokenImageId} hp={100} maxHp={100} size={56} hideHpRing solidRingColor={getRingColor(c)} miniNumber={c.miniNumber} />
+              <CombatToken name={c.name} baseName={c.baseName} imageId={c.imageId} tokenImageId={c.tokenImageId} hp={100} maxHp={100} size={56} hideHpRing solidRingColor={getRingColor(c)} miniNumber={c.miniNumber} />
             </div>
             <span style={{
               flex: 1, minWidth: 0,
@@ -322,7 +322,7 @@ function CreatureSpotlight({ combatant: c }: { combatant: PlayerCombatantState }
           }} alt="" />
         </div>
       ) : (
-        <CombatToken name={c.name} imageId={c.imageId} tokenImageId={c.tokenImageId} hp={hpPct} maxHp={100} size={160} hideHpRing solidRingColor={getRingColor(c)} />
+        <CombatToken name={c.name} baseName={c.baseName} imageId={c.imageId} tokenImageId={c.tokenImageId} hp={hpPct} maxHp={100} size={160} hideHpRing solidRingColor={getRingColor(c)} />
       )}
 
       <div style={{
@@ -453,7 +453,7 @@ function PlayerCard({ combatant: c, isCurrent, isDelayed, isReadied }: { combata
       opacity: isDead || isDelayed || isReadied ? 0.5 : 1,
     }}>
       <div style={{ marginLeft: 5, flexShrink: 0 }}>
-        <CombatToken name={c.name} imageId={c.imageId} tokenImageId={c.tokenImageId} hp={hpPct} maxHp={100} size={56} hideHpRing solidRingColor={getRingColor(c)} isDead={isDead} miniNumber={c.miniNumber} />
+        <CombatToken name={c.name} baseName={c.baseName} imageId={c.imageId} tokenImageId={c.tokenImageId} hp={hpPct} maxHp={100} size={56} hideHpRing solidRingColor={getRingColor(c)} isDead={isDead} miniNumber={c.miniNumber} />
       </div>
 
       {/* Name + conditions */}
@@ -770,7 +770,7 @@ interface ToastEntry {
  *  monsters use the deterministic token-name color. */
 function getSubjectColor(combatant: PlayerCombatantState | undefined, name: string): string {
   if (combatant?.isPC && combatant.color) return combatant.color
-  return tokenColorFromName(combatant?.name ?? name)
+  return tokenColorFromName(combatant?.baseName ?? combatant?.name ?? name)
 }
 
 /** Per-condition phrasing for application notifications. Keyed by the display
@@ -1027,6 +1027,7 @@ function NotificationToasts({ notifications, combatants }: {
           <div style={{ flexShrink: 0 }}>
             <CombatToken
               name={c?.name ?? fallbackName}
+              baseName={c?.baseName}
               imageId={c?.imageId}
               tokenImageId={c?.tokenImageId}
               hp={100}
