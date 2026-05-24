@@ -93,7 +93,7 @@ export function QuickConditionMenu({ combatantId, combatant, position, onClose, 
   }
   const activeOngoing = combatant.conditions.filter(c => c.conditionId.startsWith('ongoing-damage'))
 
-  const applyGrantsCA = (recipient: 'all' | 'source' | 'source-allies', sourceId?: string) => {
+  const applyGrantsCA = async (recipient: 'all' | 'source' | 'source-allies', sourceId?: string) => {
     const sourceName = sourceId ? combat?.combatants[sourceId]?.name ?? sourceId : undefined
     const dur = getDuration('combat-advantage')
     const cond: any = {
@@ -108,11 +108,11 @@ export function QuickConditionMenu({ combatantId, combatant, position, onClose, 
       cond.sourceId = sourceId
       cond.customDescription = `to ${sourceName}'s allies`
     }
-    window.api.combat.addCondition(combatantId, cond)
+    await window.api.combat.addCondition(combatantId, cond)
     setCaRecipientPicker(false)
   }
 
-  const applyMark = (sourceId: string) => {
+  const applyMark = async (sourceId: string) => {
     const sourceName = combat?.combatants[sourceId]?.name ?? sourceId
     const dur = getDuration('marked')
     // Default mark EONT expires on the marker's turn
@@ -121,7 +121,7 @@ export function QuickConditionMenu({ combatantId, combatant, position, onClose, 
     if ((dur.type === 'eont' || dur.type === 'sont') && dur.expiresOnId === currentTurnId) {
       dur.remaining = 1
     }
-    window.api.combat.addCondition(combatantId, {
+    await window.api.combat.addCondition(combatantId, {
       conditionId: 'marked',
       sourceId,
       customDescription: `by ${sourceName}`,
@@ -130,7 +130,7 @@ export function QuickConditionMenu({ combatantId, combatant, position, onClose, 
     setMarkSourcePicker(false)
   }
 
-  const applyClassMark = (sourceCombatantId: string, mark: ClassMark, color?: string) => {
+  const applyClassMark = async (sourceCombatantId: string, mark: ClassMark, color?: string) => {
     const sourceName = combat?.combatants[sourceCombatantId]?.name ?? sourceCombatantId
     // Per the rules:
     //   - Defender marks (Combat Challenge / Divine Challenge / Nature's Wrath /
@@ -148,7 +148,7 @@ export function QuickConditionMenu({ combatantId, combatant, position, onClose, 
       // Defender path — apply the real Marked condition with display overrides.
       // Engine's existing replace-by-id semantics on `marked` enforce
       // "only one mark per target, latest replaces" — exactly the rule.
-      window.api.combat.addCondition(combatantId, {
+      await window.api.combat.addCondition(combatantId, {
         conditionId: 'marked',
         sourceId: sourceCombatantId,
         customName: mark.shortName,
@@ -159,7 +159,7 @@ export function QuickConditionMenu({ combatantId, combatant, position, onClose, 
       })
     } else {
       // Striker path — own dedicated condition id, can stack with marks
-      window.api.combat.addCondition(combatantId, {
+      await window.api.combat.addCondition(combatantId, {
         conditionId: mark.conditionId!,
         sourceId: sourceCombatantId,
         customDescription: `by ${sourceName}`,
@@ -168,18 +168,18 @@ export function QuickConditionMenu({ combatantId, combatant, position, onClose, 
       })
     }
   }
-  const removeClassMark = (mark: ClassMark) => {
-    window.api.combat.removeCondition(combatantId, mark.appliesMarkedCondition ? 'marked' : mark.conditionId!)
+  const removeClassMark = async (mark: ClassMark) => {
+    await window.api.combat.removeCondition(combatantId, mark.appliesMarkedCondition ? 'marked' : mark.conditionId!)
   }
 
-  const toggle = (conditionId: string) => {
+  const toggle = async (conditionId: string) => {
     // Dead is an engine flag, not a real condition
     if (conditionId === 'dead') {
-      window.api.combat.updateCombatant(combatantId, { dead: !combatant.dead })
+      await window.api.combat.updateCombatant(combatantId, { dead: !combatant.dead })
       return
     }
     if (activeConditionIds.has(conditionId)) {
-      window.api.combat.removeCondition(combatantId, conditionId)
+      await window.api.combat.removeCondition(combatantId, conditionId)
     } else if (conditionId === 'marked') {
       if (markSourcePicker && currentTurnId) {
         // Second click: auto-apply with current-turn creature as source
@@ -199,21 +199,21 @@ export function QuickConditionMenu({ combatantId, combatant, position, onClose, 
     } else {
       setMarkSourcePicker(false)
       setCaRecipientPicker(false)
-      window.api.combat.addCondition(combatantId, {
+      await window.api.combat.addCondition(combatantId, {
         conditionId,
         duration: getDuration(conditionId),
       })
     }
   }
 
-  const applyOngoing = (typeOverride?: string) => {
+  const applyOngoing = async (typeOverride?: string) => {
     const raw = ongoingValue.trim()
     if (!raw) return
     const dmgType = typeOverride ?? ongoingType
     // Pure integer (e.g., "5") → store as value. Dice expression (e.g., "1d6", "2d8+3") → store as customName
     const isPureNumber = /^\d+$/.test(raw)
     const label = `Ongoing ${raw}${dmgType ? ' ' + dmgType : ''}`
-    window.api.combat.addCondition(combatantId, {
+    await window.api.combat.addCondition(combatantId, {
       conditionId: 'ongoing-damage',
       value: isPureNumber ? parseInt(raw) : undefined,
       customName: isPureNumber ? undefined : label,
@@ -708,11 +708,11 @@ export function QuickConditionMenu({ combatantId, combatant, position, onClose, 
           ref={customRef}
           value={customName}
           onChange={e => setCustomName(e.target.value)}
-          onKeyDown={e => {
+          onKeyDown={async e => {
             if (e.key === 'Enter' && customName.trim()) {
               e.preventDefault()
               e.stopPropagation()
-              window.api.combat.addCondition(combatantId, {
+              await window.api.combat.addCondition(combatantId, {
                 conditionId: `custom-${Date.now()}`,
                 customName: customName.trim(),
                 duration: getDuration('custom'),

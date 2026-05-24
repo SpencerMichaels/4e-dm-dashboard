@@ -2,6 +2,7 @@ import type { SystemPlugin, DurationType } from '../../src/common/types/system-p
 import { statDefs, normalDamageDice, limitedDamageDice, resistWeakDefault, attackVsAC, attackVsOther, dcTable } from './benchmarks'
 import { allDamageTypes, creatureTraits, attackTraits, speedTypes } from './known-values'
 import { CLASS_MARKS } from './class-marks'
+import { dnd4eCompendium } from './compendium'
 
 const dnd4e: SystemPlugin = {
   id: 'dnd-4e',
@@ -259,6 +260,7 @@ const dnd4e: SystemPlugin = {
     ],
     targetDefenses: ['AC', 'Fortitude', 'Reflex', 'Will'],
   },
+  compendium: dnd4eCompendium,
 }
 
 export default dnd4e

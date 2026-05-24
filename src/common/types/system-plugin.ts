@@ -1,5 +1,8 @@
 // SystemPlugin — the interface every system plugin must implement
 
+import type { CompendiumEntry, ItemIndexEntry, TrapIndexEntry, DiseaseIndexEntry } from './compendium'
+import type { Creature } from './creature'
+
 export type DurationType = 'save-ends' | 'eont' | 'sont' | 'encounter' | 'indefinite' | 'custom' | 'rounds' | 'minutes' | 'unlimited'
 
 export type AutomationRule =
@@ -187,6 +190,30 @@ export interface SystemSettingDef {
   options?: { value: string; label: string }[]  // for type: 'select'
 }
 
+/** Provider for system-specific compendium data (creature, item, trap, disease indices + lookups). */
+export interface CompendiumProvider {
+  /** Return the official creature index entries for this system. */
+  getCreatureIndex(): CompendiumEntry[]
+  /** Create a new Creature from a compendium entry (fresh id + timestamps). */
+  getCreature(id: string): Creature
+  /** Return raw compendium creature data without creating a campaign copy (for preview/combat). */
+  resolveCreature(id: string): (Record<string, unknown> & { compendiumId: string }) | null
+  /** Return the item index, if this system has one. */
+  getItemIndex?(): ItemIndexEntry[]
+  /** Return full item data by id. */
+  getItem?(id: string): Record<string, unknown> | null
+  /** Return the glossary dictionary, if this system has one. */
+  getGlossary?(): Record<string, unknown>
+  /** Return the trap/hazard index, if this system has one. */
+  getTrapIndex?(): TrapIndexEntry[]
+  /** Return full trap data by id. */
+  getTrap?(id: string): Record<string, unknown> | null
+  /** Return the disease index, if this system has one. */
+  getDiseaseIndex?(): DiseaseIndexEntry[]
+  /** Return full disease data by id. */
+  getDisease?(id: string): Record<string, unknown> | null
+}
+
 export interface SystemPlugin {
   id: string
   name: string
@@ -202,4 +229,5 @@ export interface SystemPlugin {
   rechargeRoll?: { die: string; defaultThreshold: number }  // e.g. { die: '1d6', defaultThreshold: 4 }
   theme?: SystemTheme                      // v2
   settings?: SystemSettingDef[]            // Plugin-defined user settings
+  compendium?: CompendiumProvider          // Optional compendium data provider
 }

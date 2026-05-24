@@ -36,12 +36,9 @@ export function SaveRechargeModal({ combatantName, prompts, onDone }: Props) {
 
   const handleConfirm = useCallback(() => {
     const notifications: CombatNotification[] = []
-    const resolutions: { type: string; combatantId: string; conditionId?: string; powerIndex?: number; success: boolean; label?: string }[] = []
-
     for (let i = 0; i < saves.length; i++) {
       const s = saves[i]
       const success = savedSet.has(i)
-      resolutions.push({ type: 'save', combatantId: s.combatantId, conditionId: s.conditionId, success, label: s.label })
       notifications.push({
         type: success ? 'save-success' : 'save-fail',
         combatantId: s.combatantId,
@@ -52,7 +49,6 @@ export function SaveRechargeModal({ combatantName, prompts, onDone }: Props) {
     for (let i = 0; i < recharges.length; i++) {
       const r = recharges[i]
       const success = rechargedSet.has(i)
-      resolutions.push({ type: 'recharge', combatantId: r.combatantId, powerIndex: r.powerIndex, success, label: r.label })
       notifications.push({
         type: success ? 'recharge-success' : 'recharge-fail',
         combatantId: r.combatantId,
@@ -60,7 +56,6 @@ export function SaveRechargeModal({ combatantName, prompts, onDone }: Props) {
       })
     }
 
-    window.api.combat.resolvePrompts(resolutions)
     onDone(notifications)
   }, [saves, recharges, savedSet, rechargedSet, onDone])
 

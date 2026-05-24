@@ -1,5 +1,16 @@
 import { contextBridge, ipcRenderer } from 'electron'
 import { CMD, SYNC } from '@common/ipc-channels'
+import type {
+  AppliedCondition,
+  AppliedEffect,
+  CombatantState,
+  CombatState,
+  CompendiumAnnotation,
+  EntityType,
+  Note,
+  NoteTreeNode,
+  SceneState,
+} from '@common/types'
 
 // DM preload — full API: commands + sync
 
@@ -15,19 +26,19 @@ const api = {
 
   // Entity CRUD
   entity: {
-    save: (entityType: string, entity: any) => ipcRenderer.invoke(CMD.ENTITY_SAVE, entityType, entity),
-    delete: (entityType: string, entityId: string) => ipcRenderer.invoke(CMD.ENTITY_DELETE, entityType, entityId),
-    get: (entityType: string, entityId: string) => ipcRenderer.invoke(CMD.ENTITY_GET, entityType, entityId),
-    list: (entityType: string) => ipcRenderer.invoke(CMD.ENTITY_LIST, entityType),
+    save: (entityType: EntityType, entity: Record<string, unknown>) => ipcRenderer.invoke(CMD.ENTITY_SAVE, entityType, entity),
+    delete: (entityType: EntityType, entityId: string) => ipcRenderer.invoke(CMD.ENTITY_DELETE, entityType, entityId),
+    get: (entityType: EntityType, entityId: string) => ipcRenderer.invoke(CMD.ENTITY_GET, entityType, entityId),
+    list: (entityType: EntityType) => ipcRenderer.invoke(CMD.ENTITY_LIST, entityType),
   },
 
   // Notes (save/delete/get route through entity CRUD)
   note: {
-    save: (note: any) => ipcRenderer.invoke(CMD.ENTITY_SAVE, 'note', note),
+    save: (note: Note) => ipcRenderer.invoke(CMD.ENTITY_SAVE, 'note', note),
     delete: (noteId: string) => ipcRenderer.invoke(CMD.ENTITY_DELETE, 'note', noteId),
     get: (noteId: string) => ipcRenderer.invoke(CMD.ENTITY_GET, 'note', noteId),
     treeGet: () => ipcRenderer.invoke(CMD.NOTE_TREE_GET),
-    treeSave: (tree: any) => ipcRenderer.invoke(CMD.NOTE_TREE_SAVE, tree),
+    treeSave: (tree: NoteTreeNode[]) => ipcRenderer.invoke(CMD.NOTE_TREE_SAVE, tree),
   },
 
   // Combat commands
@@ -56,17 +67,17 @@ const api = {
       ipcRenderer.invoke(CMD.COMBAT_CANCEL_READY, combatantId),
     damage: (combatantId: string, amount: number, wasHit: boolean = true, sourceId?: string) => ipcRenderer.invoke(CMD.COMBAT_DAMAGE, combatantId, amount, wasHit, sourceId),
     heal: (combatantId: string, amount: number, sourceId?: string) => ipcRenderer.invoke(CMD.COMBAT_HEAL, combatantId, amount, sourceId),
-    addCondition: (combatantId: string, condition: any) =>
+    addCondition: (combatantId: string, condition: AppliedCondition) =>
       ipcRenderer.invoke(CMD.COMBAT_ADD_CONDITION, combatantId, condition),
     removeCondition: (combatantId: string, conditionId: string) =>
       ipcRenderer.invoke(CMD.COMBAT_REMOVE_CONDITION, combatantId, conditionId),
-    addEffect: (combatantId: string, effect: any) =>
+    addEffect: (combatantId: string, effect: Omit<AppliedEffect, 'id'>) =>
       ipcRenderer.invoke(CMD.COMBAT_ADD_EFFECT, combatantId, effect),
     removeEffect: (combatantId: string, effectId: string) =>
       ipcRenderer.invoke(CMD.COMBAT_REMOVE_EFFECT, combatantId, effectId),
-    addCombatant: (combatant: any) => ipcRenderer.invoke(CMD.COMBAT_ADD_COMBATANT, combatant),
+    addCombatant: (combatant: CombatantState) => ipcRenderer.invoke(CMD.COMBAT_ADD_COMBATANT, combatant),
     removeCombatant: (combatantId: string) => ipcRenderer.invoke(CMD.COMBAT_REMOVE_COMBATANT, combatantId),
-    updateCombatant: (combatantId: string, updates: any) =>
+    updateCombatant: (combatantId: string, updates: Partial<CombatantState>) =>
       ipcRenderer.invoke(CMD.COMBAT_UPDATE_COMBATANT, combatantId, updates),
     usePower: (combatantId: string, powerIndex: number) =>
       ipcRenderer.invoke(CMD.COMBAT_USE_POWER, combatantId, powerIndex),
@@ -104,7 +115,7 @@ const api = {
   // Annotations (images on compendium entries)
   annotation: {
     getAll: () => ipcRenderer.invoke(CMD.ANNOTATION_GET_ALL),
-    save: (compendiumId: string, annotation: any) => ipcRenderer.invoke(CMD.ANNOTATION_SAVE, compendiumId, annotation),
+    save: (compendiumId: string, annotation: CompendiumAnnotation) => ipcRenderer.invoke(CMD.ANNOTATION_SAVE, compendiumId, annotation),
   },
 
   // Compendium
@@ -123,7 +134,7 @@ const api = {
 
   // Scene
   scene: {
-    set: (scene: any) => ipcRenderer.invoke(CMD.SCENE_SET, scene),
+    set: (scene: SceneState) => ipcRenderer.invoke(CMD.SCENE_SET, scene),
   },
 
   // Player window
@@ -133,23 +144,28 @@ const api = {
 
   // Sync listeners
   on: {
-    campaignState: (callback: (state: any) => void) => {
-      const handler = (_event: any, state: any) => callback(state)
+    campaignState: (callback: (state: Record<string, unknown> | null) => void) => {
+      const handler = (_event: Electron.IpcRendererEvent, state: Record<string, unknown> | null) => callback(state)
       ipcRenderer.on(SYNC.CAMPAIGN_STATE, handler)
       return () => ipcRenderer.removeListener(SYNC.CAMPAIGN_STATE, handler)
     },
-    combatState: (callback: (state: any) => void) => {
-      const handler = (_event: any, state: any) => callback(state)
+    campaignEntityUpdate: (callback: (update: { entityType: EntityType; key: string; data: Record<string, unknown> | null }) => void) => {
+      const handler = (_event: Electron.IpcRendererEvent, update: { entityType: EntityType; key: string; data: Record<string, unknown> | null }) => callback(update)
+      ipcRenderer.on(SYNC.CAMPAIGN_ENTITY_UPDATE, handler)
+      return () => ipcRenderer.removeListener(SYNC.CAMPAIGN_ENTITY_UPDATE, handler)
+    },
+    combatState: (callback: (state: CombatState | null) => void) => {
+      const handler = (_event: Electron.IpcRendererEvent, state: CombatState | null) => callback(state)
       ipcRenderer.on(SYNC.COMBAT_STATE, handler)
       return () => ipcRenderer.removeListener(SYNC.COMBAT_STATE, handler)
     },
-    sceneState: (callback: (state: any) => void) => {
-      const handler = (_event: any, state: any) => callback(state)
+    sceneState: (callback: (state: SceneState | null) => void) => {
+      const handler = (_event: Electron.IpcRendererEvent, state: SceneState | null) => callback(state)
       ipcRenderer.on(SYNC.SCENE_STATE, handler)
       return () => ipcRenderer.removeListener(SYNC.SCENE_STATE, handler)
     },
-    annotations: (callback: (annotations: any) => void) => {
-      const handler = (_event: any, annotations: any) => callback(annotations)
+    annotations: (callback: (annotations: Record<string, CompendiumAnnotation>) => void) => {
+      const handler = (_event: Electron.IpcRendererEvent, annotations: Record<string, CompendiumAnnotation>) => callback(annotations)
       ipcRenderer.on(SYNC.ANNOTATIONS, handler)
       return () => ipcRenderer.removeListener(SYNC.ANNOTATIONS, handler)
     },

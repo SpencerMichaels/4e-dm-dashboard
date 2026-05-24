@@ -91,6 +91,7 @@ export const CMD = {
 // Broadcasts (main process → all renderers via send)
 export const SYNC = {
   CAMPAIGN_STATE: 'sync:campaign-state',
+  CAMPAIGN_ENTITY_UPDATE: 'sync:campaign-entity-update',
   COMBAT_STATE: 'sync:combat-state',
   PLAYER_STATE: 'sync:player-state',
   SCENE_STATE: 'sync:scene-state',

@@ -41,14 +41,14 @@ export function registerCampaignHandlers(): void {
   ipcMain.handle(CMD.ENTITY_SAVE, async (_e, entityType: EntityType, entity: { id: string }) => {
     await store.saveEntity(entityType, entity)
     if (entityType === 'creature') invalidateCreatureIndex()
-    broadcastCampaignState()
+    broadcastEntityUpdate(entityType)
     return entity
   })
 
   ipcMain.handle(CMD.ENTITY_DELETE, async (_e, entityType: EntityType, entityId: string) => {
     await store.deleteEntity(entityType, entityId)
     if (entityType === 'creature') invalidateCreatureIndex()
-    broadcastCampaignState()
+    broadcastEntityUpdate(entityType)
   })
 
   ipcMain.handle(CMD.ENTITY_GET, async (_e, entityType: EntityType, entityId: string) => {
@@ -66,7 +66,11 @@ export function registerCampaignHandlers(): void {
 
   ipcMain.handle(CMD.NOTE_TREE_SAVE, async (_e, tree: unknown) => {
     await store.saveNoteTree(tree as any)
-    broadcastCampaignState()
+    broadcastToDm(SYNC.CAMPAIGN_ENTITY_UPDATE, {
+      entityType: 'noteTree',
+      key: 'noteTree',
+      data: tree,
+    })
   })
 
   // Links
@@ -116,6 +120,31 @@ export function registerCampaignHandlers(): void {
       const mime = ext === 'jpg' || ext === 'jpeg' ? 'image/jpeg' : ext === 'gif' ? 'image/gif' : ext === 'webp' ? 'image/webp' : 'image/png'
       return `data:${mime};base64,${data.toString('base64')}`
     } catch { return null }
+  })
+}
+
+// Maps EntityType to the key used in the renderer campaign store
+const entityTypeToStoreKey: Record<EntityType, string> = {
+  creature: 'creatures',
+  encounter: 'encounters',
+  note: 'notes',
+  location: 'locations',
+  item: 'items',
+  'player-character': 'playerCharacters',
+  map: 'maps',
+}
+
+async function broadcastEntityUpdate(entityType: EntityType): Promise<void> {
+  const campaignId = store.getActiveCampaignId()
+  if (!campaignId) return
+
+  const data = await store.listEntities(entityType)
+  const key = entityTypeToStoreKey[entityType]
+
+  broadcastToDm(SYNC.CAMPAIGN_ENTITY_UPDATE, {
+    entityType,
+    key,
+    data,
   })
 }
 

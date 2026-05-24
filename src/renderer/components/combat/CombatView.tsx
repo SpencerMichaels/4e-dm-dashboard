@@ -297,11 +297,11 @@ export function CombatView() {
     return dur
   }, [combat])
 
-  const attackModeToggleTarget = useCallback((id: string) => {
+  const attackModeToggleTarget = useCallback(async (id: string) => {
     if (!attackMode || attackMode.phase !== 'select') return
     if (attackMode.singleTarget) {
       if (pendingCondition) {
-        window.api.combat.addCondition(id, {
+        await window.api.combat.addCondition(id, {
           conditionId: pendingCondition.conditionId,
           value: pendingCondition.value,
           customDescription: pendingCondition.customDescription,
@@ -333,12 +333,12 @@ export function CombatView() {
     }
   }, [attackMode])
 
-  const attackModeConfirmSelection = useCallback(() => {
+  const attackModeConfirmSelection = useCallback(async () => {
     if (!attackMode || attackMode.phase !== 'select' || attackMode.targetIds.length === 0) return
     if (pendingCondition) {
       // Condition apply mode: apply to all targets and exit
       for (const id of attackMode.targetIds) {
-        window.api.combat.addCondition(id, {
+        await window.api.combat.addCondition(id, {
           conditionId: pendingCondition.conditionId,
           value: pendingCondition.value,
           customDescription: pendingCondition.customDescription,
@@ -667,19 +667,19 @@ export function CombatView() {
             combat={combat}
             attackMode={attackMode}
             conditionDefs={conditionDefs}
-            onApply={(hitDamage, missDamage, hitConditions, missConditions) => {
+            onApply={async (hitDamage, missDamage, hitConditions, missConditions) => {
               for (const [id, result] of Object.entries(attackMode.results)) {
                 const name = combat.combatants[id]?.name ?? id
                 const currentTurnId = combat.initiativeOrder[combat.turnIndex]
                 const currentTurnName = currentTurnId ? combat.combatants[currentTurnId]?.name : undefined
                 if (result === 'hit') {
                   addEvent('attack-hit', id, name, {}, currentTurnId, currentTurnName)
-                  if (hitDamage > 0) { addEvent('damage', id, name, { amount: hitDamage }); window.api.combat.damage(id, hitDamage, true, currentTurnId) }
-                  for (const c of hitConditions) window.api.combat.addCondition(id, c)
+                  if (hitDamage > 0) { addEvent('damage', id, name, { amount: hitDamage }); await window.api.combat.damage(id, hitDamage, true, currentTurnId) }
+                  for (const c of hitConditions) await window.api.combat.addCondition(id, c)
                 } else if (result === 'miss') {
                   addEvent('attack-miss', id, name, {}, currentTurnId, currentTurnName)
-                  if (missDamage > 0) { addEvent('damage', id, name, { amount: missDamage }); window.api.combat.damage(id, missDamage, false, currentTurnId) }
-                  for (const c of missConditions) window.api.combat.addCondition(id, c)
+                  if (missDamage > 0) { addEvent('damage', id, name, { amount: missDamage }); await window.api.combat.damage(id, missDamage, false, currentTurnId) }
+                  for (const c of missConditions) await window.api.combat.addCondition(id, c)
                 }
               }
               setAttackMode(null)
@@ -726,13 +726,13 @@ export function CombatView() {
           combatantName={dialog.multiTargetIds
             ? `${dialog.multiTargetIds.length} creatures`
             : combat.combatants[dialog.combatantId]?.name ?? ''}
-          onSubmit={(amount) => {
+          onSubmit={async (amount) => {
             const targets = dialog.multiTargetIds ?? [dialog.combatantId]
             const healSourceId = combat.initiativeOrder[combat.turnIndex]
             for (const id of targets) {
               const name = combat.combatants[id]?.name ?? 'Creature'
               addEvent('heal', id, name, { amount })
-              window.api.combat.heal(id, amount, healSourceId)
+              await window.api.combat.heal(id, amount, healSourceId)
             }
             setDialog(null)
           }}
@@ -748,8 +748,8 @@ export function CombatView() {
       {readyDialog && (
         <ReadyActionDialog
           combatantName={combat.combatants[readyDialog.combatantId]?.name ?? ''}
-          onSubmit={(actionText) => {
-            window.api.combat.ready(readyDialog.combatantId, actionText)
+          onSubmit={async (actionText) => {
+            await window.api.combat.ready(readyDialog.combatantId, actionText)
             setReadyDialog(null)
           }}
           onClose={() => setReadyDialog(null)}

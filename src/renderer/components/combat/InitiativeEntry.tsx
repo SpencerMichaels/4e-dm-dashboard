@@ -302,10 +302,10 @@ export function InitiativeEntry({ combat }: Props) {
                 }
               }
 
-              const toggleGroupHidden = () => {
+              const toggleGroupHidden = async () => {
                 const newHidden = !allHidden
                 for (const id of group.memberIds) {
-                  window.api.combat.updateCombatant(id, { hidden: newHidden })
+                  await window.api.combat.updateCombatant(id, { hidden: newHidden })
                 }
               }
 
@@ -520,9 +520,9 @@ function MonsterIdentityRow({ combatantId, combatant: c, recentColors, onCustomC
   const colorPickerRef = useRef<HTMLInputElement>(null)
   const base = c.baseName ?? c.name
 
-  const setIdentity = (color?: string, miniNumber?: number, descriptor?: string) => {
+  const setIdentity = async (color?: string, miniNumber?: number, descriptor?: string) => {
     const name = buildMonsterDisplayName(base, color, miniNumber, descriptor)
-    window.api.combat.updateCombatant(combatantId, { color, miniNumber, miniDescriptor: descriptor || undefined, name })
+    await window.api.combat.updateCombatant(combatantId, { color, miniNumber, miniDescriptor: descriptor || undefined, name })
   }
 
   const presetValues = new Set(MINI_COLORS.map(mc => mc.value.toLowerCase()))

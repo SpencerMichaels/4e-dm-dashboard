@@ -14,11 +14,11 @@ export function EffectDialog({ combatantId, onClose }: Props) {
   const [durationType, setDurationType] = useState<DurationType>('unlimited')
   const [rounds, setRounds] = useState('')
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!name.trim()) return
 
-    window.api.combat.addEffect(combatantId, {
+    await window.api.combat.addEffect(combatantId, {
       name: name.trim(),
       description: description.trim() || undefined,
       durationType,

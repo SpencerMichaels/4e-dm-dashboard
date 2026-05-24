@@ -1,88 +1,57 @@
-import { readFileSync } from 'fs'
-import { join } from 'path'
-import { ipcMain, app } from 'electron'
+import { ipcMain } from 'electron'
 import { CMD, SYNC } from '@common/ipc-channels'
-import type { CompendiumEntry, ItemIndexEntry, TrapIndexEntry, DiseaseIndexEntry, CompendiumAnnotation } from '@common/types'
-import { loadMonsters, loadItems, getAllParsedMonsters, creatureFromCompendium, getAllParsedItems } from '../../../plugins/dnd-4e/importer'
+import type { CompendiumEntry, CompendiumAnnotation } from '@common/types'
+import { getPlugin } from '../plugins/plugin-loader'
 import * as store from '../data/campaign-store'
 import { broadcastToDm } from '../windows'
 
-const DATA_DIR = join(app.getAppPath(), 'plugins/dnd-4e/data/parsed')
+// Merged creature index cache (official compendium + custom campaign creatures)
+// Keyed by systemId so multiple systems can coexist.
+const mergedMonsterIndexCache = new Map<string, CompendiumEntry[]>()
 
-let monsterIndexCache: CompendiumEntry[] | null = null
-let itemIndexCache: ItemIndexEntry[] | null = null
-let glossaryCache: Record<string, any> | null = null
-let trapIndexCache: TrapIndexEntry[] | null = null
-let trapDataCache: Record<string, any> | null = null
-let diseaseIndexCache: DiseaseIndexEntry[] | null = null
-let diseaseDataCache: Record<string, any> | null = null
-
-function getGlossary(): Record<string, any> {
-  if (!glossaryCache) {
-    glossaryCache = JSON.parse(readFileSync(join(DATA_DIR, 'glossary.json'), 'utf-8'))
-  }
-  return glossaryCache!
+async function getMergedMonsterIndex(systemId: string): Promise<CompendiumEntry[]> {
+  const cached = mergedMonsterIndexCache.get(systemId)
+  if (cached) return cached
+  await rebuildMergedMonsterIndex(systemId)
+  return mergedMonsterIndexCache.get(systemId) ?? []
 }
 
-function getMonsterIndex(): CompendiumEntry[] {
-  if (!monsterIndexCache) {
-    monsterIndexCache = JSON.parse(readFileSync(join(DATA_DIR, 'monsters-index.json'), 'utf-8'))
-  }
-  return monsterIndexCache!
-}
-
-function getItemIndex(): ItemIndexEntry[] {
-  if (!itemIndexCache) {
-    itemIndexCache = JSON.parse(readFileSync(join(DATA_DIR, 'items-index.json'), 'utf-8'))
-  }
-  return itemIndexCache!
-}
-
-// Merged creature index cache (official + custom)
-let mergedMonsterIndexCache: CompendiumEntry[] | null = null
-
-async function getMergedMonsterIndex(): Promise<CompendiumEntry[]> {
-  if (mergedMonsterIndexCache) return mergedMonsterIndexCache
-  await rebuildMergedMonsterIndex()
-  return mergedMonsterIndexCache!
-}
-
-async function rebuildMergedMonsterIndex(): Promise<void> {
-  const official = getMonsterIndex()
+async function rebuildMergedMonsterIndex(systemId: string): Promise<void> {
+  const plugin = getPlugin(systemId)
+  const official = plugin?.compendium?.getCreatureIndex() ?? []
   const campaignId = store.getActiveCampaignId()
   const custom = campaignId ? await store.buildCreatureIndex(campaignId) : []
-  mergedMonsterIndexCache = [...official, ...custom]
+  mergedMonsterIndexCache.set(systemId, [...official, ...custom])
 }
 
 /** Call after creature save/delete to refresh the merged index */
 export function invalidateCreatureIndex(): void {
-  mergedMonsterIndexCache = null
+  mergedMonsterIndexCache.clear()
 }
 
 export function registerCompendiumHandlers(): void {
   // Creature index — merged (official + custom)
   ipcMain.handle(CMD.COMPENDIUM_INDEX, async (_e, systemId: string) => {
-    if (systemId !== 'dnd-4e') return []
-    return getMergedMonsterIndex()
+    return getMergedMonsterIndex(systemId)
   })
 
   // Get full creature — creates a new campaign copy with fresh ID (for cloning)
   ipcMain.handle(CMD.COMPENDIUM_GET, async (_e, systemId: string, monsterId: string) => {
-    if (systemId !== 'dnd-4e') throw new Error('Unsupported system: ' + systemId)
-    loadMonsters(join(DATA_DIR, 'monsters.json'))
-    return creatureFromCompendium(monsterId)
+    const compendium = getPlugin(systemId)?.compendium
+    if (!compendium) throw new Error('No compendium for system: ' + systemId)
+    return compendium.getCreature(monsterId)
   })
 
   // Resolve compendium creature — returns raw data without creating a campaign copy (for combat/preview)
   ipcMain.handle(CMD.COMPENDIUM_RESOLVE, async (_e, systemId: string, monsterId: string) => {
-    if (systemId !== 'dnd-4e') throw new Error('Unsupported system: ' + systemId)
-    loadMonsters(join(DATA_DIR, 'monsters.json'))
-    const entry = getAllParsedMonsters()[monsterId]
-    if (!entry) throw new Error('Monster not found: ' + monsterId)
-    return { ...entry, compendiumId: monsterId }
+    const compendium = getPlugin(systemId)?.compendium
+    if (!compendium) throw new Error('No compendium for system: ' + systemId)
+    const result = compendium.resolveCreature(monsterId)
+    if (!result) throw new Error('Monster not found: ' + monsterId)
+    return result
   })
 
-  // Annotations
+  // Annotations (campaign-specific, already system-agnostic)
   ipcMain.handle(CMD.ANNOTATION_GET_ALL, async () => {
     const campaignId = store.getActiveCampaignId()
     if (!campaignId) return {}
@@ -99,49 +68,43 @@ export function registerCompendiumHandlers(): void {
 
   // Items
   ipcMain.handle(CMD.COMPENDIUM_ITEM_INDEX, async (_e, systemId: string) => {
-    if (systemId !== 'dnd-4e') return []
-    return getItemIndex()
+    return getPlugin(systemId)?.compendium?.getItemIndex?.() ?? []
   })
 
   ipcMain.handle(CMD.COMPENDIUM_GLOSSARY, async (_e, systemId: string) => {
-    if (systemId !== 'dnd-4e') return {}
-    return getGlossary()
+    return getPlugin(systemId)?.compendium?.getGlossary?.() ?? {}
   })
 
   ipcMain.handle(CMD.COMPENDIUM_ITEM_GET, async (_e, systemId: string, itemId: string) => {
-    if (systemId !== 'dnd-4e') throw new Error('Unsupported system: ' + systemId)
-    loadItems(join(DATA_DIR, 'items.json'))
-    const item = getAllParsedItems()[itemId]
+    const compendium = getPlugin(systemId)?.compendium
+    if (!compendium?.getItem) throw new Error('No item compendium for system: ' + systemId)
+    const item = compendium.getItem(itemId)
     if (!item) throw new Error('Item not found: ' + itemId)
     return item
   })
 
   // Traps
   ipcMain.handle(CMD.COMPENDIUM_TRAP_INDEX, async (_e, systemId: string) => {
-    if (systemId !== 'dnd-4e') return []
-    if (!trapIndexCache) trapIndexCache = JSON.parse(readFileSync(join(DATA_DIR, 'traps-index.json'), 'utf-8'))
-    return trapIndexCache!
+    return getPlugin(systemId)?.compendium?.getTrapIndex?.() ?? []
   })
 
   ipcMain.handle(CMD.COMPENDIUM_TRAP_GET, async (_e, systemId: string, trapId: string) => {
-    if (systemId !== 'dnd-4e') throw new Error('Unsupported system: ' + systemId)
-    if (!trapDataCache) trapDataCache = JSON.parse(readFileSync(join(DATA_DIR, 'traps.json'), 'utf-8'))
-    const trap = trapDataCache![trapId]
+    const compendium = getPlugin(systemId)?.compendium
+    if (!compendium?.getTrap) throw new Error('No trap compendium for system: ' + systemId)
+    const trap = compendium.getTrap(trapId)
     if (!trap) throw new Error('Trap not found: ' + trapId)
     return trap
   })
 
   // Diseases
   ipcMain.handle(CMD.COMPENDIUM_DISEASE_INDEX, async (_e, systemId: string) => {
-    if (systemId !== 'dnd-4e') return []
-    if (!diseaseIndexCache) diseaseIndexCache = JSON.parse(readFileSync(join(DATA_DIR, 'diseases-index.json'), 'utf-8'))
-    return diseaseIndexCache!
+    return getPlugin(systemId)?.compendium?.getDiseaseIndex?.() ?? []
   })
 
   ipcMain.handle(CMD.COMPENDIUM_DISEASE_GET, async (_e, systemId: string, diseaseId: string) => {
-    if (systemId !== 'dnd-4e') throw new Error('Unsupported system: ' + systemId)
-    if (!diseaseDataCache) diseaseDataCache = JSON.parse(readFileSync(join(DATA_DIR, 'diseases.json'), 'utf-8'))
-    const disease = diseaseDataCache![diseaseId]
+    const compendium = getPlugin(systemId)?.compendium
+    if (!compendium?.getDisease) throw new Error('No disease compendium for system: ' + systemId)
+    const disease = compendium.getDisease(diseaseId)
     if (!disease) throw new Error('Disease not found: ' + diseaseId)
     return disease
   })

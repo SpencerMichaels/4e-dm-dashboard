@@ -23,7 +23,7 @@ export function ConditionDialog({ combatantId, onClose }: Props) {
   const selectedDef = isCustom ? null : conditions.find((c: any) => c.id === selectedConditionId)
   const canSubmit = isCustom ? customName.trim() : !!selectedConditionId
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!canSubmit) return
 
@@ -41,7 +41,7 @@ export function ConditionDialog({ combatantId, onClose }: Props) {
       ...(durationType === 'custom' && durationNote.trim() ? { note: durationNote.trim() } : {}),
     }
 
-    window.api.combat.addCondition(combatantId, condition)
+    await window.api.combat.addCondition(combatantId, condition)
     onClose()
   }
 

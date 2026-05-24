@@ -18,6 +18,12 @@ export function initSyncListeners(): () => void {
   )
 
   unsubscribers.push(
+    window.api.on.campaignEntityUpdate((update) => {
+      useCampaignStore.getState().setCampaignState({ [update.key]: update.data })
+    })
+  )
+
+  unsubscribers.push(
     window.api.on.combatState((state) => {
       useCombatStore.getState().setCombatState(state)
     })
