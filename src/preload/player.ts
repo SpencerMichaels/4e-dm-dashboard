@@ -24,11 +24,6 @@ const api = {
       ipcRenderer.on(SYNC.SCENE_STATE, handler)
       return () => ipcRenderer.removeListener(SYNC.SCENE_STATE, handler)
     },
-    theme: (callback: (theme: any) => void) => {
-      const handler = (_event: any, theme: any) => callback(theme)
-      ipcRenderer.on(SYNC.THEME, handler)
-      return () => ipcRenderer.removeListener(SYNC.THEME, handler)
-    },
   },
 }
 

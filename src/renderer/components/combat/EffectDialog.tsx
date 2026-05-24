@@ -1,4 +1,5 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState } from 'react'
+import { Modal, modalStyles } from '../shared/Modal'
 
 interface Props {
   combatantId: string
@@ -12,19 +13,6 @@ export function EffectDialog({ combatantId, onClose }: Props) {
   const [description, setDescription] = useState('')
   const [durationType, setDurationType] = useState<DurationType>('unlimited')
   const [rounds, setRounds] = useState('')
-  const inputRef = useRef<HTMLInputElement>(null)
-
-  useEffect(() => {
-    inputRef.current?.focus()
-  }, [])
-
-  useEffect(() => {
-    const handleKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose()
-    }
-    window.addEventListener('keydown', handleKey)
-    return () => window.removeEventListener('keydown', handleKey)
-  }, [onClose])
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -41,25 +29,8 @@ export function EffectDialog({ combatantId, onClose }: Props) {
   }
 
   return (
-    <div style={{
-      position: 'fixed',
-      inset: 0,
-      background: 'rgba(0,0,0,0.5)',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      zIndex: 100,
-    }}>
-      <form
-        onSubmit={handleSubmit}
-        style={{
-          background: 'var(--color-bg-primary)',
-          border: '1px solid var(--color-border)',
-          borderRadius: 'var(--radius-md)',
-          padding: 'var(--space-6)',
-          minWidth: 350,
-        }}
-      >
+    <Modal onClose={onClose} minWidth={350}>
+      <form onSubmit={handleSubmit}>
         <h3 style={{ marginBottom: 'var(--space-3)' }}>Add Effect</h3>
 
         <div style={{ marginBottom: 'var(--space-3)' }}>
@@ -67,11 +38,11 @@ export function EffectDialog({ combatantId, onClose }: Props) {
             Name
           </label>
           <input
-            ref={inputRef}
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder="e.g. Bless, Shield of Faith"
             style={{ width: '100%' }}
+            autoFocus
           />
         </div>
 
@@ -116,21 +87,16 @@ export function EffectDialog({ combatantId, onClose }: Props) {
         )}
 
         <div style={{ display: 'flex', gap: 'var(--space-2)', justifyContent: 'flex-end' }}>
-          <button type="button" onClick={onClose}>Cancel</button>
+          <button type="button" onClick={onClose} className={modalStyles.btnSecondary}>Cancel</button>
           <button
             type="submit"
             disabled={!name.trim()}
-            style={{
-              background: name.trim() ? 'var(--color-accent)' : 'var(--color-bg-surface)',
-              color: name.trim() ? 'var(--color-accent-text)' : 'var(--color-text-muted)',
-              padding: '4px 16px',
-              borderRadius: 'var(--radius-sm)',
-            }}
+            className={modalStyles.btnPrimary}
           >
             Add
           </button>
         </div>
       </form>
-    </div>
+    </Modal>
   )
 }

@@ -1,6 +1,6 @@
-import { useEffect } from 'react'
 import { useUiStore } from '../../stores/ui-store'
 import { useSettingsStore } from '../../stores/settings-store'
+import { Modal } from '../shared/Modal'
 import type { SystemSettingDef } from '@common/types/system-plugin'
 
 interface Props {
@@ -11,71 +11,51 @@ export function SettingsModal({ onClose }: Props) {
   const systemPlugin = useUiStore((s) => s.systemPlugin)
   const settings = useSettingsStore()
 
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [onClose])
-
   const systemDefs: SystemSettingDef[] = systemPlugin?.settings ?? []
 
   return (
-    <div onClick={onClose}
-      style={{
-        position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)',
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        zIndex: 1000, padding: 'var(--space-4)',
+    <Modal onClose={onClose} minWidth={520}>
+      {/* Header */}
+      <div style={{
+        marginBottom: 'var(--space-4)',
+        borderBottom: '1px solid var(--color-border)',
+        paddingBottom: 'var(--space-3)',
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
       }}>
-      <div onClick={(e) => e.stopPropagation()}
-        style={{
-          background: 'var(--color-bg-primary)',
-          border: '1px solid var(--color-border)',
-          borderRadius: 'var(--radius-md)',
-          width: 520, maxWidth: '100%',
-          maxHeight: '85vh', overflow: 'auto',
-          boxShadow: '0 6px 24px rgba(0,0,0,0.4)',
-        }}>
-        {/* Header */}
-        <div style={{
-          padding: 'var(--space-3) var(--space-4)',
-          borderBottom: '1px solid var(--color-border)',
-          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        }}>
-          <h2 style={{ margin: 0, fontSize: 'var(--font-size-lg)' }}>Settings</h2>
-          <button onClick={onClose}
-            style={{
-              background: 'transparent', border: 'none', cursor: 'pointer',
-              color: 'var(--color-text-muted)', fontSize: 16, lineHeight: 1, padding: 0,
-            }}>×</button>
-        </div>
-
-        {/* Body */}
-        <div style={{ padding: 'var(--space-4)' }}>
-          <SettingsSection title="General">
-            <div style={{ color: 'var(--color-text-muted)', fontSize: 'var(--font-size-sm)', fontStyle: 'italic' }}>
-              No general settings yet.
-            </div>
-          </SettingsSection>
-
-          {systemPlugin && (
-            <SettingsSection title={`${systemPlugin.name} (${systemPlugin.id})`}>
-              {systemDefs.length === 0 ? (
-                <div style={{ color: 'var(--color-text-muted)', fontSize: 'var(--font-size-sm)', fontStyle: 'italic' }}>
-                  This system has no configurable settings.
-                </div>
-              ) : (
-                systemDefs.map((def) => (
-                  <SystemSettingRow key={def.key}
-                    def={def}
-                    value={settings.systems[systemPlugin.id]?.[def.key] ?? def.default}
-                    onChange={(v) => settings.setSystemSetting(systemPlugin.id, def.key, v)} />
-                ))
-              )}
-            </SettingsSection>
-          )}
-        </div>
+        <h2 style={{ margin: 0, fontSize: 'var(--font-size-lg)' }}>Settings</h2>
+        <button onClick={onClose}
+          style={{
+            background: 'transparent', border: 'none', cursor: 'pointer',
+            color: 'var(--color-text-muted)', fontSize: 16, lineHeight: 1, padding: 0,
+          }}>×</button>
       </div>
-    </div>
+
+      {/* Body */}
+      <div>
+        <SettingsSection title="General">
+          <div style={{ color: 'var(--color-text-muted)', fontSize: 'var(--font-size-sm)', fontStyle: 'italic' }}>
+            No general settings yet.
+          </div>
+        </SettingsSection>
+
+        {systemPlugin && (
+          <SettingsSection title={`${systemPlugin.name} (${systemPlugin.id})`}>
+            {systemDefs.length === 0 ? (
+              <div style={{ color: 'var(--color-text-muted)', fontSize: 'var(--font-size-sm)', fontStyle: 'italic' }}>
+                This system has no configurable settings.
+              </div>
+            ) : (
+              systemDefs.map((def) => (
+                <SystemSettingRow key={def.key}
+                  def={def}
+                  value={settings.systems[systemPlugin.id]?.[def.key] ?? def.default}
+                  onChange={(v) => settings.setSystemSetting(systemPlugin.id, def.key, v)} />
+              ))
+            )}
+          </SettingsSection>
+        )}
+      </div>
+    </Modal>
   )
 }
 

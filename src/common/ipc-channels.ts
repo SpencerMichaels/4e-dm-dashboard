@@ -6,7 +6,6 @@ export const CMD = {
   CAMPAIGN_CREATE: 'campaign:create',
   CAMPAIGN_OPEN: 'campaign:open',
   CAMPAIGN_LIST: 'campaign:list',
-  CAMPAIGN_GET_META: 'campaign:get-meta',
   CAMPAIGN_UPDATE: 'campaign:update',
   CAMPAIGN_DELETE: 'campaign:delete',
 
@@ -16,10 +15,7 @@ export const CMD = {
   ENTITY_GET: 'entity:get',
   ENTITY_LIST: 'entity:list',
 
-  // Notes (special — has tree structure)
-  NOTE_SAVE: 'note:save',
-  NOTE_DELETE: 'note:delete',
-  NOTE_GET: 'note:get',
+  // Notes (tree structure)
   NOTE_TREE_GET: 'note:tree:get',
   NOTE_TREE_SAVE: 'note:tree:save',
 
@@ -98,6 +94,5 @@ export const SYNC = {
   COMBAT_STATE: 'sync:combat-state',
   PLAYER_STATE: 'sync:player-state',
   SCENE_STATE: 'sync:scene-state',
-  THEME: 'sync:theme',
   ANNOTATIONS: 'sync:annotations',
 } as const

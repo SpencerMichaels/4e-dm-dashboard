@@ -47,7 +47,21 @@ function broadcastCombatState(): void {
   broadcastToPlayer(SYNC.PLAYER_STATE, playerState)
 }
 
+/** Register an IPC handler that calls an engine function, broadcasts combat state, and returns the result. */
+function withBroadcast<Args extends any[], R>(
+  channel: string,
+  handler: (...args: Args) => R,
+): void {
+  ipcMain.handle(channel, async (_e, ...args: any[]) => {
+    const result = handler(...(args as unknown as Args))
+    broadcastCombatState()
+    return result
+  })
+}
+
 export function registerCombatHandlers(): void {
+  // --- Special handlers (custom logic beyond call-broadcast-return) ---
+
   ipcMain.handle(CMD.COMBAT_INIT, async (_e, encounterId?: string) => {
     const state = engine.initCombat(encounterId)
 
@@ -78,36 +92,6 @@ export function registerCombatHandlers(): void {
     return state
   })
 
-  ipcMain.handle(CMD.COMBAT_START, async () => {
-    const state = engine.startCombat()
-    broadcastCombatState()
-    return state
-  })
-
-  ipcMain.handle(CMD.COMBAT_SET_INITIATIVE, async (_e, combatantId: string, initiative: number) => {
-    const state = engine.setInitiative(combatantId, initiative)
-    broadcastCombatState()
-    return state
-  })
-
-  ipcMain.handle(CMD.COMBAT_SET_INITIATIVE_FOCUS, async (_e, combatantId: string | null) => {
-    const state = engine.setInitiativeFocus(combatantId)
-    broadcastCombatState()
-    return state
-  })
-
-  ipcMain.handle(CMD.COMBAT_SET_PLAYER_EXPAND_CONDITIONS, async (_e, value: boolean) => {
-    const state = engine.setPlayerExpandConditions(value)
-    broadcastCombatState()
-    return state
-  })
-
-  ipcMain.handle(CMD.COMBAT_SET_AUTO_HIDE_DEAD, async (_e, value: boolean) => {
-    const state = engine.setAutoHideDeadCreatures(value)
-    broadcastCombatState()
-    return state
-  })
-
   ipcMain.handle(CMD.COMBAT_END_TURN, async () => {
     const plugin = getActivePlugin()
     const result = engine.endTurn(plugin)
@@ -127,46 +111,10 @@ export function registerCombatHandlers(): void {
     return result
   })
 
-  ipcMain.handle(CMD.COMBAT_DELAY, async (_e, combatantId: string) => {
-    const state = engine.delayCombatant(combatantId)
-    broadcastCombatState()
-    return state
-  })
-
-  ipcMain.handle(CMD.COMBAT_UNDELAY, async (_e, combatantId: string, afterCombatantId?: string) => {
-    const state = engine.undelayCombatant(combatantId, afterCombatantId)
-    broadcastCombatState()
-    return state
-  })
-
-  ipcMain.handle(CMD.COMBAT_READY, async (_e, combatantId: string, actionText: string) => {
-    const state = engine.readyCombatant(combatantId, actionText)
-    broadcastCombatState()
-    return state
-  })
-
-  ipcMain.handle(CMD.COMBAT_RESOLVE_READY, async (_e, combatantId: string) => {
-    const state = engine.resolveReadiedAction(combatantId)
-    broadcastCombatState()
-    return state
-  })
-
-  ipcMain.handle(CMD.COMBAT_CANCEL_READY, async (_e, combatantId: string) => {
-    const state = engine.cancelReady(combatantId)
-    broadcastCombatState()
-    return state
-  })
-
   ipcMain.handle(CMD.COMBAT_DAMAGE, async (_e, combatantId: string, amount: number, wasHit: boolean = true, sourceId?: string) => {
     const { state, notifications } = engine.damageCombatant(combatantId, amount, wasHit, { sourceId })
     broadcastCombatState()
     return { state, notifications }
-  })
-
-  ipcMain.handle(CMD.COMBAT_HEAL, async (_e, combatantId: string, amount: number, sourceId?: string) => {
-    const state = engine.healCombatant(combatantId, amount, { sourceId })
-    broadcastCombatState()
-    return state
   })
 
   ipcMain.handle(CMD.COMBAT_ADD_CONDITION, async (_e, combatantId: string, condition: AppliedCondition) => {
@@ -179,49 +127,6 @@ export function registerCombatHandlers(): void {
   ipcMain.handle(CMD.COMBAT_REMOVE_CONDITION, async (_e, combatantId: string, conditionId: string) => {
     const state = engine.removeCondition(combatantId, conditionId)
     engine.refreshEndOfTurnPreview(getActivePlugin())
-    broadcastCombatState()
-    return state
-  })
-
-  ipcMain.handle(CMD.COMBAT_ADD_EFFECT, async (_e, combatantId: string, effect: Omit<AppliedEffect, 'id'>) => {
-    const state = engine.addEffect(combatantId, effect)
-    broadcastCombatState()
-    return state
-  })
-
-  ipcMain.handle(CMD.COMBAT_REMOVE_EFFECT, async (_e, combatantId: string, effectId: string) => {
-    const state = engine.removeEffect(combatantId, effectId)
-    broadcastCombatState()
-    return state
-  })
-
-  ipcMain.handle(CMD.COMBAT_ADD_COMBATANT, async (_e, combatant: any) => {
-    const state = engine.addCombatant(combatant)
-    broadcastCombatState()
-    return state
-  })
-
-  ipcMain.handle(CMD.COMBAT_REMOVE_COMBATANT, async (_e, combatantId: string) => {
-    const state = engine.removeCombatant(combatantId)
-    broadcastCombatState()
-    return state
-  })
-
-  ipcMain.handle(CMD.COMBAT_UPDATE_COMBATANT, async (_e, combatantId: string, updates: any) => {
-    const state = engine.updateCombatant(combatantId, updates)
-    broadcastCombatState()
-    return state
-  })
-
-
-  ipcMain.handle(CMD.COMBAT_USE_POWER, async (_e, combatantId: string, powerIndex: number) => {
-    const state = engine.usePower(combatantId, powerIndex)
-    broadcastCombatState()
-    return state
-  })
-
-  ipcMain.handle(CMD.COMBAT_UNUSE_POWER, async (_e, combatantId: string, powerIndex: number) => {
-    const state = engine.unusePower(combatantId, powerIndex)
     broadcastCombatState()
     return state
   })
@@ -242,4 +147,25 @@ export function registerCombatHandlers(): void {
     engine.setSurprise(enabled, actorIds)
     broadcastCombatState()
   })
+
+  // --- Standard handlers (engine call → broadcast → return) ---
+
+  withBroadcast(CMD.COMBAT_START, () => engine.startCombat())
+  withBroadcast(CMD.COMBAT_SET_INITIATIVE, (id: string, init: number) => engine.setInitiative(id, init))
+  withBroadcast(CMD.COMBAT_SET_INITIATIVE_FOCUS, (id: string | null) => engine.setInitiativeFocus(id))
+  withBroadcast(CMD.COMBAT_SET_PLAYER_EXPAND_CONDITIONS, (v: boolean) => engine.setPlayerExpandConditions(v))
+  withBroadcast(CMD.COMBAT_SET_AUTO_HIDE_DEAD, (v: boolean) => engine.setAutoHideDeadCreatures(v))
+  withBroadcast(CMD.COMBAT_DELAY, (id: string) => engine.delayCombatant(id))
+  withBroadcast(CMD.COMBAT_UNDELAY, (id: string, afterId?: string) => engine.undelayCombatant(id, afterId))
+  withBroadcast(CMD.COMBAT_READY, (id: string, text: string) => engine.readyCombatant(id, text))
+  withBroadcast(CMD.COMBAT_RESOLVE_READY, (id: string) => engine.resolveReadiedAction(id))
+  withBroadcast(CMD.COMBAT_CANCEL_READY, (id: string) => engine.cancelReady(id))
+  withBroadcast(CMD.COMBAT_HEAL, (id: string, amount: number, sourceId?: string) => engine.healCombatant(id, amount, { sourceId }))
+  withBroadcast(CMD.COMBAT_ADD_EFFECT, (id: string, effect: Omit<AppliedEffect, 'id'>) => engine.addEffect(id, effect))
+  withBroadcast(CMD.COMBAT_REMOVE_EFFECT, (id: string, effectId: string) => engine.removeEffect(id, effectId))
+  withBroadcast(CMD.COMBAT_ADD_COMBATANT, (combatant: any) => engine.addCombatant(combatant))
+  withBroadcast(CMD.COMBAT_REMOVE_COMBATANT, (id: string) => engine.removeCombatant(id))
+  withBroadcast(CMD.COMBAT_UPDATE_COMBATANT, (id: string, updates: any) => engine.updateCombatant(id, updates))
+  withBroadcast(CMD.COMBAT_USE_POWER, (id: string, idx: number) => engine.usePower(id, idx))
+  withBroadcast(CMD.COMBAT_UNUSE_POWER, (id: string, idx: number) => engine.unusePower(id, idx))
 }

@@ -21,11 +21,11 @@ const api = {
     list: (entityType: string) => ipcRenderer.invoke(CMD.ENTITY_LIST, entityType),
   },
 
-  // Notes
+  // Notes (save/delete/get route through entity CRUD)
   note: {
-    save: (note: any) => ipcRenderer.invoke(CMD.NOTE_SAVE, note),
-    delete: (noteId: string) => ipcRenderer.invoke(CMD.NOTE_DELETE, noteId),
-    get: (noteId: string) => ipcRenderer.invoke(CMD.NOTE_GET, noteId),
+    save: (note: any) => ipcRenderer.invoke(CMD.ENTITY_SAVE, 'note', note),
+    delete: (noteId: string) => ipcRenderer.invoke(CMD.ENTITY_DELETE, 'note', noteId),
+    get: (noteId: string) => ipcRenderer.invoke(CMD.ENTITY_GET, 'note', noteId),
     treeGet: () => ipcRenderer.invoke(CMD.NOTE_TREE_GET),
     treeSave: (tree: any) => ipcRenderer.invoke(CMD.NOTE_TREE_SAVE, tree),
   },
@@ -147,11 +147,6 @@ const api = {
       const handler = (_event: any, state: any) => callback(state)
       ipcRenderer.on(SYNC.SCENE_STATE, handler)
       return () => ipcRenderer.removeListener(SYNC.SCENE_STATE, handler)
-    },
-    theme: (callback: (theme: any) => void) => {
-      const handler = (_event: any, theme: any) => callback(theme)
-      ipcRenderer.on(SYNC.THEME, handler)
-      return () => ipcRenderer.removeListener(SYNC.THEME, handler)
     },
     annotations: (callback: (annotations: any) => void) => {
       const handler = (_event: any, annotations: any) => callback(annotations)

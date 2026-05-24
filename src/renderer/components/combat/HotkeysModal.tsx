@@ -1,3 +1,5 @@
+import { Modal, modalStyles } from '../shared/Modal'
+
 export interface HotkeySection {
   title: string
   keys: { key: string; desc: string }[]
@@ -10,41 +12,32 @@ interface Props {
 
 export function HotkeysModal({ sections, onClose }: Props) {
   return (
-    <div style={{
-      position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)',
-      display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100,
-    }} onClick={onClose}>
-      <div style={{
-        background: 'var(--color-bg-primary)', border: '1px solid var(--color-border)',
-        borderRadius: 'var(--radius-md)', padding: 'var(--space-6)',
-        minWidth: 400, maxWidth: 500, maxHeight: '80vh', overflow: 'auto',
-      }} onClick={e => e.stopPropagation()}>
-        <h3 style={{ margin: '0 0 var(--space-4) 0' }}>Keyboard Shortcuts</h3>
+    <Modal onClose={onClose} minWidth={400} maxWidth={500}>
+      <h3 style={{ margin: '0 0 var(--space-4) 0' }}>Keyboard Shortcuts</h3>
 
-        {sections.map(section => (
-          <div key={section.title} style={{ marginBottom: 'var(--space-4)' }}>
-            <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 'var(--space-1)' }}>
-              {section.title}
-            </div>
-            {section.keys.map(({ key, desc }) => (
-              <div key={key + desc} style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)', padding: '2px 0', fontSize: 12 }}>
-                <kbd style={{
-                  minWidth: 80, textAlign: 'center',
-                  padding: '1px 6px', borderRadius: 'var(--radius-sm)',
-                  background: 'var(--color-bg-surface)', border: '1px solid var(--color-border)',
-                  fontSize: 11, fontFamily: 'monospace', fontWeight: 600,
-                }}>{key}</kbd>
-                <span>{desc}</span>
-              </div>
-            ))}
+      {sections.map(section => (
+        <div key={section.title} style={{ marginBottom: 'var(--space-4)' }}>
+          <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 'var(--space-1)' }}>
+            {section.title}
           </div>
-        ))}
-
-        <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-          <button onClick={onClose}>Close</button>
+          {section.keys.map(({ key, desc }) => (
+            <div key={key + desc} style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)', padding: '2px 0', fontSize: 12 }}>
+              <kbd style={{
+                minWidth: 80, textAlign: 'center',
+                padding: '1px 6px', borderRadius: 'var(--radius-sm)',
+                background: 'var(--color-bg-surface)', border: '1px solid var(--color-border)',
+                fontSize: 11, fontFamily: 'monospace', fontWeight: 600,
+              }}>{key}</kbd>
+              <span>{desc}</span>
+            </div>
+          ))}
         </div>
+      ))}
+
+      <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+        <button onClick={onClose} className={modalStyles.btnSecondary}>Close</button>
       </div>
-    </div>
+    </Modal>
   )
 }
 

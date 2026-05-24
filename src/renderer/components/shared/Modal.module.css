@@ -1,0 +1,95 @@
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 200;
+  padding: var(--space-4);
+}
+
+.panel {
+  background: var(--color-bg-primary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--space-6);
+  box-shadow: var(--shadow-lg);
+  max-height: 85vh;
+  overflow: auto;
+}
+
+/* Button variants */
+.btnPrimary {
+  background: var(--color-accent);
+  color: var(--color-accent-text);
+  padding: var(--space-1) var(--space-4);
+  border-radius: var(--radius-sm);
+  border: 1px solid transparent;
+  cursor: pointer;
+}
+
+.btnPrimary:disabled {
+  background: var(--color-bg-surface);
+  color: var(--color-text-muted);
+  cursor: default;
+}
+
+.btnDanger {
+  background: var(--color-damage);
+  color: var(--color-text-on-dark);
+  padding: var(--space-1) var(--space-4);
+  border-radius: var(--radius-sm);
+  border: 1px solid transparent;
+  cursor: pointer;
+}
+
+.btnDanger:disabled {
+  background: var(--color-bg-surface);
+  color: var(--color-text-muted);
+  cursor: default;
+}
+
+.btnSuccess {
+  background: var(--color-heal);
+  color: var(--color-text-on-dark);
+  padding: var(--space-1) var(--space-4);
+  border-radius: var(--radius-sm);
+  border: 1px solid transparent;
+  cursor: pointer;
+}
+
+.btnSuccess:disabled {
+  background: var(--color-bg-surface);
+  color: var(--color-text-muted);
+  cursor: default;
+}
+
+.btnInfo {
+  background: var(--color-readied);
+  color: var(--color-text-on-dark);
+  padding: var(--space-1) var(--space-4);
+  border-radius: var(--radius-sm);
+  border: 1px solid transparent;
+  cursor: pointer;
+}
+
+.btnInfo:disabled {
+  background: var(--color-bg-surface);
+  color: var(--color-text-muted);
+  cursor: default;
+  opacity: 0.5;
+}
+
+.btnSecondary {
+  background: transparent;
+  color: var(--color-text-secondary);
+  padding: var(--space-1) var(--space-4);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border);
+  cursor: pointer;
+}
+
+.btnSecondary:hover {
+  background: var(--color-bg-hover);
+}

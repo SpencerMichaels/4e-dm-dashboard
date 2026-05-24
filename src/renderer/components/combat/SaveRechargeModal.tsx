@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
+import { Modal } from '../shared/Modal'
 import type { PendingPrompt, CombatNotification } from '@common/types'
 
 interface Props {
@@ -63,7 +64,7 @@ export function SaveRechargeModal({ combatantName, prompts, onDone }: Props) {
     onDone(notifications)
   }, [saves, recharges, savedSet, rechargedSet, onDone])
 
-  // Keyboard shortcuts
+  // Keyboard shortcuts for toggling items and confirming
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
       if (e.key === ' ' || e.key === 'Enter') {
@@ -71,7 +72,6 @@ export function SaveRechargeModal({ combatantName, prompts, onDone }: Props) {
         handleConfirm()
         return
       }
-      // Number keys toggle items: saves first, then recharges
       const num = parseInt(e.key)
       if (!isNaN(num) && num >= 1) {
         const idx = num - 1
@@ -100,63 +100,54 @@ export function SaveRechargeModal({ combatantName, prompts, onDone }: Props) {
   let counter = 0
 
   return (
-    <div style={{
-      position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)',
-      display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100,
-    }}>
-      <div style={{
-        background: 'var(--color-bg-primary)', border: '1px solid var(--color-border)',
-        borderRadius: 'var(--radius-md)', padding: 'var(--space-6)',
-        minWidth: 400, maxWidth: 600,
-      }}>
-        <div style={{ fontSize: 12, color: 'var(--color-text-muted)', marginBottom: 4 }}>{combatantName} — End of Turn</div>
+    <Modal onClose={handleConfirm} minWidth={400} maxWidth={600} closeOnOverlayClick={false}>
+      <div style={{ fontSize: 12, color: 'var(--color-text-muted)', marginBottom: 4 }}>{combatantName} — End of Turn</div>
 
-        {saves.length > 0 && (
-          <div style={{ marginBottom: 'var(--space-4)' }}>
-            <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 'var(--space-2)' }}>
-              Roll Saves{saveBonus > 0 ? ` (+${saveBonus})` : ''}
-            </div>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-              {saves.map((s, i) => {
-                counter++
-                const num = counter
-                return (
-                  <div key={i} onClick={() => toggleSave(i)} style={itemStyle(savedSet.has(i))}>
-                    <span style={{ fontSize: 11, color: 'var(--color-text-muted)', fontWeight: 600 }}>{num}.</span>
-                    {s.label}
-                    {savedSet.has(i) && <span style={{ fontSize: 11 }}>✓</span>}
-                  </div>
-                )
-              })}
-            </div>
+      {saves.length > 0 && (
+        <div style={{ marginBottom: 'var(--space-4)' }}>
+          <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 'var(--space-2)' }}>
+            Roll Saves{saveBonus > 0 ? ` (+${saveBonus})` : ''}
           </div>
-        )}
-
-        {recharges.length > 0 && (
-          <div style={{ marginBottom: 'var(--space-4)' }}>
-            <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 'var(--space-2)' }}>
-              Roll Recharge
-            </div>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-              {recharges.map((r, i) => {
-                counter++
-                const num = counter
-                return (
-                  <div key={i} onClick={() => toggleRecharge(i)} style={itemStyle(rechargedSet.has(i))}>
-                    <span style={{ fontSize: 11, color: 'var(--color-text-muted)', fontWeight: 600 }}>{num}.</span>
-                    {r.label} ({r.threshold}+)
-                    {rechargedSet.has(i) && <span style={{ fontSize: 11 }}>✓</span>}
-                  </div>
-                )
-              })}
-            </div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+            {saves.map((s, i) => {
+              counter++
+              const num = counter
+              return (
+                <div key={i} onClick={() => toggleSave(i)} style={itemStyle(savedSet.has(i))}>
+                  <span style={{ fontSize: 11, color: 'var(--color-text-muted)', fontWeight: 600 }}>{num}.</span>
+                  {s.label}
+                  {savedSet.has(i) && <span style={{ fontSize: 11 }}>✓</span>}
+                </div>
+              )
+            })}
           </div>
-        )}
-
-        <div style={{ color: 'var(--color-text-muted)', fontSize: 11, textAlign: 'center' }}>
-          Click items or press number keys to toggle · Space to continue
         </div>
+      )}
+
+      {recharges.length > 0 && (
+        <div style={{ marginBottom: 'var(--space-4)' }}>
+          <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 'var(--space-2)' }}>
+            Roll Recharge
+          </div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+            {recharges.map((r, i) => {
+              counter++
+              const num = counter
+              return (
+                <div key={i} onClick={() => toggleRecharge(i)} style={itemStyle(rechargedSet.has(i))}>
+                  <span style={{ fontSize: 11, color: 'var(--color-text-muted)', fontWeight: 600 }}>{num}.</span>
+                  {r.label} ({r.threshold}+)
+                  {rechargedSet.has(i) && <span style={{ fontSize: 11 }}>✓</span>}
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
+
+      <div style={{ color: 'var(--color-text-muted)', fontSize: 11, textAlign: 'center' }}>
+        Click items or press number keys to toggle · Space to continue
       </div>
-    </div>
+    </Modal>
   )
 }

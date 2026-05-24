@@ -1,5 +1,6 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useUiStore } from '../../stores/ui-store'
+import { Modal, modalStyles } from '../shared/Modal'
 import type { AppliedCondition, DurationType } from '@common/types'
 import { generateId } from '@common/utils/id'
 
@@ -16,14 +17,6 @@ export function ConditionDialog({ combatantId, onClose }: Props) {
   const [value, setValue] = useState('')
   const [durationType, setDurationType] = useState<DurationType>('save-ends')
   const [durationNote, setDurationNote] = useState('')
-
-  useEffect(() => {
-    const handleKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose()
-    }
-    window.addEventListener('keydown', handleKey)
-    return () => window.removeEventListener('keydown', handleKey)
-  }, [onClose])
 
   const conditions = systemPlugin?.conditions ?? []
   const isCustom = selectedConditionId === '__custom__'
@@ -53,14 +46,8 @@ export function ConditionDialog({ combatantId, onClose }: Props) {
   }
 
   return (
-    <div style={{
-      position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)',
-      display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100,
-    }}>
-      <form onSubmit={handleSubmit} style={{
-        background: 'var(--color-bg-primary)', border: '1px solid var(--color-border)',
-        borderRadius: 'var(--radius-md)', padding: 'var(--space-6)', minWidth: 350,
-      }}>
+    <Modal onClose={onClose} minWidth={350}>
+      <form onSubmit={handleSubmit}>
         <h3 style={{ marginBottom: 'var(--space-3)' }}>Add Condition</h3>
 
         <select
@@ -149,21 +136,16 @@ export function ConditionDialog({ combatantId, onClose }: Props) {
         )}
 
         <div style={{ display: 'flex', gap: 'var(--space-2)', justifyContent: 'flex-end' }}>
-          <button type="button" onClick={onClose}>Cancel</button>
+          <button type="button" onClick={onClose} className={modalStyles.btnSecondary}>Cancel</button>
           <button
             type="submit"
             disabled={!canSubmit}
-            style={{
-              background: canSubmit ? 'var(--color-accent)' : 'var(--color-bg-surface)',
-              color: canSubmit ? 'var(--color-accent-text)' : 'var(--color-text-muted)',
-              padding: '4px 16px',
-              borderRadius: 'var(--radius-sm)',
-            }}
+            className={modalStyles.btnPrimary}
           >
             Apply
           </button>
         </div>
       </form>
-    </div>
+    </Modal>
   )
 }

@@ -25,14 +25,11 @@ export function registerCampaignHandlers(): void {
 
   ipcMain.handle(CMD.CAMPAIGN_DELETE, async (_e, campaignId: string) => {
     await store.deleteCampaign(campaignId)
+    broadcastCampaignState()
   })
 
   ipcMain.handle(CMD.CAMPAIGN_LIST, async () => {
     return store.listCampaigns()
-  })
-
-  ipcMain.handle(CMD.CAMPAIGN_GET_META, async () => {
-    return store.getActiveCampaign()
   })
 
   ipcMain.handle(CMD.CAMPAIGN_UPDATE, async (_e, patch: Record<string, unknown>) => {
@@ -62,28 +59,14 @@ export function registerCampaignHandlers(): void {
     return store.listEntities(entityType)
   })
 
-  // Notes
-  ipcMain.handle(CMD.NOTE_SAVE, async (_e, note: { id: string }) => {
-    await store.saveEntity('note', note)
-    broadcastCampaignState()
-    return note
-  })
-
-  ipcMain.handle(CMD.NOTE_DELETE, async (_e, noteId: string) => {
-    await store.deleteEntity('note', noteId)
-    broadcastCampaignState()
-  })
-
-  ipcMain.handle(CMD.NOTE_GET, async (_e, noteId: string) => {
-    return store.getEntity('note', noteId)
-  })
-
+  // Note tree
   ipcMain.handle(CMD.NOTE_TREE_GET, async () => {
     return store.getNoteTree()
   })
 
   ipcMain.handle(CMD.NOTE_TREE_SAVE, async (_e, tree: unknown) => {
     await store.saveNoteTree(tree as any)
+    broadcastCampaignState()
   })
 
   // Links
