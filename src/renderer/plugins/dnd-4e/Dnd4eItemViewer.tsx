@@ -1,5 +1,6 @@
 import { useState, type ReactNode } from 'react'
 import { PowerCardView } from './PowerCardView'
+import { capitalize } from '@common/utils/format'
 import './statblock.css'
 
 interface LevelScaling { level: number; text: string }
@@ -75,7 +76,6 @@ function scalingForLevel(scaling: LevelScaling[] | undefined, selectedLevel: num
 
 export function Dnd4eItemViewer({ item, tooltip: tip, onSelectItem }: { item: ParsedItem; tooltip?: (term: string) => string; onSelectItem?: (id: string) => void }) {
   const tooltip = tip ?? (() => '')
-  const cap = (s: string) => s ? s.charAt(0).toUpperCase() + s.slice(1) : s
 
   const hasLevels = item.levels && item.levels.length > 1
   const [selectedLevelIdx, setSelectedLevelIdx] = useState(0)

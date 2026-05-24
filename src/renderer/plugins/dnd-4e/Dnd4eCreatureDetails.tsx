@@ -6,6 +6,8 @@ import { TagInput } from '@renderer/components/shared/TagInput'
 import { CreatureImageEditor } from '@renderer/components/shared/CreatureImageEditor'
 import { getPastedPower, getClipboardPowerName, onClipboardChange } from './power-clipboard'
 import { xpForCreature } from './dnd4e-utils'
+import { capitalize } from '@common/utils/format'
+import { normalizeStringArray } from '@common/utils/arrays'
 import './statblock.css'
 
 // 4e-specific constants
@@ -109,8 +111,8 @@ export function Dnd4eCreatureDetails({ creature, onSave: save, config, compact }
   const sb = creature.statBlock
   const role = (sb.role as string) ?? ''
   const modifier = (sb.monsterModifier as string) ?? ''
-  const roleLabel = (modifier ? modifier.charAt(0).toUpperCase() + modifier.slice(1) + ' ' : '') +
-    (role ? role.charAt(0).toUpperCase() + role.slice(1) : '')
+  const roleLabel = (modifier ? capitalize(modifier) + ' ' : '') +
+    (role ? capitalize(role) : '')
 
   const origin = (sb.origin as string) ?? ''
   const creatureType = (sb.creatureType as string) ?? ''
@@ -164,7 +166,6 @@ export function Dnd4eCreatureDetails({ creature, onSave: save, config, compact }
   const lastAddedSkill = useRef<string | null>(null)
   const lastAddedSpeed = useRef<string | null>(null)
   const focusRef = useCallback((el: HTMLInputElement | null) => { if (el) { el.focus(); el.select() } }, [])
-  const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1)
 
   return (
     <div className={compact ? '' : 'sb-two-col'} style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-4)', alignItems: 'flex-start' }}>
@@ -234,7 +235,7 @@ export function Dnd4eCreatureDetails({ creature, onSave: save, config, compact }
           <b className="sb-label">Senses</b> Perception <input className="ghost" type="number" value={(sb.perception as number) ?? 0}
             onChange={e => u('perception', Number(e.target.value))} />;{' '}
           <TagInput compact
-            values={Array.isArray(sb.senses) ? sb.senses : ((sb.senses as string) ?? '').split(',').map((s: string) => s.trim()).filter(Boolean)}
+            values={normalizeStringArray(sb.senses)}
             onChange={senses => u('senses', senses)}
             suggestions={DND4E_SENSES} placeholder="+ sense" />
         </span>
@@ -366,7 +367,7 @@ export function Dnd4eCreatureDetails({ creature, onSave: save, config, compact }
       <div className="sb-row">
         <b className="sb-label">Languages</b>
         <TagInput compact
-          values={Array.isArray(sb.languages) ? sb.languages : ((sb.languages as string) ?? '').split(',').map((s: string) => s.trim()).filter(Boolean)}
+          values={normalizeStringArray(sb.languages)}
           onChange={languages => u('languages', languages)}
           suggestions={DND4E_LANGUAGES} placeholder="+ language" />
       </div>
@@ -385,7 +386,7 @@ export function Dnd4eCreatureDetails({ creature, onSave: save, config, compact }
                 if (justAdded) lastAddedSkill.current = null
                 return (
                   <span key={name} style={{ display: 'inline-flex', alignItems: 'center', gap: 3, padding: '0 3px', background: 'var(--color-bg-hover)', borderRadius: 'var(--radius-sm)', fontSize: 'var(--font-size-xs)' }}>
-                    {cap(name)} +<input className="ghost" type="number" value={mod ?? ''}
+                    {capitalize(name)} +<input className="ghost" type="number" value={mod ?? ''}
                       ref={justAdded ? focusRef : undefined}
                       onChange={ev => u('skills', { ...skills, [name]: ev.target.value === '' ? '' : Number(ev.target.value) })}
                       onBlur={ev => { if (ev.target.value === '') u('skills', { ...skills, [name]: 0 }) }} />
@@ -452,7 +453,7 @@ export function Dnd4eCreatureDetails({ creature, onSave: save, config, compact }
                 return (
                   <span key={ab}>
                     <b className="sb-label" style={{ color: !hasAbilities && ab === primaryAbility ? 'var(--color-accent)' : undefined }}>
-                      {ab.charAt(0).toUpperCase() + ab.slice(1)}
+                      {capitalize(ab)}
                     </b>{' '}
                     <input className="ghost" type="number" value={score}
                       onChange={e => u('abilities', { ...abilities, [ab]: Number(e.target.value) })} />

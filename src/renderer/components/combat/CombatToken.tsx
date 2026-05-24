@@ -1,5 +1,6 @@
 import { useImage } from '../../hooks/use-image'
 import { tokenColorFromName } from '@common/utils/token-color'
+import { hpPercentage, hpColor } from '../../utils/combat-utils'
 
 interface Props {
   name: string
@@ -18,8 +19,8 @@ export function CombatToken({ name, imageId, tokenImageId, hp, maxHp, isDead, si
   const tokenUrl = useImage(tokenImageId ?? imageId)
   // Ring width scales with token size — ~6% of size, min 2px
   const ringWidth = Math.max(2, Math.round(size * 0.06))
-  const hpPct = maxHp > 0 ? (hp / maxHp) * 100 : 0
-  const hpColor = isDead ? 'var(--color-hp-down)' : hpPct > 50 ? 'var(--color-hp-full)' : hpPct > 25 ? 'var(--color-hp-mid)' : 'var(--color-hp-low)'
+  const hpPct = hpPercentage(hp, maxHp)
+  const hpCol = isDead ? 'var(--color-hp-down)' : hpColor(hpPct)
   const hpAngle = isDead ? 0 : (hpPct / 100) * 360
 
   const bgColor = tokenColorFromName(name)
@@ -27,7 +28,7 @@ export function CombatToken({ name, imageId, tokenImageId, hp, maxHp, isDead, si
 
   const ringBg = isDead ? 'var(--color-token-badge-bg)'
     : hideHpRing ? (solidRingColor ?? 'rgba(128,128,128,0.5)')
-    : `conic-gradient(${hpColor} ${hpAngle}deg, rgba(128,128,128,0.3) ${hpAngle}deg)`
+    : `conic-gradient(${hpCol} ${hpAngle}deg, rgba(128,128,128,0.3) ${hpAngle}deg)`
 
   const badgeSize = Math.max(12, Math.round(size * 0.38))
 

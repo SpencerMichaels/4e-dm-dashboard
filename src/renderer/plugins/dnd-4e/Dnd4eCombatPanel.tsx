@@ -5,6 +5,9 @@ import { PowerCardView, type PowerCardEntry } from './PowerCardView'
 import { USAGE_COLORS, sign } from './dnd4e-utils'
 import { detectConditions, type DetectedCondition } from './condition-detection'
 import { ConditionPill, buildConditionLabel } from './ConditionPill'
+import { capitalize } from '@common/utils/format'
+import { normalizeStringArray } from '@common/utils/arrays'
+import { hpPercentage, hpColor, formatConditionName } from '@renderer/utils/combat-utils'
 import './statblock.css'
 
 /** Extract max uses for a power: 1 for normal encounter, N for "N/Encounter" in keywords, Infinity for at-will */
@@ -24,9 +27,8 @@ function getMaxUses(p: PowerEntry): number {
 /** Convert a PowerEntry from the stat block into a PowerCardEntry for display */
 function toPowerCardEntry(p: PowerEntry): PowerCardEntry {
   // keywords may be string[] (from editor) or string (from imported data)
-  let kw = Array.isArray(p.keywords) ? [...p.keywords]
-    : typeof p.keywords === 'string' ? (p.keywords as string).split(',').map(k => k.trim()).filter(Boolean)
-    : undefined
+  let kw: string[] | undefined = normalizeStringArray(p.keywords)
+  if (kw.length === 0) kw = undefined
 
   // Extract "X/Encounter" or "X/round" from keywords → override usage (keep keyword for display)
   let usage = p.usage || 'at-will'
@@ -69,9 +71,8 @@ export function Dnd4eCombatPanel({
 }: PluginCombatPanelProps) {
   const sb = (c.statBlock ?? {}) as Record<string, any>
   const actions = Array.isArray(sb.actions) ? sb.actions as PowerEntry[] : []
-  const hpPct = c.maxHp > 0 ? (c.hp / c.maxHp) * 100 : 0
+  const hpPct = hpPercentage(c.hp, c.maxHp)
   const usedPowers = c.usedPowers ?? {}
-  const cap = (s: string) => s ? s.charAt(0).toUpperCase() + s.slice(1) : s
 
   // Extract stat block fields
   const abilities = (sb.abilities as Record<string, number>) ?? {}
@@ -80,11 +81,11 @@ export function Dnd4eCombatPanel({
   const immunities = Array.isArray(sb.immunities) ? sb.immunities as { type: string }[] : []
   const resistances = Array.isArray(sb.resistances) ? sb.resistances as { type: string; value?: number }[] : []
   const weaknesses = Array.isArray(sb.weaknesses) ? sb.weaknesses as { type: string; value?: number }[] : []
-  const languages = Array.isArray(sb.languages) ? sb.languages as string[] : typeof sb.languages === 'string' ? (sb.languages as string).split(',').map(s => s.trim()).filter(Boolean) : []
+  const languages = normalizeStringArray(sb.languages)
   const senses = Array.isArray(sb.senses)
     ? (sb.senses as any[]).map(s => typeof s === 'string' ? s : s?.name).filter(Boolean)
     : typeof sb.senses === 'string' ? (sb.senses as string).split(',').map(s => s.trim()).filter(Boolean) : []
-  const equipment = Array.isArray(sb.equipment) ? sb.equipment as string[] : typeof sb.equipment === 'string' ? (sb.equipment as string).split(',').map(s => s.trim()).filter(Boolean) : []
+  const equipment = normalizeStringArray(sb.equipment)
 
   // Separate action types
   const hiddenActionTypes = new Set(['standard', 'move', 'minor'])
@@ -143,17 +144,16 @@ export function Dnd4eCombatPanel({
           )}
         </span>
         <span>Level {sb.level} {(() => {
-          const cap = (s: string) => s ? s.charAt(0).toUpperCase() + s.slice(1) : s
           const mod = sb.monsterModifier as string | undefined
           const role = sb.role as string | undefined
-          return (mod ? cap(mod) + ' ' : '') + (role ? cap(role) : '')
+          return (mod ? capitalize(mod) + ' ' : '') + (role ? capitalize(role) : '')
         })()}</span>
       </div>
 
       {/* HP + AP line */}
       <div style={{ padding: '4px 8px', display: 'flex', alignItems: 'center', gap: 6, borderBottom: '1px solid var(--sb-separator)' }}>
         <b style={{ fontSize: 11 }}>HP</b>
-        <span style={{ fontWeight: 700, fontSize: 13, color: hpPct > 50 ? 'var(--color-hp-full)' : hpPct > 25 ? 'var(--color-hp-mid)' : hpPct > 0 ? 'var(--color-hp-low)' : 'var(--color-text-muted)' }}>{c.hp}</span>
+        <span style={{ fontWeight: 700, fontSize: 13, color: hpPct > 0 ? hpColor(hpPct) : 'var(--color-text-muted)' }}>{c.hp}</span>
         <span style={{ color: 'var(--color-text-muted)', fontSize: 11 }}>/ {c.maxHp}</span>
         {c.tempHp > 0 && <span style={{ color: 'var(--color-temp-hp)', fontSize: 11, fontWeight: 600 }}>+{c.tempHp} temp</span>}
         {hpPct <= 50 && hpPct > 0 && <span style={{ color: 'var(--color-hp-low)', fontSize: 10, fontWeight: 700 }}>BLOODIED</span>}
@@ -195,9 +195,7 @@ export function Dnd4eCombatPanel({
           {c.conditions.map(cond => {
             const def = conditionDefs.find(d => d.id === cond.conditionId)
               ?? (cond.conditionId.startsWith('ongoing-damage') ? conditionDefs.find(d => d.id === 'ongoing-damage') : undefined)
-            const name = cond.customName
-              ?? (cond.conditionId.startsWith('ongoing-damage') ? 'Ongoing Damage'
-                : def?.name ?? cond.conditionId.replace(/-/g, ' ').replace(/\b\w/g, ch => ch.toUpperCase()))
+            const name = formatConditionName(cond.conditionId, conditionDefs, cond.customName)
             const expiresOnName = cond.duration?.expiresOnId ? combat.combatants[cond.duration.expiresOnId]?.name : undefined
             const pillLabel = buildConditionLabel({
               conditionId: cond.conditionId, name, value: cond.value,
@@ -412,14 +410,14 @@ export function Dnd4eCombatPanel({
           <div className="sb-row"><b className="sb-label">Languages</b> {languages.join(', ')}</div>
         )}
         {Object.keys(skills).length > 0 && (
-          <div className="sb-row"><b className="sb-label">Skills</b> {Object.entries(skills).map(([name, mod]) => `${cap(name)} ${sign(mod)}`).join(', ')}</div>
+          <div className="sb-row"><b className="sb-label">Skills</b> {Object.entries(skills).map(([name, mod]) => `${capitalize(name)} ${sign(mod)}`).join(', ')}</div>
         )}
         {Object.keys(abilities).length > 0 && (
           <div className="sb-abilities">
             {['str', 'dex', 'wis', 'con', 'int', 'cha'].filter(ab => abilities[ab] != null).map(ab => {
               const score = abilities[ab]
               const mod = Math.floor((score - 10) / 2)
-              return <span key={ab}><b className="sb-label">{cap(ab)}</b> {score} ({mod >= 0 ? '+' : ''}{mod})</span>
+              return <span key={ab}><b className="sb-label">{capitalize(ab)}</b> {score} ({mod >= 0 ? '+' : ''}{mod})</span>
             })}
           </div>
         )}

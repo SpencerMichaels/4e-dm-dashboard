@@ -233,30 +233,42 @@ Entity and combatant parameters in preload/index.ts are typed as `any` (lines 18
 
 ---
 
-## 5. Suggested Priority
+## 5. Progress
 
-### Do first (quick wins)
-1. Fix undefined `var(--color-text)` — it's a bug right now (2.1)
-2. Implement or remove `resolvePrompts` dead call (4.1)
-3. Add missing broadcasts for CAMPAIGN_DELETE and NOTE_TREE_SAVE (4.3)
+All items from sections 1–4 have been addressed across 5 commits on the `cleanup` branch:
 
-### High value refactors
-4. Extract shared `<Modal>` component (1.1) — reduces the most duplicated UI code
-5. Define semantic color variables and replace hardcoded colors (2.2) — enables theming
-6. Extract duplicated expiration logic in combat engine (3.1)
-7. Extract `withBroadcast()` wrapper for combat handlers (3.5)
+- [x] 1.1 Shared Modal component (Modal.tsx + Modal.module.css)
+- [x] 1.2 Button variant CSS classes (primary, danger, success, info, secondary)
+- [x] 1.3 Standardized form field patterns
+- [x] 1.4 Standardized focus management (autoFocus)
+- [ ] 1.5 Confirm-delete — deferred (window.confirm works fine for now)
+- [x] 2.1 Fixed undefined var(--color-text)
+- [x] 2.2 Semantic color variables, replaced 70+ hardcoded colors
+- [x] 2.3 Wired up unused HP/turn/status CSS vars
+- [x] 2.4 Standardized spacing/borderRadius pixel values
+- [ ] 2.5 Migrate inline styles to CSS modules — deferred (low priority, large mechanical change)
+- [x] 3.1 Extracted EONT/SONT expiration logic
+- [x] 3.2 Extracted getConditionDef() helper
+- [x] 3.3 Extracted matchesDamageType() helper
+- [x] 3.4 Split buildRegenAndOngoingItems()
+- [x] 3.5 Extracted withBroadcast() wrapper (17 handlers → one-liners)
+- [x] 3.6 Removed duplicate NOTE_* handlers
+- [x] 3.7 Differential campaign broadcasting
+- [x] 3.8 System-agnostic compendium via CompendiumProvider plugin interface
+- [x] 4.1 Removed dead resolvePrompts call
+- [x] 4.2 Added awaits to fire-and-forget IPC calls
+- [x] 4.3 Added missing broadcasts (CAMPAIGN_DELETE, NOTE_TREE_SAVE)
+- [x] 4.4 Removed SYNC.THEME dead code
+- [x] 4.5 Removed CAMPAIGN_GET_META dead code
+- [x] 4.6 Typed preload API (replaced any types)
+- [x] 4.7 Removed empty sceneState listener
 
-### Medium priority
-8. Standardize button variants (1.2)
-9. Remove duplicate NOTE_* handlers (3.6)
-10. Wire up unused theme variables, remove truly unused ones (2.3)
-11. Await IPC calls or add serialization (4.2)
-12. Extract `getConditionDef()` and `matchesDamageType()` helpers (3.2, 3.3)
+## 6. Remaining Work
 
-### Low priority / ongoing
-13. Migrate heavy inline-style components to CSS modules (2.5)
-14. Standardize raw pixel values to CSS variables (2.4)
-15. Standardize form field patterns (1.3)
-16. Clean up dead IPC channels and no-op listeners (4.4, 4.5, 4.7)
-17. Type preload API properly (4.6)
-18. Differential campaign broadcasting (3.7)
+### Dead code removal
+- SaveRechargeModal.tsx may be entirely unused (never imported) — investigate and remove if dead
+- PendingPrompt type — referenced by SaveRechargeModal, may also be dead
+- plugins/dnd-4e/importer.ts — no longer imported after compendium refactor
+
+### Code deduplication
+- Audit for copy-pasted code patterns across components

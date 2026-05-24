@@ -8,6 +8,7 @@ import { ConditionPill, buildConditionLabel } from '../../plugins/dnd-4e/Conditi
 import { USAGE_COLORS } from '../../plugins/dnd-4e/dnd4e-utils'
 import { PowerCardView, ACTION_ICONS } from '../../plugins/dnd-4e/PowerCardView'
 import { getCreatureReactions, triggerMatchesNotification, toggleReaction, type CreatureReaction } from './reaction-utils'
+import { hpPercentage, formatConditionName } from '../../utils/combat-utils'
 
 interface Props {
   combat: CombatState
@@ -135,7 +136,7 @@ export function InitiativeList({ combat, currentId, selectedIds, onSelect, onCon
         const isSurprised = combat.round === 0 && c.conditions?.some(co => co.conditionId === 'surprised')
         const isHidden = !!c.hidden
 
-        const hpPct = c.maxHp > 0 ? (c.hp / c.maxHp) * 100 : 0
+        const hpPct = hpPercentage(c.hp, c.maxHp)
 
         // Attack mode state for this creature
         const isAttackTarget = attackMode?.targetIds.includes(id) ?? false
@@ -216,7 +217,7 @@ export function InitiativeList({ combat, currentId, selectedIds, onSelect, onCon
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 2, marginTop: 1 }}>
                   {c.conditions.map(cond => {
                     const def = conditionDefs.find(d => d.id === cond.conditionId) ?? (cond.conditionId.startsWith('ongoing-damage') ? conditionDefs.find(d => d.id === 'ongoing-damage') : undefined)
-                    const name = cond.customName ?? (cond.conditionId.startsWith('ongoing-damage') ? 'Ongoing Damage' : def?.name ?? cond.conditionId.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase()))
+                    const name = formatConditionName(cond.conditionId, conditionDefs, cond.customName)
                     const expiresOnName = cond.duration?.expiresOnId ? combat.combatants[cond.duration.expiresOnId]?.name : undefined
                     const pillLabel = buildConditionLabel({
                       conditionId: cond.conditionId, name, value: cond.value,

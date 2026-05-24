@@ -3,6 +3,7 @@ import { CreatureBuilder } from '@renderer/components/campaign/CreatureBuilder'
 import { TagInput } from '@renderer/components/shared/TagInput'
 import { Autocomplete } from '@renderer/components/shared/Autocomplete'
 import { DamageEntryList } from '@renderer/components/shared/DamageEntryList'
+import { normalizeStringArray } from '@common/utils/arrays'
 
 // PF2e-specific action system constants
 const PF2E_ACTION_TYPES = [
@@ -207,7 +208,7 @@ export function Pf2eCreatureDetails({ creature, onSave: save, config }: Props) {
         <div style={{ marginBottom: 'var(--space-3)' }}>
           <span style={{ display: 'block', fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)', marginBottom: 'var(--space-1)' }}>Equipment</span>
           <TagInput
-            values={Array.isArray(creature.statBlock.equipment) ? creature.statBlock.equipment : ((creature.statBlock.equipment as string) ?? '').split(',').map((s: string) => s.trim()).filter(Boolean)}
+            values={normalizeStringArray(creature.statBlock.equipment)}
             onChange={(equipment) => save({ ...creature, statBlock: { ...creature.statBlock, equipment } })}
             suggestions={[]}
             placeholder="Add equipment..."

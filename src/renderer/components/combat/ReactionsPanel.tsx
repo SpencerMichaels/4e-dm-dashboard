@@ -1,3 +1,5 @@
+// TODO: This component imports directly from plugins/dnd-4e/, violating the system-agnostic rule.
+// It must be refactored to use the SystemPlugin interface before it can be wired into the UI.
 import { useState } from 'react'
 import type { CombatState, CombatNotification } from '@common/types'
 import { PowerCardView, type PowerCardEntry } from '../../plugins/dnd-4e/PowerCardView'

@@ -16,6 +16,7 @@ import { CombatLogPanel } from './CombatLogPanel'
 import { PopoutStatblockPanel } from './PopoutStatblockPanel'
 import { AttackApplyPanel } from './AttackApplyPanel'
 import { ReadyActionDialog } from './ReadyActionDialog'
+import { EffectDialog } from './EffectDialog'
 
 export interface AttackMode {
   phase: 'select' | 'resolve' | 'apply'
@@ -741,6 +742,12 @@ export function CombatView() {
       )}
       {dialog?.type === 'condition' && (
         <ConditionDialog
+          combatantId={dialog.combatantId}
+          onClose={() => setDialog(null)}
+        />
+      )}
+      {dialog?.type === 'effect' && (
+        <EffectDialog
           combatantId={dialog.combatantId}
           onClose={() => setDialog(null)}
         />

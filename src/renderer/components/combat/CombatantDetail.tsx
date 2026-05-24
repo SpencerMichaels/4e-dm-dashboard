@@ -1,5 +1,6 @@
 import type { CombatantState } from '@common/types'
 import { useUiStore } from '../../stores/ui-store'
+import { hpPercentage, hpColor, formatConditionName } from '../../utils/combat-utils'
 
 interface Props {
   combatant: CombatantState
@@ -35,7 +36,7 @@ export function CombatantDetail({
   onRemove,
 }: Props) {
   const systemPlugin = useUiStore((s) => s.systemPlugin)
-  const hpPct = c.maxHp > 0 ? (c.hp / c.maxHp) * 100 : 0
+  const hpPct = hpPercentage(c.hp, c.maxHp)
 
   return (
     <div style={{ maxWidth: 500 }}>
@@ -101,7 +102,7 @@ export function CombatantDetail({
           <div style={{
             width: `${hpPct}%`,
             height: '100%',
-            background: hpPct > 50 ? 'var(--color-hp-full)' : hpPct > 25 ? 'var(--color-hp-mid)' : 'var(--color-hp-low)',
+            background: hpColor(hpPct),
             transition: 'width 0.2s',
           }} />
         </div>
@@ -119,7 +120,7 @@ export function CombatantDetail({
         }}>
           {c.conditions.map((cond) => {
             const def = systemPlugin?.conditions?.find((d: any) => d.id === cond.conditionId)
-            const name = cond.customName ?? def?.name ?? cond.conditionId.replace(/-/g, ' ').replace(/\b\w/g, ch => ch.toUpperCase())
+            const name = formatConditionName(cond.conditionId, systemPlugin?.conditions ?? [], cond.customName)
             const label = cond.value != null ? `${name} ${cond.value}` : name
             return (
               <span

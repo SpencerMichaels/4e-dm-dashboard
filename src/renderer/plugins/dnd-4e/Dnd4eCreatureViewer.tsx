@@ -8,6 +8,8 @@ import { CreatureImageEditor } from '@renderer/components/shared/CreatureImageEd
 import { useCampaignStore } from '@renderer/stores/campaign-store'
 import { copyPower } from './power-clipboard'
 import { xpForCreature, sign } from './dnd4e-utils'
+import { capitalize } from '@common/utils/format'
+import { normalizeStringArray } from '@common/utils/arrays'
 import './statblock.css'
 
 // Per-template-slot color palette (used for visual attribution of template-modified values)
@@ -91,9 +93,7 @@ export function Dnd4eCreatureViewer({ creature, tooltip: tip, compendiumId: comp
   const role = (sb.role as string) ?? ''
   const modifier = (sb.monsterModifier as string) ?? ''
   const halfLvl = Math.floor(level / 2)
-  const cap = (s: string) => s ? s.charAt(0).toUpperCase() + s.slice(1) : s
-
-  const roleLabel = (modifier ? cap(modifier) + ' ' : '') + (role ? cap(role) : '')
+  const roleLabel = (modifier ? capitalize(modifier) + ' ' : '') + (role ? capitalize(role) : '')
   const origin = (sb.origin as string) ?? ''
   const creatureType = (sb.creatureType as string) ?? ''
   // Subtypes/senses can hold either plain strings (base) or {name, _templateSource, _templateSourceIndex} (template-added)
@@ -110,9 +110,9 @@ export function Dnd4eCreatureViewer({ creature, tooltip: tip, compendiumId: comp
   const resistances = Array.isArray(sb.resistances) ? sb.resistances as { type: string; value?: number; _templateSource?: string; _templateSourceIndex?: number }[] : []
   const weaknesses = Array.isArray(sb.weaknesses) ? sb.weaknesses as { type: string; value?: number; _templateSource?: string; _templateSourceIndex?: number }[] : []
   const actions = Array.isArray(sb.actions) ? sb.actions as PowerEntry[] : []
-  const languages = Array.isArray(sb.languages) ? sb.languages as string[] : typeof sb.languages === 'string' ? (sb.languages as string).split(',').map(s => s.trim()).filter(Boolean) : []
+  const languages = normalizeStringArray(sb.languages)
   const senses = normalizeNamed(typeof sb.senses === 'string' ? (sb.senses as string).split(',').map(s => s.trim()).filter(Boolean) : sb.senses)
-  const equipment = Array.isArray(sb.equipment) ? sb.equipment as string[] : typeof sb.equipment === 'string' ? (sb.equipment as string).split(',').map(s => s.trim()).filter(Boolean) : []
+  const equipment = normalizeStringArray(sb.equipment)
   const diffs = Array.isArray(sb._templateDiffs) ? sb._templateDiffs as TemplateFieldDiff[] : undefined
 
   // Template-added or theme-added entries render with colored borders for attribution
@@ -275,7 +275,7 @@ export function Dnd4eCreatureViewer({ creature, tooltip: tip, compendiumId: comp
             <b className="sb-label">Skills</b> {Object.entries(skills).map(([name, mod], i) => (
               <span key={name}>
                 {i > 0 && ', '}
-                {cap(name)} <StatNumber value={mod as number} field={`skills.${name}`} diffs={diffs} prefix="+" />
+                {capitalize(name)} <StatNumber value={mod as number} field={`skills.${name}`} diffs={diffs} prefix="+" />
               </span>
             ))}
           </div>
@@ -285,7 +285,7 @@ export function Dnd4eCreatureViewer({ creature, tooltip: tip, compendiumId: comp
             {['str', 'dex', 'wis', 'con', 'int', 'cha'].filter(ab => abilities[ab] != null).map(ab => {
               const score = abilities[ab]
               const mod = Math.floor((score - 10) / 2)
-              return <span key={ab}><b className="sb-label">{cap(ab)}</b> {score} ({mod >= 0 ? '+' : ''}{mod})</span>
+              return <span key={ab}><b className="sb-label">{capitalize(ab)}</b> {score} ({mod >= 0 ? '+' : ''}{mod})</span>
             })}
           </div>
         )}

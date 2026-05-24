@@ -17,6 +17,7 @@ import { FloatingPanel } from '@renderer/components/shared/FloatingPanel'
 import { useUiStore } from '@renderer/stores/ui-store'
 import { useCampaignStore } from '@renderer/stores/campaign-store'
 import { generateId } from '@common/utils/id'
+import { capitalize } from '@common/utils/format'
 import './statblock.css'
 
 
@@ -604,8 +605,8 @@ export function Dnd4eEncounterEditor({ encounter, onSave, creatures, onNavigate 
           <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', padding: '4px 8px' }}>
             {templateSlotFill.map((slot, i) => {
               const roleName = slot.role
-                ? (slot.altRole ? `${cap(slot.role)}/${cap(slot.altRole)}` : cap(slot.role))
-                : (slot.modifier ? cap(slot.modifier) : 'Any')
+                ? (slot.altRole ? `${capitalize(slot.role)}/${capitalize(slot.altRole)}` : capitalize(slot.role))
+                : (slot.modifier ? capitalize(slot.modifier) : 'Any')
               const levelLabel = slot.targetLevel != null ? ` L${slot.targetLevel}` : ''
               const fraction = slot.filled / slot.count
               const done = fraction >= 1
@@ -1079,10 +1080,6 @@ export function Dnd4eEncounterEditor({ encounter, onSave, creatures, onNavigate 
   )
 }
 
-// ─── Helpers ───
-
-const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1)
-
 // ─── Draggable Template Window ───
 
 function DraggableTemplateWindow({ template, onClose }: { template: MonsterTemplate; onClose: () => void }) {
@@ -1511,7 +1508,7 @@ function ThemePicker({ currentTheme, onApply, onRemove, onClose, onPreview }: {
             <div style={{ marginBottom: 'var(--space-2)' }}>
               <div style={{ color: 'var(--color-text-muted)', fontStyle: 'italic' }}>
                 Skills: {parsedSkills.always.length > 0 && (
-                  <span>{parsedSkills.always.map(s => `${s.charAt(0).toUpperCase() + s.slice(1)} +${parsedSkills.bonus}`).join(', ')}</span>
+                  <span>{parsedSkills.always.map(s => `${capitalize(s)} +${parsedSkills.bonus}`).join(', ')}</span>
                 )}
               </div>
               {hasSkillChoice && (
@@ -1526,7 +1523,7 @@ function ThemePicker({ currentTheme, onApply, onRemove, onClose, onPreview }: {
                     }}>
                       <input type="radio" name="skillChoice" checked={skillChoice === gi}
                         onChange={() => setSkillChoice(gi)} />
-                      <span>+{parsedSkills.bonus} to {group.map(s => s.charAt(0).toUpperCase() + s.slice(1)).join(', ')}</span>
+                      <span>+{parsedSkills.bonus} to {group.map(s => capitalize(s)).join(', ')}</span>
                     </label>
                   ))}
                 </div>
