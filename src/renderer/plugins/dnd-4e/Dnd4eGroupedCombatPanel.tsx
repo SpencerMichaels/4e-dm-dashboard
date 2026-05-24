@@ -143,7 +143,7 @@ export function Dnd4eGroupedCombatPanel({
       {/* Header: pluralized base name and level/role */}
       <div className="sb-header">
         <span className="sb-name" style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-          {pluralize(baseName)}
+          {pluralize(baseName)} ({'\u00D7'}{combatants.length})
         </span>
         <span>Level {sb.level} {(() => {
           const mod = sb.monsterModifier as string | undefined
