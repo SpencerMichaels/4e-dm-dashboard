@@ -64,7 +64,9 @@ function getDesignator(c: CombatantState): string {
   }
 
   const prefix = c.name.slice(0, idx).trim()   // e.g. "green" (color word)
-  const suffix = c.name.slice(idx + base.length).trim() // e.g. "2" or "(bow)"
+  const rawSuffix = c.name.slice(idx + base.length).trim() // e.g. "2" or "(bow)"
+  // Strip parentheses from descriptor — "(bow)" → "bow"
+  const suffix = rawSuffix.replace(/^\((.+)\)$/, '$1')
 
   const parts: string[] = []
   if (prefix) parts.push(capitalize(prefix))
