@@ -47,16 +47,30 @@ function toPowerCardEntry(p: PowerEntry): PowerCardEntry {
   }
 }
 
-/** Derive a short designator label from the combatant's name, stripping the baseName prefix */
+/** Derive a short designator label for a grouped creature.
+ *  Strips the baseName to show only the distinguishing parts:
+ *  "green orc darkblade 2" → "Green 2", "orc darkblade" → the full name.
+ *  If the name doesn't follow the [color] [baseName] [number] pattern
+ *  (i.e. was manually renamed), show the full custom name. */
 function getDesignator(c: CombatantState): string {
   const base = c.baseName ?? ''
-  if (base && c.name.startsWith(base)) {
-    const suffix = c.name.slice(base.length).trim()
-    if (suffix) return suffix
+  if (!base || c.name === base) return c.name
+
+  // Check if the name follows the standard pattern: [prefix] baseName [suffix]
+  const idx = c.name.indexOf(base)
+  if (idx < 0) {
+    // Name doesn't contain baseName at all — it's a custom name
+    return c.name
   }
-  // Fallback: use miniNumber or the full name
-  if (c.miniNumber != null) return `#${c.miniNumber}`
-  return c.name
+
+  const prefix = c.name.slice(0, idx).trim()   // e.g. "green" (color word)
+  const suffix = c.name.slice(idx + base.length).trim() // e.g. "2" or "(bow)"
+
+  const parts: string[] = []
+  if (prefix) parts.push(capitalize(prefix))
+  if (suffix) parts.push(suffix)
+
+  return parts.length > 0 ? parts.join(' ') : c.name
 }
 
 /** Default designator color when combatant has no color assigned */
