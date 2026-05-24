@@ -263,12 +263,18 @@ All items from sections 1–4 have been addressed across 5 commits on the `clean
 - [x] 4.6 Typed preload API (replaced any types)
 - [x] 4.7 Removed empty sceneState listener
 
-## 6. Remaining Work
+## 6. Additional Cleanup (Round 2)
 
-### Dead code removal
-- SaveRechargeModal.tsx may be entirely unused (never imported) — investigate and remove if dead
-- PendingPrompt type — referenced by SaveRechargeModal, may also be dead
-- plugins/dnd-4e/importer.ts — no longer imported after compendium refactor
+- [x] Deleted SaveRechargeModal.tsx (dead code — referenced nonexistent PendingPrompt type)
+- [x] Wired up EffectDialog in CombatView (was built but never rendered)
+- [x] Added TODO to ReactionsPanel (imports dnd-4e directly, needs system-agnostic refactor)
+- [x] Extracted hpPercentage() and hpColor() → src/renderer/utils/combat-utils.ts (4 files)
+- [x] Extracted formatConditionName() → src/renderer/utils/combat-utils.ts (3 files)
+- [x] Extracted capitalize() → src/common/utils/format.ts (6 files)
+- [x] Extracted normalizeStringArray() → src/common/utils/arrays.ts (7 occurrences)
 
-### Code deduplication
-- Audit for copy-pasted code patterns across components
+## 7. Deferred / Low Priority
+
+- [ ] 1.5 Replace window.confirm() with Modal-based confirm dialog
+- [ ] 2.5 Migrate heavy inline-style components to CSS modules
+- [ ] ReactionsPanel needs system-agnostic refactor before it can be wired into CombatView
