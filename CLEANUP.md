@@ -273,8 +273,8 @@ All items from sections 1–4 have been addressed across 5 commits on the `clean
 - [x] Extracted capitalize() → src/common/utils/format.ts (6 files)
 - [x] Extracted normalizeStringArray() → src/common/utils/arrays.ts (7 occurrences)
 
-## 7. Deferred / Low Priority
+## 7. Previously Deferred (now complete)
 
-- [ ] 1.5 Replace window.confirm() with Modal-based confirm dialog
-- [ ] 2.5 Migrate heavy inline-style components to CSS modules
-- [ ] ReactionsPanel needs system-agnostic refactor before it can be wired into CombatView
+- [x] 1.5 Replace window.confirm() with Modal-based ConfirmDialog component
+- [x] 2.5 Migrate CombatantDetail, AttackApplyPanel, CombatLogPanel to CSS modules
+- [x] ReactionsPanel refactored to system-agnostic plugin API, wired into CombatView
