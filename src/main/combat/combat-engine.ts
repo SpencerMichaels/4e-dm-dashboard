@@ -630,7 +630,6 @@ export function endTurn(plugin?: SystemPlugin): { state: CombatState; notificati
 
       // Remove EONT + round-based conditions
       removeExpiredConditions(combatState.combatants, currentId, 'eont')
-      }
 
       // Plugin end-of-turn hooks → save items
       const endActions: unknown[] = []
