@@ -33,6 +33,7 @@ export const CONDITION_STYLES: Record<string, ConditionStyle> = {
   'weakened':          { color: '#b8cc85', textColor: '#1a1a1a', icon: '📉' },
   'bloodied':          { color: '#cc7e7e', textColor: '#1a1a1a', icon: '🩸' },
   'ongoing-damage':    { color: '#d489a0', textColor: '#1a1a1a', icon: '🔄' },
+  'regenerating':      { color: '#6ebe6e', textColor: '#1a1a1a', icon: '💚' },
   // Class marks — fallback colors used when the source PC has no chip color set
   ...Object.fromEntries(CLASS_MARKS.map(m => [
     m.conditionId, { color: m.color, textColor: '#1a1a1a', icon: m.icon } as ConditionStyle,

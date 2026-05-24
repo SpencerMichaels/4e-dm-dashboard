@@ -29,6 +29,7 @@ export const CMD = {
   COMBAT_SET_INITIATIVE: 'combat:set-initiative',
   COMBAT_SET_INITIATIVE_FOCUS: 'combat:set-initiative-focus',
   COMBAT_SET_PLAYER_EXPAND_CONDITIONS: 'combat:set-player-expand-conditions',
+  COMBAT_SET_AUTO_HIDE_DEAD: 'combat:set-auto-hide-dead',
   COMBAT_END_TURN: 'combat:end-turn',
   COMBAT_RESOLVE_ITEM: 'combat:resolve-item',
   COMBAT_RESOLVE_DEATH_SAVE: 'combat:resolve-death-save',

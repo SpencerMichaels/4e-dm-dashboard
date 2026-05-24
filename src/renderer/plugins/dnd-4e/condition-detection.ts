@@ -27,6 +27,7 @@ interface PowerFields {
 
 // Conditions to detect — ordered by specificity (longer patterns first)
 const CONDITION_MATCHERS: { id: string; name: string; pattern: RegExp }[] = [
+  { id: 'regenerating', name: 'Regenerating', pattern: /\bgains?\s+regeneration\s+(\d+)\b/gi },
   { id: 'ongoing-damage', name: 'Ongoing Damage', pattern: /\bongoing\s+(\d+)\s+((?:\w+\s+(?:and\s+\w+\s+)?)?)?damage\b/gi },
   { id: 'combat-advantage', name: 'Grants Combat Advantage', pattern: /\bgrants?\s+combat\s+advantage\b/gi },
   { id: 'immobilized', name: 'Immobilized', pattern: /\b(?:is\s+|becomes?\s+)immobilized\b/gi },
@@ -75,6 +76,7 @@ const CONDITION_DEFAULT_DURATION: Record<string, DetectedCondition['duration']> 
   'marked': { type: 'eont' },
   'unconscious': { type: 'indefinite' },
   'combat-advantage': { type: 'indefinite' },
+  'regenerating': { type: 'encounter' },
   'dying': { type: 'indefinite' },
   'bloodied': { type: 'indefinite' },
   // All others default to save-ends
@@ -126,6 +128,11 @@ function detectInField(
       if (matcher.id === 'ongoing-damage' && match[1]) {
         detected.value = parseInt(match[1])
         if (match[2]) detected.damageType = match[2].trim().toLowerCase()
+      }
+
+      // For regenerating, extract the value
+      if (matcher.id === 'regenerating' && match[1]) {
+        detected.value = parseInt(match[1])
       }
 
       // For grants combat advantage, classify who the target grants CA to

@@ -102,6 +102,12 @@ export function registerCombatHandlers(): void {
     return state
   })
 
+  ipcMain.handle(CMD.COMBAT_SET_AUTO_HIDE_DEAD, async (_e, value: boolean) => {
+    const state = engine.setAutoHideDeadCreatures(value)
+    broadcastCombatState()
+    return state
+  })
+
   ipcMain.handle(CMD.COMBAT_END_TURN, async () => {
     const plugin = getActivePlugin()
     const result = engine.endTurn(plugin)

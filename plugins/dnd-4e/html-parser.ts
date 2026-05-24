@@ -82,6 +82,10 @@ function _parseMonsterHtml(html: string, warnings: string[]): Creature {
   const speedMatch = statsText.match(/Speed\s+(.+?)(?=\n|$)/i)
   const { land, speeds, speedNotes } = parseSpeeds(speedMatch?.[1] ?? '6')
 
+  // Header-line Regeneration (appears between HP and AC in the stats block)
+  const headerRegenMatch = statsText.match(/Regeneration\s+(\d+)/i)
+  const headerRegenValue = headerRegenMatch ? parseInt(headerRegenMatch[1]) : undefined
+
   // Immune/Resist/Vulnerable from stats text
   const immuneMatch = statsText.match(/Immune\s+(.+?)(?=\n|Resist|Vulnerable|Saving|$)/i)
   const immunities = immuneMatch ? immuneMatch[1].split(/[,;]/).map(s => ({ type: s.replace(/[;.,\s]+$/, '').trim() })).filter(e => e.type) : []
@@ -89,6 +93,20 @@ function _parseMonsterHtml(html: string, warnings: string[]): Creature {
   const resistances = resistMatch ? parseResistValues(resistMatch[1].replace(/[;]+$/, '').trim()) : []
   const vulnMatch = statsText.match(/Vulnerable\s+(.+?)(?=\n|Saving|$)/i)
   const weaknesses = vulnMatch ? parseResistValues(vulnMatch[1]) : []
+
+  // Extract regen inhibition from Vulnerable line parenthetical
+  let headerRegenInhibit: string[] | undefined
+  if (headerRegenValue && vulnMatch) {
+    const vulnText = vulnMatch[1]
+    const inhibitMatch = vulnText.match(/\(if\b.*?\btakes?\s+([\w\s,]+?)\s+damage.*?regeneration\b.*?\)/i)
+    if (inhibitMatch) {
+      headerRegenInhibit = inhibitMatch[1].toLowerCase()
+        .replace(/\s+from\s+.*$/, '')  // strip "from a silver weapon" etc.
+        .split(/(?:\s+or\s+|\s*,\s*)/)
+        .map(s => s.trim())
+        .filter(Boolean)
+    }
+  }
 
   // Auras from stats block (bold name + "aura N;")
   const statsAuras = parseAurasFromStatsHtml(statsHtml)
@@ -139,6 +157,82 @@ function _parseMonsterHtml(html: string, warnings: string[]): Creature {
 
   if (actions.length === 0) warnings.push('No powers or abilities were parsed')
 
+  // ─── Pre-compute trigger classifications on actions ───
+  for (const a of actions) {
+    const trigger = ((a.trigger as string) ?? '').toLowerCase().replace(/\.$/, '').trim()
+    if (trigger) {
+      // Classify trigger events
+      const triggerEvents: string[] = []
+      if (/\bbloodied\b/.test(trigger)) triggerEvents.push('bloodied')
+      if (/\breduced to 0\b|\bdrops to 0\b|\bhit points or fewer\b/.test(trigger)) triggerEvents.push('reduced-to-0')
+      if (/\btakes damage\b/.test(trigger)) triggerEvents.push('takes-damage')
+
+      if (triggerEvents.length > 0) {
+        let triggerSubject: string = 'self'
+        if (/\ban ally\b|\ballied\b|\badjacent ally\b/.test(trigger)) triggerSubject = 'ally'
+        else if (/\ba creature\b|\ban enemy\b|\ban undead\b|\ba [\w]+ creature\b/.test(trigger)) triggerSubject = 'any-creature'
+        a.triggerEvents = triggerEvents
+        a.triggerSubject = triggerSubject
+      }
+
+      // Flag self-turn-only triggers (should not show as off-turn reactions)
+      if (/\b(hits with|misses with|makes an attack|attacks with|scores a critical|makes a melee|makes a ranged)\b/.test(trigger)
+        && !/\benemy\b|\ban ally\b|\ba creature\b/.test(trigger)) {
+        a.selfTurnOnly = true
+      }
+      if (/\b(shifts|moves|charges|teleports)\b/.test(trigger)
+        && !/\benemy\b|\ban ally\b|\ba creature\b|\bmarked\b/.test(trigger)) {
+        a.selfTurnOnly = true
+      }
+    }
+
+    // Extract encounter usage from keywords
+    const kws = Array.isArray(a.keywords) ? a.keywords as string[] : []
+    const usageKw = kws.find((k: string) => /^\d+\/encounter$/i.test(k.trim()))
+    if (usageKw) {
+      a.encounterUses = parseInt(usageKw)
+    }
+  }
+
+  // ─── Extract regeneration and revival data ───
+  let regeneration: { value: number; inhibitDamageTypes?: string[] } | undefined
+  let revival: { hp: number; abilityName: string } | undefined
+
+  // Header-line regen (between HP and AC in the stats block)
+  if (headerRegenValue) {
+    regeneration = { value: headerRegenValue, inhibitDamageTypes: headerRegenInhibit }
+  }
+
+  for (const a of actions) {
+    const aName = (a.name as string ?? '').toLowerCase()
+    const effect = (a.effect as string) ?? ''
+
+    // Action-based Regeneration trait: "regains N hit points whenever it starts its turn"
+    if (aName.startsWith('regeneration') && !regeneration) {
+      const regenMatch = effect.match(/regains?\s+(\d+)\s+hit points?/i)
+      if (regenMatch) {
+        const regen: { value: number; inhibitDamageTypes?: string[] } = { value: parseInt(regenMatch[1]) }
+        const inhibitMatch = effect.match(/takes?\s+([\w,\s]+?)\s+damage.*(?:doesn't|does not)\s+function/i)
+          ?? effect.match(/takes?\s+([\w,\s]+?)\s+damage.*does not regenerate/i)
+        if (inhibitMatch) {
+          regen.inhibitDamageTypes = inhibitMatch[1].toLowerCase()
+            .split(/(?:\s+or\s+|\s*,\s*)/)
+            .map(s => s.trim())
+            .filter(Boolean)
+        }
+        regeneration = regen
+      }
+    }
+
+    // Revival ability (Troll Healing, Rise Again, etc.): "reduced to 0 HP... revives/rises/regains N HP"
+    if (!revival && /reduc(?:ed|es)\b.{0,30}\bto 0|drops?\b.{0,30}\bto 0/i.test(effect)) {
+      const reviveMatch = effect.match(/(?:regains?|with|returns.*?with|has)\s+(\d+)\s+hit points?/i)
+      if (reviveMatch && /(?:rises|regains|returns|revives|next turn)/i.test(effect)) {
+        revival = { hp: parseInt(reviveMatch[1]), abilityName: a.name as string }
+      }
+    }
+  }
+
   return {
     id: generateId(),
     name,
@@ -156,6 +250,8 @@ function _parseMonsterHtml(html: string, warnings: string[]): Creature {
       xp, savingThrowBonus, actionPoints,
       description, source,
       actions,
+      regeneration,
+      revival,
     },
     createdAt: now,
     updatedAt: now,

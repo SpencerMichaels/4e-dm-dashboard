@@ -40,6 +40,8 @@ const api = {
       ipcRenderer.invoke(CMD.COMBAT_SET_INITIATIVE_FOCUS, combatantId),
     setPlayerExpandConditions: (value: boolean) =>
       ipcRenderer.invoke(CMD.COMBAT_SET_PLAYER_EXPAND_CONDITIONS, value),
+    setAutoHideDeadCreatures: (value: boolean) =>
+      ipcRenderer.invoke(CMD.COMBAT_SET_AUTO_HIDE_DEAD, value),
     endTurn: () => ipcRenderer.invoke(CMD.COMBAT_END_TURN),
     resolveItem: (index: number, success: boolean) => ipcRenderer.invoke(CMD.COMBAT_RESOLVE_ITEM, index, success),
     resolveDeathSave: (index: number, outcome: 'fail' | 'none' | 'success') => ipcRenderer.invoke(CMD.COMBAT_RESOLVE_DEATH_SAVE, index, outcome),

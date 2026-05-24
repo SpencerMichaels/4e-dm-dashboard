@@ -34,14 +34,10 @@ function toPowerCard(p: any): PowerCardEntry {
     : typeof p.keywords === 'string' ? p.keywords.split(',').map((k: string) => k.trim()).filter(Boolean)
     : undefined
 
-  // Extract "X/Encounter" from keywords → override usage
-  let usage = p.usage || 'at-will'
+  // Use pre-computed encounter usage if available
+  let usage = p.encounterUses ? 'encounter' : (p.usage || 'at-will')
   if (kw) {
-    const usageKwIdx = kw.findIndex((k: string) => /^\d+\/encounter$/i.test(k.trim()) || /^at-will\s*\(\d+\/\w+\)$/i.test(k.trim()))
-    if (usageKwIdx >= 0) {
-      if (/^\d+\/encounter$/i.test(kw[usageKwIdx].trim())) usage = 'encounter'
-      kw = kw.filter((_: any, i: number) => i !== usageKwIdx)
-    }
+    kw = kw.filter((k: string) => !/^\d+\/encounter$/i.test(k.trim()) && !/^at-will\s*\(\d+\/\w+\)$/i.test(k.trim()))
   }
 
   return {
@@ -73,30 +69,12 @@ interface ParsedTrigger {
   subject: TriggerSubject
 }
 
-/** Parse a trigger string into structured data for matching */
-function parseTrigger(trigger: string, creatureName: string): ParsedTrigger | null {
-  if (!trigger) return null
-  const t = trigger.toLowerCase().replace(/\.$/, '').trim()
-
-  const events: TriggerEvent[] = []
-  if (/\bbloodied\b/.test(t)) events.push('bloodied')
-  if (/\breduced to 0\b|\bdrops to 0\b|\bhit points or fewer\b/.test(t)) events.push('reduced-to-0')
-  if (/\btakes damage\b/.test(t) && !events.includes('bloodied')) events.push('takes-damage')
-  // "takes damage while bloodied" — both bloodied (as condition) and takes-damage
-  if (/\btakes damage\b/.test(t) && events.includes('bloodied')) {
-    events.push('takes-damage')
-  }
-  if (events.length === 0) return null
-
-  // Determine subject
-  const cNameLower = creatureName.toLowerCase()
-  // "an ally" / "allied" → ally
-  if (/\ban ally\b|\ballied\b|\badjacent ally\b/.test(t)) return { events, subject: 'ally' }
-  // "a creature" / "an enemy" / "an undead creature" → any-creature (could be ally or enemy)
-  if (/\ba creature\b|\ban enemy\b|\ban undead\b|\ba [\w]+ creature\b/.test(t)) return { events, subject: 'any-creature' }
-  // Bare "bloodied" / "first bloodied" / "the X is bloodied" / "X takes damage" → self
-  // Check: does trigger mention the creature's own name or use bare form?
-  return { events, subject: 'self' }
+/** Build a ParsedTrigger from pre-computed action fields (set at import time) */
+function parseTrigger(action: any): ParsedTrigger | null {
+  const events = action.triggerEvents as TriggerEvent[] | undefined
+  const subject = action.triggerSubject as TriggerSubject | undefined
+  if (!events || events.length === 0) return null
+  return { events, subject: subject ?? 'self' }
 }
 
 /** Check if a parsed trigger matches a notification, given the reactor's combatant IDs */
@@ -142,24 +120,15 @@ export function ReactionsPanel({ combat, currentCombatantId, notifications = [] 
       if (!REACTION_TYPES.includes(a.actionType)) continue
       // Free actions: must have a trigger, and exclude ones that can only fire on own turn
       if (a.actionType === 'free') {
-        const trigger = (a.trigger || '').toLowerCase()
-        if (!trigger) continue
-        // Self-turn-only: creature hits/misses/attacks, creature moves/shifts/charges
-        const selfTurnOnly = /\b(hits with|misses with|makes an attack|attacks with|scores a critical|makes a melee|makes a ranged)\b/.test(trigger)
-          && !/\benemy\b|\ban ally\b|\ba creature\b/.test(trigger)
-        if (selfTurnOnly) continue
-        const selfMove = /\b(shifts|moves|charges|teleports)\b/.test(trigger)
-          && !/\benemy\b|\ban ally\b|\ba creature\b|\bmarked\b/.test(trigger)
-        if (selfMove) continue
+        if (!a.trigger) continue
+        if (a.selfTurnOnly) continue
       }
       // Skip if fully used
       const timesUsed = usedPowers[i] ?? 0
       if (timesUsed > 0) {
-        const kws = Array.isArray(a.keywords) ? a.keywords : []
-        const kwMatch = kws.find((k: string) => /^\d+\/encounter$/i.test(String(k).trim()))
-        const effectiveUsage = kwMatch ? 'encounter' : (a.usage || 'at-will')
+        const effectiveUsage = a.encounterUses ? 'encounter' : (a.usage || 'at-will')
         if (effectiveUsage === 'encounter' || effectiveUsage === 'recharge') {
-          const maxUses = kwMatch ? parseInt(kwMatch) : 1
+          const maxUses = a.encounterUses ?? 1
           if (timesUsed >= maxUses) continue
         }
       }
@@ -168,7 +137,7 @@ export function ReactionsPanel({ combat, currentCombatantId, notifications = [] 
       if (!grouped.has(key)) {
         grouped.set(key, {
           card: toPowerCard(a), powerIndex: i, combatants: [], power: a,
-          parsedTrigger: parseTrigger(a.trigger || '', c.name),
+          parsedTrigger: parseTrigger(a),
         })
       }
       // Free actions aren't limited by the reaction-per-round rule

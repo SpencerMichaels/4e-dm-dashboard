@@ -26,13 +26,11 @@ function toPowerCard(p: any): PowerCardEntry {
     : typeof p.keywords === 'string' ? p.keywords.split(',').map((k: string) => k.trim()).filter(Boolean)
     : undefined
 
-  let usage = p.usage || 'at-will'
+  // Use pre-computed encounter usage if available, otherwise fall back to action's usage
+  let usage = p.encounterUses ? 'encounter' : (p.usage || 'at-will')
   if (kw) {
-    const usageKwIdx = kw.findIndex((k: string) => /^\d+\/encounter$/i.test(k.trim()) || /^at-will\s*\(\d+\/\w+\)$/i.test(k.trim()))
-    if (usageKwIdx >= 0) {
-      if (/^\d+\/encounter$/i.test(kw[usageKwIdx].trim())) usage = 'encounter'
-      kw = kw.filter((_: any, i: number) => i !== usageKwIdx)
-    }
+    // Strip usage keywords from display list (they're metadata, not display keywords)
+    kw = kw.filter((k: string) => !/^\d+\/encounter$/i.test(k.trim()) && !/^at-will\s*\(\d+\/\w+\)$/i.test(k.trim()))
   }
 
   return {
@@ -56,21 +54,12 @@ function toPowerCard(p: any): PowerCardEntry {
   }
 }
 
-/** Parse a trigger string into structured data for matching against notifications */
-export function parseTrigger(trigger: string, _creatureName: string): ParsedTrigger | null {
-  if (!trigger) return null
-  const t = trigger.toLowerCase().replace(/\.$/, '').trim()
-
-  const events: TriggerEvent[] = []
-  if (/\bbloodied\b/.test(t)) events.push('bloodied')
-  if (/\breduced to 0\b|\bdrops to 0\b|\bhit points or fewer\b/.test(t)) events.push('reduced-to-0')
-  if (/\btakes damage\b/.test(t) && !events.includes('bloodied')) events.push('takes-damage')
-  if (/\btakes damage\b/.test(t) && events.includes('bloodied')) events.push('takes-damage')
-  if (events.length === 0) return null
-
-  if (/\ban ally\b|\ballied\b|\badjacent ally\b/.test(t)) return { events, subject: 'ally' }
-  if (/\ba creature\b|\ban enemy\b|\ban undead\b|\ba [\w]+ creature\b/.test(t)) return { events, subject: 'any-creature' }
-  return { events, subject: 'self' }
+/** Build a ParsedTrigger from pre-computed action fields (set at import time) */
+export function parseTrigger(action: any): ParsedTrigger | null {
+  const events = action.triggerEvents as TriggerEvent[] | undefined
+  const subject = action.triggerSubject as TriggerSubject | undefined
+  if (!events || events.length === 0) return null
+  return { events, subject: subject ?? 'self' }
 }
 
 export function triggerMatchesNotification(
@@ -110,23 +99,15 @@ export function getCreatureReactions(c: CombatantState, isCurrentTurn: boolean):
 
     // Free actions: must have a trigger, exclude self-only ones
     if (a.actionType === 'free') {
-      const trigger = (a.trigger || '').toLowerCase()
-      if (!trigger) continue
-      const selfTurnOnly = /\b(hits with|misses with|makes an attack|attacks with|scores a critical|makes a melee|makes a ranged)\b/.test(trigger)
-        && !/\benemy\b|\ban ally\b|\ba creature\b/.test(trigger)
-      if (selfTurnOnly) continue
-      const selfMove = /\b(shifts|moves|charges|teleports)\b/.test(trigger)
-        && !/\benemy\b|\ban ally\b|\ba creature\b|\bmarked\b/.test(trigger)
-      if (selfMove) continue
+      if (!a.trigger) continue
+      if (a.selfTurnOnly) continue
     }
 
     // Determine "used" state — encounter/recharge powers are exhausted at maxUses,
     // otherwise the reaction-per-round rule applies (and free actions are exempt).
     const timesUsed = usedPowers[i] ?? 0
-    const kws = Array.isArray(a.keywords) ? a.keywords : []
-    const kwMatch = kws.find((k: string) => /^\d+\/encounter$/i.test(String(k).trim()))
-    const effectiveUsage = kwMatch ? 'encounter' : (a.usage || 'at-will')
-    const maxUses = kwMatch ? parseInt(kwMatch) : 1
+    const effectiveUsage = a.encounterUses ? 'encounter' : (a.usage || 'at-will')
+    const maxUses = a.encounterUses ?? 1
     const isLimitedUse = effectiveUsage === 'encounter' || effectiveUsage === 'recharge'
     const exhausted = isLimitedUse && timesUsed >= maxUses
 
@@ -135,7 +116,7 @@ export function getCreatureReactions(c: CombatantState, isCurrentTurn: boolean):
       power: a,
       card: toPowerCard(a),
       powerIndex: i,
-      parsedTrigger: parseTrigger(a.trigger || '', c.name),
+      parsedTrigger: parseTrigger(a),
       // A reaction is "used" if its limited-use slot is exhausted, or if the
       // creature has already spent its one reaction this round (free actions exempt).
       used: exhausted || (!isFree && usedReaction),

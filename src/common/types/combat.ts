@@ -53,7 +53,9 @@ export interface CombatantState {
   maxHp: number
   tempHp: number
   dead?: boolean              // Manually marked dead — distinct from hp <= 0 (e.g., trolls regen)
+  hiddenDead?: boolean        // Permanently hidden from initiative list after dying (auto-hide feature)
   hidden?: boolean            // Hidden from player display (e.g. ambushers not yet revealed)
+  regenInhibited?: boolean    // Set when regen-inhibiting damage is dealt or DM removes Regenerating condition; cleared at turn start
   deathSaveFailures?: number  // Failed death saves accumulated this combat (PCs only)
   conditions: AppliedCondition[]
   effects: AppliedEffect[]
@@ -77,6 +79,7 @@ export type CombatNotificationType =
   | 'save-success' | 'save-fail'
   | 'bloodied' | 'death'
   | 'damage' | 'heal' | 'condition'
+  | 'regeneration'
 
 export interface CombatNotification {
   /** Stable id used by the player toast component to dedup re-renders. */
@@ -110,7 +113,7 @@ export interface CombatNotification {
 export interface PlayerTurnItem {
   id: string
   phase: 'start' | 'end'
-  kind: 'ongoing-damage' | 'sont-expire' | 'eont-expire' | 'save' | 'recharge' | 'death-save'
+  kind: 'ongoing-damage' | 'sont-expire' | 'eont-expire' | 'save' | 'recharge' | 'death-save' | 'regeneration' | 'revival'
   label: string
   conditionId?: string
   damageType?: string
@@ -139,6 +142,7 @@ export interface CombatState {
   turnItems: PlayerTurnItem[]
   stepperIndex: number           // Currently active stepper item (-1 = none)
   playerExpandConditions: boolean
+  autoHideDeadCreatures: boolean
   /** Ring buffer of recent notifications (damage/heal/condition/death/etc).
    *  Forwarded into PlayerCombatState; the player window animates new ones in
    *  as toasts. Capped at NOTIFICATION_BUFFER_SIZE. */

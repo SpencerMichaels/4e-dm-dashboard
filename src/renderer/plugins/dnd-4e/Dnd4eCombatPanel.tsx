@@ -358,6 +358,11 @@ export function Dnd4eCombatPanel({
                         if (det.conditionId === 'marked') {
                           condData.customDescription = `by ${c.name}`
                         }
+                        // For Regenerating, set encounter duration and clear damageType description
+                        if (det.conditionId === 'regenerating') {
+                          condData.duration = det.duration ?? { type: 'encounter' }
+                          condData.customDescription = undefined
+                        }
                         // For Grants CA, set the recipient enum + preformatted label suffix.
                         // Source name resolves to the power's owner (`c.name`).
                         if (det.conditionId === 'combat-advantage') {

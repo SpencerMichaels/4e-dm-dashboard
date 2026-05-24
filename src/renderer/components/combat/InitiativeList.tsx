@@ -78,6 +78,7 @@ export function InitiativeList({ combat, currentId, selectedIds, onSelect, onCon
   for (let i = 0; i < order.length; i++) {
     const id = order[i]
     if (delayedSet.has(id)) continue  // delayed shown separately
+    if (combat.combatants[id]?.hiddenDead) continue  // auto-hidden dead creatures
     if (i >= turnIdx) waiting.push(id)
     else acted.push(id)
   }

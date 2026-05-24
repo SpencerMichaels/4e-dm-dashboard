@@ -24,6 +24,7 @@ export function initCombat(encounterId?: string): CombatState {
     turnItems: [],
     stepperIndex: -1,
     playerExpandConditions: true,
+    autoHideDeadCreatures: false,
     notifications: [],
   }
   return combatState
@@ -81,6 +82,13 @@ export function setInitiativeFocus(combatantId: string | null): CombatState {
 export function setPlayerExpandConditions(value: boolean): CombatState {
   if (!combatState) throw new Error('No active combat')
   combatState.playerExpandConditions = value
+  return combatState
+}
+
+export function setAutoHideDeadCreatures(value: boolean): CombatState {
+  if (!combatState) throw new Error('No active combat')
+  combatState.autoHideDeadCreatures = value
+  if (value) tryHideDeadCreatures()
   return combatState
 }
 
@@ -144,7 +152,11 @@ function shouldSkip(combatantId: string): boolean {
   if (!c) return false
   if (c.dead) return true
   // Monsters skip at 0 HP; PCs skip only when explicitly marked dead (they may be Dying but still take turns)
-  if (!c.isPC && c.hp <= 0) return true
+  if (!c.isPC && c.hp <= 0) {
+    // Don't skip if creature has a revival ability (Troll Healing, Rise Again, etc.)
+    if (getStatBlockRevival(c)) return false
+    return true
+  }
   // During surprise round (round 0), surprised creatures can't act
   if (combatState.round === 0 && c.conditions.some(co => co.conditionId === 'surprised')) return true
   return false
@@ -188,7 +200,7 @@ function applyPendingResults(): void {
 }
 
 function isActionable(item: PlayerTurnItem): boolean {
-  return item.kind === 'ongoing-damage' || item.kind === 'save' || item.kind === 'recharge' || item.kind === 'death-save'
+  return item.kind === 'ongoing-damage' || item.kind === 'save' || item.kind === 'recharge' || item.kind === 'death-save' || item.kind === 'revival'
 }
 
 function findFirstActionable(items: PlayerTurnItem[], phase: 'start' | 'end'): number {
@@ -325,6 +337,123 @@ function buildOngoingDamageItems(combatant: CombatantState): PlayerTurnItem[] {
     })
   }
   return items
+}
+
+/** Pre-parsed regeneration data from statBlock (set at import time) */
+interface StatBlockRegen { value: number; inhibitDamageTypes?: string[] }
+/** Pre-parsed revival data from statBlock (set at import time) */
+interface StatBlockRevival { hp: number; abilityName: string }
+
+function getStatBlockRegen(combatant: CombatantState): StatBlockRegen | undefined {
+  return (combatant.statBlock as any)?.regeneration as StatBlockRegen | undefined
+}
+
+function getStatBlockRevival(combatant: CombatantState): StatBlockRevival | undefined {
+  return (combatant.statBlock as any)?.revival as StatBlockRevival | undefined
+}
+
+/**
+ * For creatures with a static Regeneration trait (pre-parsed in statBlock.regeneration),
+ * auto-add a "regenerating" condition at turn start when below max HP.
+ * Avoids spoiling regen by not adding the condition until the creature is actually damaged.
+ */
+function autoApplyStaticRegenCondition(combatant: CombatantState): void {
+  const regen = getStatBlockRegen(combatant)
+  if (!regen) return
+
+  // Don't add if at max HP (avoids spoiling), manually dead, or at 0 HP
+  // (standard 4e rule: regeneration requires at least 1 HP)
+  if (combatant.hp >= combatant.maxHp || combatant.dead || combatant.hp <= 0) {
+    combatant.conditions = combatant.conditions.filter(c => c.conditionId !== 'regenerating')
+    return
+  }
+
+  // Replace any existing regenerating condition (refresh with parsed values)
+  combatant.conditions = combatant.conditions.filter(c => c.conditionId !== 'regenerating')
+  combatant.conditions.push({
+    conditionId: 'regenerating',
+    value: regen.value,
+    inhibitDamageTypes: regen.inhibitDamageTypes,
+    duration: { type: 'indefinite' },
+  })
+}
+
+/**
+ * Build start-of-turn items for regen and ongoing damage, netting them together.
+ * If no regen condition, falls through to standard ongoing damage items.
+ */
+function buildRegenAndOngoingItems(combatant: CombatantState): PlayerTurnItem[] {
+  const regenCond = combatant.conditions.find(c => c.conditionId === 'regenerating')
+  const ongoingConds = combatant.conditions.filter(c =>
+    c.conditionId.startsWith('ongoing-damage') && c.value)
+
+  // No regen — standard ongoing damage path
+  if (!regenCond || !regenCond.value) {
+    return buildOngoingDamageItems(combatant)
+  }
+
+  const regenValue = regenCond.value
+
+  // Check inhibition from ongoing damage types
+  let inhibited = false
+  if (regenCond.inhibitDamageTypes?.length && ongoingConds.length) {
+    for (const oc of ongoingConds) {
+      const dmgType = oc.customDescription?.trim().toLowerCase() ?? ''
+      const dmgTypes = dmgType.includes(' and ')
+        ? dmgType.split(/\s+and\s+/).map(t => t.trim())
+        : [dmgType]
+      if (dmgTypes.some(t => t && regenCond.inhibitDamageTypes!.includes(t))) {
+        inhibited = true
+        break
+      }
+    }
+  }
+
+  if (inhibited) {
+    // Regen suppressed — show info item + normal ongoing damage
+    const items: PlayerTurnItem[] = [{
+      id: 'regen-suppressed', phase: 'start', kind: 'regeneration',
+      label: 'Regeneration suppressed',
+      value: 0, result: 'none',
+    }]
+    items.push(...buildOngoingDamageItems(combatant))
+    return items
+  }
+
+  // Not inhibited — net regen with ongoing
+  if (ongoingConds.length === 0) {
+    // Pure regen, no ongoing damage
+    return [{
+      id: 'regen', phase: 'start', kind: 'regeneration',
+      label: `Regeneration ${regenValue}`,
+      value: regenValue, result: 'none',
+    }]
+  }
+
+  // Compute total ongoing damage (after resist/immune/vuln)
+  const ongoingItems = buildOngoingDamageItems(combatant)
+  const totalOngoing = ongoingItems.reduce((sum, item) => sum + (item.value ?? 0), 0)
+
+  const net = regenValue - totalOngoing
+  if (net > 0) {
+    return [{
+      id: 'regen-net', phase: 'start', kind: 'regeneration',
+      label: `Regeneration ${regenValue} − ${totalOngoing} ongoing = heal ${net}`,
+      value: net, result: 'none',
+    }]
+  } else if (net < 0) {
+    return [{
+      id: 'regen-net', phase: 'start', kind: 'ongoing-damage',
+      label: `${totalOngoing} ongoing − ${regenValue} regen = ${Math.abs(net)} damage`,
+      value: Math.abs(net),
+    }]
+  } else {
+    return [{
+      id: 'regen-net', phase: 'start', kind: 'regeneration',
+      label: `Regeneration ${regenValue} nets with ${totalOngoing} ongoing (no effect)`,
+      value: 0, result: 'none',
+    }]
+  }
 }
 
 function buildSaveItems(actions: unknown[], combatantId: string): PlayerTurnItem[] {
@@ -541,6 +670,20 @@ export function resolveItem(index: number, success: boolean, plugin?: SystemPlug
         message: success ? `${carrier?.name} saved vs ${displayName}` : `${carrier?.name} failed save vs ${displayName}`,
       })
     }
+  } else if (item.kind === 'revival') {
+    if (success && currentId && item.value) {
+      healCombatant(currentId, item.value)
+      const carrier = combatState.combatants[currentId]
+      // Replace heal notification with revival-specific one
+      if (combatState.notifications.length > 0) {
+        const last = combatState.notifications[combatState.notifications.length - 1]
+        if (last.combatantId === currentId && last.type === 'heal') {
+          last.type = 'regeneration'
+          last.message = `${carrier?.name} revives!`
+          last.amount = undefined
+        }
+      }
+    }
   } else if (item.kind === 'recharge') {
     const powerIdx = parseInt(item.id.replace('rch-', ''))
     pendingResults.push({ combatantId: currentId ?? '', powerIndex: isNaN(powerIdx) ? undefined : powerIdx, success })
@@ -564,6 +707,33 @@ export function resolveItem(index: number, success: boolean, plugin?: SystemPlug
 /**
  * Apply queued results, advance turn pointer, run start-of-turn.
  */
+/** Mark eligible dead creatures as hiddenDead. A dead creature is hideable when:
+ *  1. It has no Regeneration action in its stat block
+ *  2. No condition on any combatant expires on its turn (SONT/EONT with expiresOnId) */
+function tryHideDeadCreatures(): void {
+  if (!combatState) return
+  // Collect all expiresOnId references from live conditions
+  const referencedIds = new Set<string>()
+  for (const c of Object.values(combatState.combatants)) {
+    for (const cond of c.conditions) {
+      if (cond.duration?.expiresOnId && (cond.duration.type === 'sont' || cond.duration.type === 'eont')) {
+        referencedIds.add(cond.duration.expiresOnId)
+      }
+    }
+  }
+  for (const c of Object.values(combatState.combatants)) {
+    if (c.hiddenDead) continue
+    const isDead = c.dead || (!c.isPC && c.hp <= 0)
+    if (!isDead) continue
+    // Don't hide creatures with regen or revival abilities
+    if (c.conditions.some(co => co.conditionId === 'regenerating')) continue
+    if (getStatBlockRegen(c)) continue
+    if (getStatBlockRevival(c)) continue
+    if (referencedIds.has(c.id)) continue
+    c.hiddenDead = true
+  }
+}
+
 export function commitAndAdvance(plugin?: SystemPlugin, extraNotifications?: CombatNotification[]): { state: CombatState; notifications: CombatNotification[] } {
   if (!combatState) throw new Error('No active combat')
   const notifications = extraNotifications ? [...extraNotifications] : []
@@ -635,8 +805,107 @@ export function commitAndAdvance(plugin?: SystemPlugin, extraNotifications?: Com
 
       combatant.usedReaction = false
 
-      // Ongoing damage + recharges
-      startItems.push(...buildOngoingDamageItems(combatant))
+      // ── Check manual inhibition (DM removed Regenerating condition) ──
+      const regenInhibited = combatant.regenInhibited ?? false
+      combatant.regenInhibited = undefined
+
+      // ── Revival check (creature at 0 HP with revival ability) ──
+      let revived = false
+      const revival = getStatBlockRevival(combatant)
+      if (combatant.hp <= 0 && !combatant.dead && revival) {
+        const regen = getStatBlockRegen(combatant)
+        if (regen) {
+          // Has both regen + revival (e.g. Troll): auto-revive if regen is not inhibited
+          if (!regenInhibited) {
+            healCombatant(newId, revival.hp)
+            // Replace heal notification with revival-specific one
+            if (combatState.notifications.length > 0) {
+              const last = combatState.notifications[combatState.notifications.length - 1]
+              if (last.combatantId === newId && last.type === 'heal') {
+                last.type = 'regeneration'
+                last.message = `${combatant.name} revives via ${revival.abilityName}!`
+                last.amount = undefined
+              }
+            }
+            startItems.push({
+              id: 'revival', phase: 'start', kind: 'revival',
+              label: `${revival.abilityName}: revived with ${revival.hp} HP`,
+              value: revival.hp, result: 'none',
+            })
+            revived = true
+          } else {
+            startItems.push({
+              id: 'revival-inhibited', phase: 'start', kind: 'revival',
+              label: `${revival.abilityName}: suppressed`,
+              value: 0, result: 'none',
+            })
+            pushStateNotification({
+              type: 'regeneration',
+              combatantId: newId,
+              combatantName: combatant.name,
+              message: `${combatant.name} did not regenerate this turn!`,
+            })
+          }
+        } else {
+          // Revival only (no regen) — prompt the DM
+          startItems.push({
+            id: 'revival', phase: 'start', kind: 'revival',
+            label: `${revival.abilityName}: revive with ${revival.hp} HP?`,
+            value: revival.hp,
+          })
+        }
+      }
+
+      // ── Regeneration + ongoing damage (only if alive and didn't just revive) ──
+      if (combatant.hp > 0 && !revived) {
+        // Auto-add Regenerating condition for static regen creatures (if below max HP)
+        autoApplyStaticRegenCondition(combatant)
+
+        if (regenInhibited && getStatBlockRegen(combatant)) {
+          pushStateNotification({
+            type: 'regeneration',
+            combatantId: newId,
+            combatantName: combatant.name,
+            message: `${combatant.name} did not regenerate this turn!`,
+          })
+        }
+
+        const regenOngoingItems = regenInhibited
+          ? buildOngoingDamageItems(combatant)
+          : buildRegenAndOngoingItems(combatant)
+        for (const ri of regenOngoingItems) {
+          // Notify players when regen is suppressed by damage types
+          if (ri.id === 'regen-suppressed') {
+            pushStateNotification({
+              type: 'regeneration',
+              combatantId: newId,
+              combatantName: combatant.name,
+              message: `${combatant.name} did not regenerate this turn!`,
+            })
+          }
+          if (ri.kind === 'regeneration' && ri.result === 'none' && ri.value && ri.value > 0) {
+            const before = combatant.hp
+            healCombatant(newId, ri.value)
+            const actual = combatant.hp - before
+            if (actual > 0) {
+              ri.label = ri.label.replace(/heal \d+$/, `heal ${actual}`)
+              // Replace generic heal notification with regen-specific one
+              if (combatState.notifications.length > 0) {
+                const last = combatState.notifications[combatState.notifications.length - 1]
+                if (last.combatantId === newId && last.type === 'heal') {
+                  last.type = 'regeneration'
+                  last.message = `${combatant.name} regenerates!`
+                  last.amount = undefined
+                }
+              }
+            } else {
+              ri.value = 0
+            }
+          }
+        }
+        startItems.push(...regenOngoingItems)
+      }
+      // Recharges
       const startActions: unknown[] = []
       if (plugin?.turnHooks?.onTurnStart) startActions.push(...plugin.turnHooks.onTurnStart(combatant))
       startItems.push(...buildRechargeItems(startActions))
@@ -647,6 +916,7 @@ export function commitAndAdvance(plugin?: SystemPlugin, extraNotifications?: Com
         combatState.turnPhase = 'start-of-turn'
         combatState.turnItems = [...startItems, ...buildEndOfTurnPreview(combatant, plugin)]
         combatState.stepperIndex = first
+        if (combatState.autoHideDeadCreatures) tryHideDeadCreatures()
         return { state: combatState, notifications }
       }
     }
@@ -657,6 +927,7 @@ export function commitAndAdvance(plugin?: SystemPlugin, extraNotifications?: Com
   combatState.turnPhase = 'active'
   combatState.turnItems = [...startItems, ...buildEndOfTurnPreview(newCombatant, plugin)]
   combatState.stepperIndex = -1
+  if (combatState.autoHideDeadCreatures) tryHideDeadCreatures()
   return { state: combatState, notifications }
 }
 
@@ -780,6 +1051,13 @@ export function damageCombatant(
   let remaining = amount
   if (c.tempHp > 0) { const absorbed = Math.min(c.tempHp, remaining); c.tempHp -= absorbed; remaining -= absorbed }
   c.hp = Math.max(0, c.hp - remaining)
+  // Track damage type inhibition for regeneration
+  if (opts.damageType) {
+    const regen = getStatBlockRegen(c)
+    if (regen?.inhibitDamageTypes?.includes(opts.damageType.toLowerCase())) {
+      c.regenInhibited = true
+    }
+  }
   // Auto-bloodied management — only for monsters, and never for minions (they have no bloodied state)
   let crossedBloodied = false
   if (!c.isPC && !isMinion) {
@@ -945,6 +1223,10 @@ export function removeCondition(combatantId: string, conditionId: string): Comba
   const c = combatState.combatants[combatantId]
   if (!c) throw new Error(`Combatant ${combatantId} not found`)
   c.conditions = c.conditions.filter(cond => cond.conditionId !== conditionId)
+  // Removing Regenerating from a static-regen creature = manual inhibition for next turn
+  if (conditionId === 'regenerating' && getStatBlockRegen(c)) {
+    c.regenInhibited = true
+  }
   // Removing Dying also clears Unconscious (but Prone stays — they need to stand up)
   if (conditionId === 'dying') {
     c.conditions = c.conditions.filter(cond => cond.conditionId !== 'unconscious')
@@ -1009,8 +1291,8 @@ export function toPlayerCombatState(state: CombatState, plugin?: SystemPlugin): 
   const descriptors = plugin?.hpDescriptors ?? []
 
   for (const [id, c] of Object.entries(state.combatants)) {
-    // Hidden creatures are completely omitted from the player state
-    if (c.hidden) continue
+    // Hidden creatures and auto-hidden dead are completely omitted from the player state
+    if (c.hidden || c.hiddenDead) continue
     // During initiative entry, players only see PCs — monsters are revealed
     // when the DM clicks "Start Combat"
     if (state.phase === 'initiative-entry' && !c.isPC) continue
@@ -1066,7 +1348,7 @@ export function toPlayerCombatState(state: CombatState, plugin?: SystemPlugin): 
   }
 
   // Filter hidden creatures from the player-visible initiative order
-  const hiddenIds = new Set(Object.entries(state.combatants).filter(([_, c]) => c.hidden).map(([id]) => id))
+  const hiddenIds = new Set(Object.entries(state.combatants).filter(([_, c]) => c.hidden || c.hiddenDead).map(([id]) => id))
   const filteredOrder = state.initiativeOrder.filter(id => !hiddenIds.has(id))
   const filteredDelayed = state.delayedIds.filter(id => !hiddenIds.has(id))
   const filteredReadied = state.readiedIds.filter(id => !hiddenIds.has(id))

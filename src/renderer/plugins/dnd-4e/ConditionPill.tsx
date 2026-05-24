@@ -16,6 +16,10 @@ export function buildConditionLabel(opts: {
   if (conditionId.startsWith('ongoing-damage')) {
     return `Ongoing ${value ?? ''}${opts.damageType ? ' ' + opts.damageType : ''}`
   }
+  // Regenerating: "Regenerating 10"
+  if (conditionId === 'regenerating') {
+    return `Regenerating${value ? ' ' + value : ''}`
+  }
   // Class marks: "Quarried by Bob" (use the class mark's short name, not the raw id)
   const classMark = CLASS_MARK_BY_CONDITION_ID[conditionId]
   if (classMark) {

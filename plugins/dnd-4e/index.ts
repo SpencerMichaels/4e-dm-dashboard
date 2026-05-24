@@ -33,6 +33,12 @@ const dnd4e: SystemPlugin = {
       hasValue: true, durationTypes: ['unlimited'],
       automation: [{ type: 'prompt-save', dc: '10' }], appliedAt: 'start',
     },
+    {
+      id: 'regenerating', name: 'Regenerating',
+      description: 'Regains hit points at the start of each turn.',
+      hasValue: true, durationTypes: ['encounter', 'unlimited', 'indefinite'],
+      automation: [], appliedAt: 'start', hidden: false,
+    },
     // Striker designation marks (Hunter's Quarry, Warlock's Curse, Oath of
     // Enmity) — hidden from the generic condition picker; applied via the
     // dedicated Class Marks UI. Defender marks share the existing `marked`

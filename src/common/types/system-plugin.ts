@@ -99,6 +99,7 @@ export interface AppliedCondition {
   //   'source'        — only the creature in `sourceId` (e.g. "grants CA to the bugbear")
   //   'source-allies' — allies of `sourceId` (e.g. "grants CA to the hag's allies")
   grantsCATo?: 'all' | 'source' | 'source-allies'
+  inhibitDamageTypes?: string[]    // Damage types that suppress this regeneration
 }
 
 export interface SystemTheme {

@@ -867,6 +867,16 @@ export function CombatView() {
                 </div>
               </div>
             </label>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)', cursor: 'pointer', marginTop: 'var(--space-3)' }}>
+              <input type="checkbox" checked={combat.autoHideDeadCreatures ?? false}
+                onChange={e => window.api.combat.setAutoHideDeadCreatures(e.target.checked)} />
+              <div>
+                <div style={{ fontWeight: 600 }}>Auto-hide dead creatures</div>
+                <div style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text-muted)' }}>
+                  Remove dead creatures from the initiative list once no effects are tied to their turn. Creatures with regeneration are kept visible.
+                </div>
+              </div>
+            </label>
             <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 'var(--space-4)' }}>
               <button onClick={() => setShowSettings(false)}>Close</button>
             </div>
