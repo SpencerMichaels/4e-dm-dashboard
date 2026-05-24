@@ -690,10 +690,65 @@ export function CombatView() {
           />
         ) : showInspectPanel ? (
           <>
-            {inspectedIds.map((id, i) => {
-              const c = combat.combatants[id]
-              return c ? <div key={id} style={i > 0 ? { marginTop: 'var(--space-4)' } : undefined}>{renderDetailPanel(c, { hideMainActionPowers: hideInspectedActions })}</div> : null
-            })}
+            {(() => {
+              // Group inspected combatants by baseName, preserving first-appearance order
+              const groups: { key: string; ids: string[] }[] = []
+              const keyIndex: Record<string, number> = {}
+              for (const id of inspectedIds) {
+                const c = combat.combatants[id]
+                if (!c) continue
+                const key = c.baseName ?? c.name
+                if (keyIndex[key] != null) {
+                  groups[keyIndex[key]].ids.push(id)
+                } else {
+                  keyIndex[key] = groups.length
+                  groups.push({ key, ids: [id] })
+                }
+              }
+              return groups.map((group, gi) => {
+                const combatants = group.ids.map(id => combat.combatants[id]).filter(Boolean) as CombatantState[]
+                if (combatants.length === 0) return null
+
+                // Single creature — render normally
+                if (combatants.length === 1) {
+                  return (
+                    <div key={group.key} style={gi > 0 ? { marginTop: 'var(--space-4)' } : undefined}>
+                      {renderDetailPanel(combatants[0], { hideMainActionPowers: hideInspectedActions })}
+                    </div>
+                  )
+                }
+
+                // Multiple creatures of same type — use grouped panel if plugin provides one
+                const GroupedPanel = pluginUI?.GroupedCombatPanel
+                if (GroupedPanel) {
+                  return (
+                    <div key={group.key} style={gi > 0 ? { marginTop: 'var(--space-4)' } : undefined}>
+                      <GroupedPanel
+                        combatants={combatants}
+                        combat={combat}
+                        conditions={conditionDefs}
+                        notifications={notifications.filter(n => group.ids.includes(n.combatantId))}
+                        onDamage={(cid) => setDialog({ type: 'damage', combatantId: cid })}
+                        onHeal={(cid) => setDialog({ type: 'heal', combatantId: cid })}
+                        onAddCondition={(cid) => setDialog({ type: 'condition', combatantId: cid })}
+                        onAddEffect={(cid) => setDialog({ type: 'effect', combatantId: cid })}
+                        hideMainActionPowers={hideInspectedActions}
+                        onPinCard={handlePinCard}
+                        pinnedKeys={pinnedKeys}
+                        onPopoutStatblock={(id) => setPoppedOutStatblockIds(prev => prev.includes(id) ? prev : [...prev, id])}
+                      />
+                    </div>
+                  )
+                }
+
+                // Fallback: render each individually
+                return combatants.map((c, ci) => (
+                  <div key={c.id} style={(gi > 0 || ci > 0) ? { marginTop: 'var(--space-4)' } : undefined}>
+                    {renderDetailPanel(c, { hideMainActionPowers: hideInspectedActions })}
+                  </div>
+                ))
+              })
+            })()}
           </>
         ) : (
           <div style={{ color: 'var(--color-text-muted)', padding: 'var(--space-4)' }}>

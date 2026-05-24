@@ -69,6 +69,22 @@ export interface PluginCombatPanelProps {
   hideMainActionPowers?: boolean
 }
 
+/** Props for the grouped combat panel (multiple creatures of the same base type) */
+export interface GroupedCombatPanelProps {
+  combatants: CombatantState[]
+  combat: CombatState
+  conditions: ConditionDef[]
+  notifications: CombatNotification[]
+  onDamage: (combatantId: string) => void
+  onHeal: (combatantId: string) => void
+  onAddCondition: (combatantId: string) => void
+  onAddEffect: (combatantId: string) => void
+  hideMainActionPowers?: boolean
+  onPinCard: (card: { combatantName: string; title: string; content: any; key: string }) => void
+  pinnedKeys: Set<string>
+  onPopoutStatblock?: (combatantId: string) => void
+}
+
 /** What a plugin UI module exports */
 export interface PluginUIComponents {
   CreatureDetails?: ComponentType<PluginCreatureDetailsProps>
@@ -77,4 +93,5 @@ export interface PluginUIComponents {
   ItemEditor?: ComponentType<PluginItemEditorProps>
   EncounterEditor?: ComponentType<PluginEncounterEditorProps>
   CombatPanel?: ComponentType<PluginCombatPanelProps>
+  GroupedCombatPanel?: ComponentType<GroupedCombatPanelProps>
 }

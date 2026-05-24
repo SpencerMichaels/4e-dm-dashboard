@@ -1,0 +1,134 @@
+.container {
+  font-size: 12px;
+  line-height: 1.5;
+  overflow: auto;
+}
+
+/* ─── Individual state rows ─── */
+.stateRow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  border-bottom: 1px solid var(--sb-separator, rgba(178, 164, 120, 0.25));
+}
+
+.stateRow:last-child {
+  border-bottom: none;
+}
+
+.designator {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 28px;
+  padding: 1px 6px;
+  border-radius: var(--radius-sm, 4px);
+  font-size: 10px;
+  font-weight: 700;
+  color: #fff;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.hpInfo {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 80px;
+  flex-shrink: 0;
+}
+
+.hpCurrent {
+  font-weight: 700;
+  font-size: 13px;
+}
+
+.hpMax {
+  color: var(--color-text-muted);
+  font-size: 11px;
+}
+
+.hpTemp {
+  color: var(--color-temp-hp);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.bloodiedTag {
+  color: var(--color-hp-low);
+  font-size: 9px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.deadTag {
+  color: var(--color-text-muted);
+  font-size: 9px;
+  font-weight: 700;
+  text-decoration: line-through;
+  flex-shrink: 0;
+}
+
+.hpBarTrack {
+  width: 60px;
+  height: 6px;
+  background: var(--color-border);
+  border-radius: 3px;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.hpBarFill {
+  height: 100%;
+  transition: width 0.2s;
+  border-radius: 3px;
+}
+
+.conditionPills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+  flex: 1;
+  min-width: 0;
+}
+
+.rowActions {
+  display: flex;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+.rowBtn {
+  padding: 1px 6px;
+  border-radius: var(--radius-sm, 4px);
+  border: 1px solid var(--color-border);
+  cursor: pointer;
+  font-size: 10px;
+  background: var(--color-bg-surface);
+  color: var(--color-text-primary);
+  line-height: 1.4;
+}
+
+.rowBtn:hover {
+  background: var(--color-bg-hover);
+}
+
+.btnDamage {
+  composes: rowBtn;
+  color: var(--color-damage);
+  border-color: var(--color-damage);
+}
+
+.btnHeal {
+  composes: rowBtn;
+  color: var(--color-heal);
+  border-color: var(--color-heal);
+}
+
+/* ─── Divider between individual state and shared stat block ─── */
+.divider {
+  border: none;
+  border-top: 2px solid var(--sb-separator, rgba(178, 164, 120, 0.25));
+  margin: 4px 0 0 0;
+}
