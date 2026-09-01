@@ -94,7 +94,7 @@ export async function deleteCampaign(campaignId: string): Promise<void> {
   if (activeCampaignId === campaignId) activeCampaignId = null
 }
 
-export async function saveEntity(entityType: EntityType, entity: { id: string; [key: string]: unknown }): Promise<void> {
+export async function saveEntity<T extends { id: string }>(entityType: EntityType, entity: T): Promise<void> {
   if (!activeCampaignId) throw new Error('No active campaign')
   const path = getEntityPath(activeCampaignId, entityType, entity.id)
   await atomicWriteJson(path, entity)
@@ -200,7 +200,7 @@ async function trimTransparentBorders(sourcePath: string): Promise<Buffer | null
   const { width, height } = img.getSize()
   if (width <= 0 || height <= 0) return null
   // getBitmap() returns BGRA pixels in row-major order. width*4 bytes per row.
-  const bitmap = img.getBitmap()
+  const bitmap = img.toBitmap()
   if (bitmap.length < width * height * 4) return null
   const ALPHA_THRESHOLD = 0  // any non-zero alpha counts as content (preserves AA fringe)
   let minX = width, minY = height, maxX = -1, maxY = -1

@@ -586,7 +586,7 @@ function parseRitual(html: string): ParsedItem {
 }
 
 /** Split HTML body into text and table segments */
-function parseDescriptionParts(html: string): ParsedItem['descriptionParts'] {
+function parseDescriptionParts(html: string): DescriptionPart[] {
   const parts: DescriptionPart[] = []
   // Split around <table>...</table>
   const chunks = html.split(/(<table[\s\S]*?<\/table>)/gi)

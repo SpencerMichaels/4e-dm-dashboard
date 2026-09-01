@@ -68,7 +68,7 @@ export async function importPf2eCreature(url: string): Promise<Creature> {
 
   if (!response.ok) throw new Error(`AoN API error: ${response.status}`)
 
-  const data = await response.json()
+  const data = await response.json() as { hits?: { hits?: Array<{ _source: AonCreature }> } }
   const hits = data.hits?.hits
   if (!hits || hits.length === 0) throw new Error('Creature not found: ' + esId)
 
