@@ -1,4 +1,6 @@
-# Tabletop Dashboard — Project Context
+# Tabletop Dashboard — Agent Context
+
+This is the canonical repository guidance for coding agents. Keep it current as the project evolves.
 
 ## What This Is
 
@@ -14,6 +16,15 @@ Electron app for a DM running physical tabletop RPGs. Two windows (DM + Player),
 - Prefers minimal well-known libraries; implement small utilities in-house
 - Security-conscious: run npm install/builds inside the devcontainer, never directly on host
 - Electron GUI launches from inside the container — Wayland socket, GPU, and env vars are passed through by `dev.sh` / `devcontainer.json`. Launch with `./launch.sh` from a host terminal, or `! npx electron-vite dev -- --ozone-platform=wayland` from inside the container
+
+## Working Agreements
+
+- Preserve the human-readable, file-based data model and the main-process-as-source-of-truth architecture.
+- Prefer focused changes and small, well-known dependencies. Ask before adding a production dependency.
+- Do not discard or overwrite unrelated working-tree changes.
+- Run package installation, builds, and tests inside the devcontainer, not directly on the host.
+- When changing behavior, update the relevant project documentation and add or update tests when practical.
+- Treat implementation-status notes below as historical context; verify the current code and working tree before relying on them.
 
 ## Architecture
 

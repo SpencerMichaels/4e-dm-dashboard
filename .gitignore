@@ -5,6 +5,11 @@ dist/
 *.tmp
 campaigns/
 
+# Local agent state (project guidance lives in AGENTS.md)
+.claude/
+.codex/
+.agents/
+
 # Nix build symlink
 result
 

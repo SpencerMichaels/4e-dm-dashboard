@@ -3,7 +3,7 @@ FROM node:22
 ARG TZ
 ENV TZ="$TZ"
 
-ARG CLAUDE_CODE_VERSION=latest
+ARG CODEX_CLI_VERSION=latest
 
 # Install dev tools, networking tools for firewall, and Electron dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -60,9 +60,9 @@ RUN SNIPPET="export PROMPT_COMMAND='history -a' && export HISTFILE=/commandhisto
 
 ENV DEVCONTAINER=true
 
-# Create workspace and config directories
-RUN mkdir -p /workspace /home/node/.claude && \
-  chown -R node:node /workspace /home/node/.claude
+# Create workspace and Codex profile directories
+RUN mkdir -p /workspace /home/node/.codex && \
+  chown -R node:node /workspace /home/node/.codex
 
 WORKDIR /workspace
 
@@ -86,8 +86,8 @@ RUN sh -c "$(wget -O- https://github.com/deluan/zsh-in-docker/releases/download/
   -a "export PROMPT_COMMAND='history -a' && export HISTFILE=/commandhistory/.bash_history" \
   -x
 
-# Install Claude Code
-RUN npm install -g @anthropic-ai/claude-code@${CLAUDE_CODE_VERSION}
+# Install Codex CLI
+RUN npm install -g @openai/codex@${CODEX_CLI_VERSION}
 
 # Copy and set up firewall script
 COPY init-firewall.sh /usr/local/bin/
