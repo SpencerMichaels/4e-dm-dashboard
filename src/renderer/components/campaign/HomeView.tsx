@@ -130,6 +130,7 @@ export function HomeView() {
                 onClick={() => handleOpen(c.id)}
                 style={{
                   flex: 1,
+                  minWidth: 0,
                   textAlign: 'left',
                   padding: 'var(--space-3) var(--space-4)',
                   background: 'transparent',
@@ -137,9 +138,9 @@ export function HomeView() {
                   cursor: 'pointer',
                 }}
               >
-                <div style={{ fontWeight: 500 }}>{c.name}</div>
+                <div style={{ fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.name}</div>
                 <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)' }}>
-                  {c.systemId} — Last opened {new Date(c.lastOpenedAt).toLocaleDateString()}
+                  {c.systemId} — Last opened {c.lastOpenedAt ? new Date(c.lastOpenedAt).toLocaleDateString() : 'Never'}
                 </div>
               </button>
               <button

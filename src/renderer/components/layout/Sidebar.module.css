@@ -71,6 +71,9 @@
   color: var(--color-text-secondary);
   cursor: pointer;
   border-radius: var(--radius-sm);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .treeNode:hover {
