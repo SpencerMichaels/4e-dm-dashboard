@@ -24,7 +24,7 @@ Electron app for a DM running physical tabletop RPGs. Two windows (DM + Player),
 - Do not discard or overwrite unrelated working-tree changes.
 - Run package installation, builds, and tests inside the devcontainer, not directly on the host.
 - When changing behavior, update the relevant project documentation and add or update tests when practical.
-- Treat implementation-status notes below as historical context; verify the current code and working tree before relying on them.
+- Keep the implementation-status section below current when completing a documented task.
 
 ## Architecture
 
@@ -40,48 +40,16 @@ Electron app for a DM running physical tabletop RPGs. Two windows (DM + Player),
 
 ## Implementation Status
 
-### Phase 1: Skeleton — IN PROGRESS (nearly complete)
-All source files written but **not yet built or tested**. Need to:
-1. Run `npm install` (inside devcontainer)
-2. Fix build error: `electron-vite/utils` import doesn't exist in installed version — need to fix `src/main/windows.ts` (the `is.dev` usage) and `electron.vite.config.ts` (the `externalizeDepsPlugin` import). Check actual electron-vite API.
-3. Verify the app launches with two windows and IPC works.
+The application is functional across its main workflows:
 
-**What exists:**
-- `package.json`, `tsconfig.json` / `tsconfig.node.json` / `tsconfig.web.json`, `electron.vite.config.ts`
-- All common types (`src/common/types/`) — SystemPlugin, Campaign, Combat, Creature, Encounter, Item, PlayerCharacter, Scene
-- All common utils (`src/common/utils/`) — ID generation (nanoid), HP descriptor resolution, link extraction
-- IPC channel constants (`src/common/ipc-channels.ts`)
-- Main process: entry (`src/main/index.ts`), window creation (`src/main/windows.ts`), all IPC handlers, campaign data store with atomic writes, plugin loader, full combat engine state machine
-- Preload scripts: DM (full API) and Player (receive-only)
-- DM renderer: entry files, App, AppShell layout, Sidebar, ContentArea, CommandPalette (Ctrl+K), Zustand stores (campaign, combat, ui), sync middleware, hooks (useIpcSync, useHotkeys, useCampaign)
-- Campaign editors: HomeView (campaign create/open), NoteEditor (TipTap), CreatureEditor (schema-driven), EncounterEditor (with Start Combat), SchemaForm (renders dynamic forms from plugin schemas), EntityList
-- Stub editors: LocationEditor, ItemEditor, PCEditor (placeholder divs)
-- Combat: CombatView (stub — shows round/phase, "coming in Phase 5")
-- Player renderer: entry files, PlayerShell (basic combat/story mode switching), player-store
-- All three plugins with real condition data and schemas: PF2e (30 conditions, full stat block + PC + item schemas, turn hooks for Frightened/Stunned/Persistent Damage), D&D 4e (17 conditions, 4e-style schemas, save-ends hooks), Delta Green (5 conditions, stat-based schemas)
-- CSS theme with custom properties, light/dark mode support
-- `.devcontainer/` with Dockerfile, firewall script, devcontainer.json
+- Campaign data and entities are stored as human-readable JSON with atomic writes and differential renderer broadcasts.
+- Campaign management includes notes, creatures, encounters, locations, items, maps, player characters, images, and compendium browsing/editing.
+- The combat tracker includes initiative entry and reordering, current/inspected stat blocks, damage/healing, conditions and effects, delay/ready actions, reaction tracking, turn automation, and combat logging.
+- The player window supports combat and story displays while receiving player-safe state.
+- Built-in PF2e, D&D 4e, and Delta Green plugins provide their system definitions and renderer integrations.
+- `npm run build` and `npm run typecheck:node` pass in the devcontainer as of 2026-08-31.
 
-### Phase 2: Plugin System — DONE (built into Phase 1)
-Types, plugin loader, and all three plugins already written with real data.
-
-### Phase 3: Campaign Data Layer — DONE (built into Phase 1)
-Campaign CRUD, entity CRUD, atomic file I/O (write .tmp then rename), autosave on every change, bi-directional link index with debounced rebuild. All in `src/main/data/`.
-
-### Phase 4: DM Campaign Management UI — PARTIALLY DONE
-- Done: AppShell, Sidebar, ContentArea, CommandPalette, HomeView, NoteEditor, CreatureEditor, EncounterEditor, EntityList, SchemaForm
-- Remaining: flesh out LocationEditor, ItemEditor, PCEditor (currently stubs). Image upload + circular icon crop. Backlinks panel.
-
-### Phase 5: Combat Tracker — NOT STARTED (engine exists, UI is stub)
-Combat engine is fully implemented in `src/main/combat/combat-engine.ts` with: start/end combat, add/remove combatants, initiative sorting, next/prev turn with plugin hooks, delay/undelay, damage/heal (temp HP absorbs first), conditions (replace-if-same, automation), effects (round decrement), player-safe state stripping.
-
-UI needed: Initiative entry dialog, CombatView split layout, InitiativeList, CombatantDetail panel, condition/effect management dialogs, damage/heal dialogs, mini indicators, reinforcements, combat keyboard shortcuts.
-
-### Phase 6: Player Screen — NOT STARTED (basic shell exists)
-PlayerShell exists with combat round display and story mode placeholder. Need: initiative cards with HP descriptors, turn spotlight, story mode with location background images, auto mode switching from main process.
-
-### Phase 7: Polish — NOT STARTED
-Full keyboard shortcut audit, empty states, error handling, window persistence, last-opened campaign setting.
+Current planned implementation work is maintained in `TODO.md`. Historical completed batches are recorded in `CLEANUP.md`, `issues.txt`, `tasks.md`, and `feedback.md`.
 
 ## Key Files to Know
 
@@ -100,11 +68,9 @@ Full keyboard shortcut audit, empty states, error handling, window persistence, 
 
 ## Known Issues / Next Steps
 
-1. **Build not yet attempted** — `npm install` + `electron-vite build` need to run in devcontainer
-2. **electron-vite API mismatch** — `externalizeDepsPlugin` and `is` from `electron-vite/utils` may not exist. Check installed version's actual exports.
-3. **Stub components** need fleshing out: LocationEditor, ItemEditor, PCEditor, shared components (ConditionBadge, EffectBadge, HpBar, CreatureIcon)
-4. **Combat UI** is the biggest remaining work — engine is done but no renderer components
-5. **Player screen** needs initiative cards and story mode
+- `TODO.md` is the authoritative implementation backlog.
+- `TESTING.md` is a retained manual regression checklist; it is not an implementation backlog.
+- The production build is green, but `npm run typecheck:web` still exposes older TypeScript project-boundary, alias, and component-typing issues that electron-vite does not require for bundling.
 
 ## Design Spec
 

@@ -241,12 +241,12 @@ All items from sections 1–4 have been addressed across 5 commits on the `clean
 - [x] 1.2 Button variant CSS classes (primary, danger, success, info, secondary)
 - [x] 1.3 Standardized form field patterns
 - [x] 1.4 Standardized focus management (autoFocus)
-- [ ] 1.5 Confirm-delete — deferred (window.confirm works fine for now)
+- [x] 1.5 Confirm-delete — completed later; see section 7
 - [x] 2.1 Fixed undefined var(--color-text)
 - [x] 2.2 Semantic color variables, replaced 70+ hardcoded colors
 - [x] 2.3 Wired up unused HP/turn/status CSS vars
 - [x] 2.4 Standardized spacing/borderRadius pixel values
-- [ ] 2.5 Migrate inline styles to CSS modules — deferred (low priority, large mechanical change)
+- [x] 2.5 Migrate selected combat components to CSS modules — completed later; see section 7
 - [x] 3.1 Extracted EONT/SONT expiration logic
 - [x] 3.2 Extracted getConditionDef() helper
 - [x] 3.3 Extracted matchesDamageType() helper

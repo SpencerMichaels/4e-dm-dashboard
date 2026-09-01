@@ -1,3 +1,7 @@
+# Completed combat tracker tasks
+
+Status: Completed. Retained as an acceptance-criteria record.
+
 ## Two-column DM view for combat tracker
 
 - The right side pane of the DM's view in the combat tracker should be changed to be a two-column layout. Currently, it displays only the statblock of the creature whose turn it currently is. We should split that into the current creature (left half) and whichever other creature has been selected in the initiative tracker via left-click (right half). This will allow a DM to see statblocks for both an attacker and the target, simultaneously.
@@ -13,3 +17,5 @@
 - After a creatures uses its readied action, its place in the initiative order moves to directly before the creature whose turn it currently is; in other words, it re-orderes as if it had just completed its turn.
 
 ## Show conditions to the DM
+
+Completed as part of the combat tracker condition-pill and detail-panel work.

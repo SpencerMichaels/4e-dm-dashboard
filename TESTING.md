@@ -1,5 +1,7 @@
 # Testing handoff — four small fixes
 
+Status: Historical manual regression checklist. The implementation is present; completion of every manual step was not recorded. This file is not an active implementation backlog.
+
 The session before you applied four independent renderer-side fixes. Build/typecheck and UI-verify each one inside this devcontainer.
 
 ## Build / typecheck first
