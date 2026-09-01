@@ -546,21 +546,18 @@ export function Dnd4eCreatureDetails({ creature, onSave: save, config, compact }
       })()}
 
       {/* Description + Source at bottom */}
-      {((sb.description as string) || sb.source) && (
-        <div style={{ padding: '4px 8px', fontSize: '11px' }}>
-          {(sb.description as string) && (
-            <textarea className="ghost" value={(sb.description as string) ?? ''}
-              onChange={e => u('description', e.target.value)}
-              placeholder="Description..."
-              style={{ width: '100%', fontStyle: 'italic', fontSize: '11px', color: 'var(--color-text-secondary)' }} />
-          )}
-          {sb.source && (
-            <div style={{ color: 'var(--color-text-muted)', fontStyle: 'italic', marginTop: 2 }}>
-              {sb.source as string}
-            </div>
-          )}
+      <div style={{ padding: '4px 8px', fontSize: '11px' }}>
+        <textarea className="ghost" value={(sb.description as string) ?? ''}
+          onChange={e => u('description', e.target.value)}
+          placeholder="Description..."
+          style={{ width: '100%', fontStyle: 'italic', fontSize: '11px', color: 'var(--color-text-secondary)' }} />
+        <div style={{ color: 'var(--color-text-muted)', fontStyle: 'italic', marginTop: 2 }}>
+          <input className="ghost" value={(sb.source as string) ?? ''}
+            onChange={e => u('source', e.target.value)}
+            placeholder="Source..."
+            style={{ fontStyle: 'italic', color: 'inherit', fontSize: 'inherit', width: '100%' }} />
         </div>
-      )}
+      </div>
 
       </div>{/* end stats column */}
 

@@ -61,7 +61,6 @@ export interface CombatantState {
   effects: AppliedEffect[]
   readiedAction?: string        // Freeform text: what action is readied + trigger
   usedPowers: Record<number, number>
-  usedReaction: boolean
   usedActionPoints: number
   miniIndicator?: string
   miniNumber?: number           // Numbered marker (1–9) shown on the token badge

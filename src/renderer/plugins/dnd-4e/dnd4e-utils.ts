@@ -6,6 +6,7 @@ export const USAGE_COLORS: Record<string, string> = {
   'recharge': '#6a6a72', 'Recharge': '#6a6a72',
   'daily': '#5a5a7a', 'Daily': '#5a5a7a',
   'consumable': '#6a6a72', 'Consumable': '#6a6a72',
+  'trait': '#7a6f5e', 'aura': '#7a6f5e',
 }
 
 export const DND4E_ACTION_TYPES: Record<string, string> = {

@@ -32,11 +32,12 @@ export function QuickConditionMenu({ combatantId, combatant, position, onClose, 
   const [durationOverride, setDurationOverride] = useState<{ type: string; expiresOnId?: string } | null>(null)
   const [hoveredCondId, setHoveredCondId] = useState<string | null>(null)
   const [showTurnPicker, setShowTurnPicker] = useState<'eont' | 'sont' | null>(null)
+  const [shiftSelection, setShiftSelection] = useState<Set<string>>(new Set())
 
   const isSurpriseRound = combat?.round === 0 && combat?.surpriseRound
   const conditions = (systemPlugin?.conditions ?? []).filter((c: any) =>
     c.id !== 'ongoing-damage' && !c.hidden && (c.id !== 'surprised' || isSurpriseRound)
-  )
+  ).sort((a: any, b: any) => a.name.localeCompare(b.name))
   const activeConditionIds = new Set(combatant.conditions.map(c => c.conditionId))
   // Conditions on the combatant that aren't in the plugin's known list
   // (and aren't already handled as ongoing damage). These are custom/user-added
@@ -345,24 +346,66 @@ export function QuickConditionMenu({ combatantId, combatant, position, onClose, 
         </div>
       )}
 
+      {/* Shift-selection indicator */}
+      {shiftSelection.size > 0 && (
+        <div style={{ padding: '2px 8px', fontSize: 9, color: 'var(--color-text-muted)', display: 'flex', alignItems: 'center', gap: 4 }}>
+          <span style={{ fontWeight: 600, color: 'rgba(92,124,250,0.9)' }}>{shiftSelection.size} selected</span>
+          <span>— Shift+double-click to apply (save ends all)</span>
+        </div>
+      )}
+
       {/* 2-column condition grid */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2, padding: '0 4px' }}>
         {conditions.map((c: any) => {
           const active = c.id === 'dead' ? !!combatant.dead : activeConditionIds.has(c.id)
+          const inShiftSelection = shiftSelection.has(c.id)
           const style = getConditionStyle(c.id)
           // Bloodied is read-only for monsters (auto-managed by HP)
           const readOnly = c.id === 'bloodied' && !combatant.isPC
           return (
             <div key={c.id}
-              onClick={readOnly ? undefined : () => toggle(c.id)}
+              onClick={readOnly ? undefined : (e) => {
+                if (e.shiftKey) {
+                  // Shift+click: toggle in/out of multi-select (only for inactive conditions)
+                  if (!active) {
+                    setShiftSelection(prev => {
+                      const next = new Set(prev)
+                      if (next.has(c.id)) next.delete(c.id)
+                      else next.add(c.id)
+                      return next
+                    })
+                  }
+                } else {
+                  // Normal click: existing behavior
+                  toggle(c.id)
+                }
+              }}
+              onDoubleClick={readOnly ? undefined : async (e) => {
+                if (e.shiftKey && shiftSelection.size > 0) {
+                  // Shift+double-click: apply all selected conditions with shared save group
+                  const saveGroup = crypto.randomUUID()
+                  // Include this condition if it's not active and not already in selection
+                  const allIds = new Set(shiftSelection)
+                  if (!active) allIds.add(c.id)
+                  for (const condId of allIds) {
+                    await window.api.combat.addCondition(combatantId, {
+                      conditionId: condId,
+                      duration: { type: 'save-ends' },
+                      saveGroup,
+                    })
+                  }
+                  setShiftSelection(new Set())
+                }
+              }}
               title={readOnly ? `${c.description} (auto-managed for monsters)` : c.description}
               onMouseEnter={() => setHoveredCondId(c.id)}
               onMouseLeave={() => setHoveredCondId(null)}
               style={{
                 display: 'flex', alignItems: 'center', gap: 4,
                 padding: '3px 6px', cursor: readOnly ? 'default' : 'pointer', borderRadius: 'var(--radius-sm)',
-                background: active ? style.color + '30' : 'transparent',
+                background: inShiftSelection ? 'rgba(92,124,250,0.3)' : active ? style.color + '30' : 'transparent',
                 opacity: readOnly ? 0.7 : 1,
+                border: inShiftSelection ? '1px dashed rgba(92,124,250,0.7)' : '1px solid transparent',
               }}>
               <span style={{
                 display: 'inline-flex', alignItems: 'center', gap: 3,

@@ -57,6 +57,7 @@ export function CombatView() {
   const [dialog, setDialog] = useState<
     | { type: 'damage' | 'heal'; combatantId: string; initialAmount?: number; multiTargetIds?: string[] }
     | { type: 'condition'; combatantId: string }
+    | { type: 'effect'; combatantId: string }
     | null
   >(null)
 
@@ -765,6 +766,14 @@ export function CombatView() {
             ? `${dialog.multiTargetIds.length} creatures`
             : combat.combatants[dialog.combatantId]?.name ?? ''}
           initialAmount={dialog.initialAmount}
+          resistEntries={
+            !dialog.multiTargetIds
+              ? (Array.isArray((combat.combatants[dialog.combatantId]?.statBlock as any)?.resistances)
+                ? ((combat.combatants[dialog.combatantId]?.statBlock as any).resistances as { type: string; value?: number }[])
+                    .filter((r): r is { type: string; value: number } => typeof r.value === 'number')
+                : undefined)
+              : undefined
+          }
           onSubmit={(amount, wasHit) => {
             const targets = dialog.multiTargetIds ?? [dialog.combatantId]
             for (const id of targets) handleDamage(id, amount, wasHit)

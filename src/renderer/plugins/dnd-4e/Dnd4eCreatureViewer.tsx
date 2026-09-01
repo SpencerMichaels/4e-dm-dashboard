@@ -1,7 +1,7 @@
 import { type ReactNode, useState, useCallback } from 'react'
 import type { Creature, CreatureBuilderConfig } from '@common/types'
 import type { PowerEntry } from './PowerEntryEditor'
-import { PowerCardView } from './PowerCardView'
+import { PowerCardView, type PowerCardEntry } from './PowerCardView'
 import type { TemplateFieldDiff } from './monster-templates'
 import { useImage } from '@renderer/hooks/use-image'
 import { CreatureImageEditor } from '@renderer/components/shared/CreatureImageEditor'
@@ -11,6 +11,43 @@ import { xpForCreature, sign } from './dnd4e-utils'
 import { capitalize } from '@common/utils/format'
 import { normalizeStringArray } from '@common/utils/arrays'
 import './statblock.css'
+
+/** Convert a PowerEntry from the stat block into a PowerCardEntry for display */
+function toPowerCardEntry(p: PowerEntry): PowerCardEntry {
+  let kw: string[] | undefined = normalizeStringArray(p.keywords)
+  if (kw.length === 0) kw = undefined
+
+  let usage = p.entryType === 'trait' ? 'trait' : p.entryType === 'aura' ? 'aura' : (p.usage || 'at-will')
+  if (kw && usage !== 'trait' && usage !== 'aura') {
+    const hasEncounterKw = kw.some(k => /^\d+\/encounter$/i.test(String(k).trim()))
+    if (hasEncounterKw) usage = 'encounter'
+  }
+
+  const isTrait = p.entryType === 'trait' || p.entryType === 'aura'
+  return {
+    name: p.name,
+    usage,
+    actionType: isTrait ? undefined : p.actionType,
+    rechargeValue: usage === 'recharge' && p.rechargeCondition ? (parseInt(p.rechargeCondition) || undefined) : undefined,
+    rechargeCondition: usage === 'recharge' && p.rechargeCondition && isNaN(parseInt(p.rechargeCondition)) ? p.rechargeCondition : undefined,
+    keywords: kw?.length ? kw : undefined,
+    rangeType: (p as any).range ?? p.rangeType,
+    rangeValue: p.rangeValue,
+    target: isTrait ? undefined : p.target,
+    attackBonus: isTrait ? undefined : (p.attackBonus ?? null),
+    defense: isTrait ? undefined : p.defense,
+    damage: isTrait ? undefined : p.damage,
+    hit: isTrait ? undefined : p.hit,
+    critical: isTrait ? undefined : (p as any).critical,
+    miss: isTrait ? undefined : p.miss,
+    effect: p.effect,
+    trigger: p.trigger,
+    requirement: p.requirement,
+    sustain: p.sustain,
+    text: (p as any).text,
+    levelScaling: (p as any).levelScaling,
+  }
+}
 
 // Per-template-slot color palette (used for visual attribution of template-modified values)
 const TEMPLATE_COLORS = ['var(--color-accent)', '#f59f00']
@@ -125,7 +162,7 @@ export function Dnd4eCreatureViewer({ creature, tooltip: tip, compendiumId: comp
   const traitEntries = actions.filter(a => a.entryType === 'trait')
   const auraEntries = actions.filter(a => a.entryType === 'aura')
   const powerEntries = actions.filter(a => a.entryType === 'action')
-  const usageOrder: Record<string, number> = { 'at-will': 0, 'encounter': 1, 'recharge': 2 }
+  const usageOrder: Record<string, number> = { 'at-will': 0, 'encounter': 1, 'recharge': 2, 'recharge-bloodied': 2, 'daily': 3 }
   powerEntries.sort((a, b) => (usageOrder[a.usage] ?? 3) - (usageOrder[b.usage] ?? 3))
 
   return (
@@ -230,7 +267,7 @@ export function Dnd4eCreatureViewer({ creature, tooltip: tip, compendiumId: comp
           <span><b className="sb-label">Speed</b>{' '}
             {(sb.speed as number) > 0 && <>{sb.speed as number}</>}
             {Object.entries(speeds).map(([key, val], i) => (
-              <span key={key}>{((sb.speed as number) > 0 || i > 0) && ', '}{key.replace(/_/g, ' ')} {val}</span>
+              <span key={key}>{((sb.speed as number) > 0 || i > 0) ? ', ' : ''}{key.replace(/_/g, ' ')} {val}</span>
             ))}
           </span>
         </div>
@@ -259,11 +296,11 @@ export function Dnd4eCreatureViewer({ creature, tooltip: tip, compendiumId: comp
           ))}</span>}
           {immunities.length > 0 && (resistances.length > 0 || weaknesses.length > 0) && <span>;</span>}
           {resistances.length > 0 && <span><b className="sb-label">Resist</b> {resistances.map((e, i) => (
-            <span key={i}>{i > 0 && ', '}<span style={templateItemStyle(e)} title={templateItemTitle(e, tooltip(e.type))}>{e.type} {e.value ?? ''}</span></span>
+            <span key={i}>{i > 0 && ', '}<span style={templateItemStyle(e)} title={templateItemTitle(e, tooltip(e.type))}>{e.type}{e.value != null && e.value !== '' ? ` ${e.value}` : ''}</span></span>
           ))}</span>}
           {resistances.length > 0 && weaknesses.length > 0 && <span>;</span>}
           {weaknesses.length > 0 && <span><b className="sb-label">Vulnerable</b> {weaknesses.map((e, i) => (
-            <span key={i}>{i > 0 && ', '}<span style={templateItemStyle(e)} title={templateItemTitle(e, tooltip(e.type))}>{e.type} {e.value ?? ''}</span></span>
+            <span key={i}>{i > 0 && ', '}<span style={templateItemStyle(e)} title={templateItemTitle(e, tooltip(e.type))}>{e.type}{e.value != null && e.value !== '' ? ` ${e.value}` : ''}</span></span>
           ))}</span>}
         </div>
       )}
@@ -345,7 +382,7 @@ export function Dnd4eCreatureViewer({ creature, tooltip: tip, compendiumId: comp
             return (
               <div key={i} style={{ ...(sc ? { borderLeft: `3px solid ${sc}` } : {}), marginBottom: 2, position: 'relative', cursor: 'context-menu' }}
                 onContextMenu={e => { e.preventDefault(); handleCopyPower(a, gi) }}>
-                <PowerCardView entry={a} />
+                <PowerCardView entry={toPowerCardEntry(a)} />
                 {copiedIdx === gi && <CopiedFlash />}
               </div>
             )
@@ -363,7 +400,7 @@ export function Dnd4eCreatureViewer({ creature, tooltip: tip, compendiumId: comp
             return (
               <div key={i} style={{ ...(sc ? { borderLeft: `3px solid ${sc}` } : {}), marginBottom: 2, position: 'relative', cursor: 'context-menu' }}
                 onContextMenu={e => { e.preventDefault(); handleCopyPower(a, gi) }}>
-                <PowerCardView entry={auraEntry} />
+                <PowerCardView entry={toPowerCardEntry(auraEntry)} />
                 {copiedIdx === gi && <CopiedFlash />}
               </div>
             )
@@ -380,7 +417,7 @@ export function Dnd4eCreatureViewer({ creature, tooltip: tip, compendiumId: comp
             return (
               <div key={i} style={{ ...(sc ? { borderLeft: `3px solid ${sc}` } : {}), marginBottom: 2, position: 'relative', cursor: 'context-menu' }}
                 onContextMenu={e => { e.preventDefault(); handleCopyPower(a, gi) }}>
-                <PowerCardView entry={a} />
+                <PowerCardView entry={toPowerCardEntry(a)} />
                 {copiedIdx === gi && <CopiedFlash />}
               </div>
             )

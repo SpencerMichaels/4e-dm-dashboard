@@ -1,0 +1,40 @@
+!! Combat tracker issues and changes !!
+
+Status: Completed 2026-08-31. All items below are implemented.
+
+# Reaction cards
+
+The reaction cards showed next to creatures' cards in the initiative tracker are currently displayed on the right side of the cards. They should be shown directly below the creature's card instead.
+
+# "Reacted" condition
+
+Add a condition called "Reacted". This is used to check if a creature has used its reaction already this turn.
+- Its icon should be the same as the icon used for reactions in power cards. 
+- It should automatically clear at the start of the affected creature's next turn.
+- It should be set automatically on a creature if the DM clicks a reaction power (but unset automatically again if the DM clicks the same power again on the same turn to undo its use - e.g. if the DM misclicked)
+
+# Creature HP on DM's side
+
+The DM view in the combat tracker does not show the HP "pie chart" around a creature's token if that creature has an associated token color (red, green, etc.). On the DM's side, instead of coloring the ring around the token to show HP, just show the creature's numerical HP on its card with an HP bar, color coded according to how damaged it is.
+
+# Recharge range
+
+Power cards in the combat tracker creature viewer should always show the recharge range in the power card header.
+
+# Damage input field
+
+A few changes:
+- Allow + and - notation in the healing and damage input field when damaging a creature.
+- "Enter" currently applies the damage. Add an additional hotkey (and corresponding button) "Shift+Enter" for "Apply damage with resistance" which applies the creature's resistance to the incoming damage (e.g. if it has a "resist 5" entry, the damage is reduced by 5 before being applied). This option should only by shown if the creature has a Resist entry.
+
+# Alphabetize conditions
+
+Just what it says on the tin. Conditions on the quick selector should be organized in alphabetical order.
+
+# Groupable conditions with single save
+
+In the quick selector menu, it should be possible to hold Shift while clicking conditions to multi-select them, and double clicking one (while still holding shift) commits the grouped selection. This covers cases like "the creature becomes blinded and dazed (save ends both)" where one save covers both conditions.
+
+# Creature source
+
+When editing an existing compendium creature, the "Sourcebook" field is not editable, and is locked towhatever the original source was. It should be "Custom" for all duplicated-and-edited compendium creatures.

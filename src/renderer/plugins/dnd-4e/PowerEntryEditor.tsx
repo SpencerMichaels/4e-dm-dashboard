@@ -327,7 +327,11 @@ function FullPowerRow({ entry: e, idx, config, level, statBlock, atkBonusTables,
           <select className="ghost" style={hdrSelect} value={e.actionType} onChange={(ev) => onUpdate(idx, { actionType: ev.target.value })}>
             {config.actionTypes?.map((at) => <option key={at.value} value={at.value}>{at.label.toLowerCase()}</option>)}
           </select>
-          {hasUsage && <>; <select className="ghost" style={hdrSelect} value={e.usage} onChange={(ev) => onUpdate(idx, { usage: ev.target.value })}>
+          {hasUsage && <>; <select className="ghost" style={hdrSelect} value={e.usage} onChange={(ev) => {
+            const patch: Partial<PowerEntry> = { usage: ev.target.value }
+            if (ev.target.value !== 'recharge') patch.rechargeCondition = ''
+            onUpdate(idx, patch)
+          }}>
             {config.usageTypes!.map((u) => <option key={u.value} value={u.value}>{u.label.toLowerCase()}</option>)}
           </select></>}
           {e.usage === 'recharge' && <>{' '}
@@ -397,9 +401,13 @@ function FullPowerRow({ entry: e, idx, config, level, statBlock, atkBonusTables,
       {/* Body */}
       <div style={{ padding: '2px 8px 4px 12px' }}>
         {/* Trigger + Requirement */}
-        {isTriggered && e.trigger && (
+        {(isTriggered || e.trigger) && (
           <div><b style={lbl}>Trigger</b> <input className="ghost" value={e.trigger} onChange={(ev) => onUpdate(idx, { trigger: ev.target.value })}
-            style={{ fontStyle: 'italic', minWidth: 100 }} /></div>
+            ref={focusField === 'trigger' ? autoFocusRef : undefined}
+            placeholder="e.g. an enemy enters a square within reach"
+            style={{ fontStyle: 'italic', minWidth: 100 }} />
+            {!isTriggered && <button onClick={() => onUpdate(idx, { trigger: '' })} style={{ color: 'var(--color-text-muted)', padding: '0 2px', lineHeight: 1 }}>×</button>}
+          </div>
         )}
         {e.requirement && (
           <div><b style={lbl}>Requirement</b> <input className="ghost" value={e.requirement}
@@ -456,6 +464,7 @@ function FullPowerRow({ entry: e, idx, config, level, statBlock, atkBonusTables,
           {e.rangeType !== 'personal' && e.attackBonus != null && !e.miss && <button onClick={() => addField('miss', ' ')} style={addBtn}>+ miss</button>}
           {e.rangeType !== 'personal' && e.attackBonus != null && <button onClick={() => onUpdate(idx, { damage: [...rawDamageParts(e.damage), { expr: '', type: '', ongoing: false }] })} style={addBtn}>+ damage</button>}
           {!e.effect && <button onClick={() => addField('effect', ' ')} style={addBtn}>+ effect</button>}
+          {!isTriggered && !e.trigger && <button onClick={() => addField('trigger', ' ')} style={addBtn}>+ trigger</button>}
           {!e.requirement && <button onClick={() => addField('requirement', ' ')} style={addBtn}>+ requirement</button>}
         </div>
       </div>

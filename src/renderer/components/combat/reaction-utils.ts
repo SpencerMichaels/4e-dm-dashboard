@@ -1,7 +1,7 @@
 import type { CombatantState, CombatNotification } from '@common/types'
 import type { PowerCardEntry } from '../../plugins/dnd-4e/PowerCardView'
 
-export const REACTION_TYPES = ['immediate-reaction', 'immediate-interrupt', 'free']
+export const REACTION_TYPES = ['immediate-reaction', 'immediate-interrupt', 'free', 'no-action']
 
 export interface CreatureReaction {
   power: any
@@ -90,7 +90,7 @@ export function getCreatureReactions(c: CombatantState, isCurrentTurn: boolean):
   if (c.isPC || isCurrentTurn || c.hp <= 0) return []
   const actions = Array.isArray((c.statBlock as any)?.actions) ? (c.statBlock as any).actions as any[] : []
   const usedPowers = c.usedPowers ?? {}
-  const usedReaction = c.usedReaction ?? false
+  const usedReaction = c.conditions?.some(co => co.conditionId === 'reacted') ?? false
   const out: CreatureReaction[] = []
 
   for (let i = 0; i < actions.length; i++) {
@@ -98,7 +98,7 @@ export function getCreatureReactions(c: CombatantState, isCurrentTurn: boolean):
     if (!REACTION_TYPES.includes(a.actionType)) continue
 
     // Free actions: must have a trigger, exclude self-only ones
-    if (a.actionType === 'free') {
+    if (a.actionType === 'free' || a.actionType === 'no-action') {
       if (!a.trigger) continue
       if (a.selfTurnOnly) continue
     }
@@ -111,7 +111,7 @@ export function getCreatureReactions(c: CombatantState, isCurrentTurn: boolean):
     const isLimitedUse = effectiveUsage === 'encounter' || effectiveUsage === 'recharge'
     const exhausted = isLimitedUse && timesUsed >= maxUses
 
-    const isFree = a.actionType === 'free'
+    const isFree = a.actionType === 'free' || a.actionType === 'no-action'
     out.push({
       power: a,
       card: toPowerCard(a),
@@ -131,12 +131,15 @@ export function getCreatureReactions(c: CombatantState, isCurrentTurn: boolean):
 export async function toggleReaction(combatantId: string, reaction: CreatureReaction) {
   const currentlyUsed = reaction.used
   if (currentlyUsed) {
-    if (!reaction.isFree) await window.api.combat.updateCombatant(combatantId, { usedReaction: false })
+    if (!reaction.isFree) await window.api.combat.removeCondition(combatantId, 'reacted')
     if (reaction.power.usage !== 'at-will') {
       await window.api.combat.unusePower(combatantId, reaction.powerIndex)
     }
   } else {
-    if (!reaction.isFree) await window.api.combat.updateCombatant(combatantId, { usedReaction: true })
+    if (!reaction.isFree) await window.api.combat.addCondition(combatantId, {
+      conditionId: 'reacted',
+      duration: { type: 'sont', expiresOnId: combatantId },
+    })
     if (reaction.power.usage !== 'at-will') {
       await window.api.combat.usePower(combatantId, reaction.powerIndex)
     }

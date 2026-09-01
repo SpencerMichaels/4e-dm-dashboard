@@ -56,6 +56,8 @@ const api = {
     endTurn: () => ipcRenderer.invoke(CMD.COMBAT_END_TURN),
     resolveItem: (index: number, success: boolean) => ipcRenderer.invoke(CMD.COMBAT_RESOLVE_ITEM, index, success),
     resolveDeathSave: (index: number, outcome: 'fail' | 'none' | 'success') => ipcRenderer.invoke(CMD.COMBAT_RESOLVE_DEATH_SAVE, index, outcome),
+    reorder: (combatantId: string, newIndex: number) =>
+      ipcRenderer.invoke(CMD.COMBAT_REORDER, combatantId, newIndex),
     delay: (combatantId: string) => ipcRenderer.invoke(CMD.COMBAT_DELAY, combatantId),
     undelay: (combatantId: string, afterCombatantId?: string) =>
       ipcRenderer.invoke(CMD.COMBAT_UNDELAY, combatantId, afterCombatantId),

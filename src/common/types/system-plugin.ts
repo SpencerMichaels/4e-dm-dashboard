@@ -103,6 +103,7 @@ export interface AppliedCondition {
   //   'source-allies' — allies of `sourceId` (e.g. "grants CA to the hag's allies")
   grantsCATo?: 'all' | 'source' | 'source-allies'
   inhibitDamageTypes?: string[]    // Damage types that suppress this regeneration
+  saveGroup?: string               // Links conditions so one successful save removes all in the group
 }
 
 export interface SystemTheme {
@@ -113,7 +114,7 @@ export interface SystemTheme {
 export interface CreatureBuilderStatDef {
   key: string
   label: string
-  tiers: string[]                     // e.g. ['extreme', 'high', 'moderate', 'low']
+  tiers: readonly string[]            // e.g. ['extreme', 'high', 'moderate', 'low']
   table: { [level: number]: Record<string, number> }
   statBlockKey: string
   statBlockPath?: string[]            // nested path e.g. ['saves', 'fort']

@@ -146,7 +146,7 @@ export function initCombat(encounterId?: string): CombatState {
   return combatState
 }
 
-export function addCombatant(combatant: Omit<CombatantState, 'conditions' | 'effects' | 'tempHp' | 'usedPowers' | 'usedReaction'> & { tempHp?: number }): CombatState {
+export function addCombatant(combatant: Omit<CombatantState, 'conditions' | 'effects' | 'tempHp' | 'usedPowers'> & { tempHp?: number }): CombatState {
   if (!combatState) throw new Error('No active combat')
   combatState.combatants[combatant.id] = {
     ...combatant,
@@ -154,7 +154,6 @@ export function addCombatant(combatant: Omit<CombatantState, 'conditions' | 'eff
     conditions: [],
     effects: [],
     usedPowers: {},
-    usedReaction: false,
     usedActionPoints: 0,
     deathSaveFailures: combatant.isPC ? 0 : undefined,
   }
@@ -308,8 +307,20 @@ function applyPendingResults(): void {
   if (!combatState) return
   for (const r of pendingResults) {
     if (r.success) {
-      if (r.conditionId) removeCondition(r.combatantId, r.conditionId)
-      else if (r.powerIndex != null) unusePower(r.combatantId, r.powerIndex)
+      if (r.conditionId) {
+        // Check if the condition being removed belongs to a save group
+        const c = combatState.combatants[r.combatantId]
+        const removedCond = c?.conditions.find(co => co.conditionId === r.conditionId)
+        const saveGroup = removedCond?.saveGroup
+        removeCondition(r.combatantId, r.conditionId)
+        // If the removed condition had a saveGroup, remove all other conditions in that group
+        if (saveGroup && c) {
+          const groupMembers = c.conditions.filter(co => co.saveGroup === saveGroup)
+          for (const member of groupMembers) {
+            removeCondition(r.combatantId, member.conditionId)
+          }
+        }
+      } else if (r.powerIndex != null) unusePower(r.combatantId, r.powerIndex)
     }
   }
   pendingResults = []
@@ -333,6 +344,35 @@ function findNextActionable(items: PlayerTurnItem[], afterIndex: number, phase: 
 function saveLabel(condName: string, saveBonus: number): string {
   const bonusStr = saveBonus > 0 ? ` +${saveBonus}` : saveBonus < 0 ? ` ${saveBonus}` : ''
   return `Save${bonusStr} vs ${condName}`
+}
+
+function conditionSaveName(cond: AppliedCondition, plugin?: SystemPlugin): string {
+  if (cond.conditionId.startsWith('ongoing-damage')) {
+    const dmgType = cond.customDescription ? ` ${cond.customDescription}` : ''
+    return `ongoing ${cond.value ?? ''}${dmgType} damage`
+  }
+  return cond.customName ?? getConditionDef(cond.conditionId, plugin)?.name ?? cond.conditionId
+}
+
+/** Collapse conditions sharing a saveGroup into one entry, while leaving
+ * ordinary save-ends conditions as independent entries. */
+function groupSaveConditions(conditions: AppliedCondition[]): AppliedCondition[][] {
+  const groups: AppliedCondition[][] = []
+  const groupIndexes = new Map<string, number>()
+  for (const cond of conditions) {
+    if (!cond.saveGroup) {
+      groups.push([cond])
+      continue
+    }
+    const existing = groupIndexes.get(cond.saveGroup)
+    if (existing == null) {
+      groupIndexes.set(cond.saveGroup, groups.length)
+      groups.push([cond])
+    } else {
+      groups[existing].push(cond)
+    }
+  }
+  return groups
 }
 
 /**
@@ -361,18 +401,12 @@ function buildEndOfTurnPreview(combatant: CombatantState | null, plugin?: System
   const saveEnds = combatant.conditions.filter(co =>
     (co.duration?.type === 'save-ends' || co.duration?.type === 'unlimited') && co.conditionId !== 'dying'
   )
-  for (const cond of saveEnds) {
-    let condName = cond.customName ?? cond.conditionId
+  for (const saveGroup of groupSaveConditions(saveEnds)) {
+    const cond = saveGroup[0]
+    const condName = saveGroup.map(c => conditionSaveName(c, plugin)).join(' and ')
     const isOngoing = cond.conditionId.startsWith('ongoing-damage')
-    if (isOngoing) {
-      const dmgType = cond.customDescription ? ` ${cond.customDescription}` : ''
-      condName = `ongoing ${cond.value ?? ''}${dmgType} damage`
-    } else {
-      const def = getConditionDef(cond.conditionId, plugin)
-      if (def) condName = def.name
-    }
     items.push({
-      id: `save-${cond.conditionId}`, phase: 'end', kind: 'save',
+      id: `save-${cond.saveGroup ?? cond.conditionId}`, phase: 'end', kind: 'save',
       label: saveLabel(condName, saveBonus), conditionId: cond.conditionId,
       damageType: isOngoing ? cond.customDescription : undefined,
     })
@@ -561,11 +595,12 @@ function buildRegenAndOngoingItems(combatant: CombatantState): PlayerTurnItem[] 
   return [buildNetRegenItem(regenValue, totalOngoing)]
 }
 
-function buildSaveItems(actions: unknown[], combatantId: string): PlayerTurnItem[] {
+function buildSaveItems(actions: unknown[], combatantId: string, plugin?: SystemPlugin): PlayerTurnItem[] {
   if (!combatState) return []
   const items: PlayerTurnItem[] = []
   const combatant = combatState.combatants[combatantId]
   const saveBonus = ((combatant?.statBlock as any)?.savingThrowBonus as number) ?? 0
+  const emittedSaveGroups = new Set<string>()
   for (const action of actions) {
     const a = action as any
     if (a.type !== 'prompt') continue
@@ -575,10 +610,20 @@ function buildSaveItems(actions: unknown[], combatantId: string): PlayerTurnItem
     const saveChoice = prompt.choices.find((c: any) => c.action.startsWith('remove-condition:'))
     const condId = saveChoice ? saveChoice.action.split(':')[1] : undefined
     const cond = combatant?.conditions.find(co => co.conditionId === condId)
+    if (cond?.saveGroup) {
+      if (emittedSaveGroups.has(cond.saveGroup)) continue
+      emittedSaveGroups.add(cond.saveGroup)
+    }
+    const groupedConditions = cond?.saveGroup
+      ? combatant?.conditions.filter(co => co.saveGroup === cond.saveGroup) ?? [cond]
+      : cond ? [cond] : []
+    const groupedName = groupedConditions.length > 1
+      ? groupedConditions.map(co => conditionSaveName(co, plugin)).join(' and ')
+      : condName
     const isOngoing = condId?.startsWith('ongoing-damage')
     items.push({
-      id: `save-${condId ?? items.length}`, phase: 'end', kind: 'save',
-      label: saveLabel(condName, saveBonus), conditionId: condId,
+      id: `save-${cond?.saveGroup ?? condId ?? items.length}`, phase: 'end', kind: 'save',
+      label: saveLabel(groupedName, saveBonus), conditionId: condId,
       damageType: isOngoing ? cond?.customDescription : undefined,
     })
   }
@@ -634,7 +679,7 @@ export function endTurn(plugin?: SystemPlugin): { state: CombatState; notificati
       // Plugin end-of-turn hooks → save items
       const endActions: unknown[] = []
       if (plugin?.turnHooks?.onTurnEnd) endActions.push(...plugin.turnHooks.onTurnEnd(combatant))
-      endItems.push(...buildSaveItems(endActions, currentId))
+      endItems.push(...buildSaveItems(endActions, currentId, plugin))
 
       // Death save for dying PCs
       if (combatant.isPC && combatant.conditions.some(c => c.conditionId === 'dying')) {
@@ -734,9 +779,15 @@ export function resolveItem(index: number, success: boolean, plugin?: SystemPlug
       const cond = carrier?.conditions.find(co => co.conditionId === item.conditionId)
       const isOngoing = item.conditionId?.startsWith('ongoing-damage')
       const def = getConditionDef(isOngoing ? 'ongoing-damage' : item.conditionId!, plugin)
-      const displayName = isOngoing
+      const singleDisplayName = isOngoing
         ? `Ongoing${cond?.value ? ' ' + cond.value : ''}${cond?.customDescription ? ' ' + cond.customDescription : ''} Damage`
         : (cond?.customName ?? def?.name ?? item.conditionId)
+      const groupedConditions = cond?.saveGroup
+        ? carrier?.conditions.filter(co => co.saveGroup === cond.saveGroup) ?? [cond]
+        : []
+      const displayName = groupedConditions.length > 1
+        ? groupedConditions.map(co => conditionSaveName(co, plugin)).join(' and ')
+        : singleDisplayName
       pushStateNotification({
         type: success ? 'save-success' : 'save-fail',
         combatantId: currentId,
@@ -850,8 +901,6 @@ export function commitAndAdvance(plugin?: SystemPlugin, extraNotifications?: Com
 
       // Remove SONT conditions
       removeExpiredConditions(combatState.combatants, newId, 'sont')
-
-      combatant.usedReaction = false
 
       // ── Check manual inhibition (DM removed Regenerating condition) ──
       const regenInhibited = combatant.regenInhibited ?? false
@@ -1021,6 +1070,22 @@ export function delayCombatant(combatantId: string): CombatState {
     if (idx < combatState.turnIndex) combatState.turnIndex--
   }
   while (combatState.turnIndex < combatState.initiativeOrder.length && shouldSkip(combatState.initiativeOrder[combatState.turnIndex])) combatState.turnIndex++
+  return combatState
+}
+
+/** Move an active combatant to an absolute initiative-order index without
+ * changing which combatant currently owns the turn. */
+export function reorderCombatant(combatantId: string, newIndex: number): CombatState {
+  if (!combatState) throw new Error('No active combat')
+  const oldIndex = combatState.initiativeOrder.indexOf(combatantId)
+  if (oldIndex < 0) throw new Error(`Combatant ${combatantId} is not in the initiative order`)
+
+  const currentId = combatState.initiativeOrder[combatState.turnIndex]
+  const order = combatState.initiativeOrder.filter(id => id !== combatantId)
+  const targetIndex = Math.max(0, Math.min(Math.trunc(newIndex), order.length))
+  order.splice(targetIndex, 0, combatantId)
+  combatState.initiativeOrder = order
+  combatState.turnIndex = currentId ? Math.max(0, order.indexOf(currentId)) : 0
   return combatState
 }
 

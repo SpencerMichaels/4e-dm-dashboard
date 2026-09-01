@@ -1,4 +1,4 @@
-import { useRef, useState, useLayoutEffect } from 'react'
+import { useRef, useState, useLayoutEffect, useEffect, useCallback } from 'react'
 import type { CombatState, CombatNotification } from '@common/types'
 import { CombatToken } from './CombatToken'
 import type { ConditionDef } from '@common/types/system-plugin'
@@ -8,7 +8,7 @@ import { ConditionPill, buildConditionLabel } from '../../plugins/dnd-4e/Conditi
 import { USAGE_COLORS } from '../../plugins/dnd-4e/dnd4e-utils'
 import { PowerCardView, ACTION_ICONS } from '../../plugins/dnd-4e/PowerCardView'
 import { getCreatureReactions, triggerMatchesNotification, toggleReaction, type CreatureReaction } from './reaction-utils'
-import { hpPercentage, formatConditionName } from '../../utils/combat-utils'
+import { hpColor, hpPercentage, formatConditionName } from '../../utils/combat-utils'
 
 interface Props {
   combat: CombatState
@@ -22,11 +22,109 @@ interface Props {
   onUndelay?: (id: string) => void
   onResolveReady?: (id: string) => void
   onCancelReady?: (id: string) => void
+  reorderMode?: boolean
+  onReorder?: (combatantId: string, newIndex: number) => void
 }
 
-export function InitiativeList({ combat, currentId, selectedIds, onSelect, onContextMenu, attackMode, conditionDefs = [], notifications = [], onUndelay, onResolveReady, onCancelReady }: Props) {
+export function InitiativeList({ combat, currentId, selectedIds, onSelect, onContextMenu, attackMode, conditionDefs = [], notifications = [], onUndelay, onResolveReady, onCancelReady, reorderMode, onReorder }: Props) {
   const containerRef = useRef<HTMLDivElement>(null)
   const posCache = useRef<Map<string, number>>(new Map())
+
+  // ─── Drag-to-reorder state ───
+  const [dragId, setDragId] = useState<string | null>(null)
+  const [dragY, setDragY] = useState(0)
+  const [dropIndex, setDropIndex] = useState<number | null>(null)
+  const dragStartY = useRef(0)
+  const dragItemRect = useRef<DOMRect | null>(null)
+  const itemRects = useRef<{ id: string; top: number; bottom: number; midY: number }[]>([])
+
+  // Capture item rects at drag start for hit testing
+  const captureItemRects = useCallback(() => {
+    if (!containerRef.current) return
+    const rects: typeof itemRects.current = []
+    for (let i = 0; i < containerRef.current.children.length; i++) {
+      const el = containerRef.current.children[i] as HTMLElement
+      const key = el.dataset.flipKey
+      if (!key || key === '__next_round__') continue
+      const rect = el.getBoundingClientRect()
+      rects.push({ id: key, top: rect.top, bottom: rect.bottom, midY: rect.top + rect.height / 2 })
+    }
+    itemRects.current = rects
+  }, [])
+
+  const handleDragStart = useCallback((id: string, e: React.MouseEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    const el = (e.target as HTMLElement).closest('[data-flip-key]') as HTMLElement | null
+    if (el) dragItemRect.current = el.getBoundingClientRect()
+    dragStartY.current = e.clientY
+    setDragId(id)
+    setDragY(0)
+    captureItemRects()
+  }, [captureItemRects])
+
+  // Use a ref for dropIndex so the mouseup handler always sees the latest value
+  // without needing dropIndex in the effect dependency array (which would churn listeners).
+  const dropIndexRef = useRef<number | null>(null)
+
+  useEffect(() => {
+    if (!dragId) return
+    const onMove = (e: MouseEvent) => {
+      const dy = e.clientY - dragStartY.current
+      setDragY(dy)
+      const cursorY = e.clientY
+      const rects = itemRects.current
+      // Build a list of drop slots in visual (DOM) order, mapped to initiativeOrder indices.
+      // Only include items that are in the active initiative order (not delayed/readied).
+      const orderSet = new Set(combat.initiativeOrder)
+      const orderRects = rects.filter(r =>
+        r.id !== dragId && orderSet.has(r.id) &&
+        !combat.delayedIds.includes(r.id) &&
+        !(combat.readiedIds ?? []).includes(r.id)
+      )
+      let newDropIdx: number | null = null
+      if (orderRects.length > 0 && cursorY < orderRects[0].top) {
+        // Cursor is above the first item entirely — insert before it
+        newDropIdx = combat.initiativeOrder.indexOf(orderRects[0].id)
+      } else {
+        for (let i = 0; i < orderRects.length; i++) {
+          if (cursorY < orderRects[i].midY) {
+            newDropIdx = combat.initiativeOrder.indexOf(orderRects[i].id)
+            break
+          }
+        }
+        if (newDropIdx === null && orderRects.length > 0) {
+          // Past the last item — drop at end
+          const lastId = orderRects[orderRects.length - 1].id
+          newDropIdx = combat.initiativeOrder.indexOf(lastId) + 1
+        }
+      }
+      setDropIndex(newDropIdx)
+      dropIndexRef.current = newDropIdx
+    }
+    const onUp = () => {
+      const currentDropIndex = dropIndexRef.current
+      if (dragId && currentDropIndex !== null) {
+        const oldIdx = combat.initiativeOrder.indexOf(dragId)
+        // Adjust target: if dragging downward, account for removal shifting indices
+        let targetIdx = currentDropIndex
+        if (oldIdx < targetIdx) targetIdx--
+        if (oldIdx !== targetIdx && targetIdx >= 0) {
+          onReorder?.(dragId, targetIdx)
+        }
+      }
+      setDragId(null)
+      setDragY(0)
+      setDropIndex(null)
+      dropIndexRef.current = null
+    }
+    window.addEventListener('mousemove', onMove)
+    window.addEventListener('mouseup', onUp)
+    return () => {
+      window.removeEventListener('mousemove', onMove)
+      window.removeEventListener('mouseup', onUp)
+    }
+  }, [dragId, combat.initiativeOrder, combat.delayedIds, combat.readiedIds, onReorder])
 
   const snapshotPositions = () => {
     if (!containerRef.current) return
@@ -111,7 +209,32 @@ export function InitiativeList({ combat, currentId, selectedIds, onSelect, onCon
   ]
 
   return (
-    <div ref={containerRef} style={{ display: 'flex', flexDirection: 'column', gap: 2, overflow: 'auto' }}>
+    <div ref={containerRef} style={{ display: 'flex', flexDirection: 'column', gap: 2, overflow: 'auto', position: 'relative' }}>
+      {/* Floating ghost for the dragged item */}
+      {dragId && dragItemRect.current && (
+        <div style={{
+          position: 'fixed',
+          top: dragItemRect.current.top + dragY,
+          left: dragItemRect.current.left,
+          width: dragItemRect.current.width,
+          height: dragItemRect.current.height,
+          pointerEvents: 'none',
+          zIndex: 9999,
+          opacity: 0.85,
+          boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
+          borderRadius: 'var(--radius-sm)',
+          background: 'var(--color-bg-surface)',
+          border: '2px solid var(--color-accent)',
+          display: 'flex',
+          alignItems: 'center',
+          padding: '0 var(--space-2)',
+          fontSize: 'var(--font-size-sm)',
+          color: 'var(--color-text-primary)',
+          overflow: 'hidden',
+        }}>
+          {combat.combatants[dragId]?.name ?? dragId}
+        </div>
+      )}
       {displayOrder.map(({ id, section }) => {
         if (section === 'header') {
           return (
@@ -135,6 +258,8 @@ export function InitiativeList({ combat, currentId, selectedIds, onSelect, onCon
         const isDead = c.dead === true || (!c.isPC && c.hp <= 0)
         const isSurprised = combat.round === 0 && c.conditions?.some(co => co.conditionId === 'surprised')
         const isHidden = !!c.hidden
+        const isDragging = dragId === id
+        const canDrag = reorderMode && !isDelayed && !isReadied
 
         const hpPct = hpPercentage(c.hp, c.maxHp)
 
@@ -150,9 +275,18 @@ export function InitiativeList({ combat, currentId, selectedIds, onSelect, onCon
           : null
 
         return (
-          <div key={id} data-flip-key={id} style={(isDelayed || isReadied) ? { display: 'flex', alignItems: 'center', gap: 4, marginLeft: 16, position: 'relative' } : { position: 'relative' }}>
+          <div key={id} data-flip-key={id}
+            onMouseDown={canDrag ? (e) => handleDragStart(id, e) : undefined}
+            style={{
+              display: 'flex', flexDirection: 'column', position: 'relative',
+              ...(isDelayed || isReadied) ? { marginLeft: 16 } : {},
+              ...(isDragging ? { opacity: 0.4, zIndex: 0 } : {}),
+              ...(canDrag ? { border: '1px dashed var(--color-border)', borderRadius: 'var(--radius-sm)', margin: '1px 0', cursor: 'grab', userSelect: 'none' } : {}),
+          }}>
+          {/* Row: card button + action buttons (for delayed/readied the action buttons sit beside the card) */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: (isDelayed || isReadied) ? 4 : 0 }}>
           <button
-            onClick={(e) => onSelect(id, e)}
+            onClick={(e) => { if (canDrag) return; onSelect(id, e) }}
             onContextMenu={onContextMenu ? (e) => { e.preventDefault(); onContextMenu(id, e) } : undefined}
             style={{
               display: 'flex', flex: (isDelayed || isReadied) ? 1 : undefined,
@@ -207,6 +341,30 @@ export function InitiativeList({ combat, currentId, selectedIds, onSelect, onCon
                   </span>
                 )}
               </div>
+              {c.color && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginTop: 2 }}>
+                  <div
+                    role="meter"
+                    aria-label={`${c.name} hit points`}
+                    aria-valuemin={0}
+                    aria-valuemax={c.maxHp}
+                    aria-valuenow={Math.max(0, c.hp)}
+                    style={{
+                      flex: 1, height: 5, minWidth: 24,
+                      overflow: 'hidden', borderRadius: 3,
+                      background: 'color-mix(in srgb, var(--color-text-muted) 25%, transparent)',
+                    }}
+                  >
+                    <div style={{
+                      width: `${Math.max(0, Math.min(100, hpPct))}%`, height: '100%',
+                      background: hpColor(hpPct), transition: 'width 0.2s ease',
+                    }} />
+                  </div>
+                  <span style={{ fontSize: 9, lineHeight: 1, fontWeight: 700, flexShrink: 0 }}>
+                    {c.hp}/{c.maxHp} HP
+                  </span>
+                </div>
+              )}
               {isReadied && c.readiedAction && (
                 <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-readied)', marginTop: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
                   title={c.readiedAction}>
@@ -241,7 +399,6 @@ export function InitiativeList({ combat, currentId, selectedIds, onSelect, onCon
               )}
             </div>
 
-
             {/* Attack mode: hit/miss indicator */}
             {attackResult === 'hit' && <span style={{ fontSize: 14, color: 'var(--color-check)' }} title="Hit">⚔</span>}
             {attackResult === 'miss' && <span style={{ fontSize: 14, color: 'var(--color-miss)' }} title="Miss">✕</span>}
@@ -273,6 +430,7 @@ export function InitiativeList({ combat, currentId, selectedIds, onSelect, onCon
               )}
             </div>
           )}
+          </div>{/* end card row */}
           {/* Hidden toggle — not for PCs */}
           {!c.isPC && (
             <button

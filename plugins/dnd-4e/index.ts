@@ -29,6 +29,7 @@ const dnd4e: SystemPlugin = {
     { id: 'unconscious', name: 'Unconscious', description: 'Helpless. -5 to all defenses. Can\'t take actions.', hasValue: false, durationTypes: ['unlimited'], automation: [] },
     { id: 'weakened', name: 'Weakened', description: 'Attacks deal half damage.', hasValue: false, durationTypes: ['rounds', 'encounter'], automation: [] },
     { id: 'bloodied', name: 'Bloodied', description: 'At or below half HP. Triggers bloodied abilities.', hasValue: false, durationTypes: ['unlimited'], automation: [] },
+    { id: 'reacted', name: 'Reacted', description: 'This creature has used its reaction for this round.', hasValue: false, durationTypes: ['rounds'], automation: [] },
     {
       id: 'ongoing-damage', name: 'Ongoing Damage', description: 'Take damage at start of turn, then save ends.',
       hasValue: true, durationTypes: ['unlimited'],

@@ -26,8 +26,8 @@ function toPowerCardEntry(p: PowerEntry): PowerCardEntry {
     name: p.name,
     usage,
     actionType: p.actionType,
-    rechargeValue: p.rechargeCondition ? (parseInt(p.rechargeCondition) || undefined) : undefined,
-    rechargeCondition: p.rechargeCondition && isNaN(parseInt(p.rechargeCondition)) ? p.rechargeCondition : undefined,
+    rechargeValue: usage === 'recharge' && p.rechargeCondition ? (parseInt(p.rechargeCondition) || undefined) : undefined,
+    rechargeCondition: usage === 'recharge' && p.rechargeCondition && isNaN(parseInt(p.rechargeCondition)) ? p.rechargeCondition : undefined,
     keywords: kw?.length ? kw : undefined,
     rangeType: (p as any).range ?? p.rangeType,
     rangeValue: p.rangeValue,
@@ -259,9 +259,9 @@ export function Dnd4eGroupedCombatPanel({
         <div className="sb-row" style={{ fontSize: 11 }}>
           {immunities.length > 0 && <span><b className="sb-label">Immune</b> {immunities.map(e => e.type).join(', ')}</span>}
           {immunities.length > 0 && (resistances.length > 0 || weaknesses.length > 0) && <>; </>}
-          {resistances.length > 0 && <span><b className="sb-label">Resist</b> {resistances.map(e => `${e.type} ${e.value ?? ''}`).join(', ').trim()}</span>}
+          {resistances.length > 0 && <span><b className="sb-label">Resist</b> {resistances.map(e => e.value != null && e.value !== '' ? `${e.type} ${e.value}` : e.type).join(', ')}</span>}
           {resistances.length > 0 && weaknesses.length > 0 && <>; </>}
-          {weaknesses.length > 0 && <span><b className="sb-label">Vulnerable</b> {weaknesses.map(e => `${e.type} ${e.value ?? ''}`).join(', ').trim()}</span>}
+          {weaknesses.length > 0 && <span><b className="sb-label">Vulnerable</b> {weaknesses.map(e => e.value != null && e.value !== '' ? `${e.type} ${e.value}` : e.type).join(', ')}</span>}
         </div>
       )}
       {saveBonus > 0 && (

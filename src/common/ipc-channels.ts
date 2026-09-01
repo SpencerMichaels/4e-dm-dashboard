@@ -47,6 +47,7 @@ export const CMD = {
   COMBAT_USE_POWER: 'combat:use-power',
   COMBAT_UNUSE_POWER: 'combat:unuse-power',
   COMBAT_SET_SURPRISE: 'combat:set-surprise',
+  COMBAT_REORDER: 'combat:reorder',
 
   // System
   SYSTEM_GET_PLUGIN: 'system:get-plugin',

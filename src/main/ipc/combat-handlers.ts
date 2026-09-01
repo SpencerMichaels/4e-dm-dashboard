@@ -155,6 +155,7 @@ export function registerCombatHandlers(): void {
   withBroadcast(CMD.COMBAT_SET_INITIATIVE_FOCUS, (id: string | null) => engine.setInitiativeFocus(id))
   withBroadcast(CMD.COMBAT_SET_PLAYER_EXPAND_CONDITIONS, (v: boolean) => engine.setPlayerExpandConditions(v))
   withBroadcast(CMD.COMBAT_SET_AUTO_HIDE_DEAD, (v: boolean) => engine.setAutoHideDeadCreatures(v))
+  withBroadcast(CMD.COMBAT_REORDER, (id: string, newIndex: number) => engine.reorderCombatant(id, newIndex))
   withBroadcast(CMD.COMBAT_DELAY, (id: string) => engine.delayCombatant(id))
   withBroadcast(CMD.COMBAT_UNDELAY, (id: string, afterId?: string) => engine.undelayCombatant(id, afterId))
   withBroadcast(CMD.COMBAT_READY, (id: string, text: string) => engine.readyCombatant(id, text))

@@ -113,9 +113,16 @@ export function PowerCardView({ entry: e, selectedLevel, detectedConditions, onC
               : e.usage,
           ].filter(Boolean).join('; ')})</span>
         )}
+        {hideActionTypeText && (rechargeValue || rechargeCondition) && (
+          <span style={{ color: 'rgba(255,255,255,0.8)' }}> ({
+            rechargeValue ? `recharge ${rechargeValue}${rechargeValue < 6 ? '+' : ''}`
+              : `recharge ${rechargeCondition}`
+          })</span>
+        )}
       </div>
-      {/* Attack / range subheader — shown for attacks AND for non-attack entries that have a range (auras, blasts) */}
-      {(hasAttack || (e.rangeType && e.rangeValue)) && (
+      {/* Attack / range subheader — shown for attacks AND for non-attack entries that have a range (auras, blasts).
+         Traits never get a subheader — they may carry range data from import but shouldn't display it. */}
+      {(hasAttack || (e.rangeType && e.rangeValue)) && e.usage !== 'trait' && (
         <div style={{ padding: '1px 8px', background: usageColor + '88', color: '#fff' }}>
           {e.rangeType && RANGE_ICONS[e.rangeType] && (
             <span title={e.rangeType.replace(/-/g, ' ')}

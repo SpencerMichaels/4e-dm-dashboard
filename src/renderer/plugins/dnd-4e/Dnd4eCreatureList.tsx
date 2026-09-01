@@ -131,7 +131,8 @@ export function Dnd4eCreatureList({ creatures, onNavigate }: PluginCreatureListP
       if (ann?.imageId) creature.imageId = ann.imageId
       if (ann?.tokenImageId) creature.tokenImageId = ann.tokenImageId
       const now = new Date().toISOString()
-      const draft: Creature = { ...creature, id: generateId(), createdAt: now, updatedAt: now }
+      const draft: Creature = { ...creature, id: generateId(), createdAt: now, updatedAt: now,
+        statBlock: { ...creature.statBlock, source: 'Custom' } }
       setSelectedId(null)
       setPreviewCreature(null)
       setEditingCreature(draft)
@@ -153,7 +154,8 @@ export function Dnd4eCreatureList({ creatures, onNavigate }: PluginCreatureListP
     if (ann?.tokenImageId) creature.tokenImageId = ann.tokenImageId
     // Give it a fresh id so it doesn't collide with the compendium entry
     const now = new Date().toISOString()
-    const draft: Creature = { ...creature, id: generateId(), createdAt: now, updatedAt: now }
+    const draft: Creature = { ...creature, id: generateId(), createdAt: now, updatedAt: now,
+      statBlock: { ...creature.statBlock, source: 'Custom' } }
     setSelectedId(null)
     setPreviewCreature(null)
     setEditingCreature(draft)

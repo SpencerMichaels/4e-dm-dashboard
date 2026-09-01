@@ -30,6 +30,8 @@ export interface UiState {
   setSystemPlugin: (plugin: any) => void
   skipAutoOpen: boolean
   setSkipAutoOpen: (skip: boolean) => void
+  reorderMode: boolean
+  setReorderMode: (on: boolean) => void
 }
 
 export const useUiStore = create<UiState>()((set) => ({
@@ -49,4 +51,6 @@ export const useUiStore = create<UiState>()((set) => ({
   setCommandPaletteOpen: (open) => set({ commandPaletteOpen: open }),
   setSystemPlugin: (plugin) => set({ systemPlugin: plugin }),
   setSkipAutoOpen: (skip) => set({ skipAutoOpen: skip }),
+  reorderMode: false,
+  setReorderMode: (on) => set({ reorderMode: on }),
 }))
