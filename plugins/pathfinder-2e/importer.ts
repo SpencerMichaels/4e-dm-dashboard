@@ -59,7 +59,7 @@ export async function importPf2eCreature(url: string): Promise<Creature> {
 
   const response = await fetch(ES_URL, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'User-Agent': 'TabletopDashboard/1.0' },
+    headers: { 'Content-Type': 'application/json', 'User-Agent': '4eDmDashboard/1.0' },
     body: JSON.stringify({
       query: { match: { _id: esId } },
       size: 1,

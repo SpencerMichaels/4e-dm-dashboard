@@ -1,4 +1,4 @@
-# Tabletop Dashboard — Agent Context
+# 4e DM Dashboard — Agent Context
 
 This is the canonical repository guidance for coding agents. Keep it current as the project evolves.
 
@@ -47,7 +47,8 @@ The application is functional across its main workflows:
 - The combat tracker includes initiative entry and reordering, current/inspected stat blocks, damage/healing, conditions and effects, delay/ready actions, reaction tracking, turn automation, and combat logging.
 - The player window supports combat and story displays while receiving player-safe state.
 - Built-in PF2e, D&D 4e, and Delta Green plugins provide their system definitions and renderer integrations.
-- `npm run build` and `npm run typecheck:node` pass in the devcontainer as of 2026-08-31.
+- Renamed from "Tabletop Dashboard" to "4e DM Dashboard" (2026-11-12). On first launch, `src/main/data/migrate-user-data.ts` moves the old `~/.config/tabletop-dashboard` userData dir to the new location.
+- `npm run build` and `npm run typecheck:node` pass in the devcontainer as of 2026-11-12.
 
 Current planned implementation work is maintained in `TODO.md`. Historical completed batches are recorded in `CLEANUP.md`, `issues.txt`, `tasks.md`, and `feedback.md`.
 

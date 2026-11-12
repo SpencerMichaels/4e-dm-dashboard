@@ -13,7 +13,9 @@ import { create } from 'zustand'
  * via the `useSystemSetting` selector hook.
  */
 
-const STORAGE_KEY = 'tabletop-dashboard:settings'
+const STORAGE_KEY = '4e-dm-dashboard:settings'
+// Pre-rename key; read once as a fallback, then rewritten under STORAGE_KEY on next save.
+const LEGACY_STORAGE_KEY = 'tabletop-dashboard:settings'
 
 interface PersistedSettings {
   app: Record<string, unknown>
@@ -24,7 +26,7 @@ const defaultPersisted: PersistedSettings = { app: {}, systems: {} }
 
 function load(): PersistedSettings {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY)
+    const raw = localStorage.getItem(STORAGE_KEY) ?? localStorage.getItem(LEGACY_STORAGE_KEY)
     if (!raw) return defaultPersisted
     const parsed = JSON.parse(raw)
     return {

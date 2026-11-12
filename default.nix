@@ -4,7 +4,7 @@ let
   electron = pkgs.electron;
 in
 pkgs.buildNpmPackage rec {
-  pname = "tabletop-dashboard";
+  pname = "4e-dm-dashboard";
   version = "0.1.0";
 
   src = pkgs.lib.cleanSourceWith {
@@ -24,7 +24,7 @@ pkgs.buildNpmPackage rec {
   #   2. Run `nix-build`
   #   3. The build will fail and print the correct hash
   #   4. Replace the hash below with the printed one
-  npmDepsHash = "sha256-9HXIowTFZPXw1MA3U/cpe0CmfdY+llDE98zBHjhGKcw=";
+  npmDepsHash = "sha256-bdrWgZz0PlIpjQSQLifrwk5CXbk1FYfVLm+6UjdfcfU=";
 
   # We use the system electron at runtime — skip downloading the npm binary
   env.ELECTRON_SKIP_BINARY_DOWNLOAD = "1";
@@ -79,9 +79,9 @@ pkgs.buildNpmPackage rec {
   '';
 
   meta = with pkgs.lib; {
-    description = "DM toolkit for tabletop RPGs";
+    description = "DM toolkit for D&D 4th Edition";
     license = licenses.gpl3Only;
     platforms = platforms.linux;
-    mainProgram = "tabletop-dashboard";
+    mainProgram = "4e-dm-dashboard";
   };
 }

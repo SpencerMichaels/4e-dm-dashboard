@@ -17,7 +17,7 @@ export function createDmWindow(): BrowserWindow {
   dmWindow = new BrowserWindow({
     width: 1400,
     height: 900,
-    title: 'Tabletop Dashboard — DM',
+    title: '4e DM Dashboard — DM',
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
       sandbox: false,
@@ -54,7 +54,7 @@ export function createPlayerWindow(): BrowserWindow {
     width: 1920,
     height: 1080,
     ...bounds,
-    title: 'Tabletop Dashboard — Player',
+    title: '4e DM Dashboard — Player',
     autoHideMenuBar: true,
     webPreferences: {
       preload: join(__dirname, '../preload/player.js'),

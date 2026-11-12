@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-IMAGE_NAME="tabletop-dev"
+IMAGE_NAME="4e-dm-dashboard-dev"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
 # Build image if it doesn't exist or --build flag passed

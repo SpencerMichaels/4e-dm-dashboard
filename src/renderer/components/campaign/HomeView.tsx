@@ -53,7 +53,7 @@ export function HomeView() {
   return (
     <div style={{ maxWidth: 600, margin: '0 auto' }}>
       <h1 style={{ fontSize: 'var(--font-size-2xl)', marginBottom: 'var(--space-6)' }}>
-        Tabletop Dashboard
+        4e DM Dashboard
       </h1>
 
       {creating ? (

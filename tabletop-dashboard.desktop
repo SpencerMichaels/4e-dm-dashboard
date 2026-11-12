@@ -1,9 +1,0 @@
-[Desktop Entry]
-Name=Tabletop Dashboard
-Comment=DM toolkit for tabletop RPGs
-Exec=tabletop-dashboard %U
-Icon=tabletop-dashboard
-Terminal=false
-Type=Application
-Categories=Game;Utility;
-StartupWMClass=tabletop-dashboard

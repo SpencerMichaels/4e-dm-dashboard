@@ -1,5 +1,5 @@
 {
-  "name": "Tabletop Dashboard Dev",
+  "name": "4e DM Dashboard Dev",
   "build": {
     "dockerfile": "Dockerfile",
     "args": {

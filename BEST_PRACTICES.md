@@ -1,4 +1,4 @@
-# Best Practices — Tabletop Dashboard
+# Best Practices — 4e DM Dashboard
 
 Hard-won lessons from building this project. Read before writing new code.
 

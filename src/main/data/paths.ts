@@ -48,5 +48,5 @@ export function getAssetsDir(campaignId: string): string {
 }
 
 export function getUserPluginsDir(): string {
-  return join(app.getPath('home'), '.tabletop-dashboard', 'plugins')
+  return join(app.getPath('home'), '.4e-dm-dashboard', 'plugins')
 }

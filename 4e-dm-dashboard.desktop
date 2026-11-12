@@ -1,0 +1,9 @@
+[Desktop Entry]
+Name=4e DM Dashboard
+Comment=DM toolkit for D&D 4th Edition
+Exec=4e-dm-dashboard %U
+Icon=4e-dm-dashboard
+Terminal=false
+Type=Application
+Categories=Game;Utility;
+StartupWMClass=4e-dm-dashboard

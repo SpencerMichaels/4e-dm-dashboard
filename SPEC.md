@@ -1,6 +1,6 @@
-# Tabletop Dashboard — Specification
+# 4e DM Dashboard — Specification
 
-This document specifies **Tabletop Dashboard**, a virtual-tabletop companion application for pen-and-paper TTRPG games played at a physical table. It is not for tracking token positions on a grid map, but rather for things like initiative order, monster HP, status effects, scene presentation, and campaign organization.
+This document specifies **4e DM Dashboard** (formerly Tabletop Dashboard), a virtual-tabletop companion application for pen-and-paper TTRPG games played at a physical table. It is not for tracking token positions on a grid map, but rather for things like initiative order, monster HP, status effects, scene presentation, and campaign organization.
 
 The primary assumption is that the DM is the sole operator — players do not have laptops. Players track their own HP, spell slots, etc. on paper; the application tracks initiative order, monster HP/status, conditions, effects, and presents information to players via a second display.
 
