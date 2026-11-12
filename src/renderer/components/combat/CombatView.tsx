@@ -2,12 +2,11 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { useCombatStore } from '../../stores/combat-store'
 import { useUiStore } from '../../stores/ui-store'
 import { useHotkeys } from '../../hooks/use-hotkeys'
-import { getPluginUI } from '../../plugins/registry'
-import type { PluginUIComponents } from '../../plugins/plugin-types'
+import { Dnd4eCombatPanel } from '../../plugins/dnd-4e/Dnd4eCombatPanel'
+import { Dnd4eGroupedCombatPanel } from '../../plugins/dnd-4e/Dnd4eGroupedCombatPanel'
 import type { CombatNotification, CombatantState } from '@common/types'
 import { InitiativeEntry } from './InitiativeEntry'
 import { InitiativeList } from './InitiativeList'
-import { CombatantDetail } from './CombatantDetail'
 import { DamageHealDialog } from './DamageHealDialog'
 import { ConditionDialog } from './ConditionDialog'
 import { PinnedCardsPanel, type PinnedCard } from './PinnedCardsPanel'
@@ -41,7 +40,6 @@ export function CombatView() {
       setSelectedIds(prev => prev.length === 1 && prev[0] === id ? [] : [id])
     }
   }, [])
-  const [pluginUI, setPluginUI] = useState<PluginUIComponents | null>(null)
   const [notifications, setNotifications] = useState<CombatNotification[]>([])
   const [combatEvents, setCombatEvents] = useState<import('@common/types').CombatEvent[]>([])
   const [showLog, setShowLog] = useState(false)
@@ -60,11 +58,6 @@ export function CombatView() {
     | { type: 'effect'; combatantId: string }
     | null
   >(null)
-
-  // Load plugin UI
-  useEffect(() => {
-    if (systemPlugin?.id) getPluginUI(systemPlugin.id).then(setPluginUI)
-  }, [systemPlugin?.id])
 
   const addEvent = useCallback((type: import('@common/types').CombatEventType, targetId: string, targetName: string, data: Record<string, unknown> = {}, sourceId?: string, sourceName?: string, roundOverride?: number) => {
     setCombatEvents(prev => {
@@ -506,7 +499,6 @@ export function CombatView() {
   const currentId = combat.initiativeOrder[combat.turnIndex]
   const currentIsPC = currentId ? combat.combatants[currentId]?.isPC : false
 
-  const PluginCombatPanel = pluginUI?.CombatPanel
   const conditionDefs = systemPlugin?.conditions ?? []
 
   const currentCombatant = currentId ? combat.combatants[currentId] : null
@@ -515,43 +507,16 @@ export function CombatView() {
 
   const renderDetailPanel = (combatant: CombatantState, opts?: { hideMainActionPowers?: boolean }) => {
     const isCurrent = combatant.id === currentId
-    if (PluginCombatPanel) {
-      return (
-        <PluginCombatPanel
-          combatant={combatant}
-          combat={combat}
-          isCurrent={isCurrent}
-          isDelayed={combat.delayedIds.includes(combatant.id)}
-          isReadied={(combat.readiedIds ?? []).includes(combatant.id)}
-          onUsePower={(idx) => window.api.combat.usePower(combatant.id, idx)}
-          onUnusePower={(idx) => window.api.combat.unusePower(combatant.id, idx)}
-          onQuickDamage={(amount) => setDialog({ type: 'damage', combatantId: combatant.id, initialAmount: amount })}
-          onDamage={() => setDialog({ type: 'damage', combatantId: combatant.id })}
-          onHeal={() => setDialog({ type: 'heal', combatantId: combatant.id })}
-          onAddCondition={() => setDialog({ type: 'condition', combatantId: combatant.id })}
-          onAddEffect={() => setDialog({ type: 'effect', combatantId: combatant.id })}
-          onDelay={() => window.api.combat.delay(combatant.id)}
-          onUndelay={() => window.api.combat.undelay(combatant.id, currentId)}
-          onReady={() => setReadyDialog({ combatantId: combatant.id })}
-          onResolveReady={() => window.api.combat.resolveReady(combatant.id)}
-          onCancelReady={() => window.api.combat.cancelReady(combatant.id)}
-          onRemove={() => { window.api.combat.removeCombatant(combatant.id); setSelectedIds(prev => prev.filter(x => x !== combatant.id)) }}
-          conditions={conditionDefs}
-          notifications={notifications.filter(n => n.combatantId === combatant.id)}
-          onPinCard={handlePinCard}
-          pinnedKeys={pinnedKeys}
-          onPopoutStatblock={(id) => setPoppedOutStatblockIds(prev => prev.includes(id) ? prev : [...prev, id])}
-          onApplyConditionToTargets={handleApplyConditionToTargets}
-          hideMainActionPowers={opts?.hideMainActionPowers}
-        />
-      )
-    }
     return (
-      <CombatantDetail
+      <Dnd4eCombatPanel
         combatant={combatant}
+        combat={combat}
         isCurrent={isCurrent}
         isDelayed={combat.delayedIds.includes(combatant.id)}
         isReadied={(combat.readiedIds ?? []).includes(combatant.id)}
+        onUsePower={(idx) => window.api.combat.usePower(combatant.id, idx)}
+        onUnusePower={(idx) => window.api.combat.unusePower(combatant.id, idx)}
+        onQuickDamage={(amount) => setDialog({ type: 'damage', combatantId: combatant.id, initialAmount: amount })}
         onDamage={() => setDialog({ type: 'damage', combatantId: combatant.id })}
         onHeal={() => setDialog({ type: 'heal', combatantId: combatant.id })}
         onAddCondition={() => setDialog({ type: 'condition', combatantId: combatant.id })}
@@ -562,6 +527,13 @@ export function CombatView() {
         onResolveReady={() => window.api.combat.resolveReady(combatant.id)}
         onCancelReady={() => window.api.combat.cancelReady(combatant.id)}
         onRemove={() => { window.api.combat.removeCombatant(combatant.id); setSelectedIds(prev => prev.filter(x => x !== combatant.id)) }}
+        conditions={conditionDefs}
+        notifications={notifications.filter(n => n.combatantId === combatant.id)}
+        onPinCard={handlePinCard}
+        pinnedKeys={pinnedKeys}
+        onPopoutStatblock={(id) => setPoppedOutStatblockIds(prev => prev.includes(id) ? prev : [...prev, id])}
+        onApplyConditionToTargets={handleApplyConditionToTargets}
+        hideMainActionPowers={opts?.hideMainActionPowers}
       />
     )
   }
@@ -719,35 +691,25 @@ export function CombatView() {
                   )
                 }
 
-                // Multiple creatures of same type — use grouped panel if plugin provides one
-                const GroupedPanel = pluginUI?.GroupedCombatPanel
-                if (GroupedPanel) {
-                  return (
-                    <div key={group.key} style={gi > 0 ? { marginTop: 'var(--space-4)' } : undefined}>
-                      <GroupedPanel
-                        combatants={combatants}
-                        combat={combat}
-                        conditions={conditionDefs}
-                        notifications={notifications.filter(n => group.ids.includes(n.combatantId))}
-                        onDamage={(cid) => setDialog({ type: 'damage', combatantId: cid })}
-                        onHeal={(cid) => setDialog({ type: 'heal', combatantId: cid })}
-                        onAddCondition={(cid) => setDialog({ type: 'condition', combatantId: cid })}
-                        onAddEffect={(cid) => setDialog({ type: 'effect', combatantId: cid })}
-                        hideMainActionPowers={hideInspectedActions}
-                        onPinCard={handlePinCard}
-                        pinnedKeys={pinnedKeys}
-                        onPopoutStatblock={(id) => setPoppedOutStatblockIds(prev => prev.includes(id) ? prev : [...prev, id])}
-                      />
-                    </div>
-                  )
-                }
-
-                // Fallback: render each individually
-                return combatants.map((c, ci) => (
-                  <div key={c.id} style={(gi > 0 || ci > 0) ? { marginTop: 'var(--space-4)' } : undefined}>
-                    {renderDetailPanel(c, { hideMainActionPowers: hideInspectedActions })}
+                // Multiple creatures of same type — grouped panel
+                return (
+                  <div key={group.key} style={gi > 0 ? { marginTop: 'var(--space-4)' } : undefined}>
+                    <Dnd4eGroupedCombatPanel
+                      combatants={combatants}
+                      combat={combat}
+                      conditions={conditionDefs}
+                      notifications={notifications.filter(n => group.ids.includes(n.combatantId))}
+                      onDamage={(cid) => setDialog({ type: 'damage', combatantId: cid })}
+                      onHeal={(cid) => setDialog({ type: 'heal', combatantId: cid })}
+                      onAddCondition={(cid) => setDialog({ type: 'condition', combatantId: cid })}
+                      onAddEffect={(cid) => setDialog({ type: 'effect', combatantId: cid })}
+                      hideMainActionPowers={hideInspectedActions}
+                      onPinCard={handlePinCard}
+                      pinnedKeys={pinnedKeys}
+                      onPopoutStatblock={(id) => setPoppedOutStatblockIds(prev => prev.includes(id) ? prev : [...prev, id])}
+                    />
                   </div>
-                ))
+                )
               })
             })()}
           </>

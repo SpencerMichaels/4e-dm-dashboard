@@ -50,8 +50,7 @@ export const CMD = {
   COMBAT_REORDER: 'combat:reorder',
 
   // System
-  SYSTEM_GET_PLUGIN: 'system:get-plugin',
-  SYSTEM_LIST_PLUGINS: 'system:list-plugins',
+  SYSTEM_GET_RULES: 'system:get-rules',
 
   // Links
   LINKS_GET: 'links:get',
@@ -61,9 +60,6 @@ export const CMD = {
   IMAGE_IMPORT_DIALOG: 'image:import-dialog',
   IMAGE_SAVE_DATA: 'image:save-data',
   IMAGE_GET: 'image:get',
-
-  // Import
-  IMPORT_CREATURE: 'import:creature',
 
   // Annotations (images/tokens on compendium entries)
   ANNOTATION_GET_ALL: 'annotation:get-all',

@@ -18,7 +18,7 @@ export function useGlossary() {
   useEffect(() => {
     if (cached) return
     setLoading(true)
-    window.api.compendium.glossary('dnd-4e').then((data: Glossary) => {
+    window.api.compendium.glossary().then((data: Glossary) => {
       cached = data
       setGlossary(data)
       setLoading(false)

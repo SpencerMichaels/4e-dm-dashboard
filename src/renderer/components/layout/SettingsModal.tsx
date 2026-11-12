@@ -3,6 +3,9 @@ import { useSettingsStore } from '../../stores/settings-store'
 import { Modal } from '../shared/Modal'
 import type { SystemSettingDef } from '@common/types/system-plugin'
 
+// Rules settings stay under systems['dnd-4e'] in localStorage for compatibility.
+const RULES_SETTINGS_KEY = 'dnd-4e'
+
 interface Props {
   onClose: () => void
 }
@@ -39,7 +42,7 @@ export function SettingsModal({ onClose }: Props) {
         </SettingsSection>
 
         {systemPlugin && (
-          <SettingsSection title={`${systemPlugin.name} (${systemPlugin.id})`}>
+          <SettingsSection title={systemPlugin.name}>
             {systemDefs.length === 0 ? (
               <div style={{ color: 'var(--color-text-muted)', fontSize: 'var(--font-size-sm)', fontStyle: 'italic' }}>
                 This system has no configurable settings.
@@ -48,8 +51,8 @@ export function SettingsModal({ onClose }: Props) {
               systemDefs.map((def) => (
                 <SystemSettingRow key={def.key}
                   def={def}
-                  value={settings.systems[systemPlugin.id]?.[def.key] ?? def.default}
-                  onChange={(v) => settings.setSystemSetting(systemPlugin.id, def.key, v)} />
+                  value={settings.systems[RULES_SETTINGS_KEY]?.[def.key] ?? def.default}
+                  onChange={(v) => settings.setSystemSetting(RULES_SETTINGS_KEY, def.key, v)} />
               ))
             )}
           </SettingsSection>

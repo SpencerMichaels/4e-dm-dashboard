@@ -8,10 +8,10 @@ Roadmap decided 2026-11-12. The reasoning is in the "Feasibility Study: 4e-Only 
 - [ ] Rename the repo folder (manual; do it outside an agent session)
 
 ## 2. Narrow to 4e only
-- [ ] Add Vitest; write combat-engine tests first (saves, ongoing damage, regeneration, EONT/SONT, recharge, death saves)
-- [ ] Delete PF2e, Delta Green, the user plugin loader, the PF2e import path, the system picker, `SchemaForm`, and `CreatureBuilder`
-- [ ] Replace the plugin registry and `getPluginUI` with direct imports; drop `systemId` from the compendium IPC
-- [ ] Remove turn hooks and the `plugin?` threading from the combat engine
+- [x] Add Vitest; write combat-engine tests first (saves, ongoing damage, regeneration, EONT/SONT, recharge, death saves)
+- [x] Delete PF2e, Delta Green, the user plugin loader, the PF2e import path, the system picker, `SchemaForm`, and `CreatureBuilder`
+- [x] Replace the plugin registry and `getPluginUI` with direct imports; drop `systemId` from the compendium IPC
+- [x] Remove turn hooks and the `plugin?` threading from the combat engine
 - [ ] Move the 4e plugin folders into normal feature folders
 
 ## 3. Shared `4e-kit` repo (GPL-3.0) and the 4e schema

@@ -40,10 +40,11 @@ export async function listCampaigns(): Promise<Campaign[]> {
   return campaigns.sort((a, b) => b.lastOpenedAt.localeCompare(a.lastOpenedAt))
 }
 
-export async function createCampaign(name: string, systemId: string): Promise<Campaign> {
+export async function createCampaign(name: string): Promise<Campaign> {
   const id = generateId()
   const now = new Date().toISOString()
-  const campaign: Campaign = { id, name, systemId, createdAt: now, lastOpenedAt: now }
+  // systemId is kept in campaign.json for compatibility; the app is 4e-only.
+  const campaign: Campaign = { id, name, systemId: 'dnd-4e', createdAt: now, lastOpenedAt: now }
 
   const dir = getCampaignDir(id)
   await ensureDir(dir)

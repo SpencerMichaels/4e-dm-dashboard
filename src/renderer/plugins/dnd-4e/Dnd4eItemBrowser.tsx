@@ -53,7 +53,7 @@ export function Dnd4eItemBrowser({ items: campaignItems, onNavigate, onCreate }:
 
   // Load index
   useEffect(() => {
-    window.api.compendium.itemIndex('dnd-4e')
+    window.api.compendium.itemIndex()
       .then((entries: ItemIndexEntry[]) => setIndex(entries))
       .finally(() => setLoading(false))
   }, [])
@@ -120,7 +120,7 @@ export function Dnd4eItemBrowser({ items: campaignItems, onNavigate, onCreate }:
   const handleSelect = useCallback(async (itemId: string) => {
     if (itemId === selectedId) return
     setSelectedId(itemId)
-    const item = await window.api.compendium.itemGet('dnd-4e', itemId)
+    const item = await window.api.compendium.itemGet(itemId)
     setPreviewItem(item)
     previewRef.current?.scrollTo(0, 0)
   }, [selectedId])

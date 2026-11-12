@@ -10,8 +10,6 @@ export function HomeView() {
   const [creating, setCreating] = useState(false)
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
   const [name, setName] = useState('')
-  const [systemId, setSystemId] = useState('')
-  const [plugins, setPlugins] = useState<{ id: string; name: string }[]>([])
   const setSystemPlugin = useUiStore((s) => s.setSystemPlugin)
   const skipAutoOpen = useUiStore((s) => s.skipAutoOpen)
 
@@ -23,10 +21,6 @@ export function HomeView() {
         handleOpen(list[0].id)
       }
     })
-    window.api.system.listPlugins().then((list: { id: string; name: string }[]) => {
-      setPlugins(list)
-      if (!systemId && list.length > 0) setSystemId(list[0].id)
-    })
   }, [])
 
   if (campaignId) {
@@ -35,8 +29,8 @@ export function HomeView() {
 
   const handleCreate = async () => {
     if (!name.trim()) return
-    const campaign = await window.api.campaign.create(name.trim(), systemId)
-    const plugin = await window.api.system.getPlugin(systemId)
+    await window.api.campaign.create(name.trim())
+    const plugin = await window.api.system.getRules()
     setSystemPlugin(plugin)
     setCreating(false)
     setName('')
@@ -45,7 +39,7 @@ export function HomeView() {
   const handleOpen = async (id: string) => {
     const campaign = await window.api.campaign.open(id)
     if (campaign) {
-      const plugin = await window.api.system.getPlugin(campaign.systemId)
+      const plugin = await window.api.system.getRules()
       setSystemPlugin(plugin)
     }
   }
@@ -65,11 +59,6 @@ export function HomeView() {
             onChange={e => setName(e.target.value)}
             onKeyDown={e => e.key === 'Enter' && handleCreate()}
           />
-          <select value={systemId} onChange={e => setSystemId(e.target.value)}>
-            {plugins.map(p => (
-              <option key={p.id} value={p.id}>{p.name}</option>
-            ))}
-          </select>
           <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
             <button
               onClick={handleCreate}
@@ -140,7 +129,7 @@ export function HomeView() {
               >
                 <div style={{ fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.name}</div>
                 <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)' }}>
-                  {c.systemId} — Last opened {c.lastOpenedAt ? new Date(c.lastOpenedAt).toLocaleDateString() : 'Never'}
+                  Last opened {c.lastOpenedAt ? new Date(c.lastOpenedAt).toLocaleDateString() : 'Never'}
                 </div>
               </button>
               <button

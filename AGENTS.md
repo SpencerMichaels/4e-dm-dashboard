@@ -4,7 +4,7 @@ This is the canonical repository guidance for coding agents. Keep it current as 
 
 ## What This Is
 
-Electron app for a DM running physical tabletop RPGs. Two windows (DM + Player), system-agnostic via plugin architecture, campaign data stored as JSON on disk. Built with React + TypeScript + Zustand + TipTap + CSS Modules, using electron-vite as the build tool.
+Electron app for a DM running physical tabletop RPGs. Two windows (DM + Player), D&D 4e only, campaign data stored as JSON on disk. Built with React + TypeScript + Zustand + TipTap + CSS Modules, using electron-vite as the build tool.
 
 ## User Profile
 
@@ -28,14 +28,14 @@ Electron app for a DM running physical tabletop RPGs. Two windows (DM + Player),
 
 ## Architecture
 
-- **Main process**: single source of truth. Owns campaign data, combat state machine, plugin loading.
+- **Main process**: single source of truth. Owns campaign data, combat state machine, 4e rules and compendium.
 - **DM renderer**: sends commands via `ipcRenderer.invoke()`, receives state via broadcasts.
 - **Player renderer**: receive-only — gets stripped state (no exact HP, no stat blocks).
 - **Zustand stores** in each renderer populated entirely from main process broadcasts.
 - **State flow**: `DM Renderer → invoke(command) → Main Process → mutate → broadcast to both renderers`
-- **Plugins**: JS/TS modules defining conditions, schemas, initiative rules, HP descriptors, turn hooks, theme overrides (v2). Three built-in: PF2e, D&D 4e, Delta Green. User plugins from `~/.tabletop-dashboard/plugins/`.
-- **Effects vs Conditions**: Conditions = system-defined with automation rules. Effects = DM-created ad-hoc during combat that can apply/remove Conditions.
-- System-specific theming (fonts, colors) is v2 but architecture supports it via CSS custom properties.
+- **4e rules module**: `plugins/dnd-4e/` (conditions, HP descriptors, creature-builder benchmarks, settings, compendium provider) and `src/renderer/plugins/dnd-4e/` (4e UI components) are imported directly; there is no plugin registry, user plugin loading, or turn-hook API. The combat engine builds saves, recharges, ongoing damage, and regeneration items itself. The app was multi-system (PF2e, Delta Green) before 2026-11; the folders keep their `plugins/` paths until they move into feature folders (`TODO.md` section 2).
+- **Effects vs Conditions**: Conditions = 4e conditions defined in `plugins/dnd-4e/index.ts`, automated by the combat engine. Effects = DM-created ad-hoc during combat that can apply/remove Conditions.
+- Theming (fonts, colors) uses CSS custom properties.
 - No router — ContentArea switches on Zustand store state.
 
 ## Implementation Status
@@ -46,9 +46,9 @@ The application is functional across its main workflows:
 - Campaign management includes notes, creatures, encounters, locations, items, maps, player characters, images, and compendium browsing/editing.
 - The combat tracker includes initiative entry and reordering, current/inspected stat blocks, damage/healing, conditions and effects, delay/ready actions, reaction tracking, turn automation, and combat logging.
 - The player window supports combat and story displays while receiving player-safe state.
-- Built-in PF2e, D&D 4e, and Delta Green plugins provide their system definitions and renderer integrations.
+- The app is D&D 4e only: the 4e rules module and UI components are imported directly (PF2e, Delta Green, user plugins, the system picker, and URL import were removed in 2026-11).
 - Renamed from "Tabletop Dashboard" to "4e DM Dashboard" (2026-11-12). On first launch, `src/main/data/migrate-user-data.ts` moves the old `~/.config/tabletop-dashboard` userData dir to the new location.
-- `npm run build` and `npm run typecheck:node` pass in the devcontainer as of 2026-11-12.
+- `npm test` (Vitest combat-engine suite), `npm run build`, and `npm run typecheck:node` pass in the devcontainer as of 2026-11-12.
 
 Current planned implementation work is maintained in `TODO.md`. Historical completed batches are recorded in `CLEANUP.md`, `issues.txt`, `tasks.md`, and `feedback.md`.
 
@@ -58,14 +58,13 @@ Current planned implementation work is maintained in `TODO.md`. Historical compl
 |------|------|
 | `electron.vite.config.ts` | Build config — dual renderer entry points |
 | `src/common/ipc-channels.ts` | All IPC channel names (CMD.* and SYNC.*) |
-| `src/common/types/system-plugin.ts` | The core plugin interface |
+| `src/common/types/system-plugin.ts` | Types for the 4e rules module (conditions, HP descriptors, creature builder config, compendium provider) |
 | `src/main/combat/combat-engine.ts` | Combat state machine (most complex logic) |
 | `src/main/data/campaign-store.ts` | Campaign data CRUD + file I/O |
 | `src/main/windows.ts` | BrowserWindow creation + broadcast helpers |
 | `src/renderer/stores/ui-store.ts` | ViewMode type drives all navigation |
 | `src/renderer/components/layout/AppShell.tsx` | Top-level DM layout |
-| `src/renderer/components/campaign/SchemaForm.tsx` | Renders dynamic forms from plugin schemas |
-| `plugins/pathfinder-2e/index.ts` | Reference plugin implementation |
+| `plugins/dnd-4e/index.ts` | 4e rules module (conditions, HP descriptors, builder benchmarks, settings) |
 
 ## Known Issues / Next Steps
 

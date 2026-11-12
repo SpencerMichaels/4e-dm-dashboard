@@ -3,22 +3,17 @@ import { CMD, SYNC } from '@common/ipc-channels'
 import type { EntityType } from '@common/types'
 import * as store from '../data/campaign-store'
 import { broadcastToDm } from '../windows'
-import { setActiveSystemId } from './combat-handlers'
 import { invalidateCreatureIndex } from './compendium-handlers'
 
 export function registerCampaignHandlers(): void {
-  ipcMain.handle(CMD.CAMPAIGN_CREATE, async (_e, name: string, systemId: string) => {
-    const campaign = await store.createCampaign(name, systemId)
-    setActiveSystemId(systemId)
+  ipcMain.handle(CMD.CAMPAIGN_CREATE, async (_e, name: string) => {
+    const campaign = await store.createCampaign(name)
     broadcastCampaignState()
     return campaign
   })
 
   ipcMain.handle(CMD.CAMPAIGN_OPEN, async (_e, campaignId: string) => {
     const campaign = await store.openCampaign(campaignId)
-    if (campaign) {
-      setActiveSystemId(campaign.systemId)
-    }
     broadcastCampaignState()
     return campaign
   })

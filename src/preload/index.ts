@@ -17,7 +17,7 @@ import type {
 const api = {
   // Campaign commands
   campaign: {
-    create: (name: string, systemId: string) => ipcRenderer.invoke(CMD.CAMPAIGN_CREATE, name, systemId),
+    create: (name: string) => ipcRenderer.invoke(CMD.CAMPAIGN_CREATE, name),
     open: (campaignId: string) => ipcRenderer.invoke(CMD.CAMPAIGN_OPEN, campaignId),
     list: () => ipcRenderer.invoke(CMD.CAMPAIGN_LIST),
     update: (patch: Record<string, unknown>) => ipcRenderer.invoke(CMD.CAMPAIGN_UPDATE, patch),
@@ -92,8 +92,7 @@ const api = {
 
   // System
   system: {
-    getPlugin: (pluginId: string) => ipcRenderer.invoke(CMD.SYSTEM_GET_PLUGIN, pluginId),
-    listPlugins: () => ipcRenderer.invoke(CMD.SYSTEM_LIST_PLUGINS),
+    getRules: () => ipcRenderer.invoke(CMD.SYSTEM_GET_RULES),
   },
 
   // Links
@@ -109,11 +108,6 @@ const api = {
     get: (imageId: string) => ipcRenderer.invoke(CMD.IMAGE_GET, imageId) as Promise<string | null>,
   },
 
-  // Import
-  importer: {
-    creature: (url: string) => ipcRenderer.invoke(CMD.IMPORT_CREATURE, url),
-  },
-
   // Annotations (images on compendium entries)
   annotation: {
     getAll: () => ipcRenderer.invoke(CMD.ANNOTATION_GET_ALL),
@@ -122,16 +116,16 @@ const api = {
 
   // Compendium
   compendium: {
-    index: (systemId: string) => ipcRenderer.invoke(CMD.COMPENDIUM_INDEX, systemId),
-    get: (systemId: string, monsterId: string) => ipcRenderer.invoke(CMD.COMPENDIUM_GET, systemId, monsterId),
-    resolve: (systemId: string, monsterId: string) => ipcRenderer.invoke(CMD.COMPENDIUM_RESOLVE, systemId, monsterId),
-    itemIndex: (systemId: string) => ipcRenderer.invoke(CMD.COMPENDIUM_ITEM_INDEX, systemId),
-    itemGet: (systemId: string, itemId: string) => ipcRenderer.invoke(CMD.COMPENDIUM_ITEM_GET, systemId, itemId),
-    glossary: (systemId: string) => ipcRenderer.invoke(CMD.COMPENDIUM_GLOSSARY, systemId),
-    trapIndex: (systemId: string) => ipcRenderer.invoke(CMD.COMPENDIUM_TRAP_INDEX, systemId),
-    trapGet: (systemId: string, trapId: string) => ipcRenderer.invoke(CMD.COMPENDIUM_TRAP_GET, systemId, trapId),
-    diseaseIndex: (systemId: string) => ipcRenderer.invoke(CMD.COMPENDIUM_DISEASE_INDEX, systemId),
-    diseaseGet: (systemId: string, diseaseId: string) => ipcRenderer.invoke(CMD.COMPENDIUM_DISEASE_GET, systemId, diseaseId),
+    index: () => ipcRenderer.invoke(CMD.COMPENDIUM_INDEX),
+    get: (monsterId: string) => ipcRenderer.invoke(CMD.COMPENDIUM_GET, monsterId),
+    resolve: (monsterId: string) => ipcRenderer.invoke(CMD.COMPENDIUM_RESOLVE, monsterId),
+    itemIndex: () => ipcRenderer.invoke(CMD.COMPENDIUM_ITEM_INDEX),
+    itemGet: (itemId: string) => ipcRenderer.invoke(CMD.COMPENDIUM_ITEM_GET, itemId),
+    glossary: () => ipcRenderer.invoke(CMD.COMPENDIUM_GLOSSARY),
+    trapIndex: () => ipcRenderer.invoke(CMD.COMPENDIUM_TRAP_INDEX),
+    trapGet: (trapId: string) => ipcRenderer.invoke(CMD.COMPENDIUM_TRAP_GET, trapId),
+    diseaseIndex: () => ipcRenderer.invoke(CMD.COMPENDIUM_DISEASE_INDEX),
+    diseaseGet: (diseaseId: string) => ipcRenderer.invoke(CMD.COMPENDIUM_DISEASE_GET, diseaseId),
   },
 
   // Scene

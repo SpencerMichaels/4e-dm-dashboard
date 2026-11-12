@@ -2,30 +2,19 @@ import { ipcMain } from 'electron'
 import { CMD, SYNC } from '@common/ipc-channels'
 import type { AppliedCondition, AppliedEffect, Encounter, Location } from '@common/types'
 import * as engine from '../combat/combat-engine'
-import { getPlugin } from '../plugins/plugin-loader'
 import { getActiveCampaignId, getEntity } from '../data/campaign-store'
 import { broadcastToAll, broadcastToPlayer, getPlayerWindow, createPlayerWindow } from '../windows'
 import { setCurrentScene } from './system-handlers'
-
-let activeSystemId: string | null = null
-
-export function setActiveSystemId(systemId: string): void {
-  activeSystemId = systemId
-}
-
-function getActivePlugin() {
-  return activeSystemId ? getPlugin(activeSystemId) : undefined
-}
 
 function handlePostResolve(): void {
   const state = engine.getCombatState()
   if (state?.turnPhase === 'end-of-turn-done') {
     broadcastCombatState()
-    engine.commitAndAdvance(getActivePlugin())
+    engine.commitAndAdvance()
     broadcastCombatState()
   } else if (state?.turnPhase === 'start-of-turn' && state.stepperIndex === -1) {
     broadcastCombatState()
-    engine.finishStartOfTurn(getActivePlugin())
+    engine.finishStartOfTurn()
     broadcastCombatState()
   } else {
     broadcastCombatState()
@@ -43,7 +32,7 @@ function broadcastCombatState(): void {
   broadcastToAll(SYNC.COMBAT_STATE, state)
 
   // Player gets stripped version
-  const playerState = engine.toPlayerCombatState(state, getActivePlugin())
+  const playerState = engine.toPlayerCombatState(state)
   broadcastToPlayer(SYNC.PLAYER_STATE, playerState)
 }
 
@@ -93,14 +82,13 @@ export function registerCombatHandlers(): void {
   })
 
   ipcMain.handle(CMD.COMBAT_END_TURN, async () => {
-    const plugin = getActivePlugin()
-    const result = engine.endTurn(plugin)
+    const result = engine.endTurn()
     broadcastCombatState()
     return result
   })
 
   ipcMain.handle(CMD.COMBAT_RESOLVE_ITEM, async (_e, index: number, success: boolean) => {
-    const result = engine.resolveItem(index, success, getActivePlugin())
+    const result = engine.resolveItem(index, success)
     handlePostResolve()
     return result
   })
@@ -118,15 +106,15 @@ export function registerCombatHandlers(): void {
   })
 
   ipcMain.handle(CMD.COMBAT_ADD_CONDITION, async (_e, combatantId: string, condition: AppliedCondition) => {
-    const state = engine.addCondition(combatantId, condition, getActivePlugin())
-    engine.refreshEndOfTurnPreview(getActivePlugin())
+    const state = engine.addCondition(combatantId, condition)
+    engine.refreshEndOfTurnPreview()
     broadcastCombatState()
     return state
   })
 
   ipcMain.handle(CMD.COMBAT_REMOVE_CONDITION, async (_e, combatantId: string, conditionId: string) => {
     const state = engine.removeCondition(combatantId, conditionId)
-    engine.refreshEndOfTurnPreview(getActivePlugin())
+    engine.refreshEndOfTurnPreview()
     broadcastCombatState()
     return state
   })

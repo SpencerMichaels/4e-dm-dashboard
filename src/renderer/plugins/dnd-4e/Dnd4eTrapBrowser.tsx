@@ -18,7 +18,7 @@ export function Dnd4eTrapBrowser() {
   const searchRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
-    window.api.compendium.trapIndex('dnd-4e')
+    window.api.compendium.trapIndex()
       .then((entries: TrapIndexEntry[]) => setIndex(entries))
       .finally(() => setLoading(false))
   }, [])
@@ -59,7 +59,7 @@ export function Dnd4eTrapBrowser() {
   const handleSelect = useCallback(async (trapId: string) => {
     if (trapId === selectedId) return
     setSelectedId(trapId)
-    const trap = await window.api.compendium.trapGet('dnd-4e', trapId)
+    const trap = await window.api.compendium.trapGet(trapId)
     setPreviewTrap(trap)
     previewRef.current?.scrollTo(0, 0)
   }, [selectedId])

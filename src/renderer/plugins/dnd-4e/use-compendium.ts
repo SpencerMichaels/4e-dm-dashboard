@@ -63,14 +63,14 @@ export function useCompendium() {
 
   useEffect(() => {
     setLoading(true)
-    window.api.compendium.index('dnd-4e')
+    window.api.compendium.index()
       .then((entries: CompendiumEntry[]) => setIndex(entries))
       .finally(() => setLoading(false))
   }, [])
 
   // Reload index when campaign creatures change (custom creatures appear in merged index)
   const reloadIndex = useCallback(() => {
-    window.api.compendium.index('dnd-4e')
+    window.api.compendium.index()
       .then((entries: CompendiumEntry[]) => setIndex(entries))
   }, [])
 

@@ -16,7 +16,7 @@ export function Dnd4eDiseaseBrowser() {
   const searchRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
-    window.api.compendium.diseaseIndex('dnd-4e')
+    window.api.compendium.diseaseIndex()
       .then((entries: DiseaseIndexEntry[]) => setIndex(entries))
       .finally(() => setLoading(false))
   }, [])
@@ -40,7 +40,7 @@ export function Dnd4eDiseaseBrowser() {
   const handleSelect = useCallback(async (diseaseId: string) => {
     if (diseaseId === selectedId) return
     setSelectedId(diseaseId)
-    const disease = await window.api.compendium.diseaseGet('dnd-4e', diseaseId)
+    const disease = await window.api.compendium.diseaseGet(diseaseId)
     setPreviewDisease(disease)
     previewRef.current?.scrollTo(0, 0)
   }, [selectedId])

@@ -87,7 +87,7 @@ export function Dnd4eCreatureList({ creatures, onNavigate }: PluginCreatureListP
       setPreviewIsCustom(true)
     } else {
       // Compendium creature — fetch for preview (but don't save to campaign)
-      const creature = await window.api.compendium.get('dnd-4e', entryId)
+      const creature = await window.api.compendium.get(entryId)
       setPreviewCreature(creature)
       setPreviewIsCustom(false)
     }
@@ -126,7 +126,7 @@ export function Dnd4eCreatureList({ creatures, onNavigate }: PluginCreatureListP
       setIsDraft(false)
     } else {
       // Same as handleClone but defined inline so it doesn't depend on it
-      const creature = await window.api.compendium.get('dnd-4e', entryId)
+      const creature = await window.api.compendium.get(entryId)
       const ann = annotations[entryId]
       if (ann?.imageId) creature.imageId = ann.imageId
       if (ann?.tokenImageId) creature.tokenImageId = ann.tokenImageId
@@ -147,7 +147,7 @@ export function Dnd4eCreatureList({ creatures, onNavigate }: PluginCreatureListP
 
   // Clone a compendium creature into a draft
   const handleClone = useCallback(async (compendiumId: string) => {
-    const creature = await window.api.compendium.get('dnd-4e', compendiumId)
+    const creature = await window.api.compendium.get(compendiumId)
     // Copy annotation image if present
     const ann = annotations[compendiumId]
     if (ann?.imageId) creature.imageId = ann.imageId

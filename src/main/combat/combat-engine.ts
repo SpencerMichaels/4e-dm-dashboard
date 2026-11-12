@@ -1,17 +1,18 @@
 import type { CombatState, CombatantState, CombatPhase, AppliedEffect, PlayerCombatState, PlayerCombatantState, PlayerTurnItem, CombatNotification, TurnPhase } from '@common/types'
-import type { AppliedCondition, ConditionDef, SystemPlugin, TurnPrompt } from '@common/types'
+import type { AppliedCondition, ConditionDef } from '@common/types'
 import { generateId } from '@common/utils/id'
 import { resolveHpDescriptor } from '@common/utils/hp'
 import { rollD6, rollD20 } from '@common/utils/dice'
+import dnd4e from '../../../plugins/dnd-4e'
 
 // ──────────────────────────────────────────────────
 // Helpers — extracted to reduce duplication
 // ──────────────────────────────────────────────────
 
-/** Look up a condition definition from the plugin by id. Returns undefined when
- *  plugin is missing or no matching def exists. */
-function getConditionDef(condId: string, plugin?: SystemPlugin): ConditionDef | undefined {
-  return plugin?.conditions.find(d => d.id === condId)
+/** Look up a 4e condition definition by id. Returns undefined when no matching
+ *  def exists (custom/ad-hoc conditions). */
+function getConditionDef(condId: string): ConditionDef | undefined {
+  return dnd4e.conditions.find(d => d.id === condId)
 }
 
 /** Check whether any of the given damage types match a resistance/immunity/
@@ -40,7 +41,6 @@ function collectExpiringConditions(
   combatants: Record<string, CombatantState>,
   expiringForId: string,
   durationType: 'eont' | 'sont',
-  plugin?: SystemPlugin,
 ): ExpiringConditionInfo[] {
   const results: ExpiringConditionInfo[] = []
   for (const c of Object.values(combatants)) {
@@ -49,7 +49,7 @@ function collectExpiringConditions(
       const expiresOn = cond.duration.expiresOnId ?? c.id
       if (expiresOn !== expiringForId) continue
       if (cond.duration.remaining != null && cond.duration.remaining > 0) continue
-      const def = getConditionDef(cond.conditionId, plugin)
+      const def = getConditionDef(cond.conditionId)
       const name = cond.customName ?? def?.name ?? cond.conditionId
       results.push({ carrier: c, condition: cond, name, isSelf: c.id === expiringForId })
     }
@@ -346,12 +346,12 @@ function saveLabel(condName: string, saveBonus: number): string {
   return `Save${bonusStr} vs ${condName}`
 }
 
-function conditionSaveName(cond: AppliedCondition, plugin?: SystemPlugin): string {
+function conditionSaveName(cond: AppliedCondition): string {
   if (cond.conditionId.startsWith('ongoing-damage')) {
     const dmgType = cond.customDescription ? ` ${cond.customDescription}` : ''
     return `ongoing ${cond.value ?? ''}${dmgType} damage`
   }
-  return cond.customName ?? getConditionDef(cond.conditionId, plugin)?.name ?? cond.conditionId
+  return cond.customName ?? getConditionDef(cond.conditionId)?.name ?? cond.conditionId
 }
 
 /** Collapse conditions sharing a saveGroup into one entry, while leaving
@@ -384,18 +384,21 @@ function groupSaveConditions(conditions: AppliedCondition[]): AppliedCondition[]
 function buildSourceExpireItems(
   expiringFor: CombatantState,
   durationType: 'eont' | 'sont',
-  plugin?: SystemPlugin,
 ): PlayerTurnItem[] {
   if (!combatState) return []
   // collectExpiringConditions finds ALL expiring conditions including self-bound ones;
   // filter to only those on other combatants (self-bound handled separately).
-  return collectExpiringConditions(combatState.combatants, expiringFor.id, durationType, plugin)
+  return collectExpiringConditions(combatState.combatants, expiringFor.id, durationType)
     .filter(info => !info.isSelf)
     .map(info => buildExpireItem(info, durationType))
 }
 
-function buildEndOfTurnPreview(combatant: CombatantState | null, plugin?: SystemPlugin): PlayerTurnItem[] {
-  if (!combatant) return []
+/**
+ * End-of-turn saving throw items: one per save-ends condition (ongoing damage
+ * included), with conditions sharing a saveGroup collapsed into one item.
+ * Used both for the end-of-turn preview and for the actual end-of-turn stepper.
+ */
+function buildSaveItems(combatant: CombatantState): PlayerTurnItem[] {
   const items: PlayerTurnItem[] = []
   const saveBonus = ((combatant.statBlock as any)?.savingThrowBonus as number) ?? 0
   const saveEnds = combatant.conditions.filter(co =>
@@ -403,7 +406,7 @@ function buildEndOfTurnPreview(combatant: CombatantState | null, plugin?: System
   )
   for (const saveGroup of groupSaveConditions(saveEnds)) {
     const cond = saveGroup[0]
-    const condName = saveGroup.map(c => conditionSaveName(c, plugin)).join(' and ')
+    const condName = saveGroup.map(c => conditionSaveName(c)).join(' and ')
     const isOngoing = cond.conditionId.startsWith('ongoing-damage')
     items.push({
       id: `save-${cond.saveGroup ?? cond.conditionId}`, phase: 'end', kind: 'save',
@@ -411,11 +414,17 @@ function buildEndOfTurnPreview(combatant: CombatantState | null, plugin?: System
       damageType: isOngoing ? cond.customDescription : undefined,
     })
   }
+  return items
+}
+
+function buildEndOfTurnPreview(combatant: CombatantState | null): PlayerTurnItem[] {
+  if (!combatant) return []
+  const items: PlayerTurnItem[] = buildSaveItems(combatant)
   // EONT expirations on conditions this combatant applied to others
-  items.push(...buildSourceExpireItems(combatant, 'eont', plugin))
+  items.push(...buildSourceExpireItems(combatant, 'eont'))
   // Self-EONT expirations (conditions on this combatant whose duration pins to itself)
   if (combatState) {
-    const selfExpiring = collectExpiringConditions(combatState.combatants, combatant.id, 'eont', plugin)
+    const selfExpiring = collectExpiringConditions(combatState.combatants, combatant.id, 'eont')
       .filter(info => info.isSelf)
     for (const info of selfExpiring) {
       items.push(buildExpireItem(info, 'eont'))
@@ -595,56 +604,24 @@ function buildRegenAndOngoingItems(combatant: CombatantState): PlayerTurnItem[] 
   return [buildNetRegenItem(regenValue, totalOngoing)]
 }
 
-function buildSaveItems(actions: unknown[], combatantId: string, plugin?: SystemPlugin): PlayerTurnItem[] {
-  if (!combatState) return []
+/**
+ * Start-of-turn recharge items: one per used power whose usage is 'recharge'
+ * (4e recharge rolls happen at the start of the creature's turn), in power
+ * index order. Threshold comes from the power's rechargeCondition (e.g. "5").
+ */
+function buildRechargeItems(combatant: CombatantState): PlayerTurnItem[] {
   const items: PlayerTurnItem[] = []
-  const combatant = combatState.combatants[combatantId]
-  const saveBonus = ((combatant?.statBlock as any)?.savingThrowBonus as number) ?? 0
-  const emittedSaveGroups = new Set<string>()
-  for (const action of actions) {
-    const a = action as any
-    if (a.type !== 'prompt') continue
-    const prompt = a as TurnPrompt
-    if (!prompt.description.toLowerCase().startsWith('save vs ')) continue
-    const condName = prompt.description.replace(/^Save vs\s+/i, '').replace(/\s*\(DC\s+\d+\)\s*$/i, '')
-    const saveChoice = prompt.choices.find((c: any) => c.action.startsWith('remove-condition:'))
-    const condId = saveChoice ? saveChoice.action.split(':')[1] : undefined
-    const cond = combatant?.conditions.find(co => co.conditionId === condId)
-    if (cond?.saveGroup) {
-      if (emittedSaveGroups.has(cond.saveGroup)) continue
-      emittedSaveGroups.add(cond.saveGroup)
-    }
-    const groupedConditions = cond?.saveGroup
-      ? combatant?.conditions.filter(co => co.saveGroup === cond.saveGroup) ?? [cond]
-      : cond ? [cond] : []
-    const groupedName = groupedConditions.length > 0
-      ? groupedConditions.map(co => conditionSaveName(co, plugin)).join(' and ')
-      : condName
-    const isOngoing = condId?.startsWith('ongoing-damage')
+  const actions = (combatant.statBlock as any)?.actions
+  if (!actions) return items
+  for (const [idxStr, count] of Object.entries(combatant.usedPowers)) {
+    if (!count) continue
+    const powerIdx = parseInt(idxStr)
+    const power = actions[powerIdx]
+    if (!power || power.usage !== 'recharge') continue
+    const threshold = parseInt(power.rechargeCondition) || 6
     items.push({
-      id: `save-${cond?.saveGroup ?? condId ?? items.length}`, phase: 'end', kind: 'save',
-      label: saveLabel(groupedName, saveBonus), conditionId: condId,
-      damageType: isOngoing ? cond?.customDescription : undefined,
-    })
-  }
-  return items
-}
-
-function buildRechargeItems(actions: unknown[]): PlayerTurnItem[] {
-  const items: PlayerTurnItem[] = []
-  for (const action of actions) {
-    const a = action as any
-    if (a.type !== 'prompt') continue
-    const prompt = a as TurnPrompt
-    if (!prompt.description.toLowerCase().startsWith('recharge ')) continue
-    const thresholdMatch = prompt.description.match(/\((\d)\+?\)/)
-    const threshold = thresholdMatch ? parseInt(thresholdMatch[1]) : 6
-    const powerName = prompt.description.replace(/^Recharge\s+/i, '').replace(/\s*\(\d\+?\)\s*$/, '')
-    const rechargeChoice = prompt.choices.find((c: any) => c.action.startsWith('recharge-power:'))
-    const powerIdx = rechargeChoice ? parseInt(rechargeChoice.action.split(':')[1]) : undefined
-    items.push({
-      id: `rch-${powerIdx ?? items.length}`, phase: 'start', kind: 'recharge',
-      label: `Recharge ${powerName} (${threshold}+)`, dc: threshold,
+      id: `rch-${powerIdx}`, phase: 'start', kind: 'recharge',
+      label: `Recharge ${power.name} (${threshold}+)`, dc: threshold,
     })
   }
   return items
@@ -656,7 +633,7 @@ function buildRechargeItems(actions: unknown[]): PlayerTurnItem[] {
  * DM pressed Space — end the current creature's turn.
  * Runs EONT expiry, builds save items, enters stepper or advances.
  */
-export function endTurn(plugin?: SystemPlugin): { state: CombatState; notifications: CombatNotification[] } {
+export function endTurn(): { state: CombatState; notifications: CombatNotification[] } {
   if (!combatState || combatState.phase !== 'active') throw new Error('Combat not active')
   if (combatState.turnPhase !== 'active') return { state: combatState, notifications: [] }
 
@@ -668,7 +645,7 @@ export function endTurn(plugin?: SystemPlugin): { state: CombatState; notificati
     const combatant = combatState.combatants[currentId]
     if (combatant) {
       // Collect EONT expirations
-      const eontExpiring = collectExpiringConditions(combatState.combatants, currentId, 'eont', plugin)
+      const eontExpiring = collectExpiringConditions(combatState.combatants, currentId, 'eont')
       for (const info of eontExpiring) {
         endItems.push(buildExpireItem(info, 'eont'))
       }
@@ -676,10 +653,8 @@ export function endTurn(plugin?: SystemPlugin): { state: CombatState; notificati
       // Remove EONT + round-based conditions
       removeExpiredConditions(combatState.combatants, currentId, 'eont')
 
-      // Plugin end-of-turn hooks → save items
-      const endActions: unknown[] = []
-      if (plugin?.turnHooks?.onTurnEnd) endActions.push(...plugin.turnHooks.onTurnEnd(combatant))
-      endItems.push(...buildSaveItems(endActions, currentId, plugin))
+      // Saving throws for save-ends conditions
+      endItems.push(...buildSaveItems(combatant))
 
       // Death save for dying PCs
       if (combatant.isPC && combatant.conditions.some(c => c.conditionId === 'dying')) {
@@ -701,7 +676,7 @@ export function endTurn(plugin?: SystemPlugin): { state: CombatState; notificati
   }
 
   // No saves — advance immediately
-  return commitAndAdvance(plugin, notifications)
+  return commitAndAdvance(notifications)
 }
 
 /**
@@ -751,7 +726,7 @@ export function resolveDeathSave(index: number, outcome: 'fail' | 'none' | 'succ
  * Resolve a single stepper item.
  * Ongoing damage: applied immediately. Saves/recharges: queued.
  */
-export function resolveItem(index: number, success: boolean, plugin?: SystemPlugin): { state: CombatState; notifications: CombatNotification[] } {
+export function resolveItem(index: number, success: boolean): { state: CombatState; notifications: CombatNotification[] } {
   if (!combatState) throw new Error('No active combat')
   const notifications: CombatNotification[] = []
   const item = combatState.turnItems[index]
@@ -778,7 +753,7 @@ export function resolveItem(index: number, success: boolean, plugin?: SystemPlug
       const carrier = combatState.combatants[currentId]
       const cond = carrier?.conditions.find(co => co.conditionId === item.conditionId)
       const isOngoing = item.conditionId?.startsWith('ongoing-damage')
-      const def = getConditionDef(isOngoing ? 'ongoing-damage' : item.conditionId!, plugin)
+      const def = getConditionDef(isOngoing ? 'ongoing-damage' : item.conditionId!)
       const singleDisplayName = isOngoing
         ? `Ongoing${cond?.value ? ' ' + cond.value : ''}${cond?.customDescription ? ' ' + cond.customDescription : ''} Damage`
         : (cond?.customName ?? def?.name ?? item.conditionId)
@@ -786,7 +761,7 @@ export function resolveItem(index: number, success: boolean, plugin?: SystemPlug
         ? carrier?.conditions.filter(co => co.saveGroup === cond.saveGroup) ?? [cond]
         : []
       const displayName = groupedConditions.length > 1
-        ? groupedConditions.map(co => conditionSaveName(co, plugin)).join(' and ')
+        ? groupedConditions.map(co => conditionSaveName(co)).join(' and ')
         : singleDisplayName
       pushStateNotification({
         type: success ? 'save-success' : 'save-fail',
@@ -861,7 +836,7 @@ function tryHideDeadCreatures(): void {
   }
 }
 
-export function commitAndAdvance(plugin?: SystemPlugin, extraNotifications?: CombatNotification[]): { state: CombatState; notifications: CombatNotification[] } {
+export function commitAndAdvance(extraNotifications?: CombatNotification[]): { state: CombatState; notifications: CombatNotification[] } {
   if (!combatState) throw new Error('No active combat')
   const notifications = extraNotifications ? [...extraNotifications] : []
 
@@ -894,7 +869,7 @@ export function commitAndAdvance(plugin?: SystemPlugin, extraNotifications?: Com
     const combatant = combatState.combatants[newId]
     if (combatant) {
       // Collect SONT expirations
-      const sontExpiring = collectExpiringConditions(combatState.combatants, newId, 'sont', plugin)
+      const sontExpiring = collectExpiringConditions(combatState.combatants, newId, 'sont')
       for (const info of sontExpiring) {
         startItems.push(buildExpireItem(info, 'sont'))
       }
@@ -1003,15 +978,13 @@ export function commitAndAdvance(plugin?: SystemPlugin, extraNotifications?: Com
         startItems.push(...regenOngoingItems)
       }
       // Recharges
-      const startActions: unknown[] = []
-      if (plugin?.turnHooks?.onTurnStart) startActions.push(...plugin.turnHooks.onTurnStart(combatant))
-      startItems.push(...buildRechargeItems(startActions))
+      startItems.push(...buildRechargeItems(combatant))
 
       // If actionable start items, enter stepper
       const first = findFirstActionable(startItems, 'start')
       if (first >= 0) {
         combatState.turnPhase = 'start-of-turn'
-        combatState.turnItems = [...startItems, ...buildEndOfTurnPreview(combatant, plugin)]
+        combatState.turnItems = [...startItems, ...buildEndOfTurnPreview(combatant)]
         combatState.stepperIndex = first
         if (combatState.autoHideDeadCreatures) tryHideDeadCreatures()
         return { state: combatState, notifications }
@@ -1022,7 +995,7 @@ export function commitAndAdvance(plugin?: SystemPlugin, extraNotifications?: Com
   // No start items — turn is active
   const newCombatant = newId ? combatState.combatants[newId] : null
   combatState.turnPhase = 'active'
-  combatState.turnItems = [...startItems, ...buildEndOfTurnPreview(newCombatant, plugin)]
+  combatState.turnItems = [...startItems, ...buildEndOfTurnPreview(newCombatant)]
   combatState.stepperIndex = -1
   if (combatState.autoHideDeadCreatures) tryHideDeadCreatures()
   return { state: combatState, notifications }
@@ -1031,14 +1004,14 @@ export function commitAndAdvance(plugin?: SystemPlugin, extraNotifications?: Com
 /**
  * All start-of-turn items resolved — creature's turn is now active.
  */
-export function finishStartOfTurn(plugin?: SystemPlugin): CombatState {
+export function finishStartOfTurn(): CombatState {
   if (!combatState) throw new Error('No active combat')
   applyPendingResults()
   combatState.turnPhase = 'active'
   combatState.stepperIndex = -1
   const curId = combatState.initiativeOrder[combatState.turnIndex]
   const cur = curId ? combatState.combatants[curId] : null
-  combatState.turnItems = [...combatState.turnItems.filter(i => i.phase === 'start'), ...buildEndOfTurnPreview(cur, plugin)]
+  combatState.turnItems = [...combatState.turnItems.filter(i => i.phase === 'start'), ...buildEndOfTurnPreview(cur)]
   return combatState
 }
 
@@ -1048,7 +1021,7 @@ export function finishStartOfTurn(plugin?: SystemPlugin): CombatState {
  * Refresh the end-of-turn preview items for the current combatant.
  * Called after conditions change mid-turn so the sidebar reflects the current state.
  */
-export function refreshEndOfTurnPreview(plugin?: SystemPlugin): void {
+export function refreshEndOfTurnPreview(): void {
   if (!combatState) return
   // Only refresh if we're in the active phase (not during a stepper)
   if (combatState.turnPhase !== 'active') return
@@ -1056,7 +1029,7 @@ export function refreshEndOfTurnPreview(plugin?: SystemPlugin): void {
   const cur = curId ? combatState.combatants[curId] : null
   // Keep any non-end items, replace end items with fresh preview
   const startItems = combatState.turnItems.filter(i => i.phase === 'start')
-  combatState.turnItems = [...startItems, ...buildEndOfTurnPreview(cur, plugin)]
+  combatState.turnItems = [...startItems, ...buildEndOfTurnPreview(cur)]
 }
 
 // ──────────────────────────────────────────────────
@@ -1243,7 +1216,7 @@ export function healCombatant(combatantId: string, amount: number, opts: { sourc
   return combatState
 }
 
-export function addCondition(combatantId: string, condition: AppliedCondition, plugin?: SystemPlugin): CombatState {
+export function addCondition(combatantId: string, condition: AppliedCondition): CombatState {
   if (!combatState) throw new Error('No active combat')
   // Surprised is engine-managed only — cannot be manually applied
   if (condition.conditionId === 'surprised') return combatState
@@ -1254,8 +1227,8 @@ export function addCondition(combatantId: string, condition: AppliedCondition, p
   const wasAlreadyPresent = c.conditions.some(co => co.conditionId === condition.conditionId)
   // Resolve display name. customName overrides everything (used by defender
   // class marks to render "Challenged" instead of "Marked"). Otherwise fall
-  // back to the plugin's def name, then the raw id.
-  const def = getConditionDef(condition.conditionId, plugin)
+  // back to the condition def name, then the raw id.
+  const def = getConditionDef(condition.conditionId)
   const displayName = condition.customName ?? def?.name ?? condition.conditionId
   // Suppress notifications for engine-internal/hidden condition defs
   // (`bloodied`, `ongoing-damage` shim, etc.) — those are noise.
@@ -1399,9 +1372,9 @@ function decrementRoundEffects(): void {
 // Player State
 // ──────────────────────────────────────────────────
 
-export function toPlayerCombatState(state: CombatState, plugin?: SystemPlugin): PlayerCombatState {
+export function toPlayerCombatState(state: CombatState): PlayerCombatState {
   const combatants: Record<string, PlayerCombatantState> = {}
-  const descriptors = plugin?.hpDescriptors ?? []
+  const descriptors = dnd4e.hpDescriptors
 
   for (const [id, c] of Object.entries(state.combatants)) {
     // Hidden creatures and auto-hidden dead are completely omitted from the player state
@@ -1429,7 +1402,7 @@ export function toPlayerCombatState(state: CombatState, plugin?: SystemPlugin): 
       hpPct,
       hpColor: color,
       conditions: c.conditions.map(cond => {
-        const def = getConditionDef(cond.conditionId, plugin)
+        const def = getConditionDef(cond.conditionId)
         const expiresOnId = cond.duration?.expiresOnId
         return {
           conditionId: cond.conditionId,

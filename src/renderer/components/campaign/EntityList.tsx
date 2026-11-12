@@ -1,10 +1,10 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useCampaignStore } from '../../stores/campaign-store'
 import { useUiStore } from '../../stores/ui-store'
 import { useCampaignActions } from '../../hooks/use-campaign'
 import { useHotkeys } from '../../hooks/use-hotkeys'
-import { getPluginUI } from '../../plugins/registry'
-import type { PluginUIComponents } from '../../plugins/plugin-types'
+import { Dnd4eCreatureList } from '../../plugins/dnd-4e/Dnd4eCreatureList'
+import { Dnd4eItemBrowser } from '../../plugins/dnd-4e/Dnd4eItemBrowser'
 import type { EntityType } from '@common/types'
 import { ConfirmDialog } from '../shared/ConfirmDialog'
 import { PCListView } from './PCListView'
@@ -27,19 +27,7 @@ export function EntityList({ entityType }: Props) {
   const { setView } = useUiStore()
   const { creatures, encounters, locations, maps, items, playerCharacters, notes } = useCampaignStore()
   const { createNote, createCreature, createEncounter, createLocation, createItem, createPC, createMap } = useCampaignActions()
-  const [importUrl, setImportUrl] = useState('')
-  const [importing, setImporting] = useState(false)
-  const [importError, setImportError] = useState('')
-  const [importWarnings, setImportWarnings] = useState<string[]>([])
-  const [pluginUI, setPluginUI] = useState<PluginUIComponents | null>(null)
   const [pendingDelete, setPendingDelete] = useState<{ id: string; name: string } | null>(null)
-  const systemPlugin = useUiStore((s) => s.systemPlugin)
-
-  // Load plugin UI for creature list delegation
-  useEffect(() => {
-    if (entityType !== 'creature' && entityType !== 'item') return
-    if (systemPlugin?.id) getPluginUI(systemPlugin.id).then(setPluginUI)
-  }, [entityType, systemPlugin?.id])
 
   const entitiesMap: Record<string, { id: string; name?: string; title?: string }[]> = {
     note: notes,
@@ -76,27 +64,6 @@ export function EntityList({ entityType }: Props) {
     }
   }
 
-  const handleImport = async () => {
-    if (!importUrl.trim()) return
-    setImporting(true)
-    setImportError('')
-    setImportWarnings([])
-    try {
-      const result = await window.api.importer.creature(importUrl.trim())
-      setImportUrl('')
-      // Store warnings on the creature so the editor can display them
-      if (result.warnings?.length > 0) {
-        const updated = { ...result.creature, statBlock: { ...result.creature.statBlock, _importWarnings: result.warnings } }
-        await window.api.entity.save('creature', updated)
-      }
-      setView({ type: 'creature', creatureId: result.creature.id })
-    } catch (e: any) {
-      setImportError(e.message || 'Import failed')
-    } finally {
-      setImporting(false)
-    }
-  }
-
   const navigateTo = (id: string) => {
     switch (entityType) {
       case 'note': setView({ type: 'note', noteId: id }); break
@@ -113,16 +80,12 @@ export function EntityList({ entityType }: Props) {
     return <PCListView />
   }
 
-  // Delegate to plugin's creature list if available
-  if (entityType === 'creature' && pluginUI?.CreatureList) {
-    const PluginCreatureList = pluginUI.CreatureList
-    return <PluginCreatureList creatures={creatures} onNavigate={(id) => navigateTo(id)} onCreate={handleCreate} />
+  // Creatures and items get the 4e list/browser views
+  if (entityType === 'creature') {
+    return <Dnd4eCreatureList creatures={creatures} onNavigate={(id) => navigateTo(id)} onCreate={handleCreate} />
   }
-
-  // Delegate to plugin's item list if available
-  if (entityType === 'item' && pluginUI?.ItemList) {
-    const PluginItemList = pluginUI.ItemList
-    return <PluginItemList items={items} onNavigate={(id) => navigateTo(id)} onCreate={handleCreate} />
+  if (entityType === 'item') {
+    return <Dnd4eItemBrowser items={items} onNavigate={(id) => navigateTo(id)} onCreate={handleCreate} />
   }
 
   return (
@@ -141,39 +104,6 @@ export function EntityList({ entityType }: Props) {
           + New
         </button>
       </div>
-
-      {/* Import from URL (creatures only for now) */}
-      {entityType === 'creature' && (
-        <div style={{ marginBottom: 'var(--space-4)' }}>
-          <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
-            <input
-              value={importUrl}
-              onChange={(e) => { setImportUrl(e.target.value); setImportError('') }}
-              onKeyDown={(e) => e.key === 'Enter' && handleImport()}
-              placeholder="Import from URL (aonprd.com)..."
-              style={{ flex: 1, fontSize: 'var(--font-size-sm)' }}
-              disabled={importing}
-            />
-            <button
-              onClick={handleImport}
-              disabled={importing || !importUrl.trim()}
-              style={{
-                padding: 'var(--space-2) var(--space-3)',
-                background: importing ? 'var(--color-bg-surface)' : 'var(--color-bg-hover)',
-                borderRadius: 'var(--radius-sm)',
-                fontSize: 'var(--font-size-sm)',
-              }}
-            >
-              {importing ? 'Importing...' : 'Import'}
-            </button>
-          </div>
-          {importError && (
-            <div style={{ color: 'var(--color-danger)', fontSize: 'var(--font-size-xs)', marginTop: 'var(--space-1)' }}>
-              {importError}
-            </div>
-          )}
-        </div>
-      )}
 
       {entities.length === 0 ? (
         <p style={{ color: 'var(--color-text-muted)' }}>No {labels[entityType]?.toLowerCase()} yet.</p>

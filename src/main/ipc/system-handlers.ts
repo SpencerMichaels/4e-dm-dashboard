@@ -1,33 +1,23 @@
 import { ipcMain } from 'electron'
 import { CMD, SYNC } from '@common/ipc-channels'
-import { getPlugin, getAllPlugins } from '../plugins/plugin-loader'
+import dnd4e from '../../../plugins/dnd-4e'
 import { broadcastToAll, getPlayerWindow, createPlayerWindow } from '../windows'
 import type { SceneState } from '@common/types'
 
 let currentScene: SceneState = { mode: 'story' }
 
 export function registerSystemHandlers(): void {
-  ipcMain.handle(CMD.SYSTEM_GET_PLUGIN, async (_e, pluginId: string) => {
-    const plugin = getPlugin(pluginId)
-    if (!plugin) return null
-    // Return serializable subset (strip functions like turnHooks)
+  ipcMain.handle(CMD.SYSTEM_GET_RULES, async () => {
+    // Serializable subset of the 4e rules module (no compendium provider)
     return {
-      id: plugin.id,
-      name: plugin.name,
-      version: plugin.version,
-      conditions: plugin.conditions,
-      statBlockSchema: plugin.statBlockSchema,
-      pcSchema: plugin.pcSchema,
-      itemSchema: plugin.itemSchema,
-      initiativeRules: plugin.initiativeRules,
-      hpDescriptors: plugin.hpDescriptors,
-      creatureBuilder: plugin.creatureBuilder,
-      settings: plugin.settings,
+      id: dnd4e.id,
+      name: dnd4e.name,
+      version: dnd4e.version,
+      conditions: dnd4e.conditions,
+      hpDescriptors: dnd4e.hpDescriptors,
+      creatureBuilder: dnd4e.creatureBuilder,
+      settings: dnd4e.settings,
     }
-  })
-
-  ipcMain.handle(CMD.SYSTEM_LIST_PLUGINS, async () => {
-    return getAllPlugins().map(p => ({ id: p.id, name: p.name, version: p.version }))
   })
 
   ipcMain.handle(CMD.PLAYER_WINDOW_SHOW, async () => {

@@ -280,7 +280,7 @@ export function Dnd4eEncounterEditor({ encounter, onSave, creatures, onNavigate 
     if (campaignCreature) {
       setPreviewCreature(campaignCreature)
     } else {
-      const creature = await window.api.compendium.get('dnd-4e', entryId)
+      const creature = await window.api.compendium.get(entryId)
       setPreviewCreature(creature)
     }
     previewRef.current?.scrollTo(0, 0)
@@ -294,7 +294,7 @@ export function Dnd4eEncounterEditor({ encounter, onSave, creatures, onNavigate 
     if (missing.length === 0) return
     let cancelled = false
     Promise.all(missing.map(async id => {
-      const creature = await window.api.compendium.get('dnd-4e', id)
+      const creature = await window.api.compendium.get(id)
       // Patch hp into the cached statBlock so template merges have the correct base HP
       const sb = creature?.statBlock ? { ...creature.statBlock } : null
       if (sb && sb.hp == null) sb.hp = creature.maxHp ?? creature.hp
@@ -505,7 +505,7 @@ export function Dnd4eEncounterEditor({ encounter, onSave, creatures, onNavigate 
         if (override) {
           creature = override
         } else {
-          creature = await window.api.compendium.resolve('dnd-4e', ec.compendiumId)
+          creature = await window.api.compendium.resolve(ec.compendiumId)
           // Apply annotation image/token if present
           const ann = annotations[ec.compendiumId]
           if (creature && ann) {

@@ -46,7 +46,3 @@ export function getAnnotationsPath(campaignId: string): string {
 export function getAssetsDir(campaignId: string): string {
   return join(getCampaignDir(campaignId), 'assets', 'images')
 }
-
-export function getUserPluginsDir(): string {
-  return join(app.getPath('home'), '.4e-dm-dashboard', 'plugins')
-}
