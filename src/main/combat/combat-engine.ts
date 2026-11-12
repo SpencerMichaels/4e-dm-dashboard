@@ -617,7 +617,7 @@ function buildSaveItems(actions: unknown[], combatantId: string, plugin?: System
     const groupedConditions = cond?.saveGroup
       ? combatant?.conditions.filter(co => co.saveGroup === cond.saveGroup) ?? [cond]
       : cond ? [cond] : []
-    const groupedName = groupedConditions.length > 1
+    const groupedName = groupedConditions.length > 0
       ? groupedConditions.map(co => conditionSaveName(co, plugin)).join(' and ')
       : condName
     const isOngoing = condId?.startsWith('ongoing-damage')
