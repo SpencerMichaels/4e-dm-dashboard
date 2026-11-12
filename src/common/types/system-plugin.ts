@@ -1,4 +1,4 @@
-// SystemPlugin — shape of the D&D 4e rules module (plugins/dnd-4e/index.ts)
+// SystemPlugin — shape of the D&D 4e rules module (src/common/rules/dnd4e.ts)
 
 import type { CompendiumEntry, ItemIndexEntry, TrapIndexEntry, DiseaseIndexEntry } from './compendium'
 import type { Creature } from './creature'
@@ -138,5 +138,5 @@ export interface SystemPlugin {
   hpDescriptors: HpDescriptor[]
   creatureBuilder?: CreatureBuilderConfig  // System-specific creature builder
   settings?: SystemSettingDef[]            // Plugin-defined user settings
-  compendium?: CompendiumProvider          // Optional compendium data provider
+
 }

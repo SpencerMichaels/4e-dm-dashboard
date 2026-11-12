@@ -5,7 +5,7 @@ import { useCampaignActions } from '../../hooks/use-campaign'
 import { useHotkeys } from '../../hooks/use-hotkeys'
 import { CreatureImageEditor } from '../shared/CreatureImageEditor'
 import { ConfirmDialog } from '../shared/ConfirmDialog'
-import { CLASS_MARKS } from '../../../../plugins/dnd-4e/class-marks'
+import { CLASS_MARKS } from '../../../common/rules/class-marks'
 
 export function PCListView() {
   const playerCharacters = useCampaignStore((s) => s.playerCharacters)

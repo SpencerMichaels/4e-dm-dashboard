@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import type { Creature } from '@common/types'
 import { useUiStore } from '../../stores/ui-store'
 import { generateId } from '@common/utils/id'
-import { Dnd4eCreatureDetails } from '../../plugins/dnd-4e/Dnd4eCreatureDetails'
+import { Dnd4eCreatureDetails } from '../creature/Dnd4eCreatureDetails'
 
 interface Props {
   creatureId?: string

@@ -1,7 +1,7 @@
 import { ipcMain } from 'electron'
 import { CMD, SYNC } from '@common/ipc-channels'
 import type { CompendiumEntry, CompendiumAnnotation } from '@common/types'
-import { dnd4eCompendium as compendium } from '../../../plugins/dnd-4e/compendium'
+import { dnd4eCompendium as compendium } from '../compendium/compendium'
 import * as store from '../data/campaign-store'
 import { broadcastToDm } from '../windows'
 

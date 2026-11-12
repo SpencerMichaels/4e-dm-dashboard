@@ -1,5 +1,5 @@
 import type { CombatantState, CombatNotification } from '@common/types'
-import type { PowerCardEntry } from '../../plugins/dnd-4e/PowerCardView'
+import type { PowerCardEntry } from '../creature/PowerCardView'
 
 export const REACTION_TYPES = ['immediate-reaction', 'immediate-interrupt', 'free', 'no-action']
 

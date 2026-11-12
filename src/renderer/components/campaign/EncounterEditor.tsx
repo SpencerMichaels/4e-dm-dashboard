@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import type { Encounter } from '@common/types'
 import { useCampaignStore } from '../../stores/campaign-store'
 import { useUiStore } from '../../stores/ui-store'
-import { Dnd4eEncounterEditor } from '../../plugins/dnd-4e/Dnd4eEncounterEditor'
+import { Dnd4eEncounterEditor } from './Dnd4eEncounterEditor'
 import { generateId } from '@common/utils/id'
 
 interface Props {

@@ -12,7 +12,7 @@ Roadmap decided 2026-11-12. The reasoning is in the "Feasibility Study: 4e-Only 
 - [x] Delete PF2e, Delta Green, the user plugin loader, the PF2e import path, the system picker, `SchemaForm`, and `CreatureBuilder`
 - [x] Replace the plugin registry and `getPluginUI` with direct imports; drop `systemId` from the compendium IPC
 - [x] Remove turn hooks and the `plugin?` threading from the combat engine
-- [ ] Move the 4e plugin folders into normal feature folders
+- [x] Move the 4e plugin folders into normal feature folders (rules in `src/common/rules/`, compendium in `src/main/compendium/`, parsers and build scripts in `tools/content/`, data in `content/`, UI in `src/renderer/components/{combat,creature,compendium,campaign}/`)
 
 ## 3. Shared `4e-kit` repo (GPL-3.0) and the 4e schema
 - [ ] Repo skeleton: builds to ESM + `.d.ts` + CSS; React as a peer dependency; both apps pin it by git tag
@@ -56,10 +56,10 @@ Must be done before the repo gets a public remote. Steps 8.1–8.3 are ordinary 
 
 | What | Paths | Commits |
 | --- | --- | --- |
-| Scraped compendium (raw and parsed, about 55 MB) | `plugins/dnd-4e/data/raw/`, `plugins/dnd-4e/data/parsed/` | 21 |
+| Scraped compendium (raw and parsed, about 55 MB) | `content/raw/`, `content/parsed/`, and before 2026-11-12 `plugins/dnd-4e/data/raw/`, `plugins/dnd-4e/data/parsed/` | 21 |
 | Rulebook PDFs (PHB, DMG) | `docs/*.pdf` | initial commit only |
 | Proprietary fonts (Mentor, DnDVecna) | `src/renderer/fonts/` | several |
-| Book text transcribed into source | `monster-templates.ts` (DMG), `monster-themes.ts` (DMG2), condition descriptions in `plugins/dnd-4e/index.ts` | several |
+| Book text transcribed into source | `monster-templates.ts` (DMG), `monster-themes.ts` (DMG2), condition descriptions in `src/common/rules/dnd4e.ts` (formerly `plugins/dnd-4e/index.ts`); `monster-templates.ts` and `monster-themes.ts` were in `src/renderer/plugins/dnd-4e/` before 2026-11-12 | several |
 
 **8.1 Content pack format**
 - [ ] Built from the section 5 content repo: a zip of the JSON plus `manifest.json` (format version, content version, per-file sha256)
@@ -67,7 +67,7 @@ Must be done before the repo gets a public remote. Steps 8.1–8.3 are ordinary 
 - [ ] Hosting: the user's own server; the app's download URL points there
 
 **8.2 App-side loading**
-- [ ] `compendium.ts` reads from `<userData>/content/` instead of `app.getAppPath()/plugins/dnd-4e/data/parsed`
+- [ ] `compendium.ts` reads from `<userData>/content/` instead of `app.getAppPath()/content/parsed`
 - [ ] First run with no pack: prompt to download, or to import a pack file (offline path). Verify the sha256 values before installing.
 - [ ] The app must run with an empty compendium; no crashes on missing data
 - [ ] "Check for content update" in Settings

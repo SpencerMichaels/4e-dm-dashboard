@@ -9,10 +9,10 @@ import { MapEditor } from '../campaign/MapEditor'
 import { ItemEditor } from '../campaign/ItemEditor'
 import { EntityList } from '../campaign/EntityList'
 import { CombatView } from '../combat/CombatView'
-import { Dnd4eTrapBrowser } from '../../plugins/dnd-4e/Dnd4eTrapBrowser'
-import { Dnd4eDiseaseBrowser } from '../../plugins/dnd-4e/Dnd4eDiseaseBrowser'
-import { Dnd4eTemplateBrowser } from '../../plugins/dnd-4e/Dnd4eTemplateBrowser'
-import { Dnd4eThemeBrowser } from '../../plugins/dnd-4e/Dnd4eThemeBrowser'
+import { Dnd4eTrapBrowser } from '../compendium/Dnd4eTrapBrowser'
+import { Dnd4eDiseaseBrowser } from '../compendium/Dnd4eDiseaseBrowser'
+import { Dnd4eTemplateBrowser } from '../compendium/Dnd4eTemplateBrowser'
+import { Dnd4eThemeBrowser } from '../compendium/Dnd4eThemeBrowser'
 
 export function ContentArea() {
   const view = useUiStore((s) => s.view)

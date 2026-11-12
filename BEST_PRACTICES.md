@@ -5,16 +5,16 @@ Hard-won lessons from building this project. Read before writing new code.
 ## Architecture
 
 ### The app is 4e-only — import 4e code directly
-There is no plugin registry or system abstraction any more. Import the 4e rules module (`plugins/dnd-4e/`) and 4e UI components (`src/renderer/plugins/dnd-4e/`) directly wherever they are needed. Don't reintroduce `systemId` parameters, async UI loading, or generic fallbacks for other systems. Combat automation (saves, recharges, ongoing damage, regeneration) lives in the combat engine, not in hooks.
+There is no plugin registry or system abstraction any more. Import the 4e rules module (`src/common/rules/`) and 4e UI components (`src/renderer/components/...`) directly wherever they are needed. Don't reintroduce `systemId` parameters, async UI loading, or generic fallbacks for other systems. Combat automation (saves, recharges, ongoing damage, regeneration) lives in the combat engine, not in hooks.
 
 ### Don't repeat data — use a single source of truth
-If a value exists in one place (e.g. damage types in `plugins/dnd-4e/known-values.ts`), import it from there. Don't copy the list into another file. If the value needs to be accessible from both main and renderer processes, put it in `src/common/` or in `plugins/dnd-4e/` and import from there.
+If a value exists in one place (e.g. damage types in `src/common/rules/known-values.ts`), import it from there. Don't copy the list into another file. If the value needs to be accessible from both main and renderer processes, put it in `src/common/` (4e rules data goes in `src/common/rules/`) and import from there.
 
 ### Config fields are data, not behavior flags
 The `CreatureBuilderConfig` should contain benchmark data (stat tables, damage dice, skill lists) — not UI behavior switches like `useGroupedActions` or `hasEliteSolo`. UI decisions belong in the 4e React components. If you need a new boolean flag on the config to switch rendering, that's a sign the rendering should live in the component instead.
 
 ### 4e UI and shared widgets
-4e UI code under `src/renderer/plugins/dnd-4e/` freely imports from `@renderer/components/shared/` (TagInput, Autocomplete, DamageEntryList, etc.), and app components import 4e components directly. Keep generic widgets in `shared/` free of 4e data so they stay reusable.
+4e UI code freely imports from `@renderer/components/shared/` (TagInput, Autocomplete, DamageEntryList, etc.), and app components import 4e components directly. Keep generic widgets in `shared/` free of 4e data so they stay reusable.
 
 ## Parsing & Importing
 
@@ -78,7 +78,7 @@ Any field that might contain more than ~40 characters of text (effect descriptio
 Most creature powers won't use all fields (hit, miss, effect, trigger, sustain). Show only fields that have content, with small "+ hit", "+ effect" etc. buttons to add empty ones. This keeps the UI compact for simple powers.
 
 ### Autocomplete from known values, don't use freeform for finite sets
-If a field has a known set of valid values (damage types, skills, traits, alignments), use autocomplete (TagInput or Autocomplete component) rather than a plain text input. The known values come from the 4e creature builder config or `plugins/dnd-4e/known-values.ts`.
+If a field has a known set of valid values (damage types, skills, traits, alignments), use autocomplete (TagInput or Autocomplete component) rather than a plain text input. The known values come from the 4e creature builder config or `src/common/rules/known-values.ts`.
 
 ### UI labels and constants belong in the 4e UI components
 Labels like "Powers" and "Vulnerabilities", action type icons ("Std", "Min"), and alignment options should be defined as constants in the 4e UI components, not passed through the creature builder config.
@@ -146,7 +146,7 @@ Use `height: calc(100vh - var(--header-height) - 2 * var(--space-6))` on the com
 When the preview panel is empty ("Click to preview"), use `alignSelf: 'stretch'` so `height: 100%` works for centering the placeholder text. When showing content, let it size to content naturally.
 
 ### Powers always use PowerCardView
-Whenever powers/abilities are displayed read-only anywhere in the app (creature viewer, item viewer, trap viewer, template viewer, concordance sections), use the shared `PowerCardView` component from `src/renderer/plugins/dnd-4e/PowerCardView.tsx`. Never create inline power card rendering — it leads to drift and inconsistency. Map the data to a `PowerCardEntry` object and pass it to the component.
+Whenever powers/abilities are displayed read-only anywhere in the app (creature viewer, item viewer, trap viewer, template viewer, concordance sections), use the shared `PowerCardView` component from `src/renderer/components/creature/PowerCardView.tsx`. Never create inline power card rendering — it leads to drift and inconsistency. Map the data to a `PowerCardEntry` object and pass it to the component.
 
 ### Flavor/description placement
 For items, traps, and diseases: italic flavor text goes directly under the header/subheader, before the stat block. For creatures: description goes at the bottom (matching 4e DMG convention). Be consistent within each entity type.

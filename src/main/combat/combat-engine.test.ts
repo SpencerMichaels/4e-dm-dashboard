@@ -1,9 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { AppliedCondition, CombatantState } from '@common/types'
 
-// The engine imports the 4e rules module, which pulls in its compendium module (imports Electron).
-vi.mock('electron', () => ({ app: { getAppPath: () => '' } }))
-
 type Engine = typeof import('./combat-engine')
 
 let E: Engine

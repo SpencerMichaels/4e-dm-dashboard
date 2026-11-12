@@ -54,9 +54,9 @@ pkgs.buildNpmPackage rec {
     # Copy only runtime node_modules (nanoid is the sole external require)
     cp -r node_modules/nanoid $out/lib/${pname}/node_modules/
 
-    # Plugin data files — loaded at runtime via readFileSync relative to app.getAppPath()
-    mkdir -p $out/lib/${pname}/plugins/dnd-4e/data
-    cp -r plugins/dnd-4e/data/parsed $out/lib/${pname}/plugins/dnd-4e/data/
+    # 4e compendium data — loaded at runtime via readFileSync relative to app.getAppPath()
+    mkdir -p $out/lib/${pname}/content
+    cp -r content/parsed $out/lib/${pname}/content/
 
     # Wrapper: runs system electron pointed at our app directory.
     # ''${NIXOS_OZONE_WL} expands at runtime to --ozone-platform=wayland on

@@ -1,6 +1,6 @@
 import { ipcMain } from 'electron'
 import { CMD, SYNC } from '@common/ipc-channels'
-import dnd4e from '../../../plugins/dnd-4e'
+import dnd4e from '../../common/rules/dnd4e'
 import { broadcastToAll, getPlayerWindow, createPlayerWindow } from '../windows'
 import type { SceneState } from '@common/types'
 

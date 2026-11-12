@@ -3,7 +3,7 @@ import type { AppliedCondition, ConditionDef } from '@common/types'
 import { generateId } from '@common/utils/id'
 import { resolveHpDescriptor } from '@common/utils/hp'
 import { rollD6, rollD20 } from '@common/utils/dice'
-import dnd4e from '../../../plugins/dnd-4e'
+import dnd4e from '../../common/rules/dnd4e'
 
 // ──────────────────────────────────────────────────
 // Helpers — extracted to reduce duplication

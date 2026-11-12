@@ -1,7 +1,7 @@
 import type { Creature, CombatantState } from '@common/types'
 import { FloatingPanel } from '../shared/FloatingPanel'
-import { Dnd4eCreatureViewer } from '../../plugins/dnd-4e/Dnd4eCreatureViewer'
-import { useGlossary } from '../../plugins/dnd-4e/use-glossary'
+import { Dnd4eCreatureViewer } from '../creature/Dnd4eCreatureViewer'
+import { useGlossary } from '../compendium/use-glossary'
 
 interface Props {
   combatant: CombatantState

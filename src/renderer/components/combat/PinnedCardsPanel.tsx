@@ -1,4 +1,4 @@
-import { PowerCardView, type PowerCardEntry } from '../../plugins/dnd-4e/PowerCardView'
+import { PowerCardView, type PowerCardEntry } from '../creature/PowerCardView'
 import { FloatingPanel } from '../shared/FloatingPanel'
 
 export interface PinnedCard {

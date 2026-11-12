@@ -33,8 +33,8 @@ Electron app for a DM running physical tabletop RPGs. Two windows (DM + Player),
 - **Player renderer**: receive-only — gets stripped state (no exact HP, no stat blocks).
 - **Zustand stores** in each renderer populated entirely from main process broadcasts.
 - **State flow**: `DM Renderer → invoke(command) → Main Process → mutate → broadcast to both renderers`
-- **4e rules module**: `plugins/dnd-4e/` (conditions, HP descriptors, creature-builder benchmarks, settings, compendium provider) and `src/renderer/plugins/dnd-4e/` (4e UI components) are imported directly; there is no plugin registry, user plugin loading, or turn-hook API. The combat engine builds saves, recharges, ongoing damage, and regeneration items itself. The app was multi-system (PF2e, Delta Green) before 2026-11; the folders keep their `plugins/` paths until they move into feature folders (`TODO.md` section 2).
-- **Effects vs Conditions**: Conditions = 4e conditions defined in `plugins/dnd-4e/index.ts`, automated by the combat engine. Effects = DM-created ad-hoc during combat that can apply/remove Conditions.
+- **4e rules module**: `src/common/rules/` (conditions, HP descriptors, creature-builder benchmarks, settings, class marks, known values) is shared by main and renderer. The compendium lives in `src/main/compendium/`, and 4e UI components live in ordinary feature folders under `src/renderer/components/` (`combat/`, `creature/`, `compendium/`, `campaign/`). There is no plugin registry, user plugin loading, or turn-hook API. The combat engine builds saves, recharges, ongoing damage, and regeneration items itself. The app was multi-system (PF2e, Delta Green) before 2026-11.
+- **Effects vs Conditions**: Conditions = 4e conditions defined in `src/common/rules/dnd4e.ts`, automated by the combat engine. Effects = DM-created ad-hoc during combat that can apply/remove Conditions.
 - Theming (fonts, colors) uses CSS custom properties.
 - No router — ContentArea switches on Zustand store state.
 
@@ -64,7 +64,9 @@ Current planned implementation work is maintained in `TODO.md`. Historical compl
 | `src/main/windows.ts` | BrowserWindow creation + broadcast helpers |
 | `src/renderer/stores/ui-store.ts` | ViewMode type drives all navigation |
 | `src/renderer/components/layout/AppShell.tsx` | Top-level DM layout |
-| `plugins/dnd-4e/index.ts` | 4e rules module (conditions, HP descriptors, builder benchmarks, settings) |
+| `src/common/rules/dnd4e.ts` | 4e rules module (conditions, HP descriptors, builder benchmarks, settings) |
+| `src/main/compendium/compendium.ts` | Loads the parsed compendium JSON from `content/parsed/` |
+| `tools/content/` | Parsers and build scripts that turn `content/raw/` into `content/parsed/` |
 
 ## Known Issues / Next Steps
 

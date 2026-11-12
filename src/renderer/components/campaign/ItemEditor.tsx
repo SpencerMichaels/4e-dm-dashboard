@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import type { Item } from '@common/types'
 import { useCampaignStore } from '../../stores/campaign-store'
-import { Dnd4eItemEditor } from '../../plugins/dnd-4e/Dnd4eItemEditor'
+import { Dnd4eItemEditor } from './Dnd4eItemEditor'
 import { generateId } from '@common/utils/id'
 
 interface Props {

@@ -3,10 +3,10 @@ import type { CombatantState, CombatState } from '@common/types'
 import { useUiStore } from '../../stores/ui-store'
 import { useCombatStore } from '../../stores/combat-store'
 import { useCampaignStore } from '../../stores/campaign-store'
-import { getConditionStyle } from '../../plugins/dnd-4e/condition-styles'
-import { DAMAGE_TYPE_NAMES, getDamageTypeStyle } from '../../plugins/dnd-4e/damage-types'
-import { ConditionPill, buildConditionLabel } from '../../plugins/dnd-4e/ConditionPill'
-import { CLASS_MARK_BY_ID, CLASS_MARK_BY_CONDITION_ID, type ClassMark } from '../../../../plugins/dnd-4e/class-marks'
+import { getConditionStyle } from './condition-styles'
+import { DAMAGE_TYPE_NAMES, getDamageTypeStyle } from './damage-types'
+import { ConditionPill, buildConditionLabel } from './ConditionPill'
+import { CLASS_MARK_BY_ID, CLASS_MARK_BY_CONDITION_ID, type ClassMark } from '../../../common/rules/class-marks'
 
 interface Props {
   combatantId: string
