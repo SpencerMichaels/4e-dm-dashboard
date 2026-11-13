@@ -40,14 +40,14 @@ export function renderEvent(e: CombatEvent): string {
 /** Classify event for visual styling */
 export function eventColor(type: CombatEvent['type']): string {
   switch (type) {
-    case 'damage': case 'death': return '#c00'
-    case 'heal': return '#0a0'
-    case 'condition-applied': return '#c90'
-    case 'condition-removed': case 'save-success': case 'recharge-success': return '#2a6'
-    case 'save-fail': case 'recharge-fail': return '#a62'
-    case 'bloodied': return '#c00'
-    case 'attack-hit': return '#2a6'
-    case 'attack-miss': return '#a62'
+    case 'damage': case 'death': return 'var(--damage)'
+    case 'heal': return 'var(--heal)'
+    case 'condition-applied': return 'var(--warning)'
+    case 'condition-removed': case 'save-success': case 'recharge-success': return 'var(--success)'
+    case 'save-fail': case 'recharge-fail': return 'var(--notify)'
+    case 'bloodied': return 'var(--damage)'
+    case 'attack-hit': return 'var(--success)'
+    case 'attack-miss': return 'var(--notify)'
     case 'turn-start': case 'turn-end': return ''
     default: return ''
   }
