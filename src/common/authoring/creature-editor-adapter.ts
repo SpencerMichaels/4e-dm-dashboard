@@ -5,6 +5,9 @@ import type { Change, Draft } from './types'
 import { monsterToCreature, powerToLegacy } from './legacy'
 import { clone, entryToPower, equal, textLine, toEditorEntry } from './power-adapter'
 export { splitHitDamage } from './power-adapter'
+import { applyPatch } from './patch'
+import { strip } from './kit-editor-adapter'
+import { unsavedDraft } from './unsaved'
 
 const join = (v: unknown) => Array.isArray(v) ? v.join(', ') : String(v ?? '')
 const groupFor = (e: any) => e.entryType === 'trait' ? 'traits' : e.entryType === 'aura' ? 'auras' : 'powers'
@@ -25,19 +28,48 @@ export function withDraftNodes(c: Creature, d: Draft): Creature {
 /** The native compendium editor receives its own model; kit-only data stays in the draft. */
 export function draftToCreatureEditor(d: Draft): Creature {
   const m = d.content as Monster
-  const c = withDraftNodes(monsterToCreature(m), d)
+  return editorModel(withDraftNodes(monsterToCreature(m), d), m.description)
+}
+
+/**
+ * A legacy-shaped creature in the creature editor's conventions: capitalized size and sense names,
+ * spaced creature type, language and equipment lists, and editor power entries (leading hit damage
+ * split into damage parts). `description`, when given, replaces the stat block's.
+ */
+export function editorModel(c: Creature, description?: string): Creature {
   const sb = c.statBlock as any
-  sb.size = m.size[0].toUpperCase() + m.size.slice(1)
-  sb.creatureType = m.type?.replace(/-/g, ' ') ?? ''
-  sb.description = m.description
-  sb.languages = m.languages ? m.languages.split(/,\s*/) : []
-  sb.equipment = m.equipment ? m.equipment.split(/,\s*/) : []
-  sb.senses = m.senses.map(s => {
-    const kind = s.kind.replace(/-/g, ' ')
-    return `${kind[0].toUpperCase()}${kind.slice(1)}${s.range === undefined ? '' : ` ${s.range}`}`
-  })
-  sb.actions = sb.actions.map(toEditorEntry)
+  const list = (v: unknown) => (Array.isArray(v) ? v.join(', ') : String(v ?? '')).split(/,\s*/).filter(Boolean)
+  const cap = (s: string) => s ? s[0].toUpperCase() + s.slice(1) : s
+  sb.size = cap(String(sb.size ?? ''))
+  sb.creatureType = sb.creatureType ? String(sb.creatureType).replace(/-/g, ' ') : ''
+  if (description !== undefined) sb.description = description
+  sb.languages = list(sb.languages)
+  sb.equipment = list(sb.equipment)
+  sb.senses = (Array.isArray(sb.senses) ? sb.senses : list(sb.senses)).map((s: string) => cap(String(s).replace(/-/g, ' ')))
+  sb.actions = (sb.actions ?? []).map(toEditorEntry)
   return c
+}
+
+/** A kit monster as a stand-alone draft (positional node IDs), for editing it outside the Workshop. */
+export function draftOf(m: Monster): Draft {
+  const ids = (prefix: string, n: number) => Array.from({ length: n }, (_, i) => `${prefix}${i}`)
+  return { ...unsavedDraft('monster'), id: m.id, content: structuredClone(m), nodes: { traits: ids('t', m.traits.length), auras: ids('a', m.auras.length), powers: ids('p', m.powers.length) } }
+}
+
+/** A kit monster as the creature editor's model (entries tagged for `monsterFromEditor`). */
+export const monsterToEditor = (m: Monster): Creature => draftToCreatureEditor(draftOf(m))
+
+/**
+ * The kit monster with only what changed between two editor models applied, through the same
+ * field-level changes the Workshop makes; kit-only mechanics (clauses, secondary attacks) are kept.
+ * `before` and `after` come from `monsterToEditor(m)`.
+ */
+export function monsterFromEditor(m: Monster, before: Creature, after: Creature): Monster {
+  const d = draftOf(m)
+  const changes = creatureEditorChanges(d, before, after)
+  if (!changes.length) return m
+  let n = 0
+  return strip(applyPatch(d, { id: d.id, revision: d.revision, changes }, 'dm', () => `new-${++n}`).content) as Monster
 }
 
 /** Diff only fields changed in the native editor, leaving unrepresented mechanics and clauses intact. */

@@ -1,5 +1,5 @@
 export interface Creature {
-  /** Original kit-schema content retained by the authoring import adapter. */
+  /** Legacy campaign files only: the kit content a Workshop save kept beside the projection. */
   authoredContent?: import('@kit').Monster
   id: string
   compendiumId?: string         // Set when cloned from a compendium source — tracks origin

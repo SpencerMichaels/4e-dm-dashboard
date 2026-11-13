@@ -1,12 +1,13 @@
-// Kit-native campaign record kinds: traps, diseases, templates, themes.
+// Kit-native campaign record kinds: creatures, items, traps, diseases, templates, themes.
 
 import type { CampaignRecord, EntityType } from './types'
 
-export const RECORD_TYPES = ['item', 'trap', 'disease', 'template', 'theme'] as const satisfies readonly EntityType[]
+export const RECORD_TYPES = ['creature', 'item', 'trap', 'disease', 'template', 'theme'] as const satisfies readonly EntityType[]
 export type RecordType = (typeof RECORD_TYPES)[number]
 
 /** Campaign directory and renderer store key for each record type. */
 export const RECORD_STORAGE: Record<RecordType, { dir: string; storeKey: string }> = {
+  creature: { dir: 'creatures', storeKey: 'creatures' },
   item: { dir: 'items', storeKey: 'items' },
   trap: { dir: 'traps', storeKey: 'traps' },
   disease: { dir: 'diseases', storeKey: 'diseases' },
@@ -31,6 +32,7 @@ export function checkRecord(type: RecordType, value: unknown): CampaignRecord<{ 
   if (!r.content || typeof r.content !== 'object' || Array.isArray(r.content)) throw new Error(`A ${type} record needs kit content`)
   if (typeof r.createdAt !== 'string' || typeof r.updatedAt !== 'string') throw new Error(`A ${type} record needs createdAt and updatedAt`)
   if (r.basedOn !== undefined && typeof r.basedOn !== 'string') throw new Error('basedOn must be a string')
+  if (r.art !== undefined && (typeof r.art !== 'object' || r.art === null || Array.isArray(r.art))) throw new Error('art must be an object')
   return { ...r, content: { ...r.content, id: r.id } }
 }
 
@@ -44,7 +46,7 @@ export function entityTypeForKind(kind: string): EntityType {
 /** Each entity type's folder inside a campaign directory. */
 export const ENTITY_DIRS: Record<EntityType, string> = {
   note: 'story/notes',
-  creature: 'creatures',
+  creature: RECORD_STORAGE.creature.dir,
   encounter: 'encounters',
   location: 'locations',
   item: RECORD_STORAGE.item.dir,
@@ -55,3 +57,6 @@ export const ENTITY_DIRS: Record<EntityType, string> = {
   template: RECORD_STORAGE.template.dir,
   theme: RECORD_STORAGE.theme.dir,
 }
+
+/** The Workshop content kind a record type holds (a creature record holds a "monster"). */
+export const contentKindFor = (type: RecordType) => type === 'creature' ? 'monster' : type

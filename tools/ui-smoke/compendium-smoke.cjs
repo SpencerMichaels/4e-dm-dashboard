@@ -146,9 +146,45 @@ app.whenReady().then(async () => {
     if ((await records('theme'))[0]?.content.name !== 'Ashen Court') throw new Error('New theme was not saved')
     await screenshot('out/compendium-theme-edit.png')
 
+
+    // ── Creatures: the shared page with the creature viewer, art, pop-outs, and the benchmark editor ──
+    // A published monster's art is a compendium annotation; a copy takes it into the record's art.
+    await js(() => window.api.annotation.save('monster145', { imageId: 'rat-art' }))
+    await js(() => [...document.querySelectorAll('button')].find(b => b.textContent.trim().endsWith('Creatures')).click())
+    await until(() => document.querySelectorAll('.record-row').length > 10, 'the creature list')
+    await js(() => { const i = document.querySelector('.record-compendium input.sb-name'); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(i, 'Dire Rat'); i.dispatchEvent(new Event('input', { bubbles: true })) })
+    await until(() => [...document.querySelectorAll('.record-row .record-name')].some(n => n.textContent === 'Dire Rat'), 'the Dire Rat row')
+    await js(() => [...document.querySelectorAll('.record-row')].find(r => r.querySelector('.record-name').textContent === 'Dire Rat').click())
+    await until(() => document.querySelector('.compendium-preview')?.innerText.includes('Bite'), 'the published creature preview')
+    if (await js(() => !!document.querySelector('.compendium-preview input.sb-name'))) throw new Error('Published creature preview is editable')
+    await js(() => document.querySelector('.compendium-preview button[title="Pop out stat block"]').click())
+    await until(() => [...document.querySelectorAll('*')].some(el => el.children.length === 0 && el.textContent.trim() === '📑 Dire Rat'), 'the pop-out')
+    await js(() => [...document.querySelectorAll('.record-action')].find(b => b.textContent === 'Copy to campaign').click())
+    await until(() => !!document.querySelector('.compendium-preview input.sb-name'), 'the creature editor')
+    if (!(await js(() => [...document.querySelectorAll('.compendium-preview input')].some(i => i.value === 'Bite')))) throw new Error('The creature editor lacks the powers')
+    await typeInto('.compendium-preview input.sb-name', 'Sewer Rat')
+    let sewer
+    for (let i = 0; i < 30 && !(sewer = (await records('creature')).find(r => r.content.name === 'Sewer Rat')); i++) await sleep(100)
+    const direRat = await js(() => window.api.compendium.kitGet('monster', 'monster145'))
+    if (!sewer || sewer.basedOn !== 'published/creature/monster145' || sewer.art?.imageId !== 'rat-art') throw new Error('Creature copy wrong: ' + JSON.stringify(sewer && [sewer.basedOn, sewer.art]))
+    if (JSON.stringify(sewer.content.powers) !== JSON.stringify(direRat.powers) || sewer.content.hp !== direRat.hp) throw new Error('Creature copy was not lossless')
+    await screenshot('out/compendium-creature-edit.png')
+    // A new creature is saved by its first edit.
+    await js(() => [...document.querySelectorAll('.record-compendium button')].find(b => b.textContent.trim() === '+ new').click())
+    await until(() => document.querySelector('.compendium-preview input.sb-name')?.value === 'New Creature', 'the new creature editor')
+    await typeInto('.compendium-preview input.sb-name', 'Bog Thing')
+    let bog
+    for (let i = 0; i < 30 && !(bog = (await records('creature')).find(r => r.content.name === 'Bog Thing')); i++) await sleep(100)
+    if (!bog || bog.content.level !== 1) throw new Error('New creature was not saved')
+    // Edit in Workshop opens an update draft for the campaign creature.
+    await js(() => [...document.querySelectorAll('.record-editbar button')].find(b => b.textContent.includes('Back')).click())
+    await js(() => [...document.querySelectorAll('.record-action')].find(b => b.textContent === 'Edit in Workshop').click())
+    let drafts
+    for (let i = 0; i < 30 && !(drafts = await js(() => window.api.authoring.call('list_drafts'))).some(d => d.name === 'Bog Thing'); i++) await sleep(100)
+    if (!drafts.some(d => d.name === 'Bog Thing' && d.kind === 'monster')) throw new Error('Edit in Workshop made no creature draft: ' + JSON.stringify(drafts.map(d => [d.name, d.kind])))
     const confirms = await js(() => window.__confirms)
     if (confirms.length) throw new Error('Unexpected confirmation prompts: ' + JSON.stringify(confirms))
-    console.log('COMPENDIUM_SMOKE_OK: published trap preview, clone on first edit (lossless, focus kept), in-place edits with autosave, Custom listing, delete, new trap and disease saved by their first edit, item clone with typed edits, template clone and new theme; screenshots out/compendium-trap-edit.png, out/compendium-disease-edit.png')
+    console.log('COMPENDIUM_SMOKE_OK: published trap preview, clone on first edit (lossless, focus kept), in-place edits with autosave, Custom listing, delete, new trap and disease saved by their first edit, item clone with typed edits, template clone and new theme, creatures (published preview, pop-out, art carried into a lossless copy, new creature, Edit in Workshop); screenshots out/compendium-trap-edit.png, out/compendium-disease-edit.png')
     clearTimeout(timeout); finish(0)
   } catch (e) { console.error(e); clearTimeout(timeout); finish(1) }
 })

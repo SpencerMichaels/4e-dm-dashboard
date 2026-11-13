@@ -1,20 +1,16 @@
-// An encounter's creatures as combatants: each row resolved to a kit monster (campaign creature,
-// campaign override of a published one, or the published entry) with the row's templates, theme,
+// An encounter's creatures as combatants: each row resolved to a kit monster (a campaign creature
+// record or the published entry; a clone never stands in for its original) with the row's templates, theme,
 // level adjustment, and minion setting applied.
 
-import { join } from 'path'
-import { app } from 'electron'
 import type { Monster, MonsterTemplate, MonsterTheme, Trap } from '@kit'
-import type { CampaignRecord, CombatantState, CompendiumAnnotation, Creature, Encounter, EncounterCreature, EncounterRowPreview, EncounterTrap, Location, TrapRef } from '@common/types'
+import type { CampaignRecord, CombatantState, CompendiumAnnotation, CreatureRecord, Encounter, EncounterCreature, EncounterRowPreview, EncounterTrap, Location, TrapRef } from '@common/types'
 import { generateId } from '@common/utils/id'
 import { adjustMonster, templateAllowed } from '@common/rules/adjust-monster'
-import { dnd4eCompendium as compendium } from '../compendium/compendium'
 import { getKitEntry, publishedTemplateList, publishedThemeList } from '../compendium/kit'
 import { getActiveCampaignId, getEntity, listEntities, loadAnnotations } from '../data/campaign-store'
-import { creatureToMonster, publishedMonster } from './monster-source'
 
 export interface EncounterSources {
-  creatures: Creature[]
+  creatures: CreatureRecord[]
   published: (id: string) => Monster | null
   templates: { ref: string; template: MonsterTemplate }[]
   themes: { ref: string; theme: MonsterTheme }[]
@@ -35,13 +31,10 @@ type RowBase = { monster: Monster; entityId?: string; imageId?: string; tokenIma
 /** The row's creature before adjustments, with the images combat shows for it. */
 function rowBase(ec: EncounterCreature, s: EncounterSources): RowBase | null {
   if (ec.creatureId) {
-    const c = s.creatures.find(x => x.id === ec.creatureId)
-    return c ? { monster: creatureToMonster(c), entityId: c.id, imageId: c.imageId, tokenImageId: c.tokenImageId } : null
+    const r = s.creatures.find(x => x.id === ec.creatureId)
+    return r ? { monster: structuredClone(r.content), entityId: r.id, imageId: r.art?.imageId, tokenImageId: r.art?.tokenImageId } : null
   }
   if (!ec.compendiumId) return null
-  // A campaign creature cloned from this entry stands in for it.
-  const override = s.creatures.find(c => c.compendiumId === ec.compendiumId)
-  if (override) return { monster: creatureToMonster(override), entityId: override.id, imageId: override.imageId, tokenImageId: override.tokenImageId }
   const monster = s.published(ec.compendiumId)
   const ann = s.annotations[ec.compendiumId]
   return monster ? { monster, entityId: ec.compendiumId, imageId: ann?.imageId, tokenImageId: ann?.tokenImageId } : null
@@ -118,17 +111,16 @@ function trapCombatants(encounter: Encounter, s: EncounterSources): CombatantSta
 export async function campaignSources(locationId?: string): Promise<EncounterSources> {
   const campaignId = getActiveCampaignId()
   const [creatures, templates, themes, annotations, traps] = await Promise.all([
-    listEntities<Creature>('creature'),
+    listEntities<CreatureRecord>('creature'),
     listEntities<CampaignRecord<MonsterTemplate>>('template'),
     listEntities<CampaignRecord<MonsterTheme>>('theme'),
     campaignId ? loadAnnotations(campaignId) : Promise.resolve({}),
     listEntities<CampaignRecord<Trap>>('trap'),
   ])
   const location = locationId ? await getEntity<Location>('location', locationId) : null
-  const contentRoot = join(app.getAppPath(), 'content')
   return {
     creatures,
-    published: id => publishedMonster(contentRoot, id, () => compendium.resolveCreature!(id) as unknown as Creature | null),
+    published: id => getKitEntry('monster', id) as Monster | null,
     templates: [...publishedTemplateList().map(t => ({ ref: t.name, template: t })), ...templates.map(r => ({ ref: `campaign:${r.id}`, template: r.content }))],
     themes: [...publishedThemeList().map(t => ({ ref: t.name, theme: t })), ...themes.map(r => ({ ref: `campaign:${r.id}`, theme: r.content }))],
     annotations,

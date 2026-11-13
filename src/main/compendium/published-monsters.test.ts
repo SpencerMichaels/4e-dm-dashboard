@@ -3,7 +3,8 @@ import { existsSync, readFileSync } from 'fs'
 import { join } from 'path'
 import type { Creature } from '@common/types'
 import * as facts from '@common/combat/facts'
-import { creatureToMonster, publishedMonster } from './monster-source'
+import { creatureToMonster } from '../data/legacy-creatures'
+import { publishedMonster } from './published-monsters'
 
 const root = join(__dirname, '../../../content')
 const parsedFile = join(root, 'parsed/monsters.json')
@@ -89,8 +90,4 @@ describe('campaign creature conversion', () => {
     expect(facts.damageModifiers(c).resist).toEqual([{ type: 'necrotic', value: 10 }])
   })
 
-  it('uses Workshop content as it is', () => {
-    const content = { ...creatureToMonster({ id: 'x', name: 'X', hp: 10, maxHp: 10, createdAt: '', updatedAt: '', statBlock: { level: 1 } }), name: 'Kit X' }
-    expect(creatureToMonster({ id: 'y', name: 'Legacy name', hp: 1, maxHp: 1, createdAt: '', updatedAt: '', statBlock: {}, authoredContent: content })).toMatchObject({ id: 'y', name: 'Kit X' })
-  })
 })

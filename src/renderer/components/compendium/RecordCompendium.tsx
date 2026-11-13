@@ -1,10 +1,11 @@
-// One compendium page for kit-native kinds (traps, diseases, templates, themes), with the Creatures
-// page's edit semantics: published entries are read-only and clone into a campaign copy on edit;
-// campaign ("Custom") entries edit in place and autosave; new entries are saved by their first edit.
+// One compendium page for every kind (creatures, items, traps, diseases, templates, themes):
+// published entries are read-only and clone into a campaign copy on edit; campaign ("Custom")
+// entries edit in place and autosave; new entries are saved by their first edit. Kinds can opt into
+// artwork (a record's `art`; compendium annotations for published entries) and pop-out stat blocks.
 
 import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState, type ComponentType, type ReactNode } from 'react'
-import type { CampaignRecord } from '@common/types'
-import { newRecord, RECORD_STORAGE, type RecordType } from '@common/campaign-records'
+import type { CampaignRecord, RecordArt } from '@common/types'
+import { contentKindFor, newRecord, RECORD_STORAGE, type RecordType } from '@common/campaign-records'
 import { reanchorReplaced } from '@common/authoring/patch'
 import { generateId } from '@common/utils/id'
 import { useCampaignStore } from '@renderer/stores/campaign-store'
@@ -12,28 +13,47 @@ import { useHotkeys } from '@renderer/hooks/use-hotkeys'
 import { useUiStore } from '@renderer/stores/ui-store'
 import { useAuthoringStore } from '@renderer/stores/authoring-store'
 import { VirtualizedList } from '../shared/VirtualizedList'
+import { FloatingPanel } from '../shared/FloatingPanel'
 import { parseLevelFilter } from './use-compendium'
 import '../creature/statblock.css'
 
 /** A list row; `cells` line up with the kind's columns. */
-export interface RecordRow { id: string; name: string; level: number; cells: string[]; custom?: boolean }
+export interface RecordRow {
+  id: string; name: string; level: number; cells: string[]; custom?: boolean
+  /** Filterable values that aren't shown as columns (a creature's rank, size, origin). */
+  facets?: string[]
+}
+
+/** What a kind's stat block gets: the content, and the editing, artwork, and pop-out hooks the kind opts into. */
+export interface StatblockProps<T> {
+  value: T
+  onChange?: (next: T) => void
+  art?: RecordArt
+  onArtChange?: (art: RecordArt) => void
+  onPopout?: () => void
+}
 
 export interface RecordKind<T extends { id: string; name: string }> {
   type: RecordType
   singular: string
   plural: string
   columns: { label: string; width: string }[]
-  /** Select filters over a column's values. */
-  filters: { label: string; column: number }[]
+  /** Select filters over a column's values, or a facet's. */
+  filters: ({ label: string; column: number } | { label: string; facet: number })[]
   index: () => Promise<RecordRow[]>
   row: (content: T) => Omit<RecordRow, 'id' | 'custom'>
   get: (id: string) => Promise<T>
   blank: () => T
-  Statblock: ComponentType<{ value: T; onChange?: (next: T) => void }>
+  Statblock: ComponentType<StatblockProps<T>>
   /** Templates and themes have no level: no Level column or filter. */
   levelless?: true
+  /** Artwork: kept on Custom records (`art`), and for published entries in compendium annotations. */
+  art?: true
+  /** Stat blocks can pop out into floating panels. */
+  popout?: true
 }
 
+const filterValue = (r: RecordRow, f: RecordKind<any>['filters'][number]) => 'facet' in f ? r.facets?.[f.facet] ?? '' : r.cells[f.column] ?? ''
 const SAVE_DEBOUNCE_MS = 500
 type Editing<T> = { record: CampaignRecord<T>; draft: boolean }
 
@@ -50,6 +70,8 @@ export function RecordCompendium<T extends { id: string; name: string }>({ kind,
   const [editing, setEditing] = useState<Editing<T> | null>(null)
   const [savedAt, setSavedAt] = useState<Date | null>(null)
   const [menu, setMenu] = useState<{ id: string; x: number; y: number } | null>(null)
+  const [poppedOut, setPoppedOut] = useState<{ id: string; content: T; art?: RecordArt }[]>([])
+  const annotations = useCampaignStore(s => s.annotations)
   const previewRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => { void kind.index().then(setPublished) }, [kind])
@@ -63,12 +85,12 @@ export function RecordCompendium<T extends { id: string; name: string }>({ kind,
     const all = [...custom, ...(published ?? [])].filter(r =>
       (!q || r.name.toLowerCase().includes(q)) && (!filters.levelStr || r.level <= 0 || level(r.level))
       && (!filters.source || (filters.source === 'custom') === !!r.custom)
-      && kind.filters.every((f, i) => !filters.selects[i] || r.cells[f.column] === filters.selects[i]))
+      && kind.filters.every((f, i) => !filters.selects[i] || filterValue(r, f) === filters.selects[i]))
     const dir = sort.asc ? 1 : -1
     const value = (r: RecordRow) => sort.key === -1 ? r.level : sort.key === -2 ? r.name.toLowerCase() : r.cells[sort.key] ?? ''
     return all.sort((a, b) => (Number(!!b.custom) - Number(!!a.custom)) || (value(a) < value(b) ? -dir : value(a) > value(b) ? dir : 0) || a.name.localeCompare(b.name))
   }, [custom, published, filters, sort, kind])
-  const options = useMemo(() => kind.filters.map(f => [...new Set([...custom, ...(published ?? [])].map(r => r.cells[f.column]).filter(Boolean))].sort()), [custom, published, kind])
+  const options = useMemo(() => kind.filters.map(f => [...new Set([...custom, ...(published ?? [])].map(r => filterValue(r, f)).filter(Boolean))].sort()), [custom, published, kind])
 
   // ── Saving: debounced, flushed before leaving the editor ──
   const pending = useRef<CampaignRecord<T> | null>(null)
@@ -88,13 +110,7 @@ export function RecordCompendium<T extends { id: string; name: string }>({ kind,
   // The latest editor state, so rapid edits never build on a stale copy.
   const editingRef = useRef(editing)
   editingRef.current = editing
-  const change = (content: T) => {
-    const current = editingRef.current
-    if (!current) return
-    // Prose edits keep their rules metadata: clause spans follow the quoted words.
-    const next = structuredClone(content)
-    reanchorReplaced(current.record.content, next)
-    const record = { ...current.record, content: { ...next, id: current.record.id }, updatedAt: new Date().toISOString() }
+  const update = (current: Editing<T>, record: CampaignRecord<T>) => {
     pending.current = record
     clearTimeout(timer.current)
     timer.current = setTimeout(() => void flush(), SAVE_DEBOUNCE_MS)
@@ -102,6 +118,27 @@ export function RecordCompendium<T extends { id: string; name: string }>({ kind,
     editingRef.current = { record, draft: false }
     setEditing(editingRef.current)
   }
+  const change = (content: T) => {
+    const current = editingRef.current
+    if (!current) return
+    // Prose edits keep their rules metadata: clause spans follow the quoted words.
+    const next = structuredClone(content)
+    reanchorReplaced(current.record.content, next)
+    update(current, { ...current.record, content: { ...next, id: current.record.id }, updatedAt: new Date().toISOString() })
+  }
+  const changeArt = (art: RecordArt) => {
+    const current = editingRef.current
+    if (current) update(current, { ...current.record, art: { ...current.record.art, ...art }, updatedAt: new Date().toISOString() })
+  }
+
+  // ── Artwork: a Custom record's own, or a published entry's compendium annotation ──
+  const artFor = (row: RecordRow) => row.custom ? records.find(r => r.id === row.id)?.art : annotations[row.id]
+  const setArt = async (row: RecordRow, art: RecordArt) => {
+    if (!row.custom) return void await window.api.annotation.save(row.id, { ...(annotations[row.id] ?? {}), ...art })
+    const record = records.find(r => r.id === row.id)
+    if (record) await save({ ...record, art: { ...record.art, ...art }, updatedAt: new Date().toISOString() })
+  }
+  const popOut = (id: string, content: T, art?: RecordArt) => setPoppedOut(p => p.some(x => x.id === id) ? p : [...p, { id, content, art }])
 
   // ── Selecting, editing, cloning, creating, deleting ──
   const select = async (row: RecordRow) => {
@@ -125,9 +162,12 @@ export function RecordCompendium<T extends { id: string; name: string }>({ kind,
       const record = records.find(r => r.id === row.id)
       if (record) setEditing({ record, draft: false })
     } else {
-      // A published entry is copied; the copy is saved by its first edit.
+      // A published entry is copied (with its artwork); the copy is saved by its first edit.
       const content = await kind.get(row.id)
-      setEditing({ record: newRecord(generateId(), content, now, `published/${kind.type}/${row.id}`) as CampaignRecord<T>, draft: true })
+      const record = newRecord(generateId(), content, now, `published/${kind.type}/${row.id}`) as CampaignRecord<T>
+      const art = kind.art ? annotations[row.id] : undefined
+      if (art && Object.keys(art).length) record.art = { ...art }
+      setEditing({ record, draft: true })
     }
   }
   const startNew = async () => {
@@ -146,8 +186,8 @@ export function RecordCompendium<T extends { id: string; name: string }>({ kind,
     const record = records.find(r => r.id === id)
     if (!record || !campaignId) return
     const destination = { type: 'campaign', id: campaignId, entityId: id }
-    const { hash } = await window.api.authoring.call('destination_entity', { destination, kind: kind.type, entityId: id })
-    const draft = await window.api.authoring.call('create_draft', { kind: kind.type, content: record.content, destinations: [{ ...destination, expectedHash: hash }], intent: `Revise ${record.content.name}, preserving its existing mechanics unless changed explicitly.` })
+    const { hash } = await window.api.authoring.call('destination_entity', { destination, kind: contentKindFor(kind.type), entityId: id })
+    const draft = await window.api.authoring.call('create_draft', { kind: contentKindFor(kind.type), content: record.content, destinations: [{ ...destination, expectedHash: hash }], intent: `Revise ${record.content.name}, preserving its existing mechanics unless changed explicitly.` })
     useAuthoringStore.getState().receive(draft)
     useUiStore.getState().setView({ type: 'authoring', draftId: draft.id })
   }
@@ -211,16 +251,25 @@ export function RecordCompendium<T extends { id: string; name: string }>({ kind,
     </div>
 
     <div ref={previewRef} className="compendium-preview">
-      {editing ? <Statblock key={editing.record.id} value={editing.record.content} onChange={change} />
+      {editing ? <Statblock key={editing.record.id} value={editing.record.content} onChange={change}
+          art={kind.art ? editing.record.art : undefined} onArtChange={kind.art ? changeArt : undefined}
+          onPopout={kind.popout ? () => popOut(editing.record.id, editing.record.content, editing.record.art) : undefined} />
         : preview ? <>
           <div className="record-actions">
             {selected?.custom ? <>{action('Edit', () => void startEdit(), 'Edit this campaign copy (e)')}{action('Edit in Workshop', () => void openInWorkshop(selected.id), 'Revise it with your agent in the Workshop; saving there updates this entry')}{action('Delete', () => void remove(selected.id))}</>
               : action('Copy to campaign', () => void startEdit(), `Make an editable campaign copy (e); it is saved by your first edit`)}
           </div>
-          <Statblock value={preview} />
+          <Statblock value={preview} art={kind.art && selected ? artFor(selected) : undefined}
+            onArtChange={kind.art && selected ? art => void setArt(selected, art) : undefined}
+            onPopout={kind.popout && selected ? () => popOut(selected.id, preview, kind.art ? artFor(selected) : undefined) : undefined} />
         </>
         : <div className="record-empty">Click a {kind.singular} to preview</div>}
     </div>
+
+    {poppedOut.map((p, i) => <FloatingPanel key={p.id} title={`📑 ${p.content.name}`} initialX={100 + i * 30} initialY={100 + i * 30} width={420} maxHeight="80vh"
+      onClose={() => setPoppedOut(prev => prev.filter(x => x.id !== p.id))}>
+      <Statblock value={p.content} art={p.art} />
+    </FloatingPanel>)}
 
     {menu && <div className="record-menu" style={{ left: menu.x, top: menu.y }} onMouseDown={e => e.stopPropagation()}>
       <button onClick={() => void remove(menu.id)}>Delete</button>

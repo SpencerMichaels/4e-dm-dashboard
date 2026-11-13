@@ -3,9 +3,8 @@ import { useCampaignStore } from '../../stores/campaign-store'
 import { useUiStore } from '../../stores/ui-store'
 import { useCampaignActions } from '../../hooks/use-campaign'
 import { useHotkeys } from '../../hooks/use-hotkeys'
-import { Dnd4eCreatureList } from './Dnd4eCreatureList'
 import { RecordCompendium } from '../compendium/RecordCompendium'
-import { ITEM_KIND } from '../compendium/record-kinds'
+import { ITEM_KIND, MONSTER_KIND } from '../compendium/record-kinds'
 import type { EntityType } from '@common/types'
 import { ConfirmDialog } from '../shared/ConfirmDialog'
 import { PCListView } from './PCListView'
@@ -81,9 +80,9 @@ export function EntityList({ entityType }: Props) {
     return <PCListView />
   }
 
-  // Creatures and items get the 4e list/browser views
+  // Creatures and items get the shared compendium page
   if (entityType === 'creature') {
-    return <Dnd4eCreatureList creatures={creatures} onNavigate={(id) => navigateTo(id)} onCreate={handleCreate} />
+    return <RecordCompendium kind={MONSTER_KIND} />
   }
   if (entityType === 'item') {
     return <RecordCompendium kind={ITEM_KIND} />

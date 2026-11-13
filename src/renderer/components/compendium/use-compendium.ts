@@ -5,7 +5,7 @@ import { XP_BY_LEVEL } from '../creature/dnd4e-utils'
 // Minion detection: native minions in the parsed data have an empty modifier
 // (no monsterModifier set) but their xp is exactly 1/4 of the standard XP for
 // their level. We use that to identify them since the index doesn't carry hp.
-function isMinionEntry(e: CompendiumEntry): boolean {
+export function isMinionEntry(e: CompendiumEntry): boolean {
   if (e.modifier) return false
   const std = XP_BY_LEVEL[e.level]
   if (!std) return false

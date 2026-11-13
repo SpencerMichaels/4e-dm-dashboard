@@ -121,7 +121,6 @@ export function registerCampaignHandlers(): void {
 
 // Maps EntityType to the key used in the renderer campaign store
 const entityTypeToStoreKey: Record<EntityType, string> = {
-  creature: 'creatures',
   encounter: 'encounters',
   note: 'notes',
   location: 'locations',

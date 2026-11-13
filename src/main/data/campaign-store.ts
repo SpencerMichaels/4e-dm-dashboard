@@ -1,5 +1,5 @@
 import type { Campaign, EntityType, NoteTreeNode, LinkIndex, LinkEntry } from '@common/types'
-import type { CompendiumAnnotation, Creature, CompendiumEntry } from '@common/types'
+import type { CompendiumAnnotation, CompendiumEntry, CreatureRecord } from '@common/types'
 import {
   getCampaignsRoot,
   getCampaignDir,
@@ -18,6 +18,7 @@ import { join, extname } from 'path'
 import { readdir } from 'fs/promises'
 import { withWriteLock } from './write-lock'
 import { migrateLegacyItems } from './legacy-items'
+import { migrateLegacyCreatures } from './legacy-creatures'
 import { RECORD_STORAGE, checkRecord, isRecordType } from '@common/campaign-records'
 
 let activeCampaignId: string | null = null
@@ -72,8 +73,11 @@ export async function createCampaign(name: string): Promise<Campaign> {
 export async function openCampaign(campaignId: string): Promise<Campaign | null> {
   const meta = await readJson<Campaign>(getCampaignMetaPath(campaignId))
   if (!meta) return null
-  // Items became kit records (2026-11-13); convert any legacy item files once.
-  await withWriteLock(getCampaignMetaPath(campaignId), () => migrateLegacyItems(getEntityDir(campaignId, 'item')))
+  // Items and creatures became kit records (2026-11-13); convert any legacy files once.
+  await withWriteLock(getCampaignMetaPath(campaignId), async () => {
+    await migrateLegacyItems(getEntityDir(campaignId, 'item'))
+    await migrateLegacyCreatures(getEntityDir(campaignId, 'creature'))
+  })
 
   meta.lastOpenedAt = new Date().toISOString()
   await atomicWriteJson(getCampaignMetaPath(campaignId), meta)
@@ -264,21 +268,20 @@ export async function saveAnnotation(campaignId: string, compendiumId: string, a
 
 // Custom creature index — builds CompendiumEntry[] from campaign creatures
 export async function buildCreatureIndex(campaignId: string): Promise<CompendiumEntry[]> {
-  const creatures = await listEntities<Creature>('creature')
-  return creatures.map(c => {
-    const sb = c.statBlock ?? {}
-    return {
-      id: c.id,
-      name: c.name,
-      level: (sb.level as number) ?? 1,
-      role: (sb.role as string) ?? '',
-      modifier: (sb.monsterModifier as string) ?? '',
-      size: (sb.size as string) ?? 'Medium',
-      type: (sb.creatureType as string) ?? '',
-      origin: (sb.origin as string) ?? '',
-      alignment: (sb.alignment as string) ?? '',
-      xp: (sb.xp as number) ?? 0,
-      source: 'Custom',
-    }
-  })
+  const cap = (s: string | null | undefined) => s ? s[0].toUpperCase() + s.slice(1) : ''
+  const creatures = await listEntities<CreatureRecord>('creature')
+  return creatures.filter(r => r.content).map(({ id, content: m }) => ({
+    id,
+    name: m.name,
+    level: m.level ?? 1,
+    role: m.role ?? '',
+    // The published index marks elites and solos; minions show by their quarter XP.
+    modifier: m.rank === 'elite' || m.rank === 'solo' ? m.rank : '',
+    size: cap(m.size) || 'Medium',
+    type: (m.type ?? '').replace(/-/g, ' '),
+    origin: m.origin ?? '',
+    alignment: m.alignment ?? '',
+    xp: m.xp ?? 0,
+    source: 'Custom',
+  }))
 }

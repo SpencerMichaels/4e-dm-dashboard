@@ -4,6 +4,16 @@
 
 Run in the devcontainer: `npm test`, `npm run typecheck:node`, `npm run build`, then `npm run test:authoring:ui` and `npm run test:compendium:ui` (compendium editing for traps, diseases, templates, and themes: clone on first edit, autosave, Custom listing, delete, new entries). The UI smoke test uses temporary appData/userData and hidden, unthrottled Electron windows (`FOUR_E_HIDDEN_WINDOWS=1`, nothing appears on the desktop), verifies all four native previews, editing through the native compendium creature editor (HP, damage, hit prose; applied without an Apply step), merging with a concurrent agent change and the same-field Keep mine prompt, the version history list, a comment anchored to a power, DM-edit tracking, review, and campaign save, and writes `out/authoring-smoke.png` plus `out/authoring-edit-smoke.png`. It does not use real campaigns. `typecheck:web` retains pre-existing project-boundary/alias/component errors; check for new authoring-module errors separately.
 
+## Creature records (2026-11-13)
+
+Run `npm run test:compendium:ui` and `npm run test:combat:ui` (hidden windows). Manual checks:
+
+- Open an existing campaign: each creature converts once (`creatures/_legacy-<file>.json` holds the original). Check its stats, powers, images, and token on the Creatures page, then fight it.
+- A creature saved from the Workshop and later edited on the old Creatures page keeps those edits after conversion.
+- Creatures page: filters (role, rank, type, size, origin), published preview with image and token panel (published art is stored as an annotation), pop-out, Copy to campaign (the copy carries the art and is saved by its first edit), the benchmark editor, delete, + new, and Edit in Workshop.
+- An encounter that lists a published monster uses the published one even if you have a clone of it.
+- Command palette: "New Creature" and creature names open the Creatures page on that creature.
+
 ## Combat on kit content (2026-11-13)
 
 Run `npm run test:combat:ui` after `npm run build` (hidden windows). Manual checks in a real campaign:

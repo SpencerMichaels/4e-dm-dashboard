@@ -74,8 +74,6 @@ export const CMD = {
 
   // Compendium
   COMPENDIUM_INDEX: 'compendium:index',
-  COMPENDIUM_GET: 'compendium:get',
-  COMPENDIUM_RESOLVE: 'compendium:resolve',
   COMPENDIUM_ITEM_INDEX: 'compendium:item-index',
   COMPENDIUM_ITEM_GET: 'compendium:item-get',
   COMPENDIUM_GLOSSARY: 'compendium:glossary',

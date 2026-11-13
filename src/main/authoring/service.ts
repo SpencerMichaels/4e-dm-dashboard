@@ -2,8 +2,7 @@ import { dirname, join } from 'path'
 import { mkdir } from 'fs/promises'
 import type { Actor, ContentKind } from '../../common/authoring/types'
 import { benchmarks, scaffold, search, validate } from '../../common/authoring/core'
-import { campaignProjection } from '../../common/authoring/legacy'
-import { ENTITY_DIRS, entityTypeForKind, isRecordType, newRecord } from '../../common/campaign-records'
+import { ENTITY_DIRS, entityTypeForKind, newRecord } from '../../common/campaign-records'
 import { DraftStore, readJson, safeId, atomicJson, digest } from './store'
 import { Catalog } from './catalog'
 import { withWriteLock } from '../data/write-lock'
@@ -21,8 +20,8 @@ export class AuthoringService {
         if (!await readJson(join(userData, 'campaigns', safeId(d.id), 'campaign.json'))) throw new Error('Destination no longer exists')
       },
       read: async (d, id, kind) => readJson(this.destinationPath(d.type, d.id, kind, id)),
-      // Creatures and items keep their legacy projection; the other kinds are kit content in a record envelope.
-      encode: (content, kind, id, at) => isRecordType(kind) ? newRecord(id, content as { id: string }, at) : campaignProjection(content, kind, id, at),
+      // Every kind is kit content in a record envelope.
+      encode: (content, kind, id, at) => newRecord(id, content as { id: string }, at),
       write: async (d, id, kind, value, expectedHash) => {
         const path = this.destinationPath(d.type, d.id, kind, id)
         const manifest = join(userData, 'campaigns', safeId(d.id), 'campaign.json')

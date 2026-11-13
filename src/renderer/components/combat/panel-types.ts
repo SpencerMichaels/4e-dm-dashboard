@@ -1,12 +1,5 @@
-import type { Creature, CombatantState, CombatNotification, CombatState } from '@common/types'
+import type { CombatantState, CombatNotification, CombatState } from '@common/types'
 import type { ConditionDef } from '@common/types/system-plugin'
-
-/** Props for plugin creature list (replaces EntityList for creatures) */
-export interface PluginCreatureListProps {
-  creatures: Creature[]
-  onNavigate: (creatureId: string) => void
-  onCreate: () => void
-}
 
 /** Props for the system-specific combat detail panel */
 export interface PluginCombatPanelProps {

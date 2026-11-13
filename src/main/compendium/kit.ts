@@ -1,6 +1,10 @@
 // Published compendium entries as kit content, for the kit-native statblocks.
 
-import type { Disease, Item, MonsterTemplate, MonsterTheme, Trap } from '@kit'
+import type { Disease, Item, Monster, MonsterTemplate, MonsterTheme, Trap } from '@kit'
+import type { Creature } from '@common/types'
+import { join } from 'path'
+import { app } from 'electron'
+import { publishedMonster } from './published-monsters'
 import { convertTrap } from '../../../tools/content/convert/trap'
 import { convertDisease } from '../../../tools/content/convert/disease'
 import { convertItem } from '../../../tools/content/convert/item'
@@ -9,11 +13,11 @@ import { convertTemplate, convertTheme } from '../../../tools/content/convert/te
 import { MONSTER_TEMPLATES } from '../../renderer/components/creature/monster-templates'
 import { MONSTER_THEMES } from '../../renderer/components/creature/monster-themes'
 
-export type KitKind = 'item' | 'trap' | 'disease' | 'template' | 'theme'
+export type KitKind = 'monster' | 'item' | 'trap' | 'disease' | 'template' | 'theme'
 const ctx = () => ({ provenance: { origin: 'parser' as const, at: new Date(0).toISOString(), by: 'legacy-compendium-adapter' } })
 const cache = new Map<string, unknown>()
 
-type KitEntry = Item | Trap | Disease | MonsterTemplate | MonsterTheme
+type KitEntry = Monster | Item | Trap | Disease | MonsterTemplate | MonsterTheme
 
 // Templates and themes are still built-in data (DMG, DMG2); the content pack will replace that source.
 let templates: MonsterTemplate[] | null = null
@@ -30,6 +34,8 @@ export function getKitIndex(kind: 'template' | 'theme'): { id: string; name: str
 export function getKitEntry(kind: KitKind, id: string): KitEntry | null {
   if (kind === 'template') return structuredClone(publishedTemplates().find(t => t.id === id) ?? null)
   if (kind === 'theme') return structuredClone(publishedThemes().find(t => t.id === id) ?? null)
+  // Monsters keep their own cache (re-parsed from content/raw with printed text).
+  if (kind === 'monster') return publishedMonster(join(app.getAppPath(), 'content'), id, () => compendium.resolveCreature!(id) as unknown as Creature | null)
   const key = `${kind}/${id}`
   if (cache.has(key)) return structuredClone(cache.get(key)) as KitEntry
   let value: KitEntry | null = null

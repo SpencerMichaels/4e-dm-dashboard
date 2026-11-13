@@ -3,14 +3,13 @@ import { useCampaignStore } from '../../stores/campaign-store'
 import { HomeView } from '../campaign/HomeView'
 import { AuthoringView } from '../authoring/AuthoringView'
 import { NoteEditor } from '../campaign/NoteEditor'
-import { CreatureEditor } from '../campaign/CreatureEditor'
 import { EncounterEditor } from '../campaign/EncounterEditor'
 import { LocationEditor } from '../campaign/LocationEditor'
 import { MapEditor } from '../campaign/MapEditor'
 import { EntityList } from '../campaign/EntityList'
 import { CombatView } from '../combat/CombatView'
 import { RecordCompendium } from '../compendium/RecordCompendium'
-import { ITEM_KIND, TRAP_KIND, DISEASE_KIND, TEMPLATE_KIND, THEME_KIND } from '../compendium/record-kinds'
+import { ITEM_KIND, MONSTER_KIND, TRAP_KIND, DISEASE_KIND, TEMPLATE_KIND, THEME_KIND } from '../compendium/record-kinds'
 
 export function ContentArea() {
   const view = useUiStore((s) => s.view)
@@ -27,7 +26,7 @@ export function ContentArea() {
     case 'note':
       return <NoteEditor noteId={view.noteId} key={view.noteId} />
     case 'creature':
-      return <CreatureEditor creatureId={view.creatureId} key={view.creatureId} />
+      return <RecordCompendium kind={MONSTER_KIND} initialId={view.creatureId} key="creature" />
     case 'encounter':
       return <EncounterEditor encounterId={view.encounterId} key={view.encounterId} />
     case 'location':

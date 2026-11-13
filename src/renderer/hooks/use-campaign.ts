@@ -1,6 +1,6 @@
 import { useCallback } from 'react'
-import type { EntityType, Note, Creature, Encounter, Location, ItemRecord, PlayerCharacter, MapData } from '@common/types'
-import type { Item as KitItem } from '@kit'
+import type { EntityType, Note, CreatureRecord, Encounter, Location, ItemRecord, PlayerCharacter, MapData } from '@common/types'
+import type { Item as KitItem, Monster } from '@kit'
 import { newRecord } from '@common/campaign-records'
 import { scaffold } from '@common/authoring/core'
 import { generateId } from '@common/utils/id'
@@ -30,19 +30,9 @@ export function useCampaignActions() {
     return note
   }, [])
 
-  const createCreature = useCallback(async (name: string): Promise<Creature> => {
-    const now = new Date().toISOString()
-    const creature: Creature = {
-      id: generateId(),
-      name,
-      hp: 10,
-      maxHp: 10,
-      tags: [],
-      statBlock: {},
-      createdAt: now,
-      updatedAt: now,
-    }
-    await window.api.entity.save('creature', creature)
+  const createCreature = useCallback(async (name: string): Promise<CreatureRecord> => {
+    const creature = newRecord(generateId(), scaffold('monster', name, 1) as Monster, new Date().toISOString())
+    await window.api.entity.save('creature', creature as unknown as Record<string, unknown>)
     return creature
   }, [])
 

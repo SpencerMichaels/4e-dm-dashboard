@@ -1,10 +1,10 @@
 import { create } from 'zustand'
-import type { Campaign, Creature, Encounter, Location, PlayerCharacter, Note, NoteTreeNode, LinkIndex, CompendiumAnnotation, MapData, ItemRecord, TrapRecord, DiseaseRecord, TemplateRecord, ThemeRecord } from '@common/types'
+import type { Campaign, CreatureRecord, Encounter, Location, PlayerCharacter, Note, NoteTreeNode, LinkIndex, CompendiumAnnotation, MapData, ItemRecord, TrapRecord, DiseaseRecord, TemplateRecord, ThemeRecord } from '@common/types'
 
 export interface CampaignState {
   campaignId: string | null
   campaign: Campaign | null
-  creatures: Creature[]
+  creatures: CreatureRecord[]
   encounters: Encounter[]
   locations: Location[]
   maps: MapData[]
@@ -28,7 +28,7 @@ export interface CampaignState {
 const initialState = {
   campaignId: null as string | null,
   campaign: null as Campaign | null,
-  creatures: [] as Creature[],
+  creatures: [] as CreatureRecord[],
   encounters: [] as Encounter[],
   locations: [] as Location[],
   maps: [] as MapData[],

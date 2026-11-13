@@ -18,7 +18,7 @@ Roadmap decided 2026-11-12. The reasoning is in the "Feasibility Study: 4e-Only 
 - [x] Repo skeleton at `~/Projects/4e-kit`. Changed from the plan: no build step. Both apps include it as a git submodule (`vendor/4e-kit`) and import its TypeScript source through an `@kit` alias; the submodule commit is the pin. It type-checks under 4ecb's strict flags.
 - [x] 4e vocabulary: action/range/usage types, damage types, conditions, roles, XP table (this app now takes damage types and the XP table from the kit)
 - [x] Schema: typed `StatBlock`, `Power`, `Item`, `Trap`, `Disease`, and structured effect clauses (damage, ongoing damage, condition plus duration, forced movement, mark, aftereffect, unstructured text fallback). Each clause keeps its source text. Start from 4ecb's power-text IR (`packages/content-domain/src/power-text.ts`). Needs user review before section 5.
-- [ ] Adopt the kit's `Monster` type in this app (replaces the `statBlock as any` casts). Deferred to section 5: it changes the stored shape, so campaign creature files get converted once, together with the switch to the cleaned content pack.
+- [x] Adopt the kit's `Monster` type for campaign creatures (2026-11-13): creature records, migration of legacy creatures on open, the Creatures page on the shared compendium page, combat and the Workshop on records. Plan: [docs/creature-records-plan.md](docs/creature-records-plan.md). The creature viewer and editor still take the legacy-shaped model internally (card pass 2, section 4)
 - [x] Character snapshot type for import
 
 ## 4. Restyle (see the style unification proposal)

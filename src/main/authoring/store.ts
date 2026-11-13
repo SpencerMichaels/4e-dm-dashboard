@@ -202,7 +202,9 @@ export class DraftStore {
           if (destination.entityId && digest(previous) !== destination.expectedHash) throw new Error('Destination changed; fetch it and review the update')
           if (!destination.entityId && previous) throw new Error('New entity ID already exists')
           const projected = this.publisher.encode.bind(this.publisher)
-          const value = { ...(previous as object ?? {}), ...(projected(d.content, d.kind, entityId, journal.at) as object), createdAt: (previous as any)?.createdAt ?? journal.at }
+          // The record's campaign-side fields (artwork, the published entry it came from) survive an update.
+          const kept = Object.fromEntries(['art', 'basedOn'].flatMap(k => (previous as any)?.[k] !== undefined ? [[k, (previous as any)[k]]] : []))
+          const value = { ...(projected(d.content, d.kind, entityId, journal.at) as object), ...kept, createdAt: (previous as any)?.createdAt ?? journal.at }
           journal.targets.push({ destination, entityId, previousHash: digest(previous), value })
         }
         await atomicJson(journalPath, journal)

@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest'
 import type { Monster, Power } from '@kit'
 import { normalizeContent, scaffold, validate } from './core'
 import { applyPatch } from './patch'
-import { creatureEditorChanges, draftToCreatureEditor, splitHitDamage } from './creature-editor-adapter'
+import { creatureEditorChanges, draftToCreatureEditor, monsterFromEditor, monsterToEditor, splitHitDamage } from './creature-editor-adapter'
 import { testPower } from './fixtures'
 import type { Draft } from './types'
 
@@ -288,5 +288,35 @@ describe('unsaved new drafts', () => {
     expect(content.name).toBe('Ghoul')
     expect(content.powers.map(p => p.name)).toEqual(['Claw'])
     expect(validate('monster', content).errors).toEqual([])
+  })
+})
+
+describe('editing a kit monster outside the Workshop', () => {
+  it('applies only the editor changes and keeps kit-only mechanics', () => {
+    const m = content(draft())
+    const before = monsterToEditor(m)
+    expect(monsterFromEditor(m, before, structuredClone(before))).toBe(m)
+    const after = structuredClone(before)
+    after.name = 'Renamed shade'
+    after.hp = 99
+    power(after.statBlock, 'Veil').effect = 'The shade becomes invisible until the end of its next turn and shifts 2 squares.'
+    const next = monsterFromEditor(m, before, after)
+    expect(next).toMatchObject({ name: 'Renamed shade', hp: 99 })
+    expect(next.powers.find(p => p.name === 'Veil')!.effect!.text).toContain('shifts 2 squares')
+    // The untouched power keeps its secondary attack, failed saves, and clauses.
+    expect(next.powers[0]).toEqual(m.powers[0])
+    expect(JSON.stringify(next)).not.toContain('_draftNode')
+  })
+
+  it('appends, removes, and reorders entries', () => {
+    const m = content(draft())
+    const before = monsterToEditor(m)
+    const after = structuredClone(before)
+    const sb = after.statBlock as any
+    sb.actions = sb.actions.filter((e: any) => e.name !== 'Gloom burst')
+    sb.actions.push({ name: 'Cold grasp', entryType: 'action', actionType: 'minor', usage: 'encounter', keywords: [], effect: 'The target is slowed.' })
+    const next = monsterFromEditor(m, before, after)
+    expect(next.powers.map(p => p.name)).toEqual(['Draining touch', 'Veil', 'Cold grasp'])
+    expect(next.powers[0]).toEqual(m.powers[0])
   })
 })

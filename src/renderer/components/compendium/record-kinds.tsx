@@ -1,14 +1,16 @@
 // Kind adapters for RecordCompendium: where each kind's published entries come from, how a row
 // reads, and which statblock shows and edits it.
 
-import type { Disease, Item, MonsterTemplate, MonsterTheme, Trap } from '@kit'
-import type { DiseaseIndexEntry, ItemIndexEntry, TrapIndexEntry } from '@common/types'
+import type { Disease, Item, Monster, MonsterTemplate, MonsterTheme, Trap } from '@kit'
+import type { CompendiumEntry, DiseaseIndexEntry, ItemIndexEntry, TrapIndexEntry } from '@common/types'
 import { scaffold } from '@common/authoring/core'
 import { TrapStatblock } from '../trap/TrapStatblock'
 import { DiseaseStatblock } from '../disease/DiseaseStatblock'
 import { TemplateStatblock } from '../template/TemplateStatblock'
 import { ThemeStatblock } from '../theme/ThemeStatblock'
 import { ItemStatblock } from '../item/ItemStatblock'
+import { MonsterStatblock } from '../creature/MonsterStatblock'
+import { isMinionEntry } from './use-compendium'
 import type { RecordKind } from './RecordCompendium'
 
 const cap = (s: string) => s ? s[0].toUpperCase() + s.slice(1) : s
@@ -70,4 +72,22 @@ export const ITEM_KIND: RecordKind<Item> = {
   get: id => window.api.compendium.kitGet('item', id),
   blank: () => scaffold('item', 'New Item', 1) as Item,
   Statblock: ({ value, onChange }) => <ItemStatblock item={value} onChange={onChange} />,
+}
+
+/** Creatures: the published index's role, type, rank, size, and origin, with artwork and pop-outs. */
+const rankOf = (e: CompendiumEntry) => e.modifier || (isMinionEntry(e) ? 'minion' : 'standard')
+const typeLabel = (t: string | null | undefined) => cap(String(t ?? '').replace(/-/g, ' '))
+export const MONSTER_KIND: RecordKind<Monster> = {
+  type: 'creature', singular: 'creature', plural: 'creatures',
+  columns: [{ label: 'Type', width: '90px' }, { label: 'Role', width: '80px' }],
+  filters: [{ label: 'role', column: 1 }, { label: 'rank', facet: 0 }, { label: 'type', column: 0 }, { label: 'size', facet: 1 }, { label: 'origin', facet: 2 }],
+  index: async () => (await window.api.compendium.index() as CompendiumEntry[]).filter(e => e.source !== 'Custom').map(e => ({
+    id: e.id, name: e.name, level: e.level, cells: [typeLabel(e.type), cap(e.role)], facets: [cap(rankOf(e)), cap(e.size), cap(e.origin)],
+  })),
+  row: m => ({ name: m.name, level: m.level, cells: [typeLabel(m.type), cap(m.role ?? '')], facets: [cap(m.rank), cap(m.size), cap(m.origin ?? '')] }),
+  get: id => window.api.compendium.kitGet('monster', id),
+  blank: () => scaffold('monster', 'New Creature', 1) as Monster,
+  Statblock: props => <MonsterStatblock {...props} />,
+  art: true,
+  popout: true,
 }

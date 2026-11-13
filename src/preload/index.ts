@@ -138,8 +138,6 @@ const api = {
   // Compendium
   compendium: {
     index: () => ipcRenderer.invoke(CMD.COMPENDIUM_INDEX),
-    get: (monsterId: string) => ipcRenderer.invoke(CMD.COMPENDIUM_GET, monsterId),
-    resolve: (monsterId: string) => ipcRenderer.invoke(CMD.COMPENDIUM_RESOLVE, monsterId),
     itemIndex: () => ipcRenderer.invoke(CMD.COMPENDIUM_ITEM_INDEX),
     itemGet: (itemId: string) => ipcRenderer.invoke(CMD.COMPENDIUM_ITEM_GET, itemId),
     glossary: () => ipcRenderer.invoke(CMD.COMPENDIUM_GLOSSARY),
@@ -147,7 +145,7 @@ const api = {
     trapGet: (trapId: string) => ipcRenderer.invoke(CMD.COMPENDIUM_TRAP_GET, trapId),
     diseaseIndex: () => ipcRenderer.invoke(CMD.COMPENDIUM_DISEASE_INDEX),
     diseaseGet: (diseaseId: string) => ipcRenderer.invoke(CMD.COMPENDIUM_DISEASE_GET, diseaseId),
-    kitGet: (kind: 'item' | 'trap' | 'disease' | 'template' | 'theme', id: string) => ipcRenderer.invoke(CMD.COMPENDIUM_KIT_GET, kind, id),
+    kitGet: (kind: 'monster' | 'item' | 'trap' | 'disease' | 'template' | 'theme', id: string) => ipcRenderer.invoke(CMD.COMPENDIUM_KIT_GET, kind, id),
     kitIndex: (kind: 'template' | 'theme') => ipcRenderer.invoke(CMD.COMPENDIUM_KIT_INDEX, kind),
   },
 

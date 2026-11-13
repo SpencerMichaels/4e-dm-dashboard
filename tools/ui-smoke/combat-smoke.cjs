@@ -67,10 +67,16 @@ app.whenReady().then(async () => {
     const until = async (fn, what, ...args) => { for (let i = 0; i < 80; i++) { if (await js(fn, ...args)) return; await sleep(100) } await screenshot('out/combat-smoke-failure.png'); throw new Error('Timed out waiting for ' + what + '\n' + (await js(() => document.body.innerText)).replace(/^[\s\S]*?Clear filters/, '').slice(0, 2500)) }
 
     await js(() => { window.__confirms = []; window.confirm = m => { window.__confirms.push(m); return true } })
-    await js(async () => { const c = await window.api.campaign.create('Combat smoke'); await window.api.campaign.open(c.id) })
+    const campaignId = await js(async () => { const c = await window.api.campaign.create('Combat smoke'); await window.api.campaign.open(c.id); return c.id })
     await sleep(800)
-    await js((c, e, h) => Promise.all([window.api.entity.save('creature', c), window.api.entity.save('encounter', e), window.api.entity.save('player-character', h)]), captain, encounter, hero)
-    await sleep(300)
+    await js((e, h) => Promise.all([window.api.entity.save('encounter', e), window.api.entity.save('player-character', h)]), encounter, hero)
+    // The captain is a creature file from before creatures became kit records: reopening the campaign converts it.
+    writeFileSync(join(root, 'user', 'campaigns', campaignId, 'creatures', 'captain.json'), JSON.stringify(captain))
+    await js(id => window.api.campaign.open(id), campaignId)
+    await sleep(500)
+    const migrated = await js(() => window.api.entity.get('creature', 'captain'))
+    if (!migrated?.content || migrated.content.name !== 'Smoke Captain' || migrated.statBlock || migrated.content.powers.length !== 2) throw new Error('The legacy captain was not converted: ' + JSON.stringify(migrated).slice(0, 300))
+    if (!existsSync(join(root, 'user', 'campaigns', campaignId, 'creatures', '_legacy-captain.json'))) throw new Error('The legacy captain was not kept')
 
     // ── A location notes its traps as stat blocks; the search adds another ──
     await js(l => window.api.entity.save('location', l), { id: 'vault', name: 'Smoke Vault', description: '', tags: [], createdAt: now, updatedAt: now, traps: [{ compendiumId: 'trap41' }, { compendiumId: 'trap300' }], encounterIds: ['smoke-fight'] })
@@ -201,7 +207,7 @@ app.whenReady().then(async () => {
 
     const confirms = await js(() => window.__confirms)
     clearTimeout(timeout)
-    console.log('COMBAT_SMOKE_OK: encounter row preview (template, level adjustment), combat start in main with kit combatants (elite captain, troll regeneration, grouped minions), combat panel, recharge prompt, location trap stat blocks and search, location traps joining the encounter, encounter diseases, disease name in a power applied to a PC like a condition, PC disease stages, trap rows with XP and preview, hidden trap with initiative, triggered trap (Trigger, Disable); confirms: ' + confirms.length + '; screenshots out/combat-encounter-preview.png, out/combat-panel.png, out/combat-trap.png, out/location-traps.png, out/combat-disease.png, out/pc-diseases.png')
+    console.log('COMBAT_SMOKE_OK: legacy creature converted on open, encounter row preview (template, level adjustment), combat start in main with kit combatants (elite captain, troll regeneration, grouped minions), combat panel, recharge prompt, location trap stat blocks and search, location traps joining the encounter, encounter diseases, disease name in a power applied to a PC like a condition, PC disease stages, trap rows with XP and preview, hidden trap with initiative, triggered trap (Trigger, Disable); confirms: ' + confirms.length + '; screenshots out/combat-encounter-preview.png, out/combat-panel.png, out/combat-trap.png, out/location-traps.png, out/combat-disease.png, out/pc-diseases.png')
     finish(0)
   } catch (err) {
     console.error(err)

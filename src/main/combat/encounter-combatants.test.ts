@@ -2,7 +2,8 @@ import { describe, expect, it, vi } from 'vitest'
 import { tmpdir } from 'os'
 vi.mock('electron', () => ({ app: { getPath: () => tmpdir(), getAppPath: () => tmpdir() } }))
 import type { Monster, Trap } from '@kit'
-import type { Creature, Encounter } from '@common/types'
+import type { CreatureRecord, Encounter } from '@common/types'
+import { legacyCreatureToRecord } from '../data/legacy-creatures'
 import { scaffold } from '@common/authoring/core'
 import { convertTemplate } from '../../../tools/content/convert/template'
 import { MONSTER_TEMPLATES } from '../../renderer/components/creature/monster-templates'
@@ -10,7 +11,7 @@ import { encounterCombatants, resolveRow, type EncounterSources } from './encoun
 
 const ctx = { provenance: { origin: 'parser' as const, at: '', by: 'test' } }
 const published = { ...(scaffold('monster', 'Goblin Cutter', 3, 'skirmisher') as Monster), id: 'monster1' }
-const custom: Creature = { id: 'c1', name: 'Captain', hp: 60, maxHp: 60, imageId: 'img', createdAt: '', updatedAt: '', statBlock: { level: 5, role: 'soldier', creatureType: 'humanoid', origin: 'natural', ac: 21, defenses: { fortitude: 18, reflex: 17, will: 16 }, abilities: { con: 14 }, actions: [] } }
+const custom: CreatureRecord = legacyCreatureToRecord({ id: 'c1', name: 'Captain', hp: 60, maxHp: 60, imageId: 'img', createdAt: '', updatedAt: '', statBlock: { level: 5, role: 'soldier', creatureType: 'humanoid', origin: 'natural', ac: 21, defenses: { fortitude: 18, reflex: 17, will: 16 }, abilities: { con: 14 }, actions: [] } })
 const champion = convertTemplate(MONSTER_TEMPLATES.find(t => t.name === 'Battle Champion')!, ctx)
 const sources: EncounterSources = {
   creatures: [custom], published: id => id === 'monster1' ? structuredClone(published) : null,

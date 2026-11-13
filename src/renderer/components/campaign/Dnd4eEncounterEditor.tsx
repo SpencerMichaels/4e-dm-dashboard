@@ -1,5 +1,5 @@
 import { useState, useMemo, useCallback, useRef, useEffect } from 'react'
-import type { Encounter, Creature, CompendiumEntry, EncounterCreature, EncounterRowPreview, EncounterTrap } from '@common/types'
+import type { Encounter, Creature, CreatureRecord, CompendiumEntry, EncounterCreature, EncounterRowPreview, EncounterTrap, RecordArt } from '@common/types'
 import { GhostNumberInput } from '@renderer/components/shared/GhostNumberInput'
 import { MultiSelectDropdown } from '@renderer/components/shared/MultiSelectDropdown'
 import { useImage } from '@renderer/hooks/use-image'
@@ -41,7 +41,7 @@ function ecMatches(ec: EncounterCreature, key: string): boolean {
 type RowTheme = { name: string; attackPower: string; utilityPower: string; skillChoice?: number } | null
 
 /** Each row as main resolves it (kit monster plus adjustments), refreshed when the rows or anything they use changes. */
-function useRowPreviews(rows: EncounterCreature[], creatures: Creature[]): Record<string, EncounterRowPreview | null> {
+function useRowPreviews(rows: EncounterCreature[], creatures: CreatureRecord[]): Record<string, EncounterRowPreview | null> {
   const [previews, setPreviews] = useState<Record<string, EncounterRowPreview | null>>({})
   const templates = useCampaignStore(s => s.templates)
   const themes = useCampaignStore(s => s.themes)
@@ -79,7 +79,7 @@ function TrapPreview({ row }: { row: EncounterTrap | undefined }) {
 interface Props {
   encounter: Encounter
   onSave: (updated: Encounter) => void
-  creatures: Creature[]
+  creatures: CreatureRecord[]
   onNavigate: (creatureId: string) => void
 }
 
@@ -127,11 +127,11 @@ export function Dnd4eEncounterEditor({ encounter, onSave, creatures, onNavigate 
   // Resolve creature info from campaign creatures or compendium index
   const resolveInfo = useCallback((ec: EncounterCreature): { name: string; level: number; role: string; modifier: string; imageId?: string; preview?: EncounterRowPreview | null } | null => {
     if (ec.creatureId) {
-      const creature = creatures.find(c => c.id === ec.creatureId)
-      if (!creature) return null
-      const sb = creature.statBlock
-      const baseLevel = (sb.level as number) ?? 1
-      return { name: ec.overrideName || creature.name, level: baseLevel + (ec.levelAdjust ?? 0), role: (sb.role as string) ?? '', modifier: (sb.monsterModifier as string) ?? '', imageId: creature.imageId, preview: rowPreviews[ecKey(ec)] }
+      const record = creatures.find(c => c.id === ec.creatureId)
+      if (!record) return null
+      const m = record.content
+      const modifier = m.rank === 'elite' || m.rank === 'solo' ? m.rank : ''
+      return { name: ec.overrideName || m.name, level: m.level + (ec.levelAdjust ?? 0), role: m.role ?? '', modifier, imageId: record.art?.imageId, preview: rowPreviews[ecKey(ec)] }
     }
     if (ec.compendiumId && comp.index) {
       const entry = comp.index.find(e => e.id === ec.compendiumId)
@@ -199,9 +199,9 @@ export function Dnd4eEncounterEditor({ encounter, onSave, creatures, onNavigate 
       const campaignCreature = creatures.find(c => c.id === entryId)
       const existing = encounter.creatures.find(c => ecMatches(c, entryId))
       // Auto-detect native minions by name suffix
-      const entryName = campaignCreature?.name ?? comp.index?.find(e => e.id === entryId)?.name ?? ''
-      // Auto-detect minions by name or the campaign creature's stat block; printed minions are minions by rank anyway
-      const autoMinion = /\bminion\b/i.test(entryName) || !!(campaignCreature?.statBlock?.isMinion)
+      const entryName = campaignCreature?.content.name ?? comp.index?.find(e => e.id === entryId)?.name ?? ''
+      // Auto-detect minions by name or the campaign creature's rank; printed minions are minions by rank anyway
+      const autoMinion = /\bminion\b/i.test(entryName) || campaignCreature?.content.rank === 'minion'
       if (existing) {
         save({
           creatures: encounter.creatures.map(c =>
@@ -225,15 +225,21 @@ export function Dnd4eEncounterEditor({ encounter, onSave, creatures, onNavigate 
     setPreviewId(entryId)
     setSelectedRowKey(null)
     setSelectedTrapKey(null)
-    const campaignCreature = creatures.find(c => c.id === entryId)
-    if (campaignCreature) {
-      setPreviewCreature(campaignCreature)
+    const record = creatures.find(c => c.id === entryId)
+    if (record) {
+      setPreviewCreature(kitViewCreature(record.content, undefined, { ...record.art }))
     } else {
-      const creature = await window.api.compendium.get(entryId)
-      setPreviewCreature(creature)
+      const m = await window.api.compendium.kitGet('monster', entryId)
+      setPreviewCreature(m ? kitViewCreature(m, undefined, { compendiumId: entryId }) : null)
     }
     previewRef.current?.scrollTo(0, 0)
   }, [previewId, creatures])
+
+  // A campaign creature's artwork lives on its record.
+  const saveCreatureArt = async (id: string, art: RecordArt) => {
+    const record = creatures.find(c => c.id === id)
+    if (record) await window.api.entity.save('creature', { ...record, art: { ...record.art, ...art }, updatedAt: new Date().toISOString() })
+  }
 
   // Previews that differ from the saved rows: the template being considered in template mode, and the
   // theme being picked before it is applied.
@@ -831,9 +837,7 @@ export function Dnd4eEncounterEditor({ encounter, onSave, creatures, onNavigate 
               const customCreature = isCustom ? creatures.find(c => c.id === targetEc?.creatureId) : undefined
               const synthetic = kitViewCreature(targetCurrent.monster, targetCurrent.attribution, {
                 id: 'selected', name: targetEc.overrideName || targetCurrent.monster.name,
-                imageId: customCreature?.imageId,
-                tokenImageId: customCreature?.tokenImageId,
-                tokenCrop: customCreature?.tokenCrop,
+                ...customCreature?.art,
               })
               const chips: TemplateChip[] = (targetEc?.monsterTemplates ?? []).map((name, slot) => ({ name: findByRef(catalog.templates, name)?.name ?? name, slot }))
               return <Dnd4eCreatureViewer creature={synthetic} tooltip={tooltip}
@@ -848,19 +852,13 @@ export function Dnd4eEncounterEditor({ encounter, onSave, creatures, onNavigate 
                     setPoppedOut(prev => [...prev, { id: synthetic.id, creature: synthetic }])
                 }}
                 onImageChange={isCustom
-                  ? async (imageId) => {
-                      const c = creatures.find(x => x.id === targetEc?.creatureId)
-                      if (c) await window.api.entity.save('creature', { ...c, imageId, updatedAt: new Date().toISOString() })
-                    }
+                  ? async (imageId) => { await saveCreatureArt(targetEc!.creatureId!, { imageId }) }
                   : entityKey ? async (imageId) => {
                       await window.api.annotation.save(entityKey, { ...(annotations[entityKey] ?? {}), imageId })
                     } : undefined
                 }
                 onTokenChange={isCustom
-                  ? async (tokenImageId, crop) => {
-                      const c = creatures.find(x => x.id === targetEc?.creatureId)
-                      if (c) await window.api.entity.save('creature', { ...c, tokenImageId, tokenCrop: crop, updatedAt: new Date().toISOString() })
-                    }
+                  ? async (tokenImageId, crop) => { await saveCreatureArt(targetEc!.creatureId!, { tokenImageId, tokenCrop: crop }) }
                   : entityKey ? async (tokenImageId, crop) => {
                       await window.api.annotation.save(entityKey, { ...(annotations[entityKey] ?? {}), tokenImageId, tokenCrop: crop })
                     } : undefined
@@ -880,9 +878,8 @@ export function Dnd4eEncounterEditor({ encounter, onSave, creatures, onNavigate 
                 } : undefined}
                 onImageChange={previewIsCustom
                   ? async (imageId) => {
-                      const updated = { ...previewCreature, imageId, updatedAt: new Date().toISOString() }
-                      setPreviewCreature(updated)
-                      await window.api.entity.save('creature', updated)
+                      setPreviewCreature({ ...previewCreature, imageId })
+                      await saveCreatureArt(previewId!, { imageId })
                     }
                   : previewId ? async (imageId) => {
                       const existing = annotations[previewId] ?? {}
@@ -891,9 +888,8 @@ export function Dnd4eEncounterEditor({ encounter, onSave, creatures, onNavigate 
                 }
                 onTokenChange={previewIsCustom
                   ? async (tokenImageId, crop) => {
-                      const updated = { ...previewCreature, tokenImageId, tokenCrop: crop, updatedAt: new Date().toISOString() }
-                      setPreviewCreature(updated)
-                      await window.api.entity.save('creature', updated)
+                      setPreviewCreature({ ...previewCreature, tokenImageId, tokenCrop: crop })
+                      await saveCreatureArt(previewId!, { tokenImageId, tokenCrop: crop })
                     }
                   : previewId ? async (tokenImageId, crop) => {
                       const existing = annotations[previewId] ?? {}

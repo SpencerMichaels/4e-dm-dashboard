@@ -66,13 +66,12 @@ describe('authoring calculations and schema', () => {
     expect(search(entries, { clause: 'summon' })).toEqual([])
     expect(search([], { text: 'anything' })).toEqual([])
   })
-  it('preserves complete kit mechanics when projecting into the existing viewer', () => {
+  it('shows kit-only mechanics when projecting into the existing viewer', () => {
     const m = scaffold('monster', 'Test', 7) as Monster; const p = testPower(); m.powers.push(p)
     p.usesPerRound = 1; p.special = { text: 'The summoned creature disappears at encounter end.', clauses: [] }
     p.attacks.push({ ...p.attacks[0], label: 'secondary', after: 'hit' })
     m.speed.notes = 'hover; phasing'
     const c = monsterToCreature(m)
-    expect(c.authoredContent).toEqual(m)
     expect((c.statBlock.actions as any[])[0].text).toContain('secondary attack')
     expect((c.statBlock.actions as any[])[0].special).toBe(p.special.text)
     expect(c.statBlock.description).toContain(m.speed.notes)

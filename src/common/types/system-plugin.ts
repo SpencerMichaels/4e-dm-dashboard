@@ -110,9 +110,7 @@ export interface SystemSettingDef {
 export interface CompendiumProvider {
   /** Return the official creature index entries for this system. */
   getCreatureIndex(): CompendiumEntry[]
-  /** Create a new Creature from a compendium entry (fresh id + timestamps). */
-  getCreature(id: string): Creature
-  /** Return raw compendium creature data without creating a campaign copy (for preview/combat). */
+  /** The parsed (legacy-shaped) entry, the fallback when content/raw is missing; published monsters are served as kit content. */
   resolveCreature(id: string): (Record<string, unknown> & { compendiumId: string }) | null
   /** Return the item index, if this system has one. */
   getItemIndex?(): ItemIndexEntry[]

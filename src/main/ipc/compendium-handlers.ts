@@ -29,17 +29,7 @@ export function registerCompendiumHandlers(): void {
     return getMergedMonsterIndex()
   })
 
-  // Get full creature — creates a new campaign copy with fresh ID (for cloning)
-  ipcMain.handle(CMD.COMPENDIUM_GET, async (_e, monsterId: string) => {
-    return compendium.getCreature(monsterId)
-  })
-
-  // Resolve compendium creature — returns raw data without creating a campaign copy (for combat/preview)
-  ipcMain.handle(CMD.COMPENDIUM_RESOLVE, async (_e, monsterId: string) => {
-    const result = compendium.resolveCreature(monsterId)
-    if (!result) throw new Error('Monster not found: ' + monsterId)
-    return result
-  })
+  // Published monsters reach the renderer as kit content (COMPENDIUM_KIT_GET 'monster').
 
   ipcMain.handle(CMD.COMPENDIUM_KIT_GET, async (_e, kind: KitKind, id: string) => getKitEntry(kind, id))
   ipcMain.handle(CMD.COMPENDIUM_KIT_INDEX, async (_e, kind: 'template' | 'theme') => getKitIndex(kind))

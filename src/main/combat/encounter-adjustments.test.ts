@@ -10,7 +10,7 @@ import { adjustMonster, templateAllowed } from '@common/rules/adjust-monster'
 import { convertTemplate, convertTheme } from '../../../tools/content/convert/template'
 import { MONSTER_TEMPLATES } from '../../renderer/components/creature/monster-templates'
 import { MONSTER_THEMES } from '../../renderer/components/creature/monster-themes'
-import { creatureToMonster } from './monster-source'
+import { creatureToMonster } from '../data/legacy-creatures'
 
 const ctx = { provenance: { origin: 'parser' as const, at: '', by: 'test' } }
 const templates = MONSTER_TEMPLATES.map(t => convertTemplate(t, ctx))

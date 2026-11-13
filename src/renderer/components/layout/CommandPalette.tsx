@@ -45,7 +45,7 @@ export function CommandPalette() {
 
       // Entity jump-to
       ...notes.map(n => ({ id: `note-${n.id}`, icon: '📝', label: n.title || 'Untitled', hint: 'Note', action: () => nav({ type: 'note', noteId: n.id }) })),
-      ...creatures.map(c => ({ id: `creature-${c.id}`, icon: '👹', label: c.name, hint: 'Creature', action: () => nav({ type: 'creature', creatureId: c.id }) })),
+      ...creatures.map(c => ({ id: `creature-${c.id}`, icon: '👹', label: c.content.name, hint: 'Creature', action: () => nav({ type: 'creature', creatureId: c.id }) })),
       ...encounters.map(e => ({ id: `encounter-${e.id}`, icon: '⚔️', label: e.name, hint: 'Encounter', action: () => nav({ type: 'encounter', encounterId: e.id }) })),
       ...locations.map(l => ({ id: `location-${l.id}`, icon: '📍', label: l.name, hint: 'Location', action: () => nav({ type: 'location', locationId: l.id }) })),
       ...items.map(i => ({ id: `item-${i.id}`, icon: '🎒', label: i.content.name, hint: 'Item', action: () => nav({ type: 'item', itemId: i.id }) })),

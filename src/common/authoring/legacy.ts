@@ -1,6 +1,5 @@
 import type { Monster, Power, Range } from '@kit'
 import type { Creature } from '../types/creature'
-import type { Content, ContentKind } from './types'
 
 function rangeText(r?: Range) {
   return r ? [r.reach ?? r.size, r.within ? `within ${r.within}` : '', r.note].filter(v => v !== undefined && v !== '').join(' ') : ''
@@ -35,7 +34,7 @@ export function powerToLegacy(p: Power): Record<string, any> {
   }
 }
 
-/** Lossless kit content is retained alongside the legacy projection until campaign migration. */
+/** A kit monster in the creature viewer's and editor's (legacy-shaped) model; the kit content stays the source of truth. */
 export function monsterToCreature(m: Monster, id = m.id, at = m.provenance.at): Creature {
   const { walk, notes, ...speeds } = m.speed
   return {
@@ -43,7 +42,7 @@ export function monsterToCreature(m: Monster, id = m.id, at = m.provenance.at): 
     statBlock: {
       level: m.level, role: m.role, monsterModifier: m.rank === 'standard' ? '' : m.rank, leader: m.leader,
       size: m.size, origin: m.origin, creatureType: m.type, subtypes: m.keywords, xp: m.xp, hp: m.hp,
-      initiative: m.initiative, perception: m.perception, senses: m.senses.map(s => `${s.kind}${s.range ? ' ' + s.range : ''}`),
+      initiative: m.initiative, perception: m.perception, senses: m.senses.map(s => `${s.kind.replace(/-vision$/, ' vision')}${s.range ? ' ' + s.range : ''}`),
       speed: walk, speeds, speedNotes: notes, ac: m.defenses.ac, defenses: m.defenses,
       savingThrowBonus: m.savingThrowBonus, actionPoints: m.actionPoints, immunities: m.immune,
       resistances: m.resist, weaknesses: m.vulnerable, abilities: m.abilities, skills: m.skills,
@@ -57,16 +56,5 @@ export function monsterToCreature(m: Monster, id = m.id, at = m.provenance.at): 
       description: [m.description, notes ? `Movement: ${notes}` : '', ...(m.skillNotes ?? []), m.regeneration?.text ?? '', ...[...m.resist, ...m.vulnerable].filter(x => x.text || x.note).map(x => `${x.type}: ${x.text ?? ''} ${x.note ?? ''}`)].filter(Boolean).join('\n'),
       source: m.sources.map(s => `${s.book}${s.page ? ', ' + s.page : ''}`).join('; '),
     },
-    authoredContent: m,
   }
-}
-
-export function campaignProjection(content: Content, kind: ContentKind, id: string, at: string): unknown {
-  if (kind === 'monster') return monsterToCreature(content as Monster, id, at)
-  if (kind === 'item') {
-    const it = content as import('@kit').Item
-    return { id, name: it.name, description: it.flavor, tags: [], createdAt: at, updatedAt: at, authoredContent: it,
-      extra: { ...it, properties: it.properties.map(p => p.text), critical: it.critical?.text ?? '', powers: it.powers.map(powerToLegacy) } }
-  }
-  throw new Error(`${kind} content saves as a campaign record, not a legacy projection`)
 }

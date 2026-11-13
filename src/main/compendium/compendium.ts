@@ -44,20 +44,6 @@ export const dnd4eCompendium: CompendiumProvider = {
     return monsterIndexCache!
   },
 
-  getCreature(id: string): Creature {
-    ensureMonsterData()
-    const entry = monsterDataCache![id]
-    if (!entry) throw new Error('Monster not found: ' + id)
-    const now = new Date().toISOString()
-    return {
-      id: generateId(),
-      compendiumId: id,
-      createdAt: now,
-      updatedAt: now,
-      ...entry,
-    }
-  },
-
   resolveCreature(id: string): (Record<string, unknown> & { compendiumId: string }) | null {
     ensureMonsterData()
     const entry = monsterDataCache![id]
