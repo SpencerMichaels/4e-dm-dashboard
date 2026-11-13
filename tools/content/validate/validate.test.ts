@@ -516,3 +516,41 @@ describe('schema v8', () => {
     expect(paths).toContain('$.savingThrowNotes[0]')
   })
 })
+
+describe('schema v9', () => {
+  const p = (cl: any, span: string, after = '') => spanProblem(cl, span, after)
+
+  it('checks the sense keyword and range, "halved" and "roll ... again"', () => {
+    const sense = { kind: 'sense', sense: 'tremorsense', range: 10, who: 'self', duration: { kind: 'permanent' } }
+    expect(p(sense, 'gains tremorsense 10')).toBeUndefined()
+    expect(p(sense, 'gains tremorsense 5')).toMatch(/range 10/)
+    expect(p({ ...sense, sense: 'truesight' }, 'gains tremorsense 10')).toMatch(/truesight/)
+    expect(p({ ...sense, sense: 'low-light-vision', range: undefined }, 'has low-light vision')).toBeUndefined()
+    const invisible = { kind: 'sense', sense: 'see-invisible', who: 'self', duration: { kind: 'permanent' } }
+    expect(p(invisible, 'can see invisible creatures and objects')).toBeUndefined()
+    expect(p(invisible, 'sees through illusions')).toMatch(/see invisible/)
+    expect(p({ kind: 'half-damage' }, 'the damage is halved')).toBeUndefined()
+    expect(p({ kind: 'half-damage' }, 'takes half as much damage')).toBeUndefined()
+    expect(p({ kind: 'half-damage' }, 'takes no damage')).toMatch(/half/)
+    expect(p({ kind: 'reroll', what: 'attack', who: 'self' }, 'can roll the attack again')).toBeUndefined()
+    expect(p({ kind: 'reroll', what: 'attack', who: 'self' }, 'can roll the attack. It attacks again')).toMatch(/reroll/)
+  })
+
+  it('accepts sense clauses and defensesIf, and rejects malformed ones', () => {
+    const m = monster()
+    const t = 'The wraith gains tremorsense 10 and can see invisible creatures.'
+    const at = (q: string) => { const i = t.indexOf(q); return [i, i + q.length] }
+    m.powers[0].effect = { text: t, clauses: [
+      { at: at('gains tremorsense 10'), kind: 'sense', sense: 'tremorsense', range: 10, who: 'self', duration: { kind: 'permanent' } },
+      { at: at('can see invisible creatures'), kind: 'sense', sense: 'see-invisible', who: 'self', duration: { kind: 'permanent' } },
+    ] } as any
+    ;(m as any).defensesIf = [{ defense: 'ac', value: 28, if: 'against opportunity attacks' }, { defense: 'fortitude', value: 25, if: ['while bloodied'] }]
+    expect(validateEntry('monsters', m).errors).toEqual([])
+
+    m.powers[0].effect = { text: t, clauses: [{ at: [0, 3], kind: 'sense', sense: 'x-ray', range: 0, who: 'self' }] } as any
+    ;(m as any).defensesIf = [{ defense: 'armor', value: -1, if: '' }, { defense: 'ac', value: 20, if: [], note: 'x' }]
+    const paths = validateEntry('monsters', m).errors.map(e => e.path)
+    for (const q of ['clauses[0].sense', 'clauses[0].range', 'clauses[0].duration']) expect(paths).toContain(`$.powers[0].effect.${q}`)
+    for (const q of ['[0].defense', '[0].value', '[0].if', '[1].if', '[1].note']) expect(paths).toContain(`$.defensesIf${q}`)
+  })
+})

@@ -20,9 +20,13 @@ read other entries, other agents' replies or the tool source.
    ```
    {{CHECK_COMMAND}}
    ```
-   `PASS` means you are done (flags are information only). On `FAIL`, fix the
+   `PASS` means you are done (flags are information only and need no note;
+   never re-run a passing check just to add one). On `FAIL`, fix the
    listed problems with the Edit tool and run the same command again. Run it at
    most 3 times in all; if it still fails, stop and say what is left.
+
+If the reply file already exists (an earlier run), Read it, review it against
+the source and these rules, edit what is wrong, and run the check.
 {{/single}}
 {{#batch}}
 # Rules for cleaning {{KIND_LABEL}} entries ({{KIND}})
@@ -47,9 +51,13 @@ one (reply written and checked) before you start the next:
    `notes`: one short item per correction (what and why); `[]` if nothing changed.
 3. Run the entry's check command, exactly as written (it only checks; replies
    are applied later in one batch). `PASS` means the entry is done (flags are
-   information only). On `FAIL`, fix the listed problems with the Edit tool and
+   information only and need no note; never re-run a passing check just to add
+   one). On `FAIL`, fix the listed problems with the Edit tool and
    run the same command again, at most 3 times per entry; if it still fails,
    note what is left and go on to the next entry.
+
+If an entry's reply file already exists (an earlier run), Read it, review it
+against the source and these rules, edit what is wrong, and run its check.
 
 Each entry stands alone: its source text is the only authority for it. At the
 end, list each id with PASS or FAIL.
@@ -115,12 +123,17 @@ lower confidence.
   ray's "Ranged 10; +24 vs. Reflex" words are one unparsed clause.
 - "1/round" and "1/turn" are `usesPerRound: 1`; "2/Encounter" is
   `usesPerEncounter: 2`. "requires greatsword" / "requires combat advantage" is
-  the power's `requirement` line.
+  the power's `requirement` line, as is a usage condition that is not a
+  trigger ("usable only while bloodied", "only while bloodied" in the usage
+  parentheses).
+- "Area 1 square within 10 squares" is `{"kind": "area-burst", "size": 0, "within": 10}`.
 - Set the power's `sustain` whenever it prints one; when the sustain is only
   inline ("(sustain minor)"), it is `{"action": "minor"}` with no `line`.
 - Resistances and vulnerabilities: `{type, value}`; a damage type with no number
   omits `value`; anything else is `{type: "special", text: "<printed wording>"}`.
-  Never store 0 for an unknown value. "Resist 15 variable (2/encounter)" keeps
+  Never store 0 for an unknown value. A number with a qualifier instead of a
+  type ("Vulnerable 10 against close and area attacks") is `{type: "special",
+  value: 10, text: "against close and area attacks"}`. "Resist 15 variable (2/encounter)" keeps
   the parser's `{type: "variable", value: 15, note: "2/encounter"}`; the
   Variable Resistance trait's clause may take its `typeChoice` from the trigger line.
 - An aura size that changes ("Aura 2, or 3 while the balor is bloodied") is
@@ -134,6 +147,13 @@ lower confidence.
   `savingThrowNotes`, verbatim, never in `savingThrowBonus`: "Saving Throws +5
   against fear effects" is `0` and `["+5 against fear effects"]`; "+2 (+4
   against charm effects)" is `2` and `["+4 against charm effects"]`.
+- Conditional defenses ("AC 24 (28 against opportunity attacks)", "Fortitude
+  23 (25 while bloodied)") are `defensesIf`, the base value stays in
+  `defenses`: `[{"defense": "ac", "value": 28, "if": "against opportunity
+  attacks"}]`; a signed one ("+2 while flying") stores the result (base + 2).
+  The parser fills them; check them against the print.
+- `senses` is the Senses line only. A trait or power that grants a sense
+  ("Truesight 10", "can see invisible creatures") gets a `sense` clause.
 - "phasing" or "(hover)" on the speed line stays in `speed.notes`: every note
   in printed order, separated by "; ", with the mode first when it belongs to
   one ("fly: hover; phasing"). A walk-speed note has no mode: "ice walk", not
@@ -220,7 +240,13 @@ never write `at`. An unparsed clause is just `{"text": "<exact printed words>"}`
     condition in `if` ("against a target that has one or more of the wolf's
     allies adjacent to it").
   - `if` says when the clause applies, never who it applies to ("to the first
-    target of the attack" is not a condition).
+    target of the attack" is not a condition). A subject phrase that also says
+    where or when ("Any creature that enters or starts its turn in the zone",
+    "Any enemy adjacent to two or more azers at the start of its turn") is a
+    condition: the whole phrase is the `if`, and `who` names the subject.
+  - Damage has no `duration`: a time limit on a damage clause ("Until the
+    start of its next turn, any creature that hits it takes 5 fire damage")
+    goes in `if`, verbatim.
   - `unless`: when the print states the condition as the case in which the
     clause does NOT apply, copy those words into `unless` (never a "not:"
     prefix). "...slowed (save ends). If the target is already slowed, it is
@@ -248,6 +274,10 @@ never write `at`. An unparsed clause is just `{"text": "<exact printed words>"}`
   level 6 mummy rot": "mummy rot"); `stage` when printed. Tools fill `diseaseId`.
 - `reroll`: `what` is rerolled; `keep` only when the print says which roll
   counts ("use the second result": `new`; "the higher result": `higher`).
+- `sense`: the sense id or `see-invisible` ("can see invisible creatures");
+  `range` when printed; an always-on trait has duration `permanent`.
+- `modifier` stat `defenses` already includes AC: "+4 bonus to AC and all
+  defenses" is `"stat": "defenses"`, never `["ac", "defenses"]`.
 - Threatening Reach ("can make opportunity attacks against all enemies within
   its reach") is `opportunity-reach` with `optional: true`.
 - grants-ca `to`: `source` is the clause's source only; `source-allies` is the
@@ -264,7 +294,8 @@ never write `at`. An unparsed clause is just `{"text": "<exact printed words>"}`
   duration printed as its own sentence ("The effect lasts until ...") goes in
   the clause's `until` and the sentence stays uncovered. `this-power`: only the
   attacks the same power makes ("each at a -2 penalty"). A grab "(until
-  escape)" is `indefinite`.
+  escape)" is `indefinite`. Ongoing damage with no printed duration is
+  `save-ends` (the 4e default); say so in `notes`.
 - `typeChoice`: "damage of one of the following types: acid, cold or fire" is
   chosen when used: `types: []` and `typeChoice` lists them (resistance: `type: "choice"`).
 
@@ -291,7 +322,8 @@ never write `at`. An unparsed clause is just `{"text": "<exact printed words>"}`
 | grants-ca | "combat advantage" |
 | resistance, vulnerability | "resist", "vulnerable" |
 | heal / temp-hp | "regains", "heals" or "hit points" / "temporary" |
-| regeneration, recharge-power, lose-healing-surge, half-damage | "regenerat" or "regain", "recharge", "surge", "half" |
+| regeneration, recharge-power, lose-healing-surge | "regenerat" or "regain", "recharge", "surge" |
+| half-damage | "half" or "halved" ("half damage", "half as much", "the damage is halved") |
 | concealment | "conceal" (and "total" if `total`) |
 | zone | "zone", "cloud" or "wall" |
 | saving-throw | "save" or "saving" (and the bonus) |
@@ -304,8 +336,9 @@ never write `at`. An unparsed clause is just `{"text": "<exact printed words>"}`
 | difficult-terrain | "difficult terrain" |
 | charge | "charge" in any form |
 | disease | the `disease` name (and "stage" and the number if `stage`) |
-| reroll | "reroll" or "roll again" |
+| reroll | "reroll" or "roll ... again" ("roll the attack again") |
 | action-point | "action point" and the amount ("an action point" for 1) |
+| sense | the sense name ("tremorsense", "low-light vision") or "see invisible", and `range` |
 | damage-formula | "damage" |
 
 **Examples** (one clause or field each):
@@ -331,6 +364,7 @@ never write `at`. An unparsed clause is just `{"text": "<exact printed words>"}`
 - Disease ("the target contracts werewolf moon frenzy (stage 1)"): `{"quote": "contracts werewolf moon frenzy (stage 1)", "kind": "disease", "disease": "werewolf moon frenzy", "stage": 1, "who": "target"}`
 - Reroll ("forces the attacker to reroll the attack and use the second result"): `{"quote": "forces the attacker to reroll the attack and use the second result", "kind": "reroll", "what": "attack", "keep": "new", "who": "other"}`
 - Action point and rider ("its rider gains 1 action point"): `{"quote": "gains 1 action point", "kind": "action-point", "amount": 1, "who": "rider"}`
+- Sense ("The wraith gains tremorsense 10 until the end of its next turn"): `{"quote": "gains tremorsense 10 until the end of its next turn", "kind": "sense", "sense": "tremorsense", "range": 10, "who": "self", "duration": {"kind": "turn-end", "whose": "source", "next": true}}`; ("The beholder can see invisible creatures"): `{"quote": "can see invisible creatures", "kind": "sense", "sense": "see-invisible", "who": "self", "duration": {"kind": "permanent"}}`
 - This power only ("The dragon makes two claw attacks, each at a -2 penalty"): `{"quote": "makes two claw attacks", "kind": "use-power", "power": "claw", "times": 2, "who": "self"}, {"quote": "-2 penalty", "kind": "modifier", "stat": "attack", "value": -2, "who": "self", "duration": {"kind": "this-power"}}`
 {{#items}}
 - Weapon critical: `"critical": {"text": "+1d6 damage per plus", "clauses": [{"quote": "+1d6 damage per plus", "kind": "damage-formula", "text": "+1d6 damage per plus", "types": []}]}`

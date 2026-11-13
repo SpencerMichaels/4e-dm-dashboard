@@ -87,6 +87,8 @@ export function parseSources(source: string, notes: Notes): SourceRef[] {
 export function damageModifier(rawType: string, value?: number, note?: string): DamageModifier {
   const type = normText(rawType).toLowerCase()
   const n = note ? normText(note) : undefined
+  // "Vulnerable 10 against close and area attacks": a numbered qualifier, not a damage type.
+  if (typeof value === 'number' && /^(against|to|vs\.?)\s/.test(type)) return compact({ type: 'special', value, text: normText(rawType), note: n })
   if (typeof value === 'number') return compact({ type, value, note: n })
   const variable = type.match(/^(\d+)\/variable$/)
   if (variable) return compact({ type: 'variable', value: parseInt(variable[1]), note: n })

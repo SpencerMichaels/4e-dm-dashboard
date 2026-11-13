@@ -32,6 +32,7 @@ describe('shared v2 pieces', () => {
     expect(damageModifier('fire', 10)).toEqual({ type: 'fire', value: 10 })
     expect(damageModifier('radiant', undefined, 'see text')).toEqual({ type: 'radiant', note: 'see text' })
     expect(damageModifier('insubstantial')).toEqual({ type: 'special', text: 'insubstantial' })
+    expect(damageModifier('against close and area attacks', 10)).toEqual({ type: 'special', value: 10, text: 'against close and area attacks' })
     expect(damageModifier('half damage from melee and ranged attacks')).toEqual({ type: 'special', text: 'half damage from melee and ranged attacks' })
     expect(damageModifier('20/variable', undefined, '3/encounter')).toEqual({ type: 'variable', value: 20, note: '3/encounter' })
   })
@@ -220,6 +221,14 @@ describe('schema v4 fields', () => {
     const m = convertMonster('monster1', parseMonsterHtml(html, [], { printed: true }), { provenance: { origin: 'parser', at: '2026-11-12' } })
     expect(m.savingThrowBonus).toBe(0)
     expect(m.savingThrowNotes).toEqual(['+5 against fear effects'])
+  })
+
+  it('keeps printed conditional defenses in defensesIf with the base in defenses (v9)', () => {
+    const html = "<h1 class=monster>Guard<br><span class=type>Medium natural humanoid</span><br><span class=level>Level 5 Soldier<span class=xp> XP 200</span></span></h1><table class=bodytable><tr><td><b>HP</b> 50; <b>Bloodied</b> 25<td class=rightalign><b>Initiative</b> +8<tr><td><b>AC</b> 21 (23 with phalanx soldier); <b>Fortitude</b> 21 (see also mirage), <b>Reflex</b> 16, <b>Will</b> 18<td class=rightalign><b>Perception</b>+4<tr><td><b>Speed</b> 5<td class=rightalign></table>"
+    const m = convertMonster('monster1', parseMonsterHtml(html, [], { printed: true }), { provenance: { origin: 'parser', at: '2026-11-12' } })
+    expect(m.defenses).toEqual({ ac: 21, fortitude: 21, reflex: 16, will: 18 })
+    expect(m.defensesIf).toEqual([{ defense: 'ac', value: 23, if: 'with phalanx soldier' }])
+    expect(m.provenance.notes).toContainEqual('defense note "fortitude 21 (see also mirage)" has no field (not a conditional value)')
   })
 
   it('records a sustain printed only inside a line', () => {

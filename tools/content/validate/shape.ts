@@ -114,6 +114,7 @@ const CLAUSE_FIELDS: Record<string, string[]> = {
   'disease': ['disease', 'diseaseId', 'stage', 'who'],
   'reroll': ['what', 'keep', 'who'],
   'action-point': ['amount', 'who'],
+  'sense': ['sense', 'range', 'who', 'duration'],
   'unparsed': ['text'],
 }
 
@@ -218,6 +219,10 @@ export function clause(c: Checker, cl: unknown, path: string): void {
       c.optional(cl, 'keep', path, (v, p) => c.oneOf(['new', 'higher', 'lower'], v, p))
       break
     case 'action-point': c.int(cl.amount, `${path}.amount`, { min: 1 }); who(); break
+    case 'sense':
+      c.oneOf([...SENSE_KINDS, 'see-invisible'], cl.sense, `${path}.sense`); who(); dur()
+      c.optional(cl, 'range', path, (v, p) => c.int(v, p, { min: 1 }))
+      break
     case 'unparsed': c.str(cl.text, `${path}.text`, { nonEmpty: true }); break
   }
 }
@@ -397,7 +402,7 @@ export function monsterShape(c: Checker, m: unknown): void {
   const path = '$'
   if (!c.obj(m, path)) return
   c.keys(m, ['id', 'name', 'level', 'role', 'rank', 'leader', 'size', 'origin', 'type', 'keywords', 'xp', 'hp', 'initiative',
-    'perception', 'senses', 'speed', 'defenses', 'savingThrowBonus', 'savingThrowNotes', 'actionPoints', 'immune', 'resist', 'vulnerable',
+    'perception', 'senses', 'speed', 'defenses', 'defensesIf', 'savingThrowBonus', 'savingThrowNotes', 'actionPoints', 'immune', 'resist', 'vulnerable',
     'regeneration', 'abilities', 'skills', 'skillNotes', 'alignment', 'languages', 'equipment', 'traits', 'auras', 'powers', 'description',
     'sources', 'provenance'], path)
   c.str(m.id, '$.id', { nonEmpty: true })
@@ -421,6 +426,17 @@ export function monsterShape(c: Checker, m: unknown): void {
   })
   speed(c, m.speed, '$.speed')
   if (c.obj(m.defenses, '$.defenses')) for (const d of DEFENSES) c.int(m.defenses[d], `$.defenses.${d}`, { min: 0 })
+  // defensesIf: printed conditional values ("Fortitude 23 (25 while bloodied)"); `if` is the printed words.
+  c.optional(m, 'defensesIf', '$', (v, q) => list(c, v, q, (x, p) => {
+    if (!c.obj(x, p)) return
+    c.keys(x, ['defense', 'value', 'if'], p)
+    c.oneOf(DEFENSES, x.defense, `${p}.defense`)
+    c.int(x.value, `${p}.value`, { min: 0 })
+    if (Array.isArray(x.if)) {
+      if (x.if.length === 0) c.fail(`${p}.if`, 'expected at least one fragment')
+      x.if.forEach((f, i) => c.str(f, `${p}.if[${i}]`, { nonEmpty: true }))
+    } else c.str(x.if, `${p}.if`, { nonEmpty: true })
+  }))
   c.int(m.savingThrowBonus, '$.savingThrowBonus', { min: 0 })
   c.optional(m, 'savingThrowNotes', '$', (v, p) => list(c, v, p, (n, q) => c.str(n, q, { nonEmpty: true })))
   c.int(m.actionPoints, '$.actionPoints', { min: 0 })

@@ -45,6 +45,12 @@ const STATUS_WORDS: Record<string, RegExp> = {
   'no-provoke': /\bprovok/i,
 }
 
+const SENSE_WORDS: Record<string, RegExp> = {
+  'darkvision': /\bdarkvision/i, 'low-light-vision': /\blow-light vision/i, 'blindsight': /\bblindsight/i,
+  'tremorsense': /\btremorsense/i, 'truesight': /\btruesight/i, 'all-around-vision': /\ball-around vision/i,
+  'see-invisible': /\bsee(s|ing)? invisib/i,
+}
+
 const RESTRICTION_WORDS: Record<string, RegExp> = {
   encounter: /\bencounter/i, daily: /\bdaily/i, attack: /\battack/i, all: /\b(power|attack|action)/i,
 }
@@ -85,7 +91,7 @@ export function spanProblem(clause: Clause, span: string, after = ''): string | 
       return anyType(clause.typeChoice) ? undefined : 'none of the typeChoice types in span'
     case 'damage-formula':
       return has('damage') || compactDice(span).includes(compactDice(clause.text)) ? undefined : 'formula not in span'
-    case 'half-damage': return has('half') ? undefined : 'no "half" in span'
+    case 'half-damage': return has(/\bhal(f|ved?|ves|ving)\b/i) ? undefined : 'no "half" or "halved" in span'
     case 'ongoing-damage':
       if (!has('ongoing')) return 'no "ongoing" in span'
       if (!num(clause.amount)) return `amount ${clause.amount} not in span`
@@ -146,10 +152,15 @@ export function spanProblem(clause: Clause, span: string, after = ''): string | 
       if (!s.replace(/\s+/g, ' ').replace(/[‘’]/g, "'").includes(name.replace(/[‘’]/g, "'"))) return `disease "${clause.disease}" not in span`
       return clause.stage === undefined || (has('stage') && num(clause.stage)) ? undefined : `no "stage ${clause.stage}" in span`
     }
-    case 'reroll': return has(/\bre-?roll|\broll(s|ing)? again/i) ? undefined : 'no "reroll" in span'
+    case 'reroll': return has(/\bre-?roll|\broll(s|ing)?\b[^.;]{0,30}?\bagain/i) ? undefined : 'no "reroll" in span'
     case 'action-point':
       if (!has(/\baction points?\b/i)) return 'no "action point" in span'
       return num(clause.amount) || (clause.amount === 1 && has(/\ban action point/i)) ? undefined : `amount ${clause.amount} not in span`
+    case 'sense': {
+      // The sense name ("tremorsense", "low-light vision") or "see(s) invisible", and the range when given.
+      if (!has(SENSE_WORDS[clause.sense] ?? clause.sense)) return clause.sense === 'see-invisible' ? 'no "see invisible" in span' : `no "${clause.sense}" in span`
+      return clause.range === undefined || num(clause.range) ? undefined : `range ${clause.range} not in span`
+    }
     case 'unparsed':
       return span.replace(/\s+/g, ' ').trim() === clause.text.replace(/\s+/g, ' ').trim() ? undefined : 'unparsed text differs from span'
   }

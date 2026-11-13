@@ -1,6 +1,6 @@
 // Parser regression tests. Each power snippet is copied from content/raw/monsters.json.
 import { describe, expect, it } from 'vitest'
-import { cleanHeaderKeywords, parseMonsterHtml, parseRangePart, parseResistValues, parseSavingThrows, splitDamageFromHit } from './html-parser'
+import { cleanHeaderKeywords, parseDefenses, parseMonsterHtml, parseRangePart, parseResistValues, parseSavingThrows, splitDamageFromHit } from './html-parser'
 
 /** Minimal monster around real power HTML. */
 function parsePowers(powersHtml: string, section = 'Standard Actions', printed = false): any[] {
@@ -118,6 +118,26 @@ describe('parser helpers', () => {
     expect(parseRangePart('Targets the triggering enemy')).toEqual({ rangeType: 'melee', rangeValue: '', target: 'the triggering enemy', notes: [] })
     expect(parseRangePart('Range 5/10 (one creature)')).toEqual({ rangeType: 'ranged', rangeValue: '5/10', target: 'one creature', notes: [] })
     expect(parseRangePart('Melee 1 or Ranged 10')).toEqual({ rangeType: 'ranged', rangeValue: '1', target: '', notes: ['or Ranged 10'] })
+  })
+
+  it('parseDefenses keeps base values and printed conditional ones', () => {
+    expect(parseDefenses('AC 24 (28 against opportunity attacks); Fortitude 20, Reflex 24, Will 20')).toEqual({
+      defenses: { ac: 24, fortitude: 20, reflex: 24, will: 20 },
+      defensesIf: [{ defense: 'ac', value: 28, if: 'against opportunity attacks' }],
+    })
+    expect(parseDefenses('AC 30 (28 while bloodied); Fortitude 29, Reflex 30 (29 while bloodied), Will 28')?.defensesIf).toEqual([
+      { defense: 'ac', value: 28, if: 'while bloodied' }, { defense: 'reflex', value: 29, if: 'while bloodied' },
+    ])
+    expect(parseDefenses('AC 22 (AC 25 against opportunity attacks); Fortitude 18, Reflex 22, Will 20')?.defensesIf).toEqual([{ defense: 'ac', value: 25, if: 'against opportunity attacks' }])
+    expect(parseDefenses('AC 20 (+2 while flying); Fortitude 18, Reflex 19 (-1 when bloodied), Will 18')?.defensesIf).toEqual([
+      { defense: 'ac', value: 22, if: 'while flying' }, { defense: 'reflex', value: 18, if: 'when bloodied' },
+    ])
+    expect(parseDefenses('AC 42 (44); Fortitude 39, Reflex 41, Will 27 (+1 to all defenses against bloodied enemies)')).toEqual({
+      defenses: { ac: 42, fortitude: 39, reflex: 41, will: 27 },
+      unplaced: ['ac 42 (44)', 'will 27 (+1 to all defenses against bloodied enemies)'],
+    })
+    expect(parseDefenses('AC 17, Fortitude 18, Reflex 16, Will 16')).toEqual({ defenses: { ac: 17, fortitude: 18, reflex: 16, will: 16 } })
+    expect(parseDefenses('HP 30')).toBeUndefined()
   })
 
   it('parseSavingThrows keeps only the unconditional bonus and the rest as notes', () => {

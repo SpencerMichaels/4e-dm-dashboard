@@ -76,6 +76,7 @@ export function convertMonster(id: string, parsed: any, ctx: ConvertContext): Mo
     senses: parseSenses(sb.senses ?? '', notes),
     speed: convertSpeed(sb),
     defenses: { ac: sb.ac, fortitude: sb.defenses?.fortitude, reflex: sb.defenses?.reflex, will: sb.defenses?.will },
+    defensesIf: sb.defensesIf?.length ? sb.defensesIf : undefined,
     savingThrowBonus: sb.savingThrowBonus ?? 0,
     savingThrowNotes: sb.savingThrowNotes?.length ? sb.savingThrowNotes : undefined,
     actionPoints: sb.actionPoints ?? 0,
@@ -100,6 +101,7 @@ export function convertMonster(id: string, parsed: any, ctx: ConvertContext): Mo
     sources: parseSources(sb.source ?? '', notes),
     provenance: undefined as never,
   }
+  for (const d of sb.defenseNotes ?? []) notes.add(`defense note "${d}" has no field (not a conditional value)`)
   if (rank === 'minion' && parsed.hp !== 1) notes.add(`minion printed HP ${parsed.hp}`)
   monster.provenance = provenanceFor(ctx, notes)
   return compact(monster)

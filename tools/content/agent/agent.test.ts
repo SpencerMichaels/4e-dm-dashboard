@@ -8,6 +8,7 @@ import { applyFile, applyResponse, describePath, diseaseKey, fillDiseaseIds, par
 import { batchFile, briefDirs, chunkIds, defaultResponsesDir, packBatches, parseChunk } from './briefs'
 import { buildBatchBrief, buildBrief, buildRulesFile, checkCommand, compactJson, htmlToText, rulesFile, schemaExcerpt } from './prompt'
 import { atToQuote, resolveQuotes } from './quotes'
+import { patchEntry } from './patch-defenses-if'
 import { mulberry32, pick, sampleIds, tieredSample } from './sample'
 import { Checker, clause } from '../validate/shape'
 import { checkLineSpans } from '../validate/spans'
@@ -298,5 +299,30 @@ describe('brief examples', () => {
       checked++
     }
     expect(checked).toBeGreaterThanOrEqual(10)
+  })
+})
+
+describe('patch-defenses-if', () => {
+  const html = "<h1 class=monster>Guard<br><span class=type>Medium natural humanoid</span><br><span class=level>Level 5 Soldier<span class=xp> XP 200</span></span></h1><table class=bodytable><tr><td><b>HP</b> 50; <b>Bloodied</b> 25<td class=rightalign><b>Initiative</b> +8<tr><td><b>AC</b> 21 (23 with phalanx soldier); <b>Fortitude</b> 21, <b>Reflex</b> 16, <b>Will</b> 18<td class=rightalign><b>Perception</b>+4<tr><td><b>Speed</b> 5<td class=rightalign></table>"
+  const entry = (over: Record<string, unknown> = {}) => ({
+    id: 'monster1', name: 'Guard', defenses: { ac: 21, fortitude: 21, reflex: 16, will: 18 }, savingThrowBonus: 0,
+    provenance: { origin: 'agent', at: '2026-11-13', notes: ['kept'] }, ...over,
+  })
+
+  it('adds the parser defensesIf after defenses to agent entries and changes nothing else', () => {
+    const { entry: out, result } = patchEntry(entry(), html)
+    expect(result?.status).toBe('patched')
+    expect(Object.keys(out!)).toEqual(['id', 'name', 'defenses', 'defensesIf', 'savingThrowBonus', 'provenance'])
+    expect(out!.defensesIf).toEqual([{ defense: 'ac', value: 23, if: 'with phalanx soldier' }])
+    const { defensesIf, ...rest } = out!
+    expect(rest).toEqual(entry())
+  })
+
+  it('skips parser entries, entries that have the field, and different base defenses', () => {
+    expect(patchEntry(entry({ provenance: { origin: 'parser', at: '2026-11-13' } }), html)).toEqual({})
+    expect(patchEntry(entry({ defensesIf: [] }), html)).toEqual({})
+    const differs = patchEntry(entry({ defenses: { ac: 22, fortitude: 21, reflex: 16, will: 18 } }), html)
+    expect(differs.entry).toBeUndefined()
+    expect(differs.result?.status).toBe('base differs')
   })
 })
