@@ -149,9 +149,39 @@ export function schemaExcerpt(kind: AgentKind): string {
   return `// vocab.ts\n${part(vocab)}\n\n// schema.ts\n${part(schema)}`
 }
 
-/** Keep `{{#kind}}...{{/kind}}` blocks for this kind (a block may list several: {{#items,traps}}). */
-function kindBlocks(template: string, kind: AgentKind): string {
-  return template.replace(/\{\{#([\w,]+)\}\}\n?([\s\S]*?)\{\{\/\1\}\}\n?/g, (_, kinds: string, body: string) => kinds.split(',').includes(kind) ? body : '')
+/**
+ * Keep `{{#name}}...{{/name}}` blocks whose name is one of `keep` (the kind and
+ * the mode, single or batch); a block may list several: {{#items,traps}}.
+ */
+function keepBlocks(template: string, keep: string[]): string {
+  return template.replace(/\{\{#([\w,]+)\}\}\n?([\s\S]*?)\{\{\/\1\}\}\n?/g, (_, names: string, body: string) => names.split(',').some(n => keep.includes(n)) ? body : '')
+}
+
+const ENTRY_PART = /<!-- entry -->\n([\s\S]*?)<!-- \/entry -->\n/
+
+/** The template for this kind and mode, split into the shared text and the per-entry part (marked `<!-- entry -->`). */
+function templateParts(kind: AgentKind, mode: 'single' | 'batch'): { shared: string; entry: string } {
+  const template = keepBlocks(readFileSync(join(__dirname, 'prompt.md'), 'utf-8'), [kind, mode]).replace(/^<!--[\s\S]*?-->\n+/, '')
+  const m = template.match(ENTRY_PART)
+  if (!m) throw new Error('prompt.md has no <!-- entry --> part')
+  return { shared: template, entry: m[1] }
+}
+
+function fill(text: string, values: Record<string, string>): string {
+  return text.replace(/\{\{(\w+)\}\}/g, (m, key) => values[key] ?? m)
+}
+
+function kindValues(kind: AgentKind): Record<string, string> {
+  const [label, type] = KIND_LABEL[kind]
+  return { KIND: kind, KIND_LABEL: label, KIND_TYPE: type, SCHEMA_EXCERPT: schemaExcerpt(kind) }
+}
+
+function entryValues(kind: AgentKind, id: string, p: BriefPaths): Record<string, string> {
+  const current = atToQuote(JSON.parse(readFileSync(join(p.repo, kind, `${id}.json`), 'utf-8')))
+  return {
+    ID: id, SOURCE_TEXT: htmlToText(rawHtml(kind, id)), CURRENT_JSON: compactJson(current, '', 140),
+    REPLY_PATH: p.reply, CHECK_COMMAND: checkCommand(kind, id, p),
+  }
 }
 
 export interface BriefPaths {
@@ -174,16 +204,23 @@ export function replyPath(responses: string, kind: AgentKind, id: string): strin
   return join(responses, kind, `${id}.json`)
 }
 
+/** One entry per brief: steps, rules, the entry, then the schema. */
 export function buildBrief(kind: AgentKind, id: string, p: BriefPaths): string {
-  const template = kindBlocks(readFileSync(join(__dirname, 'prompt.md'), 'utf-8'), kind)
-  const current = atToQuote(JSON.parse(readFileSync(join(p.repo, kind, `${id}.json`), 'utf-8')))
-  const [label, type] = KIND_LABEL[kind]
-  const values: Record<string, string> = {
-    ID: id, KIND: kind, KIND_LABEL: label, KIND_TYPE: type,
-    SOURCE_TEXT: htmlToText(rawHtml(kind, id)), CURRENT_JSON: compactJson(current, '', 140), SCHEMA_EXCERPT: schemaExcerpt(kind),
-    REPLY_PATH: p.reply, CHECK_COMMAND: checkCommand(kind, id, p),
-  }
-  return template.replace(/^<!--[\s\S]*?-->\n+/, '').replace(/\{\{(\w+)\}\}/g, (m, key) => values[key] ?? m)
+  const { shared, entry } = templateParts(kind, 'single')
+  const values = { ...kindValues(kind), ...entryValues(kind, id, p) }
+  return fill(shared.replace(ENTRY_PART, () => entry), values)
+}
+
+/**
+ * Several entries of one kind in one brief: the steps, rules, examples and
+ * schema once, then per entry its reply path, check command, source text and
+ * current JSON (headings one level down). `name` labels the batch ("batch 1").
+ */
+export function buildBatchBrief(kind: AgentKind, entries: { id: string; reply: string }[], p: Omit<BriefPaths, 'reply'>, name: string): string {
+  const { shared, entry } = templateParts(kind, 'batch')
+  const common = { ...kindValues(kind), COUNT: String(entries.length), BATCH: name, IDS: entries.map(e => e.id).join(', ') }
+  const parts = entries.map((e, i) => fill(entry.replace(/^(#+) /gm, '#$1 '), { ...common, N: String(i + 1), ...entryValues(kind, e.id, { ...p, reply: e.reply }) }))
+  return fill(shared, common).replace(ENTRY_PART, () => parts.join('\n'))
 }
 
 /** @deprecated name kept for older callers; the brief needs reply and app paths. */

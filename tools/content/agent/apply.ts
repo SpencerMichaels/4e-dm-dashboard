@@ -178,7 +178,7 @@ export function argValue(args: string[], flag: string): string | undefined {
 }
 
 export function positionals(args: string[]): string[] {
-  const valued = new Set(['--repo', '--model', '--out', '--sample', '--tier', '--dir', '--responses', '--app', '--seed', '--exclude', '--tag'])
+  const valued = new Set(['--repo', '--model', '--out', '--sample', '--tier', '--dir', '--responses', '--app', '--seed', '--exclude', '--tag', '--batch-size'])
   return args.filter((a, i) => !a.startsWith('--') && !valued.has(args[i - 1]))
 }
 

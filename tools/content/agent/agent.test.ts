@@ -5,8 +5,8 @@ import { describe, expect, it } from 'vitest'
 import type { Disease } from '@kit'
 import { applyAll } from './apply-all'
 import { applyFile, applyResponse, describePath, parseResponse } from './apply'
-import { briefDirs, defaultResponsesDir } from './briefs'
-import { buildBrief, checkCommand, compactJson, htmlToText, schemaExcerpt } from './prompt'
+import { batchFile, briefDirs, chunk, defaultResponsesDir } from './briefs'
+import { buildBatchBrief, buildBrief, checkCommand, compactJson, htmlToText, schemaExcerpt } from './prompt'
 import { atToQuote, resolveQuotes } from './quotes'
 import { mulberry32, pick, sampleIds, tieredSample } from './sample'
 
@@ -144,6 +144,31 @@ describe('brief', () => {
     expect(briefDirs(['--tag', '2b-opus'], '/c')).toEqual({ out: '/c/pilot/briefs-2b-opus', responses: '/c/pilot/responses-2b-opus' })
     expect(briefDirs(['--out', '/c/b', '--responses', '/c/r'], '/c')).toEqual({ out: '/c/b', responses: '/c/r' })
     expect(briefDirs([], '/c')).toBeUndefined()
+  })
+
+  it('writes the shared text once and each entry with its reply and check command in a batch brief', () => {
+    const repo = repoWithDisease()
+    writeFileSync(join(repo, 'diseases', 'disease20.json'), JSON.stringify({ ...disease, id: 'disease20' }))
+    const reply = (id: string) => join(repo, 'responses', 'diseases', `${id}.json`)
+    const brief = buildBatchBrief('diseases', [{ id: 'disease11', reply: reply('disease11') }, { id: 'disease20', reply: reply('disease20') }], { repo, app: '/a' }, 'batch 1')
+    expect(brief).not.toMatch(/\{\{[#/]?\w+\}\}/)
+    expect(brief).not.toContain('<!--')
+    expect(brief).toContain('# Clean 2 disease entries (diseases, batch 1)')
+    for (const s of ['## Rules', '## Schema', 'interface Disease', '**Quote rules**']) expect(brief.split(s).length - 1).toBe(1)
+    expect(brief.indexOf('## Schema')).toBeLessThan(brief.indexOf('## Entry 1 of 2: `disease11`'))
+    expect(brief.indexOf('## Entry 1 of 2: `disease11`')).toBeLessThan(brief.indexOf('## Entry 2 of 2: `disease20`'))
+    expect(brief.split('### Source text').length - 1).toBe(2)
+    for (const id of ['disease11', 'disease20']) {
+      expect(brief).toContain(`Reply path: \`${reply(id)}\``)
+      expect(brief).toContain(`content:agent:apply -- diseases ${id} ${reply(id)} --repo ${repo} --check`)
+      expect(brief).toContain(`"id": "${id}"`)
+    }
+    // The single-entry brief keeps its layout.
+    const single = buildBrief('diseases', 'disease11', { repo, reply: reply('disease11'), app: '/a' })
+    expect(single).not.toContain('## Entry')
+    expect(single.indexOf('## Source text')).toBeLessThan(single.indexOf('## Schema'))
+    expect(chunk([1, 2, 3, 4, 5, 6, 7], 5)).toEqual([[1, 2, 3, 4, 5], [6, 7]])
+    expect(batchFile('monsters', 2)).toBe('monsters-batch2.md')
   })
 })
 
