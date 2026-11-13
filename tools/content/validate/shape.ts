@@ -74,7 +74,7 @@ function duration(c: Checker, d: unknown, path: string): void {
 
 const WHO = ['target', 'self', 'each-target', 'ally', 'enemies-in-area', 'creatures-in-area', 'allies-in-area', 'rider', 'mount', 'other']
 const MOD_STATS = [
-  'attack', 'ac', 'fortitude', 'reflex', 'will', 'defenses', 'speed', 'saving-throws', 'damage',
+  'attack', 'ac', 'fortitude', 'reflex', 'will', 'defenses', 'speed', 'saving-throws', 'damage', 'initiative',
   ...SKILLS.map(s => `skill:${s}`), 'skill-checks', ...ABILITIES.map(a => `ability:${a}`), 'ability-checks',
 ]
 
@@ -88,8 +88,8 @@ const CLAUSE_FIELDS: Record<string, string[]> = {
   'damage': ['dice', 'types', 'typeChoice', 'who', 'extra', 'critical'],
   'damage-formula': ['text', 'types'],
   'half-damage': [],
-  'ongoing-damage': ['amount', 'types', 'typeChoice', 'who', 'duration', 'saveGroup'],
-  'condition': ['condition', 'who', 'duration', 'saveGroup', 'escapeDc'],
+  'ongoing-damage': ['amount', 'types', 'typeChoice', 'who', 'duration', 'saveGroup', 'saveModifier'],
+  'condition': ['condition', 'who', 'duration', 'saveGroup', 'escapeDc', 'saveModifier'],
   'grants-ca': ['to', 'who', 'duration', 'saveGroup'],
   'forced-move': ['move', 'squares', 'who'],
   'move': ['move', 'squares', 'who'],
@@ -118,12 +118,14 @@ const CLAUSE_FIELDS: Record<string, string[]> = {
   'reroll': ['what', 'keep', 'who'],
   'action-point': ['amount', 'who'],
   'sense': ['sense', 'range', 'who', 'duration'],
+  'speed': ['mode', 'value', 'change', 'hover', 'who', 'duration'],
   'choice': ['options', 'chooser'],
   'unparsed': ['text'],
 }
 
 const RESTRICTIONS = ['encounter', 'daily', 'attack', 'all']
 const REROLL_WHAT = ['attack', 'save', 'damage', 'check']
+const SPEED_MODES = ['walk', 'fly', 'climb', 'swim', 'burrow', 'teleport', 'overland-flight']
 
 /** typeChoice: two or more damage types, with `types` empty (or resistance type 'choice'). */
 function typeChoice(c: Checker, cl: Record<string, unknown>, path: string): void {
@@ -162,6 +164,8 @@ export function clause(c: Checker, cl: unknown, path: string, inChoice = false):
   const dur = () => duration(c, cl.duration, `${path}.duration`)
   const flag = (k: string) => { if (cl[k] !== undefined && cl[k] !== true) c.fail(`${path}.${k}`, 'expected true or absent') }
   c.optional(cl, 'saveGroup', path, (v, p) => c.str(v, p, { nonEmpty: true }))
+  // saveModifier: the printed modifier to the saving throw against it ("-2 penalty to the saving throw": -2).
+  c.optional(cl, 'saveModifier', path, (v, p) => { if (c.int(v, p) && v === 0) c.fail(p, 'expected a non-zero modifier') })
   switch (cl.kind) {
     case 'damage':
       c.str(cl.dice, `${path}.dice`, { nonEmpty: true }); damageTypes(c, cl.types, `${path}.types`); typeChoice(c, cl, path); who(); flag('extra'); flag('critical'); break
@@ -232,6 +236,13 @@ export function clause(c: Checker, cl: unknown, path: string, inChoice = false):
     case 'sense':
       c.oneOf([...SENSE_KINDS, 'see-invisible'], cl.sense, `${path}.sense`); who(); dur()
       c.optional(cl, 'range', path, (v, p) => c.int(v, p, { min: 1 }))
+      break
+    case 'speed':
+      // A mode gained or set (value), or changed (change); neither when the print gives no number.
+      c.oneOf(SPEED_MODES, cl.mode, `${path}.mode`); who(); dur(); flag('hover')
+      c.optional(cl, 'value', path, (v, p) => c.int(v, p, { min: 0 }))
+      c.optional(cl, 'change', path, (v, p) => { if (c.int(v, p) && v === 0) c.fail(p, 'expected a non-zero change') })
+      if (cl.value !== undefined && cl.change !== undefined) c.fail(`${path}.change`, 'expected value or change, not both')
       break
     case 'choice': {
       // Two or more options, each a non-empty list of clauses (never another choice).
@@ -377,12 +388,19 @@ function levelSteps(c: Checker, v: unknown, path: string): void {
 
 function trait(c: Checker, t: unknown, path: string, aura = false): void {
   if (!c.obj(t, path)) return
-  c.keys(t, aura ? ['name', 'keywords', 'text', 'range', 'rangeIf'] : ['name', 'keywords', 'text'], path)
+  c.keys(t, aura ? ['name', 'keywords', 'text', 'range', 'rangeText', 'rangeIf'] : ['name', 'keywords', 'text'], path)
   c.str(t.name, `${path}.name`, { nonEmpty: true })
   if (c.arr(t.keywords, `${path}.keywords`)) t.keywords.forEach((k, i) => c.str(k, `${path}.keywords[${i}]`))
   lineShape(c, t.text, `${path}.text`)
   if (!aura) return
-  c.int(t.range, `${path}.range`, { min: 0 })
+  // range: the printed size; rangeText when it is not a number ("aura sight").
+  if (t.range === undefined) {
+    if (t.rangeText === undefined) c.fail(`${path}.range`, 'expected range, or rangeText for a size that is not a number')
+    else c.str(t.rangeText, `${path}.rangeText`, { nonEmpty: true })
+  } else {
+    c.int(t.range, `${path}.range`, { min: 0 })
+    c.optional(t, 'rangeText', path, () => c.fail(`${path}.rangeText`, 'rangeText only when the size is not a number'))
+  }
   // rangeIf: printed alternative sizes ("aura 2, or 3 while bloodied"), `if` as printed words.
   c.optional(t, 'rangeIf', path, (v, q) => list(c, v, q, (x, p) => {
     if (!c.obj(x, p)) return

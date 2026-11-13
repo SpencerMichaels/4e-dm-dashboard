@@ -37,13 +37,14 @@ const CONDITION_WORDS: Record<string, RegExp> = {
 const MOVE_WORDS: Record<string, RegExp> = {
   push: /\bpush/i, pull: /\bpull/i, slide: /\bslid(e|es|ing)?\b/i,
   shift: /\bshift/i, teleport: /\bteleport/i, swap: /\b(swap|switch|trade)/i,
-  fly: /\bfl(y|ies|ying|ew|own)\b/i, move: /\b(mov(e|es|ed|ing)|walk|jump|climb)/i,
+  fly: /\bfl(y|ies|ying|ew|own)\b/i, move: /\b(mov(e|es|ed|ing)|walk|jump|climb|burrow|swim)/i,
 }
 
 const STATUS_WORDS: Record<string, RegExp> = {
   insubstantial: /\binsubstantial/i,
   phasing: /\bphas(e|es|ing)\b/i,
   'no-provoke': /\bprovok/i,
+  'no-concealment': /\bconceal|\binvisib/i,
 }
 
 const SENSE_WORDS: Record<string, RegExp> = {
@@ -66,7 +67,14 @@ function checkStatWords(stat: string): RegExp | undefined {
   if (stat.startsWith('ability:')) return new RegExp(`\\b${ABILITY_NAMES[stat.slice(8)] ?? stat.slice(8)}`, 'i')
   if (stat === 'skill-checks') return /\bskill/i
   if (stat === 'ability-checks') return /\bability check/i
+  if (stat === 'initiative') return /\binitiative/i
   return undefined
+}
+
+/** The words of each speed clause mode ("gains a fly speed of 12", "fly 8 (hover)"). */
+const SPEED_WORDS: Record<string, RegExp> = {
+  walk: /\b(speed|walk)/i, fly: /\bfl(y|ies|ying|ight)\b/i, climb: /\bclimb/i, swim: /\bswim/i,
+  burrow: /\bburrow/i, teleport: /\bteleport/i, 'overland-flight': /\boverland flight/i,
 }
 
 const NUMBER_WORDS =['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten']
@@ -85,8 +93,10 @@ function hasDice(span: string, dice: string): boolean {
  * Why the spanned text does not support the clause, or undefined when it does.
  * `after` is the rest of the line after the span: a damage type may be the
  * trailing type word the print shares ("2d6 + 5 or 3d6 + 5 fire damage").
+ * `before` is the line before the span: a resistance quote may continue a list
+ * that "resist" opens earlier in its sentence ("resist 10 necrotic, 10 fire").
  */
-export function spanProblem(clause: Clause, span: string, after = ''): string | undefined {
+export function spanProblem(clause: Clause, span: string, after = '', before = ''): string | undefined {
   const s = span.toLowerCase()
   const has = (re: RegExp | string) => typeof re === 'string' ? s.includes(re) : re.test(span)
   /** The number as digits, or spelled out ("two squares"). */
@@ -94,6 +104,19 @@ export function spanProblem(clause: Clause, span: string, after = ''): string | 
   const num = (n: number) => numIn(n, span)
   const hasType = (t: string) => has(t) || after.toLowerCase().includes(t)
   const anyType = (types: string[] | undefined) => !types || types.some(hasType) || has(/one of|choice|choose|chosen/i)
+  /** The quote continues a comma list that `word` opens earlier in the sentence ("resist 10 necrotic, 10 fire"). */
+  const continuesList = (word: RegExp) => {
+    const sentence = before.split(/(?<=[.;!?])\s/).pop() ?? ''
+    return word.test(sentence) && /(,\s*|,?\s+(and|or)\s+)$/i.test(sentence)
+  }
+  // saveModifier: "(save ends, with a -2 penalty to the saving throw)", in the quote or later in its sentence.
+  const saveModifier = (clause as { saveModifier?: number }).saveModifier
+  if (typeof saveModifier === 'number') {
+    const sentence = span + after.split(/(?<=[.!?])\s/)[0]
+    if (!/saving throw/i.test(sentence) || !new RegExp(`(?<!\\d)${Math.abs(saveModifier)}\\s+(penalty|bonus)`, 'i').test(sentence)) {
+      return `no "${Math.abs(saveModifier)} ${saveModifier < 0 ? 'penalty' : 'bonus'} to the saving throw" for saveModifier in the span or the rest of its sentence`
+    }
+  }
   switch (clause.kind) {
     case 'damage':
       // The dice (or flat number) only, not the word "damage": in "2d8+10 plus
@@ -134,19 +157,20 @@ export function spanProblem(clause: Clause, span: string, after = ''): string | 
       }
       return undefined
     }
-    case 'resistance': return has('resist') ? undefined : 'no "resist" in span'
-    case 'vulnerability': return has('vulnerab') ? undefined : 'no "vulnerable" in span'
+    case 'resistance': return has('resist') || continuesList(/\bresist/i) ? undefined : 'no "resist" in span (or earlier in its comma list)'
+    case 'vulnerability': return has('vulnerab') || continuesList(/\bvulnerab/i) ? undefined : 'no "vulnerable" in span (or earlier in its comma list)'
     case 'heal': return has(/regain|heal|hit points|healing surge/i) ? undefined : 'no healing words in span ("regains", "hit points")'
     case 'temp-hp': return has('temporary') ? undefined : 'no "temporary" in span'
     case 'regeneration': return has('regenerat') || has('regain') ? undefined : 'no "regeneration" in span'
     case 'revive': return num(clause.hp) ? undefined : `hp ${clause.hp} not in span`
     case 'use-power': return has(clause.power.toLowerCase()) || has(/\battack|\buses?\b|\bmakes?\b/i) ? undefined : `power "${clause.power}" not in span`
-    case 'recharge-power': return has('recharge') ? undefined : 'no "recharge" in span'
+    case 'recharge-power': return has('recharg') ? undefined : 'no "recharge" in span'
     case 'lose-healing-surge': return has('surge') ? undefined : 'no "healing surge" in span'
     case 'concealment':
       if (!has(/conceal/i)) return 'no "concealment" in span'
       return !clause.total || has('total') ? undefined : 'no "total" in span'
-    case 'zone': return has(/\b(zone|cloud|wall)/i) ? undefined : 'no "zone" in span'
+    // The area word: "creates a zone", "an area of swirling sand", "a wall of fire".
+    case 'zone': return has(/\b(zone|cloud|wall|area|field|region)/i) ? undefined : 'no "zone", "area", "cloud", "wall", "field" or "region" in span'
     case 'saving-throw':
       if (!has(/\bsav(e|es|ing)\b/i)) return 'no "saving throw" in span'
       return clause.bonus === undefined || num(Math.abs(clause.bonus)) ? undefined : `bonus ${clause.bonus} not in span`
@@ -184,6 +208,11 @@ export function spanProblem(clause: Clause, span: string, after = ''): string | 
       if (!has(SENSE_WORDS[clause.sense] ?? clause.sense)) return clause.sense === 'see-invisible' ? 'no "see invisible" in span' : `no "${clause.sense}" in span`
       return clause.range === undefined || num(clause.range) ? undefined : `range ${clause.range} not in span`
     }
+    case 'speed': {
+      if (!has(SPEED_WORDS[clause.mode] ?? clause.mode)) return `no "${clause.mode}" in span`
+      for (const n of [clause.value, clause.change]) if (n !== undefined && !num(Math.abs(n))) return `${Math.abs(n)} not in span`
+      return !clause.hover || has('hover') ? undefined : 'no "hover" in span'
+    }
     // The options' own spans are checked by checkLineSpans.
     case 'choice': return has(/\b(or|either)\b/i) ? undefined : 'no "or" or "either" in span'
     case 'unparsed':
@@ -217,9 +246,10 @@ const ELLIPSIS = /…|\.\.\./
  * Problems with the clause's `if` and `unless` fragments: each must be an exact
  * printed fragment of the line, outside the clause's own span [a, b). A split
  * condition is a list of fragments, never one string joined with " ... "; an
- * inverted condition is `unless`, never a "not:" prefix.
+ * inverted condition is `unless`, never a "not:" prefix. A fragment may also
+ * come from `name`, the owning trait's, aura's or power's printed name.
  */
-export function fragmentProblems(cl: Clause, text: string, a: number, b: number): string[] {
+export function fragmentProblems(cl: Clause, text: string, a: number, b: number, name = ''): string[] {
   const out: string[] = []
   for (const key of ['if', 'unless'] as const) {
     const value = (cl as unknown as Record<string, unknown>)[key]
@@ -231,6 +261,8 @@ export function fragmentProblems(cl: Clause, text: string, a: number, b: number)
         continue
       }
       const found = findFragment(text, f)
+      // A condition printed in the owning trait's or aura's name ("Billowing Winds (while bloodied)").
+      if (found.length === 0 && name && findFragment(name, f).length > 0) continue
       if (found.length === 0) {
         out.push(ELLIPSIS.test(f)
           ? `${key} "${f}": do not join fragments with " ... "; give a list of exact printed fragments, ${key}: ["...", "..."]`
@@ -246,7 +278,7 @@ export function fragmentProblems(cl: Clause, text: string, a: number, b: number)
   return out
 }
 
-export function checkLineSpans(l: Line, path: string): Issue[] {
+export function checkLineSpans(l: Line, path: string, name = ''): Issue[] {
   const issues: Issue[] = []
   if (!l || typeof l.text !== 'string' || !Array.isArray(l.clauses)) return issues
   const check = (cl: Clause, p: string, lo: number, hi: number) => {
@@ -257,9 +289,9 @@ export function checkLineSpans(l: Line, path: string): Issue[] {
         : `span [${a}, ${b}) outside its choice's span [${lo}, ${hi})` })
       return
     }
-    const problem = spanProblem(cl, l.text.substring(a, b), l.text.substring(b))
+    const problem = spanProblem(cl, l.text.substring(a, b), l.text.substring(b), l.text.substring(0, a))
     if (problem) issues.push({ path: p, message: `${cl.kind}: ${problem} ("${l.text.substring(a, b)}")` })
-    for (const message of fragmentProblems(cl, l.text, a, b)) issues.push({ path: p, message })
+    for (const message of fragmentProblems(cl, l.text, a, b, name)) issues.push({ path: p, message })
     // A choice's option clauses lie inside its span and do not overlap each other.
     if (cl.kind === 'choice' && Array.isArray(cl.options)) {
       const seen: [number, number, string][] = []
@@ -284,13 +316,15 @@ export function checkLineSpans(l: Line, path: string): Issue[] {
 /** Walk any entry and check every Line (an object with string `text` and array `clauses`). */
 export function checkSpans(entry: unknown): Issue[] {
   const issues: Issue[] = []
-  const walk = (v: unknown, path: string) => {
-    if (Array.isArray(v)) { v.forEach((x, i) => walk(x, `${path}[${i}]`)); return }
+  // name: the nearest enclosing trait, aura or power name (if/unless fragments may come from it).
+  const walk = (v: unknown, path: string, name: string) => {
+    if (Array.isArray(v)) { v.forEach((x, i) => walk(x, `${path}[${i}]`, name)); return }
     if (typeof v !== 'object' || v === null) return
     const o = v as Record<string, unknown>
-    if (typeof o.text === 'string' && Array.isArray(o.clauses)) { issues.push(...checkLineSpans(o as unknown as Line, path)); return }
-    for (const [k, x] of Object.entries(o)) walk(x, `${path}.${k}`)
+    if (typeof o.text === 'string' && Array.isArray(o.clauses)) { issues.push(...checkLineSpans(o as unknown as Line, path, name)); return }
+    const own = path !== '$' && typeof o.name === 'string' ? o.name : name
+    for (const [k, x] of Object.entries(o)) walk(x, `${path}.${k}`, own)
   }
-  walk(entry, '$')
+  walk(entry, '$', '')
   return issues
 }

@@ -609,3 +609,79 @@ describe('schema v10', () => {
     expect(p(asleep, 'falls down')).toMatch(/unconscious/)
   })
 })
+
+describe('schema v11', () => {
+  const p = (cl: unknown, span: string, after = '', before = '') => spanProblem(cl as any, span, after, before)
+  const at = (q: string, text: string) => { const i = text.indexOf(q); return [i, i + q.length] }
+  const errors = (clauses: unknown[], text: string) => {
+    const m = monster()
+    m.powers[0].effect = { text, clauses } as any
+    return validateEntry('monsters', m).errors
+  }
+
+  it('accepts speed clauses and checks the mode word, number and hover', () => {
+    const fly = { kind: 'speed', mode: 'fly', value: 12, who: 'self', duration: { kind: 'encounter' } }
+    expect(p(fly, 'gains a fly speed of 12')).toBeUndefined()
+    expect(p({ ...fly, value: 8, hover: true }, 'gains fly 8 (hover)')).toBeUndefined()
+    expect(p({ ...fly, hover: true }, 'gains a fly speed of 12')).toMatch(/hover/)
+    expect(p({ ...fly, mode: 'climb', value: undefined }, 'gains a climb speed equal to its speed')).toBeUndefined()
+    expect(p({ ...fly, mode: 'swim' }, 'gains a fly speed of 12')).toMatch(/no "swim"/)
+    expect(p({ ...fly, value: 10 }, 'gains a fly speed of 12')).toMatch(/10 not in span/)
+    const text = 'The dragon gains a fly speed of 12 until the end of the encounter.'
+    expect(errors([{ at: at('gains a fly speed of 12 until the end of the encounter', text), ...fly }], text)).toEqual([])
+    const bad = errors([{ at: at('gains a fly speed of 12', text), ...fly, mode: 'jump', change: 2 }], text).map(e => e.message).join('\n')
+    expect(bad).toMatch(/"jump" is not one of/)
+    expect(bad).toMatch(/value or change, not both/)
+  })
+
+  it('accepts no-concealment, initiative and saveModifier', () => {
+    const status = { kind: 'status', status: 'no-concealment', who: 'target', duration: { kind: 'save-ends' } }
+    expect(p(status, 'cannot benefit from invisibility or concealment')).toBeUndefined()
+    expect(p(status, 'is blinded')).toMatch(/no-concealment/)
+    const init = { kind: 'modifier', stat: 'initiative', value: 2, who: 'allies-in-area', duration: { kind: 'permanent' } }
+    expect(p(init, '+2 power bonus to initiative')).toBeUndefined()
+    expect(p(init, '+2 power bonus to attack rolls')).toMatch(/initiative/)
+    const dominated = { kind: 'condition', condition: 'dominated', who: 'target', duration: { kind: 'save-ends' }, saveModifier: -2 }
+    expect(p(dominated, 'dominated (save ends, with a -2 penalty to the saving throw)')).toBeUndefined()
+    expect(p(dominated, 'dominated (save ends', '; the target takes a -2 penalty to the saving throw). Next.')).toBeUndefined()
+    expect(p(dominated, 'dominated (save ends)')).toMatch(/saveModifier/)
+    expect(p({ ...dominated, saveModifier: -4 }, 'dominated (save ends, with a -2 penalty to the saving throw)')).toMatch(/4 penalty/)
+    const text = 'The target is dominated (save ends, with a -2 penalty to the saving throw).'
+    expect(errors([{ at: at('dominated (save ends, with a -2 penalty to the saving throw)', text), ...dominated, saveModifier: 0 }], text)
+      .map(e => e.message)).toContain('expected a non-zero modifier')
+  })
+
+  it('accepts area words for zones and comma-listed resistances', () => {
+    const zone = { kind: 'zone', duration: { kind: 'turn-end', whose: 'source', next: true } }
+    for (const q of ['creates an area of swirling sand', 'a field of grasping vines', 'the cloud', 'a wall of fire']) expect(p(zone, q), q).toBeUndefined()
+    expect(p(zone, 'creates swirling sand')).toMatch(/no "zone"/)
+    const res = { kind: 'resistance', type: 'fire', value: 10, who: 'self', duration: { kind: 'permanent' } }
+    expect(p(res, '10 fire', ', 10 acid.', 'The golem gains resist 10 necrotic, ')).toBeUndefined()
+    expect(p(res, '10 fire', '.', 'The golem gains resist 10 necrotic, 10 cold, and ')).toBeUndefined()
+    expect(p(res, '10 fire', '.', 'The golem gains resist 10 necrotic. It takes ')).toMatch(/resist/)
+    expect(p({ ...res, kind: 'vulnerability' }, '5 cold', '.', 'It gains vulnerable 5 fire, ')).toBeUndefined()
+    const text = 'The golem gains resist 10 necrotic, 10 fire, 10 acid until the end of its next turn.'
+    const dur = { kind: 'turn-end', whose: 'source', next: true }
+    expect(errors(['resist 10 necrotic', '10 fire', '10 acid'].map((q, i) =>
+      ({ at: at(q, text), kind: 'resistance', type: ['necrotic', 'fire', 'acid'][i], value: 10, who: 'self', duration: dur })), text)).toEqual([])
+  })
+
+  it('accepts "recharging", burrowing moves and if fragments from the trait or aura name', () => {
+    expect(p({ kind: 'recharge-power', power: 'breath weapon' }, 'recharging its breath weapon')).toBeUndefined()
+    expect(p({ kind: 'move', move: 'move', squares: 6, who: 'self' }, 'burrows 6 squares')).toBeUndefined()
+    const text = 'Enemies in the aura take a -2 penalty to attack rolls against the necrosphinx.'
+    const mod = { at: at('-2 penalty to attack rolls', text), kind: 'modifier', stat: 'attack', value: -2, who: 'enemies-in-area', duration: { kind: 'while-in-aura' } }
+    const aura = (name: string, clauses: unknown[]) => monster({ auras: [{ name, keywords: [], range: 3, text: { text, clauses } }] as any })
+    const ok = aura('Billowing Winds (while bloodied)', [{ ...mod, if: ['while bloodied', 'against the necrosphinx'] }])
+    expect(validateEntry('monsters', ok).errors).toEqual([])
+    const missing = aura('Billowing Winds', [{ ...mod, if: 'while bloodied' }])
+    expect(validateEntry('monsters', missing).errors.map(e => e.message).join('\n')).toMatch(/not in the line text/)
+  })
+
+  it('accepts an aura size that is not a number as rangeText', () => {
+    const aura = (over: Record<string, unknown>) => monster({ auras: [{ name: 'Lolth\'s Authority', keywords: [], text: { text: 'Allies gain a bonus.', clauses: [] }, ...over }] as any })
+    expect(validateEntry('monsters', aura({ rangeText: 'sight' })).errors).toEqual([])
+    expect(validateEntry('monsters', aura({})).errors.map(e => e.message)).toEqual(['expected range, or rangeText for a size that is not a number'])
+    expect(validateEntry('monsters', aura({ range: 5, rangeText: 'sight' })).errors.map(e => e.message)).toEqual(['rangeText only when the size is not a number'])
+  })
+})

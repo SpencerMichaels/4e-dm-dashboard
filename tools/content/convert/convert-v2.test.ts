@@ -276,3 +276,36 @@ describe('schema v7', () => {
     expect(auraRangeIf('Aura 5')).toBeUndefined()
   })
 })
+
+describe('schema v11', () => {
+  const head = "<h1 class=monster>Drow Priest<br><span class=type>Medium fey humanoid</span><br><span class=level>Level 15 Controller<span class=xp> XP 1,200</span></span></h1>"
+  const stats = (auras: string) => `<p class=flavor><b>Initiative</b> +10 <b>Senses</b> Perception +12; darkvision<br>${auras}<br><b>HP</b> 140; <b>Bloodied</b> 70<br><b>AC</b> 29; <b>Fortitude</b> 26, <b>Reflex</b> 27, <b>Will</b> 28<br><b>Speed</b> 6</p>`
+  const tail = "<p class=flavor><b>Str</b> 12 (+8) <b>Dex</b> 15 (+9) <b>Wis</b> 19 (+11)<br><b>Con</b> 14 (+9) <b>Int</b> 13 (+8) <b>Cha</b> 16 (+10)</p><p class=publishedIn>Published in Monster Manual, page(s) 94.</p>"
+
+  it('reads stat-block auras with keywords, a printed condition or a size that is not a number', () => {
+    const html = head + stats("<b>Stench</b> (Poison) aura 2; enemies within the aura take a –2 penalty to attack rolls.<br><b>Billowing Winds</b> (while bloodied) aura 3; enemies in the aura are slowed.<br><b>Lolth's Authority</b> aura sight; drow allies gain a +1 bonus to attack rolls.") + tail
+    const m = convertMonster('monster1', parseMonsterHtml(html, [], { printed: true }), ctx)
+    expect(m.auras.map(a => [a.name, a.keywords, a.range, a.rangeText])).toEqual([
+      ['Stench', ['poison'], 2, undefined],
+      ['Billowing Winds (while bloodied)', [], 3, undefined],
+      ["Lolth's Authority", [], undefined, 'sight'],
+    ])
+  })
+
+  it('reads a recharge whose usage parenthesis is cut off after the die', () => {
+    const html = head + stats('') + "<p class='flavor alt'>➶ <b>Dominating Gaze</b> (minor, recharge ⚅</p><p class=flavorIndent>Ranged 5; +18 vs Will; the target is dominated (save ends, with a -2 penalty to the saving throw).</p>" + tail
+    const m = convertMonster('monster1', parseMonsterHtml(html, [], { printed: true }), ctx)
+    const gaze = m.powers.find(p => p.name === 'Dominating Gaze')!
+    expect([gaze.action, gaze.usage, gaze.recharge]).toEqual(['minor', 'recharge', { kind: 'roll', min: 6 }])
+    expect(gaze.attacks[0].hit?.clauses).toMatchObject([{ kind: 'condition', condition: 'dominated', saveModifier: -2 }])
+  })
+
+  it('does not read "requires a free hand" or "sustain minor" as the action', () => {
+    const html = head + stats('') + "<p class='flavor alt'>⚔ <b>Claw</b> (standard; requires a free hand, at-will)</p><p class=flavorIndent>+18 vs AC; 2d6+5 damage.</p><p class='flavor alt'>➶ <b>Grasping Tendrils</b> (standard; sustain minor, encounter)</p><p class=flavorIndent>Ranged 10; +16 vs Reflex; the target is restrained (save ends).</p>" + tail
+    const m = convertMonster('monster1', parseMonsterHtml(html, [], { printed: true }), ctx)
+    expect(m.powers.map(p => [p.name, p.action, p.usage, p.sustain?.action])).toEqual([
+      ['Claw', 'standard', 'at-will', undefined],
+      ['Grasping Tendrils', 'standard', 'encounter', 'minor'],
+    ])
+  })
+})

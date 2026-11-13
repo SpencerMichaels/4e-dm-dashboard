@@ -146,7 +146,7 @@ function convertTrait(a: any): Trait {
 }
 
 function convertAura(a: any): Aura {
-  return { name: a.name, keywords: lowerKeywords(a.keywords), text: line(a.printed?.text ?? a.effect ?? ''), range: a.auraRange ?? 1, ...(a.auraRangeIf ? { rangeIf: a.auraRangeIf } : {}) }
+  return { name: a.name, keywords: lowerKeywords(a.keywords), text: line(a.printed?.text ?? a.effect ?? ''), ...(a.auraRangeText ? { rangeText: a.auraRangeText } : { range: a.auraRange ?? 1 }), ...(a.auraRangeIf ? { rangeIf: a.auraRangeIf } : {}) }
 }
 
 export function convertPower(a: any, notes: Notes): Power {

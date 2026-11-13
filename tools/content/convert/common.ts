@@ -303,26 +303,34 @@ export function damageClauses(text: string, parts: DamagePartIn[]): Clause[] {
   return clauses
 }
 
+/** "(save ends)", or with a saving throw penalty: "(save ends, with a -2 penalty to the saving throw)" (group 1: "-2"). */
+const SAVE_ENDS = String.raw`\(save ends(?:[,;]? (?:with a |the target takes a )?([-–−]\d+) penalty (?:to|on) (?:the|this) saving throw)?\)`
+
+/** The saveModifier field for a SAVE_ENDS match's penalty group. */
+function saveModifier(penalty: string | undefined): { saveModifier?: number } {
+  return penalty ? { saveModifier: -parseInt(penalty.replace(/^[-–−]/, '')) } : {}
+}
+
 /**
- * Exact "(save ends)" patterns about the target:
+ * Exact "(save ends)" patterns about the target (with a printed saving throw penalty as saveModifier):
  *   "ongoing 5 fire damage (save ends)" after the attack's damage or dice ("1d10+6 and ongoing 5 ...") or "the target takes"
  *   "the target is dazed (save ends)"
  */
 export function saveEndsClauses(text: string): Clause[] {
   const clauses: Clause[] = []
-  const ongoing = new RegExp(`(?:^|(?:damage|\\dd\\d+(?:\\s*[+-]\\s*\\d+)?),?\\s+(?:and|plus)\\s+|the target takes\\s+)(ongoing (\\d+) (?:(${TYPE_ALT}) )?damage \\(save ends\\))`, 'gi')
+  const ongoing = new RegExp(`(?:^|(?:damage|\\dd\\d+(?:\\s*[+-]\\s*\\d+)?),?\\s+(?:and|plus)\\s+|the target takes\\s+)(ongoing (\\d+) (?:(${TYPE_ALT}) )?damage ${SAVE_ENDS})`, 'gi')
   for (const m of text.matchAll(ongoing)) {
     const start = m.index! + m[0].length - m[1].length
     clauses.push({
       at: [start, start + m[1].length], kind: 'ongoing-damage', amount: parseInt(m[2]),
-      types: m[3] ? [m[3].toLowerCase() as DamageType] : [], who: 'target', duration: { kind: 'save-ends' },
+      types: m[3] ? [m[3].toLowerCase() as DamageType] : [], who: 'target', duration: { kind: 'save-ends' }, ...saveModifier(m[4]),
     })
   }
-  const cond = new RegExp(`\\bthe target is (${CONDITION_ALT}) \\(save ends\\)`, 'gi')
+  const cond = new RegExp(`\\bthe target is (${CONDITION_ALT}) ${SAVE_ENDS}`, 'gi')
   for (const m of text.matchAll(cond)) {
     const condition = m[1].toLowerCase()
     if (!isOneOf(CONDITION_IDS, condition)) continue
-    clauses.push({ at: [m.index!, m.index! + m[0].length], kind: 'condition', condition, who: 'target', duration: { kind: 'save-ends' } })
+    clauses.push({ at: [m.index!, m.index! + m[0].length], kind: 'condition', condition, who: 'target', duration: { kind: 'save-ends' }, ...saveModifier(m[2]) })
   }
   return clauses.sort((a, b) => a.at[0] - b.at[0])
 }

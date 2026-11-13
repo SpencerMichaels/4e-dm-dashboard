@@ -463,8 +463,10 @@ function parseOneAbility(headerHtml: string, bodyBlocks: string[], sectionDefaul
   const headerKw = cleanHeaderKeywords(hasStarKeywords ? bolds.slice(1) : [])
   const keywords = headerKw.keywords
 
-  // Parse action paren
+  // Parse action paren. Some prints cut it off after the recharge die
+  // ("(minor, recharge ⚅" with no closing paren): read it to the end.
   const parenMatch = afterIcon.match(/\(([^)]+)\)/)
+    ?? afterIcon.match(/\(([^()]*\b(?:standard|minor|move|free|immediate|encounter|at-will|recharge|daily)\b[^()]*)$/i)
   const actionParen = parenMatch?.[1] ?? ''
   const parsed = parseActionParen(actionParen)
   let { actionType, usage: finalUsage, trigger, requirement, sustain, rechargeCondition, parenKeywords, unrecognized } = parsed
@@ -531,7 +533,7 @@ function parseOneAbility(headerHtml: string, bodyBlocks: string[], sectionDefaul
   }
 
   // Use section header for action type if paren didn't specify
-  const parenHasAction = /\b(standard|minor|move|free|immediate|encounter|at-will|recharge|daily)\b/i.test(actionParen)
+  const parenHasAction = /\b(standard|minor|move|free|immediate|encounter|at-will|recharge|daily)\b/i.test(actionWords(actionParen))
   if (actionType === 'standard' && !parenHasAction && sectionDefault !== 'standard') {
     if (sectionDefault === 'triggered') {
       if (actionType === 'standard') actionType = 'free'
@@ -837,20 +839,28 @@ export function parseSavingThrows(text: string): { bonus: number; notes?: string
 }
 
 // ─── Parse auras from the stats <p class=flavor> HTML ───
+// "<b>Stench</b> (Poison) aura 2; ...": the parenthesis holds keywords, or a
+// condition that stays in the name ("Billowing Winds (while bloodied)"). A size
+// that is not a number ("aura sight") is auraRangeText.
 function parseAurasFromStatsHtml(statsHtml: string, printed = false): any[] {
   const results: any[] = []
-  const auraRegex = /<b>([^<]+)<\/b>\s*aura\s+(\d+)\s*;\s*(.+?)(?=<br|<\/p|$)/gi
+  const auraRegex = /<b>([^<]+)<\/b>\s*(?:\(([^)<]*)\)\s*)?aura\s+(\d+|[a-z]+)\s*;\s*(.+?)(?=<br|<\/p|$)/gi
   let m
   while ((m = auraRegex.exec(statsHtml)) !== null) {
-    const name = m[1].trim()
+    let name = m[1].trim()
     if (['HP', 'AC', 'Initiative', 'Perception', 'Speed', 'Immune', 'Resist'].includes(name)) continue
+    const paren = (m[2] ?? '').trim()
+    const condition = /\b(while|when|only|until|unless|bloodied)\b/i.test(paren)
+    if (paren && condition) name = `${name} (${paren})`
+    const keywords = paren && !condition ? paren.split(/\s*,\s*/).filter(Boolean) : []
+    const size = /^\d+$/.test(m[3]) ? { auraRange: parseInt(m[3]) } : { auraRangeText: m[3] }
     results.push({
       name, entryType: 'aura', actionType: '', usage: '',
-      keywords: [], rangeType: '', rangeValue: '', target: '',
+      keywords, rangeType: '', rangeValue: '', target: '',
       attackBonus: null, attackNotes: '', defense: '', damage: [],
-      hit: '', miss: '', effect: stripHtml(m[3]).substring(0, 250),
-      trigger: '', requirement: '', sustain: '', auraRange: parseInt(m[2]),
-      ...(printed ? { printed: { text: stripHtml(m[3]) } } : {}),
+      hit: '', miss: '', effect: stripHtml(m[4]).substring(0, 250),
+      trigger: '', requirement: '', sustain: '', ...size,
+      ...(printed ? { printed: { text: stripHtml(m[4]) } } : {}),
     })
   }
   return results
@@ -1147,15 +1157,21 @@ interface ParsedParen {
   unrecognized: string[]
 }
 
+/** The paren without words that name an action but are not the power's action: "sustain minor", "requires a free hand". */
+function actionWords(paren: string): string {
+  return paren.toLowerCase().replace(/\bsustain\s+\w+/g, '').replace(/\bfree hands?\b/g, '')
+}
+
 function parseActionParen(str: string): ParsedParen {
   const lower = str.toLowerCase()
-  const hasActionKeyword = /\b(standard|minor|move|free|immediate interrupt|immediate reaction|no action)\b/i.test(lower)
+  const action = actionWords(str)
+  const hasActionKeyword = /\b(standard|minor|move|free|immediate interrupt|immediate reaction|no action)\b/i.test(action)
   let actionType = 'standard'
-  if (lower.match(/\bminor\b/)) actionType = 'minor'
-  else if (lower.match(/\bmove\b/)) actionType = 'move'
-  else if (lower.match(/\bfree\b/)) actionType = 'free'
-  else if (lower.includes('immediate interrupt')) actionType = 'immediate-interrupt'
-  else if (lower.includes('immediate reaction')) actionType = 'immediate-reaction'
+  if (action.match(/\bminor\b/)) actionType = 'minor'
+  else if (action.match(/\bmove\b/)) actionType = 'move'
+  else if (action.match(/\bfree\b/)) actionType = 'free'
+  else if (action.includes('immediate interrupt')) actionType = 'immediate-interrupt'
+  else if (action.includes('immediate reaction')) actionType = 'immediate-reaction'
   // If paren has a trigger but no explicit action type, it's a triggered free action
   else if (!hasActionKeyword && /\bwhen\b/i.test(lower)) actionType = 'free'
 
