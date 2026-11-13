@@ -1,3 +1,4 @@
+import { LocationTraps } from './LocationTraps'
 import { useState, useEffect, useRef, useCallback } from 'react'
 import type { MapData, MapPin, Location } from '@common/types'
 import { useCampaignStore } from '../../stores/campaign-store'
@@ -517,6 +518,9 @@ function LocationSidebar({ location, locationNameRef, encounters, onNameChange, 
             }}
           />
         </div>
+
+        <LocationTraps traps={location.traps ?? []} onChange={traps => onSave({ ...location, traps: traps.length ? traps : undefined })}
+          label={<span style={{ display: 'block', fontSize: 'var(--font-size-sm)', color: 'var(--color-text-secondary)', marginBottom: 'var(--space-1)' }}>Traps</span>} />
 
         {/* Encounters */}
         <div>

@@ -4,6 +4,10 @@
   "private": true,
   "main": "./out/main/index.js",
   "scripts": {
+    "authoring": "tsx --tsconfig tsconfig.node.json tools/authoring/cli.ts",
+    "test:authoring:ui": "FOUR_E_HIDDEN_WINDOWS=1 electron tools/authoring/smoke-electron.cjs --ozone-platform=wayland --no-sandbox",
+    "test:compendium:ui": "FOUR_E_HIDDEN_WINDOWS=1 electron tools/ui-smoke/compendium-smoke.cjs --ozone-platform=wayland --no-sandbox",
+    "test:combat:ui": "FOUR_E_HIDDEN_WINDOWS=1 electron tools/ui-smoke/combat-smoke.cjs --ozone-platform=wayland --no-sandbox",
     "dev": "electron-vite dev",
     "build": "electron-vite build",
     "preview": "electron-vite preview",
@@ -22,6 +26,7 @@
   },
   "dependencies": {
     "@fontsource/eb-garamond": "^5.3.0",
+    "@modelcontextprotocol/sdk": "^1.32.2",
     "@tiptap/extension-link": "^2.11.0",
     "@tiptap/extension-placeholder": "^2.11.0",
     "@tiptap/pm": "^2.11.0",

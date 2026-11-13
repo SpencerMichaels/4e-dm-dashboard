@@ -60,9 +60,10 @@ RUN SNIPPET="export PROMPT_COMMAND='history -a' && export HISTFILE=/commandhisto
 
 ENV DEVCONTAINER=true
 
-# Create workspace and Codex profile directories
-RUN mkdir -p /workspace /home/node/.codex && \
-  chown -R node:node /workspace /home/node/.codex
+# Create workspace, Codex profile and app user-data directories (the last two are
+# volume mount points; a new named volume copies this ownership).
+RUN mkdir -p /workspace /home/node/.codex /home/node/.config/4e-dm-dashboard && \
+  chown -R node:node /workspace /home/node/.codex /home/node/.config
 
 WORKDIR /workspace
 

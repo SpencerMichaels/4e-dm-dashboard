@@ -6,6 +6,7 @@ import { useHotkeys } from '../../hooks/use-hotkeys'
 import { CreatureImageEditor } from '../shared/CreatureImageEditor'
 import { ConfirmDialog } from '../shared/ConfirmDialog'
 import { CLASS_MARKS } from '../../../common/rules/class-marks'
+import { PcDiseases } from './PcDiseases'
 
 export function PCListView() {
   const playerCharacters = useCampaignStore((s) => s.playerCharacters)
@@ -77,6 +78,8 @@ export function PCListView() {
           ))}
         </div>
       )}
+
+      {playerCharacters.length > 0 && <PcDiseases pcs={playerCharacters} onSave={savePC} />}
     </div>
   )
 }
@@ -214,6 +217,9 @@ function PCCard({ pc, onSave, onDelete }: PCCardProps) {
             fieldSizing: 'content' as any,
           }}
         />
+        {(pc.diseases?.length ?? 0) > 0 && (
+          <span title={`${pc.diseases?.length} disease(s): see Diseases below`} style={{ fontSize: 11 }}>🦠{pc.diseases?.length}</span>
+        )}
         <span style={{ flex: 1 }} />
         <select
           value={pc.markType ?? ''}

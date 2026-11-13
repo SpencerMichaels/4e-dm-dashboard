@@ -49,6 +49,9 @@ export function HomeView() {
       <h1 style={{ fontSize: 'var(--font-size-2xl)', marginBottom: 'var(--space-6)' }}>
         4e DM Dashboard
       </h1>
+      <p style={{ color: 'var(--color-text-secondary)', marginBottom: 'var(--space-4)' }}>
+        No campaign is open. {campaigns.length > 0 ? 'Open one below or create a new one' : 'Create one to start'}: notes, encounters, the compendium pages and Workshop saves all belong to a campaign.
+      </p>
 
       {creating ? (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>

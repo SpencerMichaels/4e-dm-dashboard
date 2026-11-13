@@ -1,10 +1,11 @@
 import { ipcMain } from 'electron'
 import { CMD, SYNC } from '@common/ipc-channels'
-import type { AppliedCondition, AppliedEffect, Encounter, Location } from '@common/types'
+import type { AppliedCondition, AppliedEffect, Encounter, EncounterCreature, Location } from '@common/types'
 import * as engine from '../combat/combat-engine'
 import { getActiveCampaignId, getEntity } from '../data/campaign-store'
 import { broadcastToAll, broadcastToPlayer, getPlayerWindow, createPlayerWindow } from '../windows'
 import { setCurrentScene } from './system-handlers'
+import { campaignSources, encounterCombatants, resolveRow, type RowTheme } from '../combat/encounter-combatants'
 
 function handlePostResolve(): void {
   const state = engine.getCombatState()
@@ -58,6 +59,8 @@ export function registerCombatHandlers(): void {
     let backgroundImageId: string | undefined
     if (encounterId) {
       const encounter = await getEntity<Encounter>('encounter', encounterId)
+      // The encounter's creatures join as kit monsters with the encounter's adjustments applied.
+      if (encounter) for (const c of encounterCombatants(encounter, await campaignSources(encounter.locationId))) engine.addCombatant(c)
       if (encounter?.backgroundImageId) {
         backgroundImageId = encounter.backgroundImageId
       } else if (encounter?.locationId) {
@@ -157,4 +160,8 @@ export function registerCombatHandlers(): void {
   withBroadcast(CMD.COMBAT_UPDATE_COMBATANT, (id: string, updates: any) => engine.updateCombatant(id, updates))
   withBroadcast(CMD.COMBAT_USE_POWER, (id: string, idx: number) => engine.usePower(id, idx))
   withBroadcast(CMD.COMBAT_UNUSE_POWER, (id: string, idx: number) => engine.unusePower(id, idx))
+
+  // The encounter editor's preview of a row: the adjusted kit monster and what each adjustment changed.
+  ipcMain.handle(CMD.COMBAT_PREVIEW_ROW, async (_e, row: EncounterCreature, theme?: RowTheme) =>
+    resolveRow(row, await campaignSources(), theme === undefined ? row.monsterTheme : theme))
 }

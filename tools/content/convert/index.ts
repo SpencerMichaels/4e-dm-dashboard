@@ -4,32 +4,23 @@
 // Run: CONTENT_REPO=/path/to/4e-content npm run content:convert
 //   (CONTENT_REV overrides the git short hash recorded in provenance.by)
 //
-// Monsters are re-parsed from content/raw with the parser's `printed` option
-// (the printed text of each line goes into Line.text), and traps are
-// re-parsed from content/raw (trait text and extra labeled lines); items and
-// diseases come from content/parsed, with the raw item HTML for the tier
-// heading. Files whose provenance.origin is not 'parser' (agent or human
-// edits) are never overwritten.
+// Each kind's inputs are in published.ts (monsters and traps re-parsed from
+// content/raw, items and diseases from content/parsed). Files whose
+// provenance.origin is not 'parser' (agent or human edits) are never
+// overwritten.
 
 import { execSync } from 'child_process'
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs'
 import { join } from 'path'
 import type { Provenance } from '@kit'
-import { parseMonsterHtml } from '../html-parser'
-import { parseTrapHtml } from '../trap-parser'
 import { MONSTER_TEMPLATES } from '../../../src/renderer/components/creature/monster-templates'
 import { MONSTER_THEMES } from '../../../src/renderer/components/creature/monster-themes'
 import type { ConvertContext } from './common'
-import { convertDisease } from './disease'
-import { convertItem } from './item'
-import { convertMonster } from './monster'
+import { publishedEntries } from './published'
 import { convertTemplate, convertTheme } from './template'
-import { convertTrap } from './trap'
 
 const ROOT = join(__dirname, '..', '..', '..')
 const CONTENT = join(ROOT, 'content')
-
-const RAW_ITEM_FILES = ['item.json', 'weapon.json', 'armor.json', 'implement.json', 'ritual.json']
 
 export const CONTENT_DIRS =['monsters', 'items', 'traps', 'diseases', 'templates', 'themes'] as const
 export type ContentDir = (typeof CONTENT_DIRS)[number]
@@ -59,11 +50,7 @@ export function writeEntry(repo: string, dir: ContentDir, id: string, entry: unk
   return true
 }
 
-function readJson<T>(file: string): T {
-  return JSON.parse(readFileSync(join(CONTENT, file), 'utf-8')) as T
-}
-
-function main() {
+async function main() {
   const repo = process.env.CONTENT_REPO ?? process.argv[2]
   if (!repo) throw new Error('Set CONTENT_REPO (or pass the content repo path)')
   for (const dir of CONTENT_DIRS) mkdirSync(join(repo, dir), { recursive: true })
@@ -87,20 +74,10 @@ function main() {
     }
   }
 
-  const rawMonsters = readJson<Record<string, string>>('raw/monsters.json')
-  run('monsters', Object.keys(rawMonsters).sort().map(id => [id, () => {
-    const warnings: string[] = []
-    const creature: any = parseMonsterHtml(rawMonsters[id], warnings, { printed: true })
-    if (warnings.length > 0) creature.statBlock._importWarnings = warnings
-    return convertMonster(id, creature, ctx)
-  }]))
-  const items = readJson<Record<string, any>>('parsed/items.json')
-  const rawItems: Record<string, string> = Object.assign({}, ...RAW_ITEM_FILES.map(f => readJson<Record<string, string>>(`raw/${f}`)))
-  run('items', Object.keys(items).sort().map(id => [id, () => convertItem(id, items[id], ctx, rawItems[id])]))
-  const rawTraps = readJson<Record<string, string>>('raw/trap.json')
-  run('traps', Object.keys(rawTraps).sort().map(id => [id, () => convertTrap(id, parseTrapHtml(rawTraps[id]), ctx)]))
-  const diseases = readJson<Record<string, any>>('parsed/diseases.json')
-  run('diseases', Object.keys(diseases).sort().map(id => [id, () => convertDisease(id, diseases[id], ctx)]))
+  run('monsters', await publishedEntries(CONTENT, 'monster', ctx))
+  run('items', await publishedEntries(CONTENT, 'item', ctx))
+  run('traps', await publishedEntries(CONTENT, 'trap', ctx))
+  run('diseases', await publishedEntries(CONTENT, 'disease', ctx))
   run('templates', MONSTER_TEMPLATES.map(t => [convertTemplate(t, ctx).id, () => convertTemplate(t, ctx)]))
   run('themes', MONSTER_THEMES.map(t => [convertTheme(t, ctx).id, () => convertTheme(t, ctx)]))
 
@@ -110,4 +87,4 @@ function main() {
   }
 }
 
-if (require.main === module) main()
+if (require.main === module) main().catch(e => { console.error(e); process.exit(1) })

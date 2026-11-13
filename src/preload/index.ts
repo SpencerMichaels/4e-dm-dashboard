@@ -6,6 +6,7 @@ import type {
   CombatantState,
   CombatState,
   CompendiumAnnotation,
+  EncounterCreature,
   EntityType,
   Note,
   NoteTreeNode,
@@ -17,6 +18,14 @@ import type { ThemePreference } from '@kit/theme'
 // DM preload — full API: commands + sync
 
 const api = {
+  authoring: {
+    call: (method: string, args: Record<string, unknown> = {}): Promise<any> => ipcRenderer.invoke(CMD.AUTHORING_CALL, method, args),
+    onChange: (callback: (event: { draft?: import('../common/authoring/types').Draft; open?: string }) => void) => {
+      const handler = (_event: Electron.IpcRendererEvent, value: { draft?: import('../common/authoring/types').Draft; open?: string }) => callback(value)
+      ipcRenderer.on(SYNC.AUTHORING, handler)
+      return () => { ipcRenderer.removeListener(SYNC.AUTHORING, handler) }
+    },
+  },
   // Campaign commands
   campaign: {
     create: (name: string) => ipcRenderer.invoke(CMD.CAMPAIGN_CREATE, name),
@@ -80,6 +89,9 @@ const api = {
     removeEffect: (combatantId: string, effectId: string) =>
       ipcRenderer.invoke(CMD.COMBAT_REMOVE_EFFECT, combatantId, effectId),
     addCombatant: (combatant: CombatantState) => ipcRenderer.invoke(CMD.COMBAT_ADD_COMBATANT, combatant),
+    /** The encounter editor's preview of a row (null theme: none; omitted: the row's own). */
+    previewRow: (row: EncounterCreature, theme?: { name: string; attackPower: string; utilityPower: string; skillChoice?: number } | null) =>
+      ipcRenderer.invoke(CMD.COMBAT_PREVIEW_ROW, row, theme),
     removeCombatant: (combatantId: string) => ipcRenderer.invoke(CMD.COMBAT_REMOVE_COMBATANT, combatantId),
     updateCombatant: (combatantId: string, updates: Partial<CombatantState>) =>
       ipcRenderer.invoke(CMD.COMBAT_UPDATE_COMBATANT, combatantId, updates),
@@ -101,6 +113,7 @@ const api = {
   settings: {
     get: () => ipcRenderer.invoke(CMD.SETTINGS_GET) as Promise<AppSettings>,
     setTheme: (theme: ThemePreference) => ipcRenderer.invoke(CMD.SETTINGS_SET_THEME, theme) as Promise<AppSettings>,
+    dismissTip: (id: string) => ipcRenderer.invoke(CMD.SETTINGS_DISMISS_TIP, id) as Promise<AppSettings>,
   },
 
   // Links
@@ -134,6 +147,8 @@ const api = {
     trapGet: (trapId: string) => ipcRenderer.invoke(CMD.COMPENDIUM_TRAP_GET, trapId),
     diseaseIndex: () => ipcRenderer.invoke(CMD.COMPENDIUM_DISEASE_INDEX),
     diseaseGet: (diseaseId: string) => ipcRenderer.invoke(CMD.COMPENDIUM_DISEASE_GET, diseaseId),
+    kitGet: (kind: 'item' | 'trap' | 'disease' | 'template' | 'theme', id: string) => ipcRenderer.invoke(CMD.COMPENDIUM_KIT_GET, kind, id),
+    kitIndex: (kind: 'template' | 'theme') => ipcRenderer.invoke(CMD.COMPENDIUM_KIT_INDEX, kind),
   },
 
   // Scene

@@ -14,6 +14,11 @@ describe('normalizeAppSettings', () => {
     expect(normalizeAppSettings({ theme: 'dark' }).theme).toBe('dark')
   })
 
+  it('keeps dismissed tips as unique strings', () => {
+    expect(normalizeAppSettings({ dismissedTips: ['workshop-intro', 'workshop-intro', 3, null] }).dismissedTips).toEqual(['workshop-intro'])
+    expect(normalizeAppSettings({ dismissedTips: 'workshop-intro' }).dismissedTips).toEqual([])
+  })
+
   it('replaces an unknown theme with the default', () => {
     expect(normalizeAppSettings({ theme: 'solarized' }).theme).toBe('system')
   })

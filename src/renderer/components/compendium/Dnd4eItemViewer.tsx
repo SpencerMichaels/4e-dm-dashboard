@@ -1,5 +1,6 @@
 import { useState, type ReactNode } from 'react'
 import { PowerCardView } from '../creature/PowerCardView'
+import { Annotation } from '../creature/annotations'
 import { capitalize } from '@common/utils/format'
 import '../creature/statblock.css'
 
@@ -106,22 +107,26 @@ export function Dnd4eItemViewer({ item, tooltip: tip, onSelectItem }: { item: Pa
             levelLabel ? levelLabel : null
           )}
         </span>
+        <Annotation anchor={{ kind: 'stat', key: 'item-header' }} />
       </div>
       <div className="sb-subheader">
         <span>{item.slot || CAT_LABELS[item.category] || item.category}{item.itemType && `: ${item.itemType}`}</span>
         {displayPrice && <span>{displayPrice}</span>}
+        <Annotation anchor={{ kind: 'stat', key: 'item-type' }} />
       </div>
 
       {/* Flavor / description */}
       {item.flavor && (
         <div style={{ padding: '4px 8px', fontStyle: 'italic', color: 'var(--color-text-secondary)', fontSize: 11 }}>
           {item.flavor}
+          <Annotation anchor={{ kind: 'stat', key: 'item-text' }} />
         </div>
       )}
 
       {/* Weapon/implement stats */}
       {(item.damage || item.proficiency || item.weight || item.group) && (
         <div className="sb-section">
+          <Annotation anchor={{ kind: 'stat', key: 'item-stats' }} />
           {(item.damage || item.proficiency || item.range || item.weight) && (
             <div className="sb-row">
               <span>{joinSemicolon([
@@ -143,6 +148,7 @@ export function Dnd4eItemViewer({ item, tooltip: tip, onSelectItem }: { item: Pa
       {/* Ritual stats */}
       {item.category === 'ritual' && (
         <div className="sb-section">
+          <Annotation anchor={{ kind: 'stat', key: 'item-stats' }} />
           <div className="sb-row">
             <span>{joinSemicolon([
               item.componentCost && <span key="cost"><b className="sb-label">Component Cost</b> {item.componentCost}</span>,
@@ -161,6 +167,7 @@ export function Dnd4eItemViewer({ item, tooltip: tip, onSelectItem }: { item: Pa
       {/* Alchemical item stats */}
       {item.alchemicalType && (
         <div className="sb-section">
+          <Annotation anchor={{ kind: 'stat', key: 'item-stats' }} />
           <div className="sb-row">
             <span>{joinSemicolon([
               <span key="type"><b className="sb-label">Alchemical Item</b> {item.alchemicalType}</span>,
@@ -181,6 +188,7 @@ export function Dnd4eItemViewer({ item, tooltip: tip, onSelectItem }: { item: Pa
       {/* Enhancement + Critical */}
       {(displayEnhancement || item.critical) && (
         <div className="sb-section">
+          <Annotation anchor={{ kind: 'stat', key: 'item-critical' }} />
           {displayEnhancement && <div className="sb-row"><span><b className="sb-label">Enhancement</b> {
             selectedTier?.enhancement
               ? `${selectedTier.enhancement} ${item.enhancement}`
@@ -198,6 +206,7 @@ export function Dnd4eItemViewer({ item, tooltip: tip, onSelectItem }: { item: Pa
         const longProps = item.properties.filter(p => !isShort(p))
         return (
           <div className="sb-section">
+            <Annotation anchor={{ kind: 'stat', key: 'item-properties' }} />
             {shortProps.length > 0 && (
               <div className="sb-row">
                 <b className="sb-label">{longProps.length === 0 && shortProps.length === 1 ? 'Property' : 'Properties'}</b>{' '}
@@ -225,8 +234,8 @@ export function Dnd4eItemViewer({ item, tooltip: tip, onSelectItem }: { item: Pa
       })()}
 
       {/* Special / Requirement / Item Set */}
-      {item.special && <div className="sb-row"><span><b className="sb-label">Special</b> {item.special}</span></div>}
-      {item.requirement && <div className="sb-row"><span><b className="sb-label">Requirement</b> {item.requirement}</span></div>}
+      {item.special && <div className="sb-row"><span><b className="sb-label">Special</b> {item.special}</span><Annotation anchor={{ kind: 'stat', key: 'item-special' }} /></div>}
+      {item.requirement && <div className="sb-row"><span><b className="sb-label">Requirement</b> {item.requirement}</span>{!item.special && <Annotation anchor={{ kind: 'stat', key: 'item-special' }} />}</div>}
       {item.itemSet && item.category !== 'set' && <div className="sb-row" style={{ fontStyle: 'italic', color: 'var(--color-text-secondary)' }}>{item.itemSet}</div>}
 
       {/* Structured description (rituals, item sets, concordance — before powers) */}

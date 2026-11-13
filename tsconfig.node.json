@@ -30,6 +30,7 @@
     "tools/**/*",
     "src/renderer/components/creature/monster-templates.ts",
     "src/renderer/components/creature/monster-themes.ts",
+    "src/renderer/components/creature/kit-templates.ts",
     "content/parsed/*.json"
   ]
 }

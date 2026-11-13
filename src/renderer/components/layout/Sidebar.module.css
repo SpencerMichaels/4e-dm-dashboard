@@ -16,6 +16,31 @@
   margin-bottom: var(--space-2);
 }
 
+.campaignName {
+  padding: 0 var(--space-2) var(--space-2);
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: var(--color-text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.noCampaign {
+  margin: 0 var(--space-2) var(--space-2);
+  padding: var(--space-1) var(--space-2);
+  font-size: var(--font-size-sm);
+  color: var(--danger);
+  border: 1px dashed var(--danger);
+  border-radius: var(--radius-sm);
+  text-align: left;
+  cursor: pointer;
+}
+
+.noCampaign:hover {
+  background: var(--color-bg-hover);
+}
+
 .section {
   margin-bottom: var(--space-4);
 }
@@ -42,7 +67,12 @@
   text-align: left;
 }
 
-.item:hover {
+.item:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.item:hover:not(:disabled) {
   background: var(--color-bg-hover);
   color: var(--color-text-primary);
 }

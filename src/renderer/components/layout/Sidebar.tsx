@@ -9,13 +9,16 @@ interface NavItem {
   icon: string
   label: string
   view: ViewMode
+  /** Works without an open campaign; everything else shows Home until one is open. */
+  global?: true
 }
 
 const navSections: { title: string; items: NavItem[] }[] = [
   {
     title: 'Campaign',
     items: [
-      { icon: '🏠', label: 'Home', view: { type: 'home' } },
+      { icon: '🏠', label: 'Home', view: { type: 'home' }, global: true },
+      { icon: '🛠️', label: 'Workshop', view: { type: 'authoring' }, global: true },
       { icon: '📝', label: 'Notes', view: { type: 'entity-list', entityType: 'note' } },
       { icon: '⚔️', label: 'Encounters', view: { type: 'entity-list', entityType: 'encounter' } },
       { icon: '🗺️', label: 'Maps', view: { type: 'entity-list', entityType: 'map' } },
@@ -66,6 +69,7 @@ export function Sidebar({ onShowHotkeys, onShowSettings }: SidebarProps) {
   }
 
   const campaignId = useCampaignStore((s) => s.campaignId)
+  const campaignName = useCampaignStore((s) => s.campaign?.name)
   const resetCampaign = useCampaignStore((s) => s.reset)
   const setSkipAutoOpen = useUiStore((s) => s.setSkipAutoOpen)
 
@@ -78,6 +82,11 @@ export function Sidebar({ onShowHotkeys, onShowSettings }: SidebarProps) {
   return (
     <div className={styles.sidebar}>
       <div className={styles.logo}>4e DM</div>
+      {campaignId
+        ? <div className={styles.campaignName} title="Open campaign">{campaignName}</div>
+        : <button className={styles.noCampaign} onClick={() => setView({ type: 'home' })} title="Open or create a campaign on Home">
+            No campaign open
+          </button>}
 
       {navSections.map((section) => (
         <div key={section.title} className={styles.section}>
@@ -86,6 +95,8 @@ export function Sidebar({ onShowHotkeys, onShowSettings }: SidebarProps) {
             <button
               key={item.label}
               className={`${styles.item} ${isActive(item.view) ? styles.active : ''}`}
+              disabled={!campaignId && !item.global}
+              title={!campaignId && !item.global ? 'Open a campaign first' : undefined}
               onClick={() => setView(item.view)}
             >
               <span className={styles.itemIcon}>{item.icon}</span>
@@ -108,7 +119,7 @@ export function Sidebar({ onShowHotkeys, onShowSettings }: SidebarProps) {
         </div>
       )}
 
-      <div className={styles.section}>
+      {campaignId && <div className={styles.section}>
         <div className={styles.sectionTitle}>Notes</div>
         <div className={styles.noteTree}>
           {noteTree.map((node) => (
@@ -124,7 +135,7 @@ export function Sidebar({ onShowHotkeys, onShowSettings }: SidebarProps) {
         <button className={styles.addBtn} onClick={handleNewNote}>
           + New Note
         </button>
-      </div>
+      </div>}
 
       <div className={styles.actionRow} style={{ marginTop: 'auto' }}>
         <button className={styles.iconBtn} onClick={() => window.api.playerWindow.show()} title="Show player window">👁</button>

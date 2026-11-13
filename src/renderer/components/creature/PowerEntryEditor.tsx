@@ -3,6 +3,7 @@ import type { CreatureBuilderConfig } from '@common/types'
 import { TagInput } from '@renderer/components/shared/TagInput'
 import { usageTone, normalizeDamage, type DamagePart } from './dnd4e-utils'
 import { tint, withAlpha } from '../../utils/color'
+import { Annotation } from './annotations'
 
 export type { DamagePart } from './dnd4e-utils'
 
@@ -37,6 +38,7 @@ export interface PowerEntry {
   trigger: string
   requirement: string       // prerequisite condition (e.g. "while bloodied", "must be submerged")
   sustain: string
+  special?: string
 }
 
 interface Props {
@@ -310,6 +312,7 @@ function FullPowerRow({ entry: e, idx, config, level, statBlock, atkBonusTables,
 
   return (
     <div style={{ display: 'flex', fontSize: 'var(--font-size-xs)', lineHeight: 1.5, marginBottom: 2 }}>
+      <Annotation anchor={{ kind: 'entry', entry: e }} />
       {/* Reorder controls — left gutter */}
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-start', padding: '4px 3px 0', gap: 1, opacity: 0.5, minWidth: 14 }}>
         <button onClick={() => onMove(idx, -1)} style={dragBtnStyle} title="Move up">▲</button>
@@ -420,15 +423,14 @@ function FullPowerRow({ entry: e, idx, config, level, statBlock, atkBonusTables,
 
         {/* Damage (not for personal powers) */}
         {e.rangeType !== 'personal' && (rawDamageParts(e.damage).length > 0 || e.attackBonus != null) && (() => {
-          // Infer damage tier per DMG p.185:
-          // Multi-target → low, brute/lurker single → high, other single → medium
+          // Damage tier (rules/benchmarks.ts, DMG errata): several targets → low, brute → high (+25%), else medium
           const rt = (e.rangeType || '').toLowerCase()
           const tgt = (e.target || '').toLowerCase()
           const isMulti = (rt.includes('burst') || rt.includes('blast') || rt.includes('area'))
             ? !(tgt.includes('one creature') || tgt.includes('one target'))
             : (tgt.includes('each') || tgt.includes('enemies') || tgt.includes('creatures'))
           const role = config.useSharedRole ? (statBlock?.role as string) : undefined
-          const isHighDmg = role === 'brute' || role === 'lurker'
+          const isHighDmg = role === 'brute'
           const inferredTier = isMulti ? 'low' : isHighDmg ? 'high' : 'medium'
           return (
             <DamagePartsEditor parts={rawDamageParts(e.damage)} config={config} level={level} usage={e.usage}
@@ -456,6 +458,17 @@ function FullPowerRow({ entry: e, idx, config, level, statBlock, atkBonusTables,
           ) : null
         ))}
 
+        {e.special && (
+          <div style={{ display: 'flex', gap: 4, alignItems: 'baseline' }}>
+            <b style={lbl}>Special</b>
+            <textarea className="ghost" value={e.special}
+              ref={focusField === 'special' ? autoFocusRef : undefined}
+              onChange={(ev) => onUpdate(idx, { special: ev.target.value })}
+              style={{ flex: 1 }} />
+            <button onClick={() => onUpdate(idx, { special: '' })} style={{ color: 'var(--color-text-muted)', padding: '0 2px', lineHeight: 1 }}>×</button>
+          </div>
+        )}
+
         {/* Add buttons */}
         <div style={{ display: 'flex', gap: 4, marginTop: 2 }}>
           {e.attackBonus == null && !e.target && !e.rangeValue && (
@@ -467,6 +480,7 @@ function FullPowerRow({ entry: e, idx, config, level, statBlock, atkBonusTables,
           {!e.effect && <button onClick={() => addField('effect', ' ')} style={addBtn}>+ effect</button>}
           {!isTriggered && !e.trigger && <button onClick={() => addField('trigger', ' ')} style={addBtn}>+ trigger</button>}
           {!e.requirement && <button onClick={() => addField('requirement', ' ')} style={addBtn}>+ requirement</button>}
+          {!e.special && <button onClick={() => addField('special', ' ')} style={addBtn}>+ special</button>}
         </div>
       </div>
       </div>
@@ -548,8 +562,8 @@ function DamagePartsEditor({ parts, config, level, usage, inferredTier, onChange
   const tier = inferredTier ?? 'medium'
   const suggestedDmg = dmgRow?.[tier] ?? dmgRow?.medium
   const dmgTooltip = dmgRow
-    ? (isLimited ? 'Limited' : 'Normal') + ' damage (DMG p.185):\n' +
-      Object.entries(dmgRow).map(([t, v]) => `${t === tier ? '→ ' : '  '}${t}: ${v}`).join('\n')
+    ? (isLimited ? 'Limited damage (+25%; up to +50% is within the rules)' : 'Damage') + ' (DMG errata, MM3 math):\n' +
+      Object.entries(dmgRow).map(([t, v]) => `${t === tier ? '→ ' : '  '}${({ low: 'several targets', medium: 'one target', high: 'brute' } as Record<string, string>)[t] ?? t}: ${v}`).join('\n')
     : ''
 
   // damage type select uses ghost class from global CSS

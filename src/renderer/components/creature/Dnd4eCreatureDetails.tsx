@@ -8,33 +8,14 @@ import { getPastedPower, getClipboardPowerName, onClipboardChange } from './powe
 import { xpForCreature } from './dnd4e-utils'
 import { capitalize } from '@common/utils/format'
 import { normalizeStringArray } from '@common/utils/arrays'
+import { Annotation } from './annotations'
+import { powerEditorConfig } from './power-config'
+import { initiativeFor, monsterHp, rankAdjustments, standardHp } from '@common/rules/benchmarks'
+
+const isRole = (r: string): r is Parameters<typeof standardHp>[1] => ['skirmisher', 'brute', 'soldier', 'lurker', 'controller', 'artillery'].includes(r)
 import './statblock.css'
 
 // 4e-specific constants
-const DND4E_ACTION_TYPES = [
-  { value: 'standard', label: 'Standard Action', icon: 'Std' },
-  { value: 'move', label: 'Move Action', icon: 'Mov' },
-  { value: 'minor', label: 'Minor Action', icon: 'Min' },
-  { value: 'free', label: 'Free Action', icon: 'Free' },
-  { value: 'immediate-interrupt', label: 'Immediate Interrupt', icon: 'Int' },
-  { value: 'immediate-reaction', label: 'Immediate Reaction', icon: 'Rcn' },
-]
-const DND4E_USAGE_TYPES = [
-  { value: 'at-will', label: 'At-Will' },
-  { value: 'encounter', label: 'Encounter' },
-  { value: 'recharge', label: 'Recharge', hasDetail: true, detailPlaceholder: '5-6, when bloodied, etc.' },
-]
-const DND4E_RANGE_TYPES = [
-  { value: 'melee', label: 'Melee' },
-  { value: 'ranged', label: 'Ranged' },
-  { value: 'close-burst', label: 'Close burst' },
-  { value: 'close-blast', label: 'Close blast' },
-  { value: 'area-burst', label: 'Area burst' },
-  { value: 'area-wall', label: 'Area wall' },
-  { value: 'personal', label: 'Personal' },
-]
-const DND4E_TARGET_DEFENSES = ['AC', 'Fortitude', 'Reflex', 'Will']
-const DND4E_TRIGGERED = ['immediate-interrupt', 'immediate-reaction']
 const DND4E_SENSES = [
   'Darkvision', 'Low-light vision', 'Blindsight 5', 'Blindsight 10', 'Blindsight 20',
   'Tremorsense 5', 'Tremorsense 10', 'Tremorsense 20',
@@ -63,6 +44,9 @@ interface Props {
   onSave: (updated: Creature) => void
   config: CreatureBuilderConfig
   compact?: boolean
+  showImages?: boolean
+  /** The Workshop shows the description in its own notes section. */
+  showDescription?: boolean
 }
 
 /** Clickable benchmark hint — shows expected value when actual differs */
@@ -90,19 +74,11 @@ function tierTooltip(table: { [level: number]: Record<string, string | number> }
   return parts.join('\n')
 }
 
-export function Dnd4eCreatureDetails({ creature, onSave: save, config, compact }: Props) {
+export function Dnd4eCreatureDetails({ creature, onSave: save, config, compact, showImages = true, showDescription = true }: Props) {
   // Subscribe to power clipboard changes so the paste button re-renders
   const clipboardName = useSyncExternalStore(onClipboardChange, getClipboardPowerName)
 
-  const actionConfig: CreatureBuilderConfig = {
-    ...config,
-    actionTypes: DND4E_ACTION_TYPES,
-    usageTypes: DND4E_USAGE_TYPES,
-    rangeTypes: DND4E_RANGE_TYPES,
-    targetDefenses: DND4E_TARGET_DEFENSES,
-    triggeredActionTypes: DND4E_TRIGGERED,
-    useGroupedActions: true,
-  }
+  const actionConfig = powerEditorConfig(config)
 
   const abConfig = config.abilityScores
   const abilities = (creature.statBlock.abilities as Record<string, number>) ?? {}
@@ -118,7 +94,8 @@ export function Dnd4eCreatureDetails({ creature, onSave: save, config, compact }
   const creatureType = (sb.creatureType as string) ?? ''
   const subtypes = Array.isArray(sb.subtypes) ? sb.subtypes as string[] : []
 
-  // Benchmark lookups — role-based tables from statDefs, adjusted for elite/solo
+  // Benchmark lookups: role-based tables from statDefs, adjusted for rank (rules/benchmarks.ts)
+  const rank = modifier === 'elite' || modifier === 'solo' ? modifier : sb.isMinion ? 'minion' : 'standard'
   const benchmarks: Record<string, number | undefined> = {}
   if (role) {
     for (const def of config.statDefs) {
@@ -127,31 +104,26 @@ export function Dnd4eCreatureDetails({ creature, onSave: save, config, compact }
       if (row && row[role] != null) {
         let val = row[role]
         if (def.key === 'hp') {
-          // Elite: 2× standard HP + Con; Solo: (8×level+1+Con) × multiplier
-          const con = abilities.con ?? 14
-          if (modifier === 'elite') val = val * 2 + con
-          else if (modifier === 'solo') {
-            const baseHp = 8 * level + 1 + con
-            val = baseHp * (level >= 11 ? 5 : 4)
-          }
+          // This creature's Con (the table assumes 14); elite x2, solo x4, minion 1.
+          if (isRole(role)) val = monsterHp(level, role, rank, abilities.con ?? 14)
         } else if (def.key === 'ac') {
-          // Elite/Solo: +2 to AC
-          if (modifier === 'elite' || modifier === 'solo') val += 2
+          val += rankAdjustments(rank).defenses
         }
         benchmarks[def.key] = val
       }
     }
   }
-  // Initiative benchmark = Dex mod + half level
+  // Initiative benchmark = Dex mod + half level + role bonus (lurker 4, skirmisher/soldier 2)
   const dexMod = Math.floor(((abilities.dex ?? 10) - 10) / 2)
-  benchmarks.initiative = dexMod + halfLvl
-  // Defense benchmarks: base = level + 12, elite/solo get +2
+  benchmarks.initiative = isRole(role) ? initiativeFor(level, role, abilities.dex ?? 10) : dexMod + halfLvl
+  const initRoleBonus = benchmarks.initiative - dexMod - halfLvl
+  // Defense benchmarks: base = level + 12; no rank bonus since DMG2 p. 133
   // (DMG p.184: "Other defenses = Level + 12" — no ability modifier added;
   // the DM adjusts ±1 per 2 points of ability deviation from average, but
   // the benchmark is just the flat baseline)
   const defBenchmarks: Record<string, number> = {}
   if (abConfig?.defensePairs) {
-    const defBonus = (modifier === 'elite' || modifier === 'solo') ? 2 : 0
+    const defBonus = rankAdjustments(rank).defenses
     for (const { defense, baseOffset } of abConfig.defensePairs) {
       defBenchmarks[defense.toLowerCase()] = (baseOffset ?? 12) + level + defBonus
     }
@@ -175,6 +147,7 @@ export function Dnd4eCreatureDetails({ creature, onSave: save, config, compact }
 
       {/* ── HEADER: Name + Level/Modifier/Role ── */}
       <div className="sb-header">
+        <Annotation anchor={{ kind: 'stat', key: 'header' }} />
         <input className="ghost sb-name" value={creature.name}
           onChange={e => save({ ...creature, name: e.target.value })}
           placeholder="Creature Name" style={{ color: 'inherit', flex: 1 }} />
@@ -188,6 +161,7 @@ export function Dnd4eCreatureDetails({ creature, onSave: save, config, compact }
             <option value="">standard</option>
             <option value="elite">elite</option>
             <option value="solo">solo</option>
+            <option value="minion">minion</option>
           </select>
           <select className="ghost" value={role} onChange={e => { u('role', e.target.value); }}
             style={{ color: 'inherit', background: 'transparent', fontSize: 'inherit', textTransform: 'capitalize' }}>
@@ -227,7 +201,8 @@ export function Dnd4eCreatureDetails({ creature, onSave: save, config, compact }
 
       {/* ── GROUP 1: Initiative, Senses, Speed, Saves/AP ── */}
       <div className="sb-row">
-        <span title={`Expected: Dex mod (${dexMod}) + half level (${halfLvl}) = ${benchmarks.initiative}`}>
+        <Annotation anchor={{ kind: 'stat', key: 'senses' }} />
+        <span title={`Expected: Dex mod (${dexMod}) + half level (${halfLvl})${initRoleBonus ? ` + ${role} bonus (${initRoleBonus})` : ''} = ${benchmarks.initiative}`}>
           <b className="sb-label">Initiative</b> <input className="ghost" type="number" value={(sb.initiative as number) ?? 0}
           onChange={e => u('initiative', Number(e.target.value))} />
           <Hint value={(sb.initiative as number)} benchmark={benchmarks.initiative} onClick={() => benchmarks.initiative != null && u('initiative', benchmarks.initiative)} />;</span>
@@ -246,6 +221,7 @@ export function Dnd4eCreatureDetails({ creature, onSave: save, config, compact }
         const available = config.speedTypes.filter(({ key }) => key !== 'land' && !(key in speeds))
         return (
           <div className="sb-row">
+        <Annotation anchor={{ kind: 'stat', key: 'speed' }} />
             <b className="sb-label">Speed</b>
             {/* Land speed chip — deletable when other speeds exist */}
             {(landSpeed > 0 || Object.keys(speeds).length === 0) && (
@@ -288,6 +264,7 @@ export function Dnd4eCreatureDetails({ creature, onSave: save, config, compact }
       })()}
       {(((sb.savingThrowBonus as number) ?? 0) > 0 || ((sb.actionPoints as number) ?? 0) > 0) && (
         <div className="sb-row">
+        <Annotation anchor={{ kind: 'stat', key: 'saves' }} />
           {((sb.savingThrowBonus as number) ?? 0) > 0 && (
             <span><b className="sb-label">Saving Throws</b>{' +'}
               <input className="ghost" type="number" value={(sb.savingThrowBonus as number) ?? 0}
@@ -303,6 +280,7 @@ export function Dnd4eCreatureDetails({ creature, onSave: save, config, compact }
 
       {/* ── GROUP 2: HP, AC, Defenses, Immunities, Resistances, Weaknesses ── */}
       <div className="sb-row">
+        <Annotation anchor={{ kind: 'stat', key: 'hp' }} />
         <span title={tierTooltip(config.statDefs.find(d => d.key === 'hp')?.table, level)}>
           <b className="sb-label">HP</b>{' '}
           <input className="ghost" type="number" value={creature.hp}
@@ -316,6 +294,7 @@ export function Dnd4eCreatureDetails({ creature, onSave: save, config, compact }
         const uDef = (key: string, val: number) => u('defenses', { ...defs, [key]: val })
         return (
           <div className="sb-row">
+        <Annotation anchor={{ kind: 'stat', key: 'defenses' }} />
             <span title={tierTooltip(config.statDefs.find(d => d.key === 'ac')?.table, level)}>
               <b className="sb-label">AC</b> <input className="ghost" type="number" value={(sb.ac as number) ?? 10}
               onChange={e => u('ac', Number(e.target.value))} />
@@ -333,6 +312,7 @@ export function Dnd4eCreatureDetails({ creature, onSave: save, config, compact }
         )
       })()}
       <div className="sb-row">
+        <Annotation anchor={{ kind: 'stat', key: 'resistances' }} />
         <InlineEntryChips label="Immune" entries={Array.isArray(sb.immunities) ? sb.immunities as any[] : []}
           onChange={v => u('immunities', v)} suggestions={config.damageTypes} />
         <span>;</span>
@@ -347,6 +327,7 @@ export function Dnd4eCreatureDetails({ creature, onSave: save, config, compact }
 
       {/* Alignment */}
       <div className="sb-row">
+        <Annotation anchor={{ kind: 'stat', key: 'alignment' }} />
         <b className="sb-label">Alignment</b>{' '}
         {(() => {
           // Normalize alignment to title case for matching
@@ -364,6 +345,7 @@ export function Dnd4eCreatureDetails({ creature, onSave: save, config, compact }
 
       {/* Languages */}
       <div className="sb-row">
+        <Annotation anchor={{ kind: 'stat', key: 'languages' }} />
         <b className="sb-label">Languages</b>
         <TagInput compact
           values={normalizeStringArray(sb.languages)}
@@ -373,6 +355,7 @@ export function Dnd4eCreatureDetails({ creature, onSave: save, config, compact }
 
       {/* Skills */}
       <div className="sb-row">
+        <Annotation anchor={{ kind: 'stat', key: 'skills' }} />
         <b className="sb-label">Skills</b>
         {(() => {
           const skills = (sb.skills as Record<string, number>) ?? {}
@@ -446,6 +429,7 @@ export function Dnd4eCreatureDetails({ creature, onSave: save, config, compact }
               </div>
             )}
             <div className="sb-abilities">
+              <Annotation anchor={{ kind: 'stat', key: 'abilities' }} />
               {abConfig.names.map(ab => {
                 const score = abilities[ab] ?? ((abConfig.defaultLow ?? 10) + halfLvl)
                 const mod = Math.floor((score - 10) / 2)
@@ -467,6 +451,7 @@ export function Dnd4eCreatureDetails({ creature, onSave: save, config, compact }
 
       {/* Equipment */}
       <div className="sb-row sb-row-sep">
+        <Annotation anchor={{ kind: 'stat', key: 'equipment' }} />
         <b className="sb-label">Equipment</b>
         <input className="ghost" value={
           Array.isArray(sb.equipment) ? (sb.equipment as string[]).join(', ') : ((sb.equipment as string) ?? '')}
@@ -519,6 +504,7 @@ export function Dnd4eCreatureDetails({ creature, onSave: save, config, compact }
                     </div>
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <TraitRow entry={e} idx={i} onUpdate={updateAction} onRemove={removeAction} />
+                      <Annotation anchor={{ kind: 'entry', entry: e }} />
                     </div>
                   </div>
                 ))}
@@ -535,6 +521,7 @@ export function Dnd4eCreatureDetails({ creature, onSave: save, config, compact }
                     </div>
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <AuraRow entry={e} idx={i} onUpdate={updateAction} onRemove={removeAction} />
+                      <Annotation anchor={{ kind: 'entry', entry: e }} />
                     </div>
                   </div>
                 ))}
@@ -546,10 +533,10 @@ export function Dnd4eCreatureDetails({ creature, onSave: save, config, compact }
 
       {/* Description + Source at bottom */}
       <div style={{ padding: '4px 8px', fontSize: '11px' }}>
-        <textarea className="ghost" value={(sb.description as string) ?? ''}
+        {showDescription && <textarea className="ghost" value={(sb.description as string) ?? ''}
           onChange={e => u('description', e.target.value)}
           placeholder="Description..."
-          style={{ width: '100%', fontStyle: 'italic', fontSize: '11px', color: 'var(--color-text-secondary)' }} />
+          style={{ width: '100%', fontStyle: 'italic', fontSize: '11px', color: 'var(--color-text-secondary)' }} />}
         <div style={{ color: 'var(--color-text-muted)', fontStyle: 'italic', marginTop: 2 }}>
           <input className="ghost" value={(sb.source as string) ?? ''}
             onChange={e => u('source', e.target.value)}
@@ -561,7 +548,7 @@ export function Dnd4eCreatureDetails({ creature, onSave: save, config, compact }
       </div>{/* end stats column */}
 
       {/* ── Creature Image ── */}
-      <div style={{
+      {showImages && <div style={{
         flexShrink: 0, alignSelf: 'stretch',
         width: 200, minHeight: 140, maxHeight: 320,
         display: 'flex', padding: 6,
@@ -573,7 +560,7 @@ export function Dnd4eCreatureDetails({ creature, onSave: save, config, compact }
           onImageChange={imageId => save({ ...creature, imageId })}
           onTokenChange={(tokenImageId, crop) => save({ ...creature, tokenImageId, tokenCrop: crop })}
         />
-      </div>
+      </div>}
 
       </div>{/* end body flex row */}
     </div>

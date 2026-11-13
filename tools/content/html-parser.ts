@@ -6,6 +6,7 @@ import { generateId } from '../../src/common/utils/id'
 import type { Creature } from '../../src/common/types'
 import { allDamageTypes, attackTraits } from '../../src/common/rules/known-values'
 import { fixLigatureSplits, normalizeRecharge } from './text-utils'
+import { findRevival, triggerHints } from '../../src/common/rules/combat-text'
 
 export interface ParseOptions {
   /**
@@ -172,39 +173,10 @@ function _parseMonsterHtml(html: string, warnings: string[], options: ParseOptio
   if (actions.length === 0) warnings.push('No powers or abilities were parsed')
 
   // ─── Pre-compute trigger classifications on actions ───
-  for (const a of actions) {
-    const trigger = ((a.trigger as string) ?? '').toLowerCase().replace(/\.$/, '').trim()
-    if (trigger) {
-      // Classify trigger events
-      const triggerEvents: string[] = []
-      if (/\bbloodied\b/.test(trigger)) triggerEvents.push('bloodied')
-      if (/\breduced to 0\b|\bdrops to 0\b|\bhit points or fewer\b/.test(trigger)) triggerEvents.push('reduced-to-0')
-      if (/\btakes damage\b/.test(trigger)) triggerEvents.push('takes-damage')
-
-      if (triggerEvents.length > 0) {
-        let triggerSubject: string = 'self'
-        if (/\ban ally\b|\ballied\b|\badjacent ally\b/.test(trigger)) triggerSubject = 'ally'
-        else if (/\ba creature\b|\ban enemy\b|\ban undead\b|\ba [\w]+ creature\b/.test(trigger)) triggerSubject = 'any-creature'
-        a.triggerEvents = triggerEvents
-        a.triggerSubject = triggerSubject
-      }
-
-      // Flag self-turn-only triggers (should not show as off-turn reactions)
-      if (/\b(hits with|misses with|makes an attack|attacks with|scores a critical|makes a melee|makes a ranged)\b/.test(trigger)
-        && !/\benemy\b|\ban ally\b|\ba creature\b/.test(trigger)) {
-        a.selfTurnOnly = true
-      }
-      if (/\b(shifts|moves|charges|teleports)\b/.test(trigger)
-        && !/\benemy\b|\ban ally\b|\ba creature\b|\bmarked\b/.test(trigger)) {
-        a.selfTurnOnly = true
-      }
-    }
-
-  }
+  for (const a of actions) Object.assign(a, triggerHints((a.trigger as string) ?? ''))
 
   // ─── Extract regeneration and revival data ───
   let regeneration: { value: number; inhibitDamageTypes?: string[] } | undefined
-  let revival: { hp: number; abilityName: string } | undefined
 
   // Header-line regen (between HP and AC in the stats block)
   if (headerRegenValue) {
@@ -231,15 +203,10 @@ function _parseMonsterHtml(html: string, warnings: string[], options: ParseOptio
         regeneration = regen
       }
     }
-
-    // Revival ability (Troll Healing, Rise Again, etc.): "reduced to 0 HP... revives/rises/regains N HP"
-    if (!revival && /reduc(?:ed|es)\b.{0,30}\bto 0|drops?\b.{0,30}\bto 0/i.test(effect)) {
-      const reviveMatch = effect.match(/(?:regains?|with|returns.*?with|has)\s+(\d+)\s+hit points?/i)
-      if (reviveMatch && /(?:rises|regains|returns|revives|next turn)/i.test(effect)) {
-        revival = { hp: parseInt(reviveMatch[1]), abilityName: a.name as string }
-      }
-    }
   }
+
+  // Revival ability (Troll Healing, Rise Again, etc.): "reduced to 0 HP... revives/rises/regains N HP"
+  const revival = findRevival(actions.map(a => ({ name: a.name as string, text: (a.effect as string) ?? '' })))
 
   return {
     id: generateId(),

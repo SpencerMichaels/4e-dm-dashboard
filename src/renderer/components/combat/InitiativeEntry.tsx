@@ -3,6 +3,7 @@ import type { CombatState, CombatantState } from '@common/types'
 import { useCampaignStore } from '../../stores/campaign-store'
 import { generateId } from '@common/utils/id'
 import { rollD20 } from '@common/utils/dice'
+import { actsOnInitiative, initiativeBonus } from '@common/combat/facts'
 import { CombatToken } from './CombatToken'
 
 interface Props {
@@ -90,7 +91,9 @@ export function InitiativeEntry({ combat }: Props) {
   })
 
   const pcIds = sortedIds.filter(id => combat.combatants[id].isPC)
-  const monsterIds = sortedIds.filter(id => !combat.combatants[id].isPC)
+  // Traps without initiative act only when triggered; they stay out of the order.
+  const monsterIds = sortedIds.filter(id => !combat.combatants[id].isPC && actsOnInitiative(combat.combatants[id]))
+  const triggeredTrapIds = sortedIds.filter(id => !actsOnInitiative(combat.combatants[id]))
 
   // Build monster groups from initiativeGroupId
   type MonsterGroup = { groupId: string | null; baseName: string; memberIds: string[] }
@@ -153,7 +156,7 @@ export function InitiativeEntry({ combat }: Props) {
       for (const group of monsterGroups) {
         const first = combat.combatants[group.memberIds[0]]
         if (first?.initiative != null) continue // already has initiative (manually entered)
-        const bonus = (first?.statBlock?.initiative as number) ?? 0
+        const bonus = (first && initiativeBonus(first)) ?? 0
         const roll = rollD20() + bonus
         for (const id of group.memberIds) {
           await window.api.combat.setInitiative(id, roll)
@@ -164,7 +167,7 @@ export function InitiativeEntry({ combat }: Props) {
       for (const id of monsterIds) {
         const c = combat.combatants[id]
         if (c.initiative == null) {
-          const bonus = (c.statBlock?.initiative as number) ?? 0
+          const bonus = initiativeBonus(c) ?? 0
           await window.api.combat.setInitiative(id, rollD20() + bonus)
         }
       }
@@ -444,6 +447,12 @@ export function InitiativeEntry({ combat }: Props) {
             })
           )}
         </div>
+      )}
+
+      {triggeredTrapIds.length > 0 && (
+        <p className="triggered-trap-note" style={{ color: 'var(--color-text-muted)', fontSize: 'var(--font-size-sm)', marginTop: 'var(--space-3)' }}>
+          Triggered traps (no initiative; they act when triggered): {triggeredTrapIds.map(id => combat.combatants[id].name).join(', ')}
+        </p>
       )}
 
       {/* Start Combat button — shown once all PCs have initiatives */}

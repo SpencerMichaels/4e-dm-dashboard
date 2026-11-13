@@ -4,6 +4,7 @@ import type { CompendiumEntry, CompendiumAnnotation } from '@common/types'
 import { dnd4eCompendium as compendium } from '../compendium/compendium'
 import * as store from '../data/campaign-store'
 import { broadcastToDm } from '../windows'
+import { getKitEntry, getKitIndex, type KitKind } from '../compendium/kit'
 
 // Merged creature index cache (official compendium + custom campaign creatures)
 let mergedMonsterIndexCache: CompendiumEntry[] | null = null
@@ -39,6 +40,9 @@ export function registerCompendiumHandlers(): void {
     if (!result) throw new Error('Monster not found: ' + monsterId)
     return result
   })
+
+  ipcMain.handle(CMD.COMPENDIUM_KIT_GET, async (_e, kind: KitKind, id: string) => getKitEntry(kind, id))
+  ipcMain.handle(CMD.COMPENDIUM_KIT_INDEX, async (_e, kind: 'template' | 'theme') => getKitIndex(kind))
 
   // Annotations (campaign-specific)
   ipcMain.handle(CMD.ANNOTATION_GET_ALL, async () => {

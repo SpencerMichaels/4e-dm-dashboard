@@ -35,7 +35,7 @@ export const DND4E_ACTION_TYPES: Record<string, string> = {
 
 // XP by level (DMG p.56), from the shared 4e-kit vocabulary
 export { XP_BY_LEVEL }
-const XP_MULT: Record<string, number> = { elite: 2, solo: 5 }
+const XP_MULT: Record<string, number> = { elite: 2, solo: 5, minion: 0.25 }
 export function xpForCreature(level: number, modifier?: string): number {
   const base = XP_BY_LEVEL[level] ?? XP_BY_LEVEL[30]
   return Math.round(base * (XP_MULT[modifier || ''] ?? 1))

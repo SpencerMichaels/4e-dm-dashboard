@@ -22,6 +22,12 @@ export interface Note {
   updatedAt: string
 }
 
+/** A trap by reference: a campaign trap record or a published trap. */
+export interface TrapRef {
+  trapId?: string
+  compendiumId?: string
+}
+
 export interface Location {
   id: string
   name: string
@@ -30,6 +36,7 @@ export interface Location {
   sceneImageId?: string     // Background for player screen
   parentId?: string         // Parent location for hierarchy
   encounterIds?: string[]   // Encounters associated with this location
+  traps?: TrapRef[]         // Traps and hazards here, shown as stat blocks
   tags: string[]
   createdAt: string
   updatedAt: string
@@ -61,6 +68,11 @@ export type EntityType =
   | 'item'
   | 'player-character'
   | 'map'
+  // Kit-native records in a CampaignRecord envelope
+  | 'trap'
+  | 'disease'
+  | 'template'
+  | 'theme'
 
 export interface LinkEntry {
   sourceType: EntityType

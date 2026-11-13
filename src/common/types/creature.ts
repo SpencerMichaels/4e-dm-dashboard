@@ -1,4 +1,6 @@
 export interface Creature {
+  /** Original kit-schema content retained by the authoring import adapter. */
+  authoredContent?: import('@kit').Monster
   id: string
   compendiumId?: string         // Set when cloned from a compendium source — tracks origin
   name: string

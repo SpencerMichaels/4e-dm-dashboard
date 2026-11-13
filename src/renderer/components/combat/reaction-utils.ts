@@ -1,4 +1,7 @@
+import { toPowerCardEntry } from '../creature/power-card-entry'
 import type { CombatantState, CombatNotification } from '@common/types'
+import { combatStatBlock } from './combat-view'
+import { isDefeated } from '@common/combat/facts'
 import type { PowerCardEntry } from '../creature/PowerCardView'
 
 export const REACTION_TYPES = ['immediate-reaction', 'immediate-interrupt', 'free', 'no-action']
@@ -20,39 +23,6 @@ export interface ParsedTrigger {
   subject: TriggerSubject
 }
 
-/** Convert a creature's power entry into the shared PowerCardEntry shape */
-function toPowerCard(p: any): PowerCardEntry {
-  let kw = Array.isArray(p.keywords) ? [...p.keywords]
-    : typeof p.keywords === 'string' ? p.keywords.split(',').map((k: string) => k.trim()).filter(Boolean)
-    : undefined
-
-  // Use pre-computed encounter usage if available, otherwise fall back to action's usage
-  let usage = p.encounterUses ? 'encounter' : (p.usage || 'at-will')
-  if (kw) {
-    // Strip usage keywords from display list (they're metadata, not display keywords)
-    kw = kw.filter((k: string) => !/^\d+\/encounter$/i.test(k.trim()) && !/^at-will\s*\(\d+\/\w+\)$/i.test(k.trim()))
-  }
-
-  return {
-    name: p.name,
-    usage,
-    actionType: p.actionType,
-    rechargeValue: p.rechargeCondition ? (parseInt(p.rechargeCondition) || undefined) : undefined,
-    rechargeCondition: p.rechargeCondition && isNaN(parseInt(p.rechargeCondition)) ? p.rechargeCondition : undefined,
-    keywords: kw?.length ? kw : undefined,
-    rangeType: p.range ?? p.rangeType,
-    rangeValue: p.rangeValue,
-    target: p.target,
-    attackBonus: p.attackBonus ?? null,
-    defense: p.defense,
-    damage: p.damage,
-    hit: p.hit,
-    miss: p.miss,
-    effect: p.effect,
-    trigger: p.trigger,
-    requirement: p.requirement,
-  }
-}
 
 /** Build a ParsedTrigger from pre-computed action fields (set at import time) */
 export function parseTrigger(action: any): ParsedTrigger | null {
@@ -87,8 +57,8 @@ export function triggerMatchesNotification(
 
 /** Extract all currently-actionable triggered reactions from a single combatant. */
 export function getCreatureReactions(c: CombatantState, isCurrentTurn: boolean): CreatureReaction[] {
-  if (c.isPC || isCurrentTurn || c.hp <= 0) return []
-  const actions = Array.isArray((c.statBlock as any)?.actions) ? (c.statBlock as any).actions as any[] : []
+  if (c.isPC || isCurrentTurn || isDefeated(c)) return []
+  const actions = (combatStatBlock(c).actions ?? []) as any[]
   const usedPowers = c.usedPowers ?? {}
   const usedReaction = c.conditions?.some(co => co.conditionId === 'reacted') ?? false
   const out: CreatureReaction[] = []
@@ -114,7 +84,7 @@ export function getCreatureReactions(c: CombatantState, isCurrentTurn: boolean):
     const isFree = a.actionType === 'free' || a.actionType === 'no-action'
     out.push({
       power: a,
-      card: toPowerCard(a),
+      card: toPowerCardEntry(a, { hideUsageKeywords: true }),
       powerIndex: i,
       parsedTrigger: parseTrigger(a),
       // A reaction is "used" if its limited-use slot is exhausted, or if the

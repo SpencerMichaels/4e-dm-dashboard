@@ -4,7 +4,8 @@ import { useUiStore } from '../../stores/ui-store'
 import { useCampaignActions } from '../../hooks/use-campaign'
 import { useHotkeys } from '../../hooks/use-hotkeys'
 import { Dnd4eCreatureList } from './Dnd4eCreatureList'
-import { Dnd4eItemBrowser } from '../compendium/Dnd4eItemBrowser'
+import { RecordCompendium } from '../compendium/RecordCompendium'
+import { ITEM_KIND } from '../compendium/record-kinds'
 import type { EntityType } from '@common/types'
 import { ConfirmDialog } from '../shared/ConfirmDialog'
 import { PCListView } from './PCListView'
@@ -85,7 +86,7 @@ export function EntityList({ entityType }: Props) {
     return <Dnd4eCreatureList creatures={creatures} onNavigate={(id) => navigateTo(id)} onCreate={handleCreate} />
   }
   if (entityType === 'item') {
-    return <Dnd4eItemBrowser items={items} onNavigate={(id) => navigateTo(id)} onCreate={handleCreate} />
+    return <RecordCompendium kind={ITEM_KIND} />
   }
 
   return (

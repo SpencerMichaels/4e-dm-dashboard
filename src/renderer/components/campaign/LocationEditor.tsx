@@ -1,3 +1,4 @@
+import { LocationTraps } from './LocationTraps'
 import { useState, useEffect } from 'react'
 import type { Location } from '@common/types'
 import { useCampaignStore } from '../../stores/campaign-store'
@@ -31,6 +32,9 @@ export function LocationEditor({ locationId }: Props) {
     }
   }, [locationId])
 
+  // Hooks run before the loading return, so every render calls the same hooks.
+  const sceneImageUrl = useImage(location?.sceneImageId)
+
   if (!location) return <div style={{ color: 'var(--color-text-muted)' }}>Loading...</div>
 
   const save = (updated: Location) => {
@@ -39,7 +43,6 @@ export function LocationEditor({ locationId }: Props) {
     window.api.entity.save('location', withTime)
   }
 
-  const sceneImageUrl = useImage(location.sceneImageId)
 
   const linkedEncounters = (location.encounterIds ?? [])
     .map(id => encounters.find(e => e.id === id))
@@ -169,6 +172,8 @@ export function LocationEditor({ locationId }: Props) {
           }}
         />
       </div>
+
+      <LocationTraps traps={location.traps ?? []} onChange={traps => save({ ...location, traps: traps.length ? traps : undefined })} label={sectionLabel('Traps')} />
 
       {/* Encounters */}
       <div style={{ marginBottom: 'var(--space-3)' }}>

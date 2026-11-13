@@ -1,5 +1,33 @@
 # Testing handoff — four small fixes
 
+## Workshop (content authoring) regression (2026-11-12)
+
+Run in the devcontainer: `npm test`, `npm run typecheck:node`, `npm run build`, then `npm run test:authoring:ui` and `npm run test:compendium:ui` (compendium editing for traps, diseases, templates, and themes: clone on first edit, autosave, Custom listing, delete, new entries). The UI smoke test uses temporary appData/userData and hidden, unthrottled Electron windows (`FOUR_E_HIDDEN_WINDOWS=1`, nothing appears on the desktop), verifies all four native previews, editing through the native compendium creature editor (HP, damage, hit prose; applied without an Apply step), merging with a concurrent agent change and the same-field Keep mine prompt, the version history list, a comment anchored to a power, DM-edit tracking, review, and campaign save, and writes `out/authoring-smoke.png` plus `out/authoring-edit-smoke.png`. It does not use real campaigns. `typecheck:web` retains pre-existing project-boundary/alias/component errors; check for new authoring-module errors separately.
+
+## Combat on kit content (2026-11-13)
+
+Run `npm run test:combat:ui` after `npm run build` (hidden windows). Manual checks in a real campaign:
+
+- Open an existing encounter: rows show the same levels, XP, and template/theme chips as before. Select a templated row: the preview shows the template chip, orange attributed numbers, and the template's traits and powers. Hover templates in template mode: the preview adds the hovered one. Pick a theme: the preview follows the picker before Apply.
+- A template on an elite creature now makes it solo (DMG p.175). Before, it stayed elite.
+- Start combat: every creature appears, with grouped initiative for multi-count rows. Check a regenerating creature (Troll: regeneration 5, stopped by fire or acid, and Troll Healing revives it at 15), a recharge power (prompt at the start of its turn), a reaction tile (a goblin's Goblin Tactics), click-to-apply conditions in power text, the defenses shown in attack mode, the damage dialog's resistances, and the popout stat block.
+- A level-adjusted creature's power cards show the attack and damage adjustment on hover.
+- Diseases: in an encounter with a disease carrier (a dire rat), the editor lists the disease and its source. In combat, click the highlighted disease name in its Bite text (it applies like a condition): the banner asks for a PC; click one, and shift-click the name to pick several. Non-PC targets are ignored. The chip under the card only shows the disease. On the PCs page, the PC shows 🦠1 and the Diseases panel shows Exposed. Use Contracted and Fought off, then enter an Endurance result: the bold button follows the DCs, Enter applies it, stage 0 removes the disease, and the final stage stops the checks.
+- Location traps in encounters: link an encounter to a location with traps. Its Traps section shows them read-only ("from <location>"), XP includes them, and they join combat hidden.
+- Location traps: on a location page and in a map pin's sidebar, add a published and a Custom trap with the Traps search. Each shows as its statblock and collapses to a one-line row. Delete the Custom trap from the Traps page: the location row says it no longer exists.
+- Traps: add a published trap and a Custom trap to an encounter. Check the row XP, the encounter total, the preview, and the "visible" checkbox. In combat, a trap with initiative takes turns, hidden from players unless its row was visible. A trap without initiative appears in the Triggered traps strip: Trigger shows its stat block and logs it, and Disable / Re-arm toggles it. An HP-less trap shows "HP none" and ignores damage.
+
+Manual follow-up:
+
+- Connect an external agent using `docs/AUTHORING.md`; create the Shadow concept, find precedents, and resolve material timing/ownership questions.
+- Edit a power's prose and accuracy directly, leave a targeted comment, reorder powers, restart, and ask the agent to continue. Confirm text/metadata reconciliation, that the agent builds on DM edits rather than reverting them, and that edits made while the agent revises merge (other fields) or ask (the same field). Save, edit, and save again: the campaign entry updates in place, with no duplicate.
+- Switch campaigns before approval; confirm saving still uses the displayed destination. Save a draft to two campaigns, then revise a saved entry through Edit in Workshop (creatures from their view; items, traps, diseases, templates, and themes from their compendium pages).
+- Open a campaign that has items from before 2026-11-13; confirm each item lists on the Items page as Custom with its powers, critical, and properties intact, and that `items/_legacy-<file>.json` holds the original. Clone a published item by editing it; confirm the clone keeps everything (powers, critical) and the published entry is unchanged.
+- Check narrow/wide windows and both themes, keyboard field editing, comment focus, and screen-reader labels.
+- Confirm no draft, comment, or review appears in the Player window. Linked-minion transformations and curses remain explicit DM-adjudicated rules.
+
+The older checklist below is retained for historical reference.
+
 Status: Historical manual regression checklist. The implementation is present; completion of every manual step was not recorded. This file is not an active implementation backlog.
 
 The session before you applied four independent renderer-side fixes. Build/typecheck and UI-verify each one inside this devcontainer.

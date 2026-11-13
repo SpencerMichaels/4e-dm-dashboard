@@ -1,11 +1,14 @@
+import { toPowerCardEntry } from '../creature/power-card-entry'
 import { useState, useEffect } from 'react'
 import type { PluginCombatPanelProps } from './panel-types'
 import type { PowerEntry } from '../creature/PowerEntryEditor'
 import { PowerCardView, type PowerCardEntry } from '../creature/PowerCardView'
 import { USAGE_COLORS, sign } from '../creature/dnd4e-utils'
-import { detectConditions, type DetectedCondition } from './condition-detection'
+import { detectConditions, detectDiseases, type DetectedCondition } from './condition-detection'
+import { useDiseaseNames } from '../disease/disease-refs'
 import { ConditionPill, buildConditionLabel } from './ConditionPill'
 import { capitalize } from '@common/utils/format'
+import { combatStatBlock } from './combat-view'
 import { normalizeStringArray } from '@common/utils/arrays'
 import { hpPercentage, hpColor, formatConditionName } from '@renderer/utils/combat-utils'
 import '../creature/statblock.css'
@@ -26,58 +29,23 @@ function getMaxUses(p: PowerEntry): number {
   return Infinity  // at-will
 }
 
-/** Convert a PowerEntry from the stat block into a PowerCardEntry for display */
-function toPowerCardEntry(p: PowerEntry): PowerCardEntry {
-  // keywords may be string[] (from editor) or string (from imported data)
-  let kw: string[] | undefined = normalizeStringArray(p.keywords)
-  if (kw.length === 0) kw = undefined
-
-  // Extract "X/Encounter" or "X/round" from keywords → override usage (keep keyword for display)
-  let usage = p.usage || 'at-will'
-  if (kw) {
-    const hasEncounterKw = kw.some(k => /^\d+\/encounter$/i.test(String(k).trim()))
-    if (hasEncounterKw) usage = 'encounter'
-  }
-  if ((p as any).encounterUses) {
-    usage = 'encounter'
-  }
-
-  return {
-    name: p.name,
-    usage,
-    actionType: p.actionType,
-    rechargeValue: usage === 'recharge' && p.rechargeCondition ? (parseInt(p.rechargeCondition) || undefined) : undefined,
-    rechargeCondition: usage === 'recharge' && p.rechargeCondition && isNaN(parseInt(p.rechargeCondition)) ? p.rechargeCondition : undefined,
-    keywords: kw?.length ? kw : undefined,
-    rangeType: (p as any).range ?? p.rangeType,
-    rangeValue: p.rangeValue,
-    target: p.target,
-    attackBonus: p.attackBonus ?? null,
-    defense: p.defense,
-    damage: p.damage,
-    hit: p.hit,
-    critical: (p as any).critical,
-    secondary: (p as any).secondary,
-    aftereffect: (p as any).aftereffect,
-    miss: p.miss,
-    effect: p.effect,
-    trigger: p.trigger,
-    requirement: p.requirement,
-    sustain: p.sustain,
-    text: (p as any).text,
-    levelScaling: (p as any).levelScaling,
-  }
-}
 
 export function Dnd4eCombatPanel({
   combatant: c, combat, isCurrent, isDelayed,
   onUsePower, onUnusePower, onQuickDamage,
   onDamage, onHeal, onAddCondition, onAddEffect, onDelay, onUndelay, onRemove,
-  conditions: conditionDefs, notifications, onPinCard, pinnedKeys, onApplyConditionToTargets,
-  onPopoutStatblock, hideMainActionPowers,
+  conditions: conditionDefs, notifications, onPinCard, pinnedKeys, onApplyConditionToTargets, onApplyDiseaseToTargets,
+  onPopoutStatblock, hideMainActionPowers, onToggleDisabled,
 }: PluginCombatPanelProps) {
-  const sb = (c.statBlock ?? {}) as Record<string, any>
+  const sb = combatStatBlock(c)
+  const isTrap = c.kind === 'trap'
   const actions = Array.isArray(sb.actions) ? sb.actions as PowerEntry[] : []
+  const diseaseNames = useDiseaseNames()
+  /** Condition keywords and disease names in a power's text; both highlight and apply to targets. */
+  const detect = (pow: PowerEntry): DetectedCondition[] => {
+    const conditions = detectConditions({ hit: pow.hit, effect: pow.effect, miss: pow.miss, target: pow.target })
+    return [...conditions, ...detectDiseases(pow, diseaseNames, conditions)]
+  }
   const hpPct = hpPercentage(c.hp, c.maxHp)
   const usedPowers = c.usedPowers ?? {}
 
@@ -160,8 +128,13 @@ export function Dnd4eCombatPanel({
       {/* HP + AP line */}
       <div style={{ padding: '4px 8px', display: 'flex', alignItems: 'center', gap: 6, borderBottom: '1px solid var(--sb-separator)' }}>
         <b style={{ fontSize: 11 }}>HP</b>
-        <span style={{ fontWeight: 700, fontSize: 13, color: hpPct > 0 ? hpColor(hpPct) : 'var(--color-text-muted)' }}>{c.hp}</span>
-        <span style={{ color: 'var(--color-text-muted)', fontSize: 11 }}>/ {c.maxHp}</span>
+        {sb.noHitPoints
+          // Traps without hit points are stopped by countermeasures (Disable), not damage.
+          ? <span style={{ color: 'var(--color-text-muted)', fontSize: 11 }}>{sb.hpText || 'none'}{c.dead ? ' (disabled)' : ''}</span>
+          : <>
+            <span style={{ fontWeight: 700, fontSize: 13, color: hpPct > 0 ? hpColor(hpPct) : 'var(--color-text-muted)' }}>{c.hp}</span>
+            <span style={{ color: 'var(--color-text-muted)', fontSize: 11 }}>/ {c.maxHp}</span>
+          </>}
         {c.tempHp > 0 && <span style={{ color: 'var(--color-temp-hp)', fontSize: 11, fontWeight: 600 }}>+{c.tempHp} temp</span>}
         {hpPct <= 50 && hpPct > 0 && <span style={{ color: 'var(--color-hp-low)', fontSize: 10, fontWeight: 700 }}>BLOODIED</span>}
         {totalAP > 0 && (
@@ -187,10 +160,14 @@ export function Dnd4eCombatPanel({
             </div>
           </>
         )}
+        {c.kind === 'trap' && onToggleDisabled && (
+          <>
+            <div style={{ flex: 1 }} />
+            <button style={btnStyle} onClick={onToggleDisabled}
+              title={c.dead ? 'The trap works again' : 'A countermeasure stopped the trap'}>{c.dead ? 'Re-arm' : 'Disable'}</button>
+          </>
+        )}
       </div>
-
-
-
 
       {/* Active conditions strip */}
       {c.conditions.length > 0 && (
@@ -239,11 +216,16 @@ export function Dnd4eCombatPanel({
       )}
 
       {/* Full stat block */}
+      {/* Traps print only what they have: often no initiative, senses, or defenses. */}
+      {isTrap ? (sb.initiative !== undefined && (
+        <div className="sb-row" style={{ fontSize: 11 }}><span><b className="sb-label">Initiative</b> {sign(sb.initiative as number)}</span></div>
+      )) : (
       <div className="sb-row" style={{ fontSize: 11 }}>
         <span><b className="sb-label">Initiative</b> {sign((sb.initiative as number) ?? 0)}</span>;{' '}
         <span><b className="sb-label">Senses</b> Perception {sign((sb.perception as number) ?? 0)}
           {senses.length > 0 && <>; {senses.join(', ')}</>}</span>
       </div>
+      )}
       {((sb.speed as number) > 0 || Object.keys(speeds).length > 0) && (
         <div className="sb-row" style={{ fontSize: 11 }}>
           <b className="sb-label">Speed</b>{' '}
@@ -253,12 +235,12 @@ export function Dnd4eCombatPanel({
           ))}
         </div>
       )}
-      <div className="sb-row" style={{ fontSize: 11 }}>
+      {(!isTrap || sb.ac !== undefined || Object.keys(defs).length > 0) && <div className="sb-row" style={{ fontSize: 11 }}>
         <span><b className="sb-label">AC</b> {sb.ac ?? 10};</span>
         <span><b className="sb-label">Fortitude</b> {defs.fortitude ?? 10},</span>
         <span><b className="sb-label">Reflex</b> {defs.reflex ?? 10},</span>
         <span><b className="sb-label">Will</b> {defs.will ?? 10}</span>
-      </div>
+      </div>}
       {(immunities.length > 0 || resistances.length > 0 || weaknesses.length > 0) && (
         <div className="sb-row" style={{ fontSize: 11 }}>
           {immunities.length > 0 && <span><b className="sb-label">Immune</b> {immunities.map(e => e.type).join(', ')}</span>}
@@ -350,8 +332,9 @@ export function Dnd4eCombatPanel({
                     title={canToggleUsed ? 'Left click: use · Right click: restore' : undefined}
                   >
                     <PowerCardView entry={entry}
-                      detectedConditions={detectConditions({ hit: pow.hit, effect: pow.effect, miss: pow.miss, target: pow.target })}
+                      detectedConditions={detect(pow)}
                       onConditionClick={(det, multi) => {
+                        if (det.disease) { onApplyDiseaseToTargets?.(det.disease, det.conditionName, multi); return }
                         const condData: any = {
                           conditionId: det.conditionId,
                           value: det.value,

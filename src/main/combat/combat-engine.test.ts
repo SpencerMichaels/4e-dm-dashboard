@@ -1,5 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { AppliedCondition, CombatantState } from '@common/types'
+import type { Monster, Trap } from '@kit'
+import { scaffold } from '@common/authoring/core'
 
 type Engine = typeof import('./combat-engine')
 
@@ -16,6 +18,11 @@ type CombatantInput = Parameters<Engine['addCombatant']>[0]
 
 function monster(id: string, overrides: Partial<CombatantInput> = {}): CombatantInput {
   return { id, name: id, isPC: false, hp: 40, maxHp: 40, usedActionPoints: 0, ...overrides }
+}
+
+/** Kit content for a monster combatant: a level 5 scaffold with the given fields. */
+function kit(fields: Partial<Monster>): Partial<CombatantInput> {
+  return { kind: 'creature', content: { ...(scaffold('monster', 'Monster', 5) as Monster), ...fields } }
 }
 
 function pc(id: string, overrides: Partial<CombatantInput> = {}): CombatantInput {
@@ -185,7 +192,7 @@ describe('saving throws', () => {
   })
 
   it('includes the stat block saving throw bonus in the label', () => {
-    start(monster('a', { statBlock: { savingThrowBonus: 2 } }), monster('b'))
+    start(monster('a', kit({ savingThrowBonus: 2 })), monster('b'))
     E.addCondition('a', cond('slowed', { duration: { type: 'save-ends' } }))
     E.endTurn()
     const s = E.getCombatState()!
@@ -236,13 +243,13 @@ describe('ongoing damage', () => {
   })
 
   it('applies resistance, vulnerability, and immunity', () => {
-    const cases: [Record<string, unknown>, number, string][] = [
-      [{ resistances: [{ type: 'fire', value: 3 }] }, 2, ' (resist 3)'],
-      [{ weaknesses: [{ type: 'fire', value: 5 }] }, 10, ' (vulnerable 5)'],
-      [{ immunities: [{ type: 'fire' }] }, 0, ' (immune)'],
+    const cases: [Partial<Monster>, number, string][] = [
+      [{ resist: [{ type: 'fire', value: 3 }] }, 2, ' (resist 3)'],
+      [{ vulnerable: [{ type: 'fire', value: 5 }] }, 10, ' (vulnerable 5)'],
+      [{ immune: [{ type: 'fire' }] }, 0, ' (immune)'],
     ]
-    for (const [statBlock, expected, note] of cases) {
-      start(monster('a'), monster('b', { statBlock }))
+    for (const [fields, expected, note] of cases) {
+      start(monster('a'), monster('b', kit(fields)))
       E.addCondition('b', ongoing(5, 'fire'))
       E.endTurn()
       const items = E.getCombatState()!.turnItems.filter(i => i.kind === 'ongoing-damage')
@@ -262,21 +269,21 @@ describe('ongoing damage', () => {
 
 describe('regeneration', () => {
   it('heals automatically at the start of turn when below max HP', () => {
-    start(monster('a'), monster('troll', { hp: 20, statBlock: { regeneration: { value: 10 } } }))
+    start(monster('a'), monster('troll', { hp: 20, ...kit({ regeneration: { value: 10, suppressedBy: [], text: '' } }) }))
     E.endTurn()
     expect(get('troll').hp).toBe(30)
     expect(condIds('troll')).toContain('regenerating')
   })
 
   it('does nothing at max HP', () => {
-    start(monster('a'), monster('troll', { statBlock: { regeneration: { value: 10 } } }))
+    start(monster('a'), monster('troll', kit({ regeneration: { value: 10, suppressedBy: [], text: '' } })))
     E.endTurn()
     expect(get('troll').hp).toBe(40)
     expect(condIds('troll')).not.toContain('regenerating')
   })
 
   it('is suppressed for one turn after taking an inhibiting damage type', () => {
-    start(monster('a'), monster('troll', { statBlock: { regeneration: { value: 10, inhibitDamageTypes: ['fire'] } } }))
+    start(monster('a'), monster('troll', kit({ regeneration: { value: 10, suppressedBy: ['fire'], text: '' } })))
     E.damageCombatant('troll', 15, true, { damageType: 'fire' })
     E.endTurn()
     expect(get('troll').hp).toBe(25)
@@ -286,7 +293,7 @@ describe('regeneration', () => {
   })
 
   it('nets against ongoing damage', () => {
-    start(monster('a'), monster('troll', { hp: 20, statBlock: { regeneration: { value: 10 } } }))
+    start(monster('a'), monster('troll', { hp: 20, ...kit({ regeneration: { value: 10, suppressedBy: [], text: '' } }) }))
     E.addCondition('troll', cond('ongoing-damage', { value: 4, customDescription: 'acid', duration: { type: 'save-ends' } }))
     E.endTurn()
     expect(get('troll').hp).toBe(26)
@@ -295,7 +302,7 @@ describe('regeneration', () => {
   })
 
   it('revives a creature with both regeneration and revival at 0 HP', () => {
-    start(monster('a'), monster('troll', { hp: 0, statBlock: { regeneration: { value: 10 }, revival: { hp: 10, abilityName: 'Troll Healing' } } }))
+    start(monster('a'), monster('troll', { hp: 0, ...kit({ regeneration: { value: 10, suppressedBy: [], text: '' }, traits: [{ name: 'Troll Healing', keywords: ['healing'], text: { text: 'If the troll is reduced to 0 hit points by an attack that does not deal acid or fire damage, it rises on its next turn with 10 hit points.', clauses: [] } }] }) }))
     E.endTurn()
     expect(currentId()).toBe('troll')
     expect(get('troll').hp).toBe(10)
@@ -303,10 +310,10 @@ describe('regeneration', () => {
 })
 
 describe('recharge powers', () => {
-  const statBlock = { actions: [{ name: 'Fire Breath', usage: 'recharge', rechargeCondition: '5' }] }
+  const breath = kit({ powers: [{ name: 'Fire Breath', action: 'standard', usage: 'recharge', recharge: { kind: 'roll', min: 5 }, keywords: ['fire'], attacks: [] }] })
 
   it('prompts a recharge roll at the start of turn for a used recharge power', () => {
-    start(monster('dragon', { statBlock }), monster('b'))
+    start(monster('dragon', breath), monster('b'))
     E.usePower('dragon', 0)
     E.endTurn() // dragon ends
     E.endTurn() // b ends -> dragon starts
@@ -320,7 +327,7 @@ describe('recharge powers', () => {
 
   it('a successful recharge frees the power; a failed one keeps it used', () => {
     for (const success of [true, false]) {
-      start(monster('dragon', { statBlock }), monster('b'))
+      start(monster('dragon', breath), monster('b'))
       E.usePower('dragon', 0)
       E.endTurn()
       E.endTurn()
@@ -388,7 +395,7 @@ describe('damage and healing', () => {
   })
 
   it('minions take no damage on a miss', () => {
-    start(monster('minion', { hp: 1, maxHp: 1, statBlock: { isMinion: true } }))
+    start(monster('minion', { hp: 1, maxHp: 1, ...kit({ rank: 'minion' }) }))
     E.damageCombatant('minion', 5, false)
     expect(get('minion').hp).toBe(1)
   })
@@ -431,5 +438,34 @@ describe('player-visible state', () => {
     expect(Object.keys(view.combatants).sort()).toEqual(['hero', 'm'])
     expect(view.combatants.m.hpDescriptor).toBe('Bloodied')
     expect(view.combatants.hero.hpDescriptor).toBe('')
+  })
+})
+
+describe('traps', () => {
+  const trap = (fields: Partial<Trap> = {}): Partial<CombatantInput> => ({ kind: 'trap', hp: 0, maxHp: 0, content: { ...(scaffold('trap', 'Trap', 5) as Trap), ...fields } })
+
+  it('a trap with initiative and no hit points takes its turns and ignores damage', () => {
+    start(monster('a'), monster('jets', trap({ initiative: 6 })))
+    E.endTurn()
+    expect(currentId()).toBe('jets')
+    E.damageCombatant('jets', 10)
+    expect(get('jets').hp).toBe(0)
+    expect(get('jets').dead).toBeFalsy()
+    E.endTurn()
+    expect(currentId()).toBe('a')
+  })
+
+  it('a trap with hit points is defeated at 0 like a monster', () => {
+    start(monster('a'), monster('blade', { ...trap({ initiative: 4, hp: 30 }), hp: 30, maxHp: 30 }))
+    E.damageCombatant('blade', 30)
+    E.endTurn()
+    expect(currentId()).toBe('a')
+  })
+
+  it('a disabled trap no longer acts', () => {
+    start(monster('a'), monster('jets', trap({ initiative: 6 })))
+    E.updateCombatant('jets', { dead: true })
+    E.endTurn()
+    expect(currentId()).toBe('a')
   })
 })

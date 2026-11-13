@@ -16,6 +16,9 @@ import { generateId } from '@common/utils/id'
 import { extractLinks } from '@common/utils/links'
 import { join, extname } from 'path'
 import { readdir } from 'fs/promises'
+import { withWriteLock } from './write-lock'
+import { migrateLegacyItems } from './legacy-items'
+import { RECORD_STORAGE, checkRecord, isRecordType } from '@common/campaign-records'
 
 let activeCampaignId: string | null = null
 let linkDebounceTimer: ReturnType<typeof setTimeout> | null = null
@@ -55,6 +58,7 @@ export async function createCampaign(name: string): Promise<Campaign> {
   await ensureDir(join(dir, 'items'))
   await ensureDir(join(dir, 'player-characters'))
   await ensureDir(join(dir, 'maps'))
+  for (const { dir: sub } of Object.values(RECORD_STORAGE)) await ensureDir(join(dir, sub))
   await ensureDir(join(dir, 'assets', 'images'))
 
   await atomicWriteJson(getCampaignMetaPath(id), campaign)
@@ -68,6 +72,8 @@ export async function createCampaign(name: string): Promise<Campaign> {
 export async function openCampaign(campaignId: string): Promise<Campaign | null> {
   const meta = await readJson<Campaign>(getCampaignMetaPath(campaignId))
   if (!meta) return null
+  // Items became kit records (2026-11-13); convert any legacy item files once.
+  await withWriteLock(getCampaignMetaPath(campaignId), () => migrateLegacyItems(getEntityDir(campaignId, 'item')))
 
   meta.lastOpenedAt = new Date().toISOString()
   await atomicWriteJson(getCampaignMetaPath(campaignId), meta)
@@ -91,14 +97,20 @@ export async function updateCampaign(patch: Partial<Campaign>): Promise<Campaign
 
 export async function deleteCampaign(campaignId: string): Promise<void> {
   const dir = getCampaignDir(campaignId)
-  await deleteDir(dir)
+  await withWriteLock(getCampaignMetaPath(campaignId), () => deleteDir(dir))
   if (activeCampaignId === campaignId) activeCampaignId = null
 }
 
-export async function saveEntity<T extends { id: string }>(entityType: EntityType, entity: T): Promise<void> {
+export async function saveEntity<T extends { id: string }>(entityType: EntityType, input: T): Promise<void> {
   if (!activeCampaignId) throw new Error('No active campaign')
-  const path = getEntityPath(activeCampaignId, entityType, entity.id)
-  await atomicWriteJson(path, entity)
+  // Record envelopes are checked; their kit content is validated in the editor, not refused here.
+  const entity = isRecordType(entityType) ? checkRecord(entityType, input) : input
+  const campaignId = activeCampaignId
+  const path = getEntityPath(campaignId, entityType, entity.id)
+  await withWriteLock(getCampaignMetaPath(campaignId), async () => {
+    if (!await readJson(getCampaignMetaPath(campaignId))) throw new Error('Campaign no longer exists')
+    await withWriteLock(path, () => atomicWriteJson(path, entity))
+  })
 
   // Schedule link index rebuild
   scheduleLinkRebuild()
@@ -107,7 +119,7 @@ export async function saveEntity<T extends { id: string }>(entityType: EntityTyp
 export async function deleteEntity(entityType: EntityType, entityId: string): Promise<void> {
   if (!activeCampaignId) throw new Error('No active campaign')
   const path = getEntityPath(activeCampaignId, entityType, entityId)
-  await deleteFile(path)
+  await withWriteLock(path, () => deleteFile(path))
   scheduleLinkRebuild()
 }
 
@@ -157,9 +169,10 @@ async function rebuildLinkIndex(): Promise<void> {
   const entityTypes: EntityType[] = ['note', 'creature', 'encounter', 'location', 'item', 'player-character']
 
   for (const entityType of entityTypes) {
-    const entities = await listEntities<{ id: string; content?: string; description?: string }>(entityType)
+    const entities = await listEntities<{ id: string; content?: unknown; description?: unknown }>(entityType)
     for (const entity of entities) {
-      const text = entity.content || entity.description || ''
+      // Notes keep text in `content`; kit records keep an object there, so only strings are scanned.
+      const text = typeof entity.content === 'string' ? entity.content : typeof entity.description === 'string' ? entity.description : ''
       if (text) {
         allLinks.push(...extractLinks(entityType, entity.id, text))
       }

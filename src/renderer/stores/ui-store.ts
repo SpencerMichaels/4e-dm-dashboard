@@ -1,8 +1,10 @@
 import { create } from 'zustand'
+import { useAuthoringStore } from './authoring-store'
 import type { EntityType } from '@common/types'
 import { DEFAULT_THEME_PREFERENCE, nextThemePreference, type ResolvedTheme, type ThemePreference } from '@kit/theme'
 
 export type ViewMode =
+  | { type: 'authoring'; draftId?: string }
   | { type: 'home' }
   | { type: 'note'; noteId: string }
   | { type: 'creature'; creatureId?: string }
@@ -27,7 +29,8 @@ export interface UiState {
   commandPaletteOpen: boolean
   systemPlugin: any | null  // Serialized plugin data from main
 
-  setView: (view: ViewMode) => void
+  /** keepEdits: the same editor stays mounted with its unapplied edits (a new draft becoming saved), so do not ask to discard them. */
+  setView: (view: ViewMode, options?: { keepEdits?: boolean }) => void
   /** Ask main to store a theme preference; it broadcasts the result to both windows. */
   setThemePreference: (preference: ThemePreference) => void
   /** Cycle system → light → dark */
@@ -49,7 +52,10 @@ export const useUiStore = create<UiState>()((set, get) => ({
   commandPaletteOpen: false,
   systemPlugin: null,
   skipAutoOpen: false,
-  setView: (view) => set({ view }),
+  setView: (view, options) => {
+    if (!options?.keepEdits && JSON.stringify(view) !== JSON.stringify(get().view) && useAuthoringStore.getState().pendingFields.length && !window.confirm('Discard unapplied draft edits and leave this view?')) return
+    set({ view })
+  },
   setThemePreference: (preference) => {
     window.api.settings.setTheme(preference)
   },

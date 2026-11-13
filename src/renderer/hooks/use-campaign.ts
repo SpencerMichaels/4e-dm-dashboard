@@ -1,5 +1,8 @@
 import { useCallback } from 'react'
-import type { EntityType, Note, Creature, Encounter, Location, Item, PlayerCharacter, MapData } from '@common/types'
+import type { EntityType, Note, Creature, Encounter, Location, ItemRecord, PlayerCharacter, MapData } from '@common/types'
+import type { Item as KitItem } from '@kit'
+import { newRecord } from '@common/campaign-records'
+import { scaffold } from '@common/authoring/core'
 import { generateId } from '@common/utils/id'
 
 // Convenience wrappers around window.api for use in components
@@ -71,17 +74,10 @@ export function useCampaignActions() {
     return location
   }, [])
 
-  const createItem = useCallback(async (name: string): Promise<Item> => {
-    const now = new Date().toISOString()
-    const item: Item = {
-      id: generateId(),
-      name,
-      tags: [],
-      extra: {},
-      createdAt: now,
-      updatedAt: now,
-    }
-    await window.api.entity.save('item', item)
+  // Items are kit records like traps (2026-11-13); a new one starts from the item scaffold.
+  const createItem = useCallback(async (name: string): Promise<ItemRecord> => {
+    const item = newRecord(generateId(), scaffold('item', name, 1) as KitItem, new Date().toISOString())
+    await window.api.entity.save('item', item as unknown as Record<string, unknown>)
     return item
   }, [])
 

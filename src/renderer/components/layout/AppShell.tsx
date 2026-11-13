@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useIpcSync } from '../../hooks/use-ipc'
 import { useHotkeys } from '../../hooks/use-hotkeys'
 import { useUiStore } from '../../stores/ui-store'
@@ -9,6 +9,7 @@ import { CommandPalette } from './CommandPalette'
 import { HotkeysModal, GLOBAL_HOTKEYS, COMBAT_HOTKEYS } from '../combat/HotkeysModal'
 import { SettingsModal } from './SettingsModal'
 import styles from './AppShell.module.css'
+import { useAuthoringStore } from '../../stores/authoring-store'
 
 export function AppShell() {
   useIpcSync()
@@ -17,6 +18,10 @@ export function AppShell() {
 
   const { view, sidebarCollapsed, toggleSidebar, setCommandPaletteOpen, commandPaletteOpen, setView } = useUiStore()
   const combat = useCombatStore((s) => s.combat)
+  useEffect(() => window.api.authoring.onChange(event => {
+    if (event.draft) useAuthoringStore.getState().receive(event.draft)
+    if (event.open !== undefined) setView({ type: 'authoring', draftId: event.open || undefined })
+  }), [])
 
   useHotkeys([
     // Universal (work even in inputs)

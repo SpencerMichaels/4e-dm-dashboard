@@ -1,4 +1,5 @@
 export interface Item {
+  authoredContent?: import('@kit').Item
   id: string
   name: string
   description?: string

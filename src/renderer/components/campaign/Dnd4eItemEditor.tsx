@@ -1,6 +1,7 @@
 import type { Item, CreatureBuilderConfig } from '@common/types'
 import { PowerEntryEditor, emptyPower } from '../creature/PowerEntryEditor'
 import type { PowerEntry } from '../creature/PowerEntryEditor'
+import { Annotation } from '../creature/annotations'
 import { TagInput } from '@renderer/components/shared/TagInput'
 import { useGlossary } from '../compendium/use-glossary'
 import '../creature/statblock.css'
@@ -143,7 +144,6 @@ export function Dnd4eItemEditor({ item, onSave }: Props) {
   const critDie = str('critDie')
   const critType = str('critType')
   const critExtra = str('critExtra')
-  const enhBonus = num('level') > 0 ? Math.ceil(num('level') / 5) : 0
 
   const category = str('category') || 'item'
   const isWeapon = category === 'weapon'
@@ -206,6 +206,7 @@ export function Dnd4eItemEditor({ item, onSave }: Props) {
             {RARITIES.map(r => <option key={r} value={r}>{r}</option>)}
           </select>
         </span>
+        <Annotation anchor={{ kind: 'stat', key: 'item-header' }} />
       </div>
 
       {/* ── SUBHEADER: Category + Slot + ItemType + Price ── */}
@@ -239,7 +240,8 @@ export function Dnd4eItemEditor({ item, onSave }: Props) {
         </span>
         <input className="ghost" value={str('price')}
           onChange={e => u('price', e.target.value)}
-          placeholder={PRICE_BY_LEVEL[num('level')] ?? '680'} style={{ color: 'inherit', fontStyle: 'inherit', textAlign: 'right' }} />{' '}gp
+          placeholder={PRICE_BY_LEVEL[num('level')] ?? '680'} style={{ color: 'inherit', fontStyle: 'inherit', textAlign: 'right', fieldSizing: 'content' as any, minWidth: '3ch', marginLeft: 'auto' }} /><span style={{ marginLeft: '0.25em' }}>gp</span>
+        <Annotation anchor={{ kind: 'stat', key: 'item-type' }} />
       </div>
 
       {/* ── Flavor ── */}
@@ -248,6 +250,7 @@ export function Dnd4eItemEditor({ item, onSave }: Props) {
           onChange={e => u('flavor', e.target.value)}
           placeholder="This blade crackles with elemental fire."
           style={{ fontStyle: 'italic', color: 'var(--color-text-secondary)', fontSize: 11, width: '100%', resize: 'none', fieldSizing: 'content' as any }} />
+        <Annotation anchor={{ kind: 'stat', key: 'item-text' }} />
       </div>
 
       {/* ── Set items + benefits ── */}
@@ -314,6 +317,7 @@ export function Dnd4eItemEditor({ item, onSave }: Props) {
       {/* ── Weapon stats (when category is weapon) ── */}
       {hasWeaponStats && (
         <div className="sb-section">
+          <Annotation anchor={{ kind: 'stat', key: 'item-stats' }} />
           <datalist id="dl-damage">{['1d4', '1d6', '1d8', '1d10', '1d12', '2d4', '2d6'].map(d => <option key={d} value={d} />)}</datalist>
           <datalist id="dl-range">{['5/10', '6/12', '10/20', '15/30', '20/40', '25/50'].map(r => <option key={r} value={r} />)}</datalist>
           <div className="sb-row">
@@ -361,6 +365,7 @@ export function Dnd4eItemEditor({ item, onSave }: Props) {
       {/* ── Ritual stats ── */}
       {isRitual && (
         <div className="sb-section">
+          <Annotation anchor={{ kind: 'stat', key: 'item-stats' }} />
           <datalist id="dl-keyskill">
             {['Arcana', 'Nature', 'Religion', 'Heal', 'Diplomacy', 'Dungeoneering', 'Thievery',
               'Arcana (no check)', 'Nature (no check)', 'Religion (no check)',
@@ -400,6 +405,7 @@ export function Dnd4eItemEditor({ item, onSave }: Props) {
       {/* ── Alchemical stats ── */}
       {hasAlchemical && (
         <div className="sb-section">
+          <Annotation anchor={{ kind: 'stat', key: 'item-stats' }} />
           <div className="sb-row">
             <span>
               <b className="sb-label">Alchemical Item</b>{' '}
@@ -427,6 +433,7 @@ export function Dnd4eItemEditor({ item, onSave }: Props) {
       {/* ── Enhancement + Critical ── */}
       {(hasEnhancement || hasCritical) && (
         <div className="sb-section">
+          <Annotation anchor={{ kind: 'stat', key: 'item-critical' }} />
           {hasEnhancement && (
             <div className="sb-row">
               <b className="sb-label">Enhancement</b>{' '}
@@ -444,16 +451,16 @@ export function Dnd4eItemEditor({ item, onSave }: Props) {
             <div className="sb-row">
               <b className="sb-label">Critical</b>{' '}
               <span>
-                +{enhBonus || '?'}
+                +
                 <select className="ghost" value={critDie} onChange={e => u('critDie', e.target.value)}>
                   <option value="">—</option>
                   {CRIT_DICE.map(d => <option key={d} value={d}>{d}</option>)}
                 </select>
-                {critDie && <>
+                {critDie && <>{' '}
                   <select className="ghost" value={critType} onChange={e => u('critType', e.target.value)}>
                     <option value="">damage</option>
                     {DAMAGE_TYPES.filter(Boolean).map(t => <option key={t} value={t}>{t} damage</option>)}
-                  </select>
+                  </select>{' '}per plus
                 </>}
               </span>
               <input className="ghost" value={critExtra}
@@ -471,6 +478,7 @@ export function Dnd4eItemEditor({ item, onSave }: Props) {
         </datalist>
         <div className="sb-row" style={{ alignItems: 'flex-start', flexDirection: 'column', gap: 2 }}>
           <b className="sb-label">Properties</b>
+          <Annotation anchor={{ kind: 'stat', key: 'item-properties' }} />
           {arr('properties').map((prop, i) => (
             <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 4, width: '100%' }}>
               <input className="ghost" value={prop}
@@ -491,6 +499,7 @@ export function Dnd4eItemEditor({ item, onSave }: Props) {
       {/* ── Special / Requirement (hidden when empty) ── */}
       {(str('special') || str('requirement')) && (
         <div className="sb-section">
+          <Annotation anchor={{ kind: 'stat', key: 'item-special' }} />
           {str('special') !== '' && (
             <div className="sb-row" style={{ alignItems: 'flex-start' }}>
               <b className="sb-label">Special</b>{' '}

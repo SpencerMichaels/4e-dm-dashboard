@@ -3,6 +3,7 @@
  * Returns structured data about which conditions a power applies and their durations.
  */
 
+import { locateDiseaseMentions } from '@common/rules/diseases'
 import type { ConditionDef } from '@common/types/system-plugin'
 
 export interface DetectedCondition {
@@ -16,6 +17,8 @@ export interface DetectedCondition {
   matchEnd: number
   matchText: string         // the matched substring
   grantsCATo?: 'all' | 'source' | 'source-allies'  // only for combat-advantage
+  /** A disease the power exposes its target to (conditionId 'disease'): applying it tracks the disease on the PC. */
+  disease?: import('@common/types').DiseaseRef
 }
 
 interface PowerFields {
@@ -192,4 +195,24 @@ export function splitTextWithHighlights(
     segments.push({ text: text.substring(pos) })
   }
   return segments
+}
+
+/**
+ * Disease names in a power's hit, effect, and miss text, as detections that highlight and apply like
+ * conditions. Spans that overlap a condition detection are left to the condition.
+ */
+export function detectDiseases(
+  power: PowerFields,
+  names: import('@common/rules/diseases').DiseaseName<import('@common/types').DiseaseRef>[],
+  conditions: DetectedCondition[] = [],
+): DetectedCondition[] {
+  const out: DetectedCondition[] = []
+  for (const field of ['hit', 'effect', 'miss'] as const) {
+    const text = power[field] ?? ''
+    for (const m of locateDiseaseMentions(text, names)) {
+      if (conditions.some(c => c.sourceField === field && m.start < c.matchEnd && m.end > c.matchStart)) continue
+      out.push({ conditionId: 'disease', conditionName: m.disease.name, sourceField: field, matchStart: m.start, matchEnd: m.end, matchText: text.slice(m.start, m.end), disease: m.disease.ref })
+    }
+  }
+  return out
 }

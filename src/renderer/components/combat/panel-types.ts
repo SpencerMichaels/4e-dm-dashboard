@@ -33,7 +33,11 @@ export interface PluginCombatPanelProps {
   onPinCard: (card: { combatantName: string; title: string; content: any; key: string }) => void
   pinnedKeys: Set<string>
   onPopoutStatblock?: (combatantId: string) => void
+  /** Traps: a countermeasure stopped it, or it works again. */
+  onToggleDisabled?: () => void
   onApplyConditionToTargets: (condition: { conditionId: string; value?: number; customDescription?: string; sourceId?: string; duration?: { type: string; remaining?: number; expiresOnId?: string } }, multi: boolean) => void
+  /** A disease named in a power: select PCs to expose (tracked on their PC records). */
+  onApplyDiseaseToTargets?: (disease: import('@common/types').DiseaseRef, name: string, multi: boolean) => void
   /** When true, hide powers that require a standard, move, or minor action */
   hideMainActionPowers?: boolean
 }

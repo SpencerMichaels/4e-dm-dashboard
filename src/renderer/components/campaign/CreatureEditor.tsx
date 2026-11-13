@@ -3,6 +3,7 @@ import type { Creature } from '@common/types'
 import { useUiStore } from '../../stores/ui-store'
 import { generateId } from '@common/utils/id'
 import { Dnd4eCreatureDetails } from '../creature/Dnd4eCreatureDetails'
+import { AuthoredEntity } from '../authoring/AuthoredEntity'
 
 interface Props {
   creatureId?: string
@@ -32,6 +33,7 @@ export function CreatureEditor({ creatureId }: Props) {
   }, [creatureId])
 
   if (!creature) return <div style={{ color: 'var(--color-text-muted)' }}>Loading...</div>
+  if (creature.authoredContent) return <AuthoredEntity content={creature.authoredContent} kind="monster" entityId={creature.id} />
 
   const save = (updated: Creature) => {
     const withTime = { ...updated, updatedAt: new Date().toISOString() }

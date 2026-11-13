@@ -48,7 +48,7 @@ export function CommandPalette() {
       ...creatures.map(c => ({ id: `creature-${c.id}`, icon: '👹', label: c.name, hint: 'Creature', action: () => nav({ type: 'creature', creatureId: c.id }) })),
       ...encounters.map(e => ({ id: `encounter-${e.id}`, icon: '⚔️', label: e.name, hint: 'Encounter', action: () => nav({ type: 'encounter', encounterId: e.id }) })),
       ...locations.map(l => ({ id: `location-${l.id}`, icon: '📍', label: l.name, hint: 'Location', action: () => nav({ type: 'location', locationId: l.id }) })),
-      ...items.map(i => ({ id: `item-${i.id}`, icon: '🎒', label: i.name, hint: 'Item', action: () => nav({ type: 'item', itemId: i.id }) })),
+      ...items.map(i => ({ id: `item-${i.id}`, icon: '🎒', label: i.content.name, hint: 'Item', action: () => nav({ type: 'item', itemId: i.id }) })),
       ...playerCharacters.map(p => ({ id: `pc-${p.id}`, icon: '🧑', label: p.name || 'Unnamed Character', hint: 'PC', action: () => nav({ type: 'entity-list', entityType: 'player-character' }) })),
     ]
     return cmds

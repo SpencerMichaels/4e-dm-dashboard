@@ -1,4 +1,5 @@
 import type { Creature, CombatantState } from '@common/types'
+import { combatStatBlock } from './combat-view'
 import { FloatingPanel } from '../shared/FloatingPanel'
 import { Dnd4eCreatureViewer } from '../creature/Dnd4eCreatureViewer'
 import { useGlossary } from '../compendium/use-glossary'
@@ -21,7 +22,7 @@ export function PopoutStatblockPanel({ combatant, offsetIndex, onClose }: Props)
     maxHp: combatant.maxHp,
     imageId: combatant.imageId,
     tokenImageId: combatant.tokenImageId,
-    statBlock: combatant.statBlock ?? {},
+    statBlock: combatStatBlock(combatant),
     createdAt: '',
     updatedAt: '',
   }

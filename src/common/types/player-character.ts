@@ -8,6 +8,23 @@ export interface PlayerCharacter {
   color?: string                  // Characteristic chip color (CSS color string)
   active?: boolean                // Whether this PC counts toward the active party (default true)
   markType?: string               // Class mark id (e.g. 'hunter-quarry') — see src/common/rules/class-marks.ts
+  diseases?: PcDisease[]          // Diseases the PC is exposed to or carries, with the current stage
   createdAt: string
   updatedAt: string
+}
+
+/** A disease by reference: a campaign disease record or a published disease. */
+export interface DiseaseRef {
+  diseaseId?: string
+  compendiumId?: string
+}
+
+/**
+ * A disease a PC carries. "exposed": hit by a disease attack, not yet contracted (the disease attacks
+ * after the encounter). A number: the current stage (stage 1 on contracting; reaching 0 cures it).
+ */
+export interface PcDisease extends DiseaseRef {
+  stage: number | 'exposed'
+  /** When it was exposed or last changed, for the DM's reference. */
+  since: string
 }

@@ -1,6 +1,7 @@
 import { ipcMain, dialog, BrowserWindow } from 'electron'
 import { CMD, SYNC } from '@common/ipc-channels'
 import type { EntityType } from '@common/types'
+import { RECORD_STORAGE, RECORD_TYPES, type RecordType } from '@common/campaign-records'
 import * as store from '../data/campaign-store'
 import { broadcastToDm } from '../windows'
 import { invalidateCreatureIndex } from './compendium-handlers'
@@ -124,12 +125,12 @@ const entityTypeToStoreKey: Record<EntityType, string> = {
   encounter: 'encounters',
   note: 'notes',
   location: 'locations',
-  item: 'items',
   'player-character': 'playerCharacters',
   map: 'maps',
+  ...Object.fromEntries(Object.entries(RECORD_STORAGE).map(([type, s]) => [type, s.storeKey])) as Record<RecordType, string>,
 }
 
-async function broadcastEntityUpdate(entityType: EntityType): Promise<void> {
+export async function broadcastEntityUpdate(entityType: EntityType): Promise<void> {
   const campaignId = store.getActiveCampaignId()
   if (!campaignId) return
 
@@ -148,18 +149,18 @@ async function broadcastCampaignState(): Promise<void> {
   if (!campaignId) return
 
   // Broadcast a summary of current state to DM renderer
-  const [campaign, creatures, encounters, locations, maps, items, pcs, notes, noteTree, links, annotations] = await Promise.all([
+  const [campaign, creatures, encounters, locations, maps, pcs, notes, noteTree, links, annotations, ...records] = await Promise.all([
     store.getActiveCampaign(),
     store.listEntities('creature'),
     store.listEntities('encounter'),
     store.listEntities('location'),
     store.listEntities('map'),
-    store.listEntities('item'),
     store.listEntities('player-character'),
     store.listEntities('note'),
     store.getNoteTree(),
     store.getLinks(),
     store.loadAnnotations(campaignId),
+    ...RECORD_TYPES.map(type => store.listEntities(type)),
   ])
 
   broadcastToDm(SYNC.CAMPAIGN_STATE, {
@@ -169,11 +170,11 @@ async function broadcastCampaignState(): Promise<void> {
     encounters,
     locations,
     maps,
-    items,
     playerCharacters: pcs,
     notes,
     noteTree,
     links,
     annotations,
+    ...Object.fromEntries(RECORD_TYPES.map((type, i) => [RECORD_STORAGE[type].storeKey, records[i]])),
   })
 }

@@ -17,6 +17,7 @@
   "mounts": [
     "source=tabletop-bashhistory-${devcontainerId},target=/commandhistory,type=volume",
     "source=tabletop-codex-config-${devcontainerId},target=/home/node/.codex,type=volume",
+    "source=tabletop-userdata-${devcontainerId},target=/home/node/.config/4e-dm-dashboard,type=volume",
     "source=${localEnv:XDG_RUNTIME_DIR}/${localEnv:WAYLAND_DISPLAY},target=/tmp/wayland-0,type=bind"
   ],
   "containerEnv": {

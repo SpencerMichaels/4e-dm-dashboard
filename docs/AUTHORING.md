@@ -1,0 +1,96 @@
+# Workshop and agent authoring
+
+The Workshop (🛠️ in the sidebar) stores drafts independently of campaigns. It supports creatures (kit kind `monster`), items, traps, diseases, monster templates, and monster themes in the shared kit schema. Every kind saves to a campaign: creatures as campaign creatures, the other kinds (items included) as campaign records that appear as Custom entries on their compendium pages. Published compendium data is read-only. (Homebrew libraries were removed on 2026-11-13; existing library folders are left on disk and no longer read.) Campaign items from before 2026-11-13 convert to kit item records the first time their campaign opens; each original is kept beside it as `items/_legacy-<file>.json`.
+
+## DM workflow
+
+1. Open **Workshop** and pick a tab (Creatures, Items, Traps, Diseases, Templates, Themes); each lists its drafts in a table you can sort by name, level, status, or last update. **+ New creature** (or item, …) opens a blank entry in the editor; like a new compendium creature, your first edit saves it as a draft (name, level, and role are in the stat block). **Copy existing** searches published entries of that kind and copies one into a new draft; **Import JSON** takes kit-schema content. A one-time box on the Workshop page explains the agent workflow; **How the Workshop works**, at the bottom, shows it again. A draft made here saves to the open campaign; change that from the rail (**⋯ › Choose campaigns…**). With no campaign open, the sidebar says so and only Home and the Workshop are available.
+2. Review the stat block and use **Edit** to change it. The description ("Notes", rendered markdown) sits below the stat block in both views and becomes a text box when editing. For monsters this is the same editor as the Creatures compendium page (with benchmark hints, power cards, and damage dice), minus the image panel. Edits go into the draft as you make them, after a short pause; there is no Apply step. They are recorded as yours (listed under **Your edits**); the agent treats them as your direction and can revise them when you ask. If the agent changes the draft while you are editing, your edits to other fields merge onto its changes without asking; if it changed the same field, the editor asks whether to **Keep mine** or **Use the agent’s**, and applies nothing until you choose. An edit that could not be saved shows why, with **Try again** and **Undo it**, and blocks saving until resolved. Raw fields apply when they lose focus (or on Enter). Leading hit damage ("2d6 + 3 poison damage") appears in the damage editor, and the rest of the hit text stays in the Hit field. Unedited prose keeps its exact wording. A power's **Special** line has its own field (**+ special** adds one). Kit-only mechanics the compendium editor has no control for (secondary attacks, failed saves, clauses) are preserved and shown in the stat block preview. Every other kind also edits with its compendium statblock: items with the item editor (through `item-editor-adapter.ts`), and traps, diseases, templates, and themes with their kit-native statblocks (the same components as their compendium pages, through `kit-editor-adapter.ts`). Raw field editing is only under **History › Raw fields (advanced)**, for data no statblock shows.
+3. Comment on a stat line, power, trait, or the notes with the marker at its right edge (it appears on hover). A marker with items shows one icon per kind: **?** open question, **‼** Problem, **!** Risk, **💬** open comment, **i** Note; hover it for counts. The thread opens beside the line; Ctrl+Enter posts, Escape closes. Threads list the newest comment first, each cut to its first sentence (click to expand) with only the latest reply shown. Toggle **Needs an answer** while writing to make a comment block approval until resolved. Comments on the whole draft, and on entries that were since removed, are under the collapsed **Discussion** in the right-hand rail. Reply and resolve threads explicitly. The agent closes questions it asked once you have answered them (its closing reply records your answer) or a redesign has made them moot; it replies to your own threads but leaves resolving them to you.
+4. Tell your connected agent to continue. **Request agent revision** (in the rail's ⋯ menu, with **Copy draft JSON**) records a handoff comment; it does not launch an AI model.
+5. Review reconciled metadata and current balance findings. Edited power text can make metadata stale. Clause spans follow the edited wording automatically (an unparsed clause covering the whole line takes the new wording); the node is still flagged so its interpretation gets checked. The agent can reconcile it, or you can check the interpretation explicitly. Unparsed/manual mechanics are allowed; invalid/stale metadata is not.
+6. The rail's **Save to <campaign>** button writes the current draft to its campaigns. Beside it, the status reads **Not saved yet**, **Changed since last save**, or **Saved to <campaign>**, followed by only what blocks saving (for example "2 open questions · no balance review"); select a blocker to fix it there or open its thread, and pressing Save while blocked opens the first one. Risks, Problems, numeric flags, and a missing or outdated review need **Accept as designed**; a review with only Notes does not. A save is bound to the draft version and current feedback; any later change needs a new save. Saving again updates the entries the first save wrote instead of adding copies (if the campaign copy was changed elsewhere meanwhile, the save stops rather than overwrite it).
+7. **History** lists dated versions, newest first, with who changed which fields (for example "The agent changed HP, Shadow Touch › primary attack › hit"). Open one to see each change as before → after, and **Restore this version** to make it the newest version again. Raw field editing is below it, under **Raw fields (advanced)**.
+
+Saved creatures open in the normal campaign view, and saved items, traps, diseases, templates, and themes appear as Custom entries on their compendium pages. Their **Edit in Workshop** action creates an update draft with a conflict hash, preserving campaign imagery and metadata on approval.
+
+A draft can save to two campaigns at once. Writes are journaled individually. If interrupted, save again; completed writes are not duplicated. If a destination changed or disappeared, **Stop saving** unlocks the draft and retains any already-saved entities. Inspect those destinations before saving again; an unresolved recovery question records this requirement.
+
+## Agent connection
+
+The app starts a local authenticated socket bridge. The CLI automatically uses `~/.config/4e-dm-dashboard/authoring/connection.json` inside the container, so normal use requires no copied path. **Copy connection path**, at the bottom of the Workshop page, copies the connection-file path for custom setups. The file contains a credential; supply its path to the CLI, not its contents to a model/chat. No network listener is opened.
+
+Run commands inside the devcontainer, where the app runs:
+
+```sh
+npm run --silent authoring -- list_drafts
+npm run --silent authoring -- create_draft request.json
+npm run --silent authoring -- get_draft request.json
+```
+
+Arguments are a JSON object read from a file or `-` for stdin. For a custom user-data location, use `--connection /path/to/connection.json` or `FOUR_E_AUTHORING_CONNECTION` (the flag takes precedence). If automatic discovery fails, check that the dashboard and CLI run as the same user inside the same container, then use the path from **Copy connection path** in the Workshop. `scaffold`, `benchmarks`, `validate`, and `search-local` work without the running app. `search-local` accepts a `contentRoot` path (the directory holding `raw/` and `parsed/`; the older `parsedRoot` still works); its default is `content` under the working directory. Monsters and traps are re-parsed from `raw/` with their printed hit, miss, and effect text, as in the content repo.
+
+For an MCP client, configure a stdio server using the official SDK adapter. **Use `--silent` with npm so npm banners do not corrupt the protocol.** Example command/arguments for a client running inside the devcontainer:
+
+```json
+{
+  "command": "npm",
+  "args": ["run", "--silent", "authoring", "--", "--mcp"],
+  "cwd": "/workspace"
+}
+```
+
+For a host-side client, run the adapter through the existing container:
+
+```sh
+docker exec -i -w /workspace CONTAINER_ID npm run --silent authoring -- --mcp
+```
+
+This keeps the socket and credentials inside the container and requires no extra socket mounts. The server uses the SDK's stdio protocol and advertises only authoring tools; approval and arbitrary file/code operations are absent. It is local tooling, not a remotely hosted MCP service. Adapter source: `tools/authoring/cli.ts`; tool schemas: `tools/authoring/tools.ts`.
+
+The three repository-owned skills are in `skills/4e-author-content`, `skills/4e-find-precedents`, and `skills/4e-review-balance`. Copy or symlink these into your agent's skill directory, or invoke them by their repository paths. They are ordinary Markdown and refer to this repository for tool/schema details. Installation is intentionally not automatic.
+
+## Example tool arguments
+
+Create a baseline draft:
+
+```json
+{"kind":"monster","name":"Thorn witch","level":8,"role":"controller","rank":"standard","intent":"Accurate attacks, low direct damage, fast but brittle."}
+```
+
+Fetch its current state with `{"id":"DRAFT_ID"}`. Stable IDs for powers/traits are in `nodes`. Patch individual fields, rather than submitting an old full snapshot:
+
+```json
+{
+  "id":"DRAFT_ID",
+  "revision":1,
+  "changes":[
+    {"path":"/content/hp","value":48},
+    {"path":"/decisions","value":"Low HP offsets mobility; the DM wants the curse preserved."}
+  ]
+}
+```
+
+For named nodes use paths such as `/content/powers/@POWER_ID/attacks/0/hit/text`. Append with `/append/powers` (or insert at a position with `/append/powers/INDEX`), remove with `/remove/powers/@POWER_ID`, and reorder with `/order/powers` plus the full ID array. Applied DM edits are listed in `overrides`. Agents may revise them; doing so removes that path (and anything under it) from `overrides`, and deriving clauses under DM prose keeps the DM marker on the prose. DM edits still in the editor are never overwritten: they merge onto an agent revision field by field, and the DM chooses when both changed the same field.
+
+`suggest_numbers` accepts `id` plus an optional `recipe`: `hpMultiplier`, `defenseOffsets`, `initiativeOffset`, `speed`, and `powers` keyed by stable node ID with `accuracy`, `damageBand` (`low`/`medium`/`high`), and `limited`. It returns proposed changes, the DM-edited fields it left unchanged (`protectedFields`), and damage guidance without applying them. Save the recipe in `/recipe`; apply coherent text and clause changes separately. These offsets are design choices, not official balance equivalences.
+
+Power clauses may use `quote` rather than `at`; code resolves spans. An unparsed clause can be `{"text":"exact words from the owning line"}`. The existing validator checks shape and span plausibility; the agent and DM still review semantic fidelity.
+
+## Storage and limits
+
+- `<userData>/authoring/drafts/<id>/current.json`: current envelope; `history/` contains immutable event snapshots, and `save.json` journals saving. Review/comment events do not change the content revision.
+- Saved traps, diseases, templates, and themes: `campaigns/<id>/{traps,diseases,templates,themes}/<entry id>.json`, an envelope (`id`, `createdAt`, `updatedAt`, optional `basedOn`) around the kit `content`.
+- Campaign imports retain complete kit content in `authoredContent` alongside a projection for existing viewers/combat. This is an adapter, not the planned campaign-wide kit migration.
+- Monster math is labeled `published-rules-v2` (drafts made earlier say `dashboard-dmg-v1`): the latest published rule for each number, cited by book and page in `src/common/rules/benchmarks.ts`. Role statistics are DMG p. 184; damage and accuracy follow the DMG errata that Monster Manual 3 introduced (Rules Update 08/2012 p. 46: one-target and several-target damage, brutes +25%, limited +25% to +50%, level + 5 vs. AC and + 3 vs. other defenses); elites are twice standard HP and solos four times, with no defense bonus for either (DMG2 p. 133); minion damage is DMG2 p. 133; DCs are Rules Compendium p. 126. The creature builder uses the same functions. Calculation supports levels 1–30. Items have their own tables (`src/common/rules/items.ts`): value by level (PHB p. 223, the same in RC p. 278), sale price by rarity (RC p. 278), and enhancement bonus by level (PHB p. 225). `benchmarks` with `kind: "item"` returns them with the five-level version ladder, the item scaffold takes the table price, and validation flags a price or enhancement bonus that differs (published items match exactly, apart from a few misprints). Consumables, rituals, and alchemical items have no rule table and are not checked; use precedents. Item effects and complex balance choices still need precedents and judgment.
+- Compendium search combines text and available structured clauses. The current parsed-content adapter does not imply the cleaned content pack is installed. Results label their source; metadata coverage may be incomplete.
+- No automatic runtime implementation of linked summons, transformation, permanent curses, or arbitrary power effects is added. The rules remain visible for DM adjudication.
+- Every kind edits with the statblock its compendium page uses. Creatures and items go through adapters (`creature-editor-adapter.ts`, `item-editor-adapter.ts`) that turn the legacy editors' edits into field-level patches; the other kinds edit kit content directly (`kit-editor-adapter.ts`). Revision comparison still shows JSON; semantic diffs are a follow-up.
+- Templates and themes made in the Workshop or on their compendium pages can be applied in the encounter editor alongside the published ones (`creature/template-catalog.ts`).
+- Traps and diseases are not yet used in encounters or combat (a separate plan).
+
+Protocol references: [MCP stdio transport](https://modelcontextprotocol.io/specification/2025-11-25/basic/transports), [tool interface](https://modelcontextprotocol.io/specification/2025-11-25/server/tools). The adapter delegates protocol handling to the official SDK.
+
+## Development checks
+
+Run `npm test`, `npm run typecheck:node`, and `npm run build` in the devcontainer. `npm run test:authoring:ui` then launches an isolated Electron smoke test with temporary user data and hidden windows and captures `out/authoring-smoke.png` and `out/authoring-edit-smoke.png`. It drives the native creature editor by its printed labels and does not modify real campaigns. Skill metadata was checked with the skill-creator validator. Existing renderer-wide TypeScript errors are tracked in AGENTS.md; the new authoring modules must not add errors.

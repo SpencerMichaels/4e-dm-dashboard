@@ -2,6 +2,7 @@ import { useRef, useState, useLayoutEffect, useEffect, useCallback } from 'react
 import type { CombatState, CombatNotification } from '@common/types'
 import { CombatToken } from './CombatToken'
 import type { ConditionDef } from '@common/types/system-plugin'
+import { defense, defenses, isDefeated } from '@common/combat/facts'
 import type { AttackMode } from './CombatView'
 import { getConditionStyle } from './condition-styles'
 import { ConditionPill, buildConditionLabel } from './ConditionPill'
@@ -256,7 +257,7 @@ export function InitiativeList({ combat, currentId, selectedIds, onSelect, onCon
         const isDelayed = section === 'delayed'
         const isReadied = section === 'readied'
         const isActed = section === 'acted'
-        const isDead = c.dead === true || (!c.isPC && c.hp <= 0)
+        const isDead = isDefeated(c)
         const isSurprised = combat.round === 0 && c.conditions?.some(co => co.conditionId === 'surprised')
         const isHidden = !!c.hidden
         const isDragging = dragId === id
@@ -272,7 +273,7 @@ export function InitiativeList({ combat, currentId, selectedIds, onSelect, onCon
 
         // Defense value for resolve phase
         const defenseValue = isAttackCurrent && attackMode?.defense
-          ? (c.statBlock as any)?.defenses?.[attackMode.defense.toLowerCase()] ?? (attackMode.defense === 'AC' ? (c.statBlock as any)?.ac : null)
+          ? defense(c, attackMode.defense) ?? null
           : null
 
         return (
@@ -456,10 +457,10 @@ export function InitiativeList({ combat, currentId, selectedIds, onSelect, onCon
               border: '1px solid rgba(92,124,250,0.3)', borderTop: 'none',
               fontSize: 11, fontWeight: 600,
             }}>
-              <span><b style={{ color: 'var(--color-text-muted)' }}>AC</b> {(c.statBlock as any)?.ac ?? '—'}</span>
-              <span><b style={{ color: 'var(--color-text-muted)' }}>Fort</b> {(c.statBlock as any)?.defenses?.fortitude ?? '—'}</span>
-              <span><b style={{ color: 'var(--color-text-muted)' }}>Ref</b> {(c.statBlock as any)?.defenses?.reflex ?? '—'}</span>
-              <span><b style={{ color: 'var(--color-text-muted)' }}>Will</b> {(c.statBlock as any)?.defenses?.will ?? '—'}</span>
+              <span><b style={{ color: 'var(--color-text-muted)' }}>AC</b> {defenses(c).ac ?? '—'}</span>
+              <span><b style={{ color: 'var(--color-text-muted)' }}>Fort</b> {defenses(c).fortitude ?? '—'}</span>
+              <span><b style={{ color: 'var(--color-text-muted)' }}>Ref</b> {defenses(c).reflex ?? '—'}</span>
+              <span><b style={{ color: 'var(--color-text-muted)' }}>Will</b> {defenses(c).will ?? '—'}</span>
             </div>
           )}
 

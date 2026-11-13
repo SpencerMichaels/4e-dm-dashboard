@@ -1,5 +1,7 @@
 import { app } from 'electron'
 import { join } from 'path'
+import { ENTITY_DIRS } from '@common/campaign-records'
+import type { EntityType } from '@common/types'
 
 /** App-wide preferences (theme), outside any campaign */
 export function getAppSettingsPath(): string {
@@ -15,17 +17,7 @@ export function getCampaignDir(campaignId: string): string {
 }
 
 export function getEntityDir(campaignId: string, entityType: string): string {
-  // Map entity types to directory names
-  const dirMap: Record<string, string> = {
-    note: 'story/notes',
-    creature: 'creatures',
-    encounter: 'encounters',
-    location: 'locations',
-    item: 'items',
-    'player-character': 'player-characters',
-    map: 'maps',
-  }
-  return join(getCampaignDir(campaignId), dirMap[entityType] || entityType)
+  return join(getCampaignDir(campaignId), ENTITY_DIRS[entityType as EntityType] || entityType)
 }
 
 export function getEntityPath(campaignId: string, entityType: string, entityId: string): string {

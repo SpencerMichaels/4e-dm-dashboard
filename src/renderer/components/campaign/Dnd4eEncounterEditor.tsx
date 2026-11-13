@@ -1,5 +1,5 @@
 import { useState, useMemo, useCallback, useRef, useEffect } from 'react'
-import type { Encounter, Creature, CompendiumEntry, EncounterCreature } from '@common/types'
+import type { Encounter, Creature, CompendiumEntry, EncounterCreature, EncounterRowPreview, EncounterTrap } from '@common/types'
 import { GhostNumberInput } from '@renderer/components/shared/GhostNumberInput'
 import { MultiSelectDropdown } from '@renderer/components/shared/MultiSelectDropdown'
 import { useImage } from '@renderer/hooks/use-image'
@@ -7,16 +7,22 @@ import { useHotkeys } from '@renderer/hooks/use-hotkeys'
 import { useCompendium } from '../compendium/use-compendium'
 import { useGlossary } from '../compendium/use-glossary'
 import { XP_BY_LEVEL, xpForCreature, encounterBudget, encounterLevel, encounterDifficulty, ENCOUNTER_TEMPLATES, type EncounterTemplate } from '../creature/dnd4e-utils'
-import { MONSTER_TEMPLATES, meetsPrerequisite, applyMonsterTemplate, type MonsterTemplate } from '../creature/monster-templates'
-import { MONSTER_THEMES, applyMonsterTheme, parseSkillModifications, type MonsterTheme, type ThemePower } from '../creature/monster-themes'
+import type { MonsterTemplate } from '../creature/monster-templates'
+import { parseSkillModifications, type MonsterTheme, type ThemePower } from '../creature/monster-themes'
+import { findByRef, useTemplateCatalog } from '../creature/template-catalog'
+import { kitViewCreature } from '../creature/kit-view'
+import { EncounterTraps, trapKey, useTrapRows } from './EncounterTraps'
+import { useTrap, useTraps } from '../trap/trap-refs'
+import { EncounterDiseases } from '../disease/disease-refs'
+import { contentText } from '@common/rules/diseases'
+import { TrapStatblock } from '../trap/TrapStatblock'
 import { CompendiumSearchPanel } from '../compendium/CompendiumSearchPanel'
 import { Dnd4eCreatureViewer, type TemplateChip } from '../creature/Dnd4eCreatureViewer'
-import { TemplateViewer } from '../compendium/Dnd4eTemplateBrowser'
+import { TemplateViewer } from '../creature/TemplateViewer'
 import { VirtualizedList } from '../shared/VirtualizedList'
 import { FloatingPanel } from '@renderer/components/shared/FloatingPanel'
 import { useUiStore } from '@renderer/stores/ui-store'
 import { useCampaignStore } from '@renderer/stores/campaign-store'
-import { generateId } from '@common/utils/id'
 import { capitalize } from '@common/utils/format'
 import '../creature/statblock.css'
 
@@ -26,123 +32,48 @@ function ecKey(ec: EncounterCreature): string {
   return ec.creatureId ?? ec.compendiumId ?? ''
 }
 
-/** Adjust the flat modifier in a damage expression by `delta`.
- *  "2d6+3" +1 → "2d6+4"; "2d6" +1 → "2d6+1"; "3" +1 → "4" */
-function adjustDamageExpr(expr: string, delta: number): string {
-  if (!expr || !delta) return expr
-  // Match trailing +N or -N
-  const m = expr.match(/^(.+?)([+-]\d+)$/)
-  if (m) {
-    const newMod = parseInt(m[2]) + delta
-    if (newMod === 0) return m[1]
-    return `${m[1]}${newMod >= 0 ? '+' : ''}${newMod}`
-  }
-  // Pure number (flat damage)
-  const flat = parseInt(expr)
-  if (!isNaN(flat) && String(flat) === expr.trim()) return String(flat + delta)
-  // Has dice but no modifier — append one
-  if (/\d+d\d+/.test(expr)) return `${expr}${delta >= 0 ? '+' : ''}${delta}`
-  return expr
-}
-
-/** Apply DMG p.174 level adjustment (±1 to ±5) to a stat block.
- *  Per level: ±1 attack, ±1 defenses, ±HP (role-based), ±1 damage per 2 levels. */
-function applyLevelAdjustment(sb: Record<string, unknown>, delta: number): Record<string, unknown> {
-  if (!delta) return sb
-  sb = { ...sb }
-  const role = (sb.role as string) ?? ''
-  const source = `Level ${delta > 0 ? '+' : ''}${delta}`
-  const diffs = [...(sb._templateDiffs as any[] ?? [])]
-
-  // Level
-  const oldLevel = (sb.level as number) ?? 1
-  sb.level = oldLevel + delta
-
-  // AC
-  const oldAc = (sb.ac as number) ?? 0
-  sb.ac = oldAc + delta
-  diffs.push({ field: 'ac', before: oldAc, after: sb.ac, source, sourceIndex: -2 })
-
-  // Defenses
-  const oldDefs = (sb.defenses as Record<string, number>) ?? {}
-  const newDefs = { ...oldDefs }
-  for (const key of ['fortitude', 'reflex', 'will']) {
-    if (newDefs[key] != null) {
-      const before = newDefs[key]
-      newDefs[key] = before + delta
-      diffs.push({ field: `defenses.${key}`, before, after: newDefs[key], source, sourceIndex: -2 })
-    }
-  }
-  sb.defenses = newDefs
-
-  // HP
-  const hpPerLevel: Record<string, number> = {
-    brute: 10, skirmisher: 8, soldier: 8, controller: 8, lurker: 6, artillery: 6
-  }
-  const perLevel = hpPerLevel[role] ?? 8
-  const oldHp = (sb.hp as number) ?? 1
-  sb.hp = Math.max(1, oldHp + delta * perLevel)
-  diffs.push({ field: 'hp', before: oldHp, after: sb.hp, source, sourceIndex: -2 })
-
-  // Attack bonuses + damage on powers
-  const damageDelta = Math.sign(delta) * Math.floor(Math.abs(delta) / 2)
-  sb.actions = (sb.actions as any[] ?? []).map((a: any) => {
-    const patched = { ...a }
-    const hasAttackAdj = patched.attackBonus != null
-    const hasDamageAdj = damageDelta !== 0 && (Array.isArray(patched.damage) && patched.damage.length > 0 || (patched.hit && /^\d+d\d+/.test(patched.hit)))
-    if (hasAttackAdj) patched.attackBonus += delta
-    if (damageDelta !== 0 && Array.isArray(patched.damage)) {
-      patched.damage = patched.damage.map((d: any) => ({ ...d, expr: adjustDamageExpr(d.expr, damageDelta) }))
-    }
-    // Also adjust damage in hit text if it contains a simple "Xd6+N" at the start
-    if (damageDelta !== 0 && patched.hit && /^\d+d\d+/.test(patched.hit)) {
-      patched.hit = adjustDamageExpr(patched.hit.split(/\s/)[0], damageDelta) + patched.hit.substring(patched.hit.indexOf(' '))
-    }
-    // Store adjustment metadata for display attribution
-    if (hasAttackAdj || hasDamageAdj) {
-      patched._levelAdjust = { attackDelta: hasAttackAdj ? delta : 0, damageDelta: hasDamageAdj ? damageDelta : 0, source }
-    }
-    return patched
-  })
-
-  sb._templateDiffs = diffs
-  return sb
-}
-
-/** Apply templates + solo upgrade + theme + level adjustment to a base statBlock.
- *  Shared by the preview resolver and the combat start handler so the logic is
- *  in one place. Returns a new statBlock — does not mutate the input. */
-function applyEncounterOverrides(
-  baseSb: Record<string, unknown>,
-  ec: EncounterCreature,
-  themeOverride?: { name: string; attackPower: string; utilityPower: string; skillChoice?: number } | null,
-): Record<string, unknown> {
-  let sb = { ...baseSb }
-  const tNames = ec.monsterTemplates ?? []
-  tNames.forEach((tName, i) => {
-    const t = MONSTER_TEMPLATES.find(t => t.name === tName)
-    if (t) sb = applyMonsterTemplate(sb, t, i)
-  })
-  if (tNames.length >= 2) {
-    sb = { ...sb, monsterModifier: 'solo', savingThrowBonus: 5 }
-  }
-  const effectiveTheme = themeOverride !== undefined ? themeOverride : ec.monsterTheme
-  if (effectiveTheme) {
-    const theme = MONSTER_THEMES.find(t => t.name === effectiveTheme.name)
-    if (theme) sb = applyMonsterTheme(sb, theme, effectiveTheme.attackPower, effectiveTheme.utilityPower, effectiveTheme.skillChoice)
-  }
-  if (ec.levelAdjust) {
-    sb = applyLevelAdjustment(sb, ec.levelAdjust)
-  }
-  if (ec.isMinion) {
-    sb = { ...sb, hp: 1, isMinion: true }
-  }
-  return sb
-}
-
 /** Check if an encounter creature matches a given key */
 function ecMatches(ec: EncounterCreature, key: string): boolean {
   return ec.creatureId === key || ec.compendiumId === key
+}
+
+
+type RowTheme = { name: string; attackPower: string; utilityPower: string; skillChoice?: number } | null
+
+/** Each row as main resolves it (kit monster plus adjustments), refreshed when the rows or anything they use changes. */
+function useRowPreviews(rows: EncounterCreature[], creatures: Creature[]): Record<string, EncounterRowPreview | null> {
+  const [previews, setPreviews] = useState<Record<string, EncounterRowPreview | null>>({})
+  const templates = useCampaignStore(s => s.templates)
+  const themes = useCampaignStore(s => s.themes)
+  const annotations = useCampaignStore(s => s.annotations)
+  useEffect(() => {
+    let cancelled = false
+    Promise.all(rows.map(async ec => [ecKey(ec), await window.api.combat.previewRow(ec) as EncounterRowPreview | null] as const))
+      .then(results => { if (!cancelled) setPreviews(Object.fromEntries(results)) })
+    return () => { cancelled = true }
+  }, [rows, creatures, templates, themes, annotations])
+  return previews
+}
+
+/** One row with changes not yet saved (an extra template, a theme being picked); undefined without a row. */
+function useRowPreview(row: EncounterCreature | undefined, theme?: RowTheme): EncounterRowPreview | null | undefined {
+  const [preview, setPreview] = useState<EncounterRowPreview | null | undefined>(undefined)
+  const key = row ? JSON.stringify([row, theme]) : ''
+  useEffect(() => {
+    setPreview(undefined)
+    if (!row) return
+    let cancelled = false
+    window.api.combat.previewRow(row, theme).then((p: EncounterRowPreview | null) => { if (!cancelled) setPreview(p) })
+    return () => { cancelled = true }
+  }, [key])
+  return preview
+}
+
+/** The selected trap row's stat block. */
+function TrapPreview({ row }: { row: EncounterTrap | undefined }) {
+  const trap = useTrap(row)
+  if (!trap) return null
+  return <TrapStatblock trap={row?.overrideName ? { ...trap, name: row.overrideName } : trap} />
 }
 
 interface Props {
@@ -155,6 +86,7 @@ interface Props {
 export function Dnd4eEncounterEditor({ encounter, onSave, creatures, onNavigate }: Props) {
   const { setView } = useUiStore()
   const comp = useCompendium()
+  const catalog = useTemplateCatalog()
   const [template, setTemplate] = useState<EncounterTemplate | null>(null)
   const [targetDelta, setTargetDelta] = useState(0)
   const [adding, setAdding] = useState<string | null>(null)
@@ -162,8 +94,8 @@ export function Dnd4eEncounterEditor({ encounter, onSave, creatures, onNavigate 
   const [previewCreature, setPreviewCreature] = useState<Creature | null>(null)
   const previewRef = useRef<HTMLDivElement>(null)
   const { tooltip } = useGlossary()
-  // Lazy cache of compendium creature statblocks (so we can evaluate template prerequisites for compendium-only entries)
-  const [compStatBlocks, setCompStatBlocks] = useState<Record<string, Record<string, unknown>>>({})
+  // Each row resolved by main: the kit monster with the row's templates, theme, and level adjustment.
+  const rowPreviews = useRowPreviews(encounter.creatures, creatures)
   // Popped-out stat block panels
   const [poppedOut, setPoppedOut] = useState<{ id: string; creature: Creature }[]>([])
   // Template-application mode state
@@ -193,21 +125,35 @@ export function Dnd4eEncounterEditor({ encounter, onSave, creatures, onNavigate 
 
 
   // Resolve creature info from campaign creatures or compendium index
-  const resolveInfo = useCallback((ec: EncounterCreature): { name: string; level: number; role: string; modifier: string; imageId?: string; statBlock?: Record<string, unknown> } | null => {
+  const resolveInfo = useCallback((ec: EncounterCreature): { name: string; level: number; role: string; modifier: string; imageId?: string; preview?: EncounterRowPreview | null } | null => {
     if (ec.creatureId) {
       const creature = creatures.find(c => c.id === ec.creatureId)
       if (!creature) return null
       const sb = creature.statBlock
       const baseLevel = (sb.level as number) ?? 1
-      return { name: ec.overrideName || creature.name, level: baseLevel + (ec.levelAdjust ?? 0), role: (sb.role as string) ?? '', modifier: (sb.monsterModifier as string) ?? '', imageId: creature.imageId, statBlock: sb }
+      return { name: ec.overrideName || creature.name, level: baseLevel + (ec.levelAdjust ?? 0), role: (sb.role as string) ?? '', modifier: (sb.monsterModifier as string) ?? '', imageId: creature.imageId, preview: rowPreviews[ecKey(ec)] }
     }
     if (ec.compendiumId && comp.index) {
       const entry = comp.index.find(e => e.id === ec.compendiumId)
       if (!entry) return null
-      return { name: ec.overrideName || entry.name, level: entry.level + (ec.levelAdjust ?? 0), role: entry.role, modifier: entry.modifier, statBlock: compStatBlocks[ec.compendiumId] }
+      return { name: ec.overrideName || entry.name, level: entry.level + (ec.levelAdjust ?? 0), role: entry.role, modifier: entry.modifier, preview: rowPreviews[ecKey(ec)] }
     }
     return null
-  }, [creatures, comp.index, compStatBlocks])
+  }, [creatures, comp.index, rowPreviews])
+
+  // Traps noted on the encounter's location join its combat too (once; the encounter's own row wins).
+  const locations = useCampaignStore(s => s.locations)
+  const location = encounter.locationId ? locations.find(l => l.id === encounter.locationId) : undefined
+  const locationTraps = useMemo(() => (location?.traps ?? []).filter(r => !(encounter.traps ?? []).some(t => trapKey(t) === trapKey(r))), [location, encounter.traps])
+  const allTraps = useMemo<EncounterTrap[]>(() => [...(encounter.traps ?? []), ...locationTraps.map(r => ({ ...r, count: 1 }))], [encounter.traps, locationTraps])
+  const trapRows = useTrapRows(allTraps)
+  // Where the encounter's diseases come from: its creatures (as adjusted) and its traps.
+  const encounterTraps = useTraps(allTraps)
+  const diseaseSources = useMemo(() => [
+    ...encounter.creatures.flatMap(ec => { const p = rowPreviews[ecKey(ec)]; return p ? [{ from: ec.overrideName || p.monster.name, text: contentText(p.monster) }] : [] }),
+    ...encounterTraps.map(t => ({ from: t.name, text: contentText(t) })),
+  ], [encounter.creatures, rowPreviews, encounterTraps])
+  const [selectedTrapKey, setSelectedTrapKey] = useState<string | null>(null)
 
   // Calculate total XP: 1 template = elite (2×), 2 templates = solo (5×), minion = standard / 4
   const totalXP = useMemo(() => {
@@ -215,7 +161,7 @@ export function Dnd4eEncounterEditor({ encounter, onSave, creatures, onNavigate 
     for (const ec of encounter.creatures) {
       const info = resolveInfo(ec)
       if (!info) continue
-      if (ec.isMinion || info.statBlock?.isMinion) {
+      if (ec.isMinion || info.preview?.baseRank === 'minion') {
         xp += Math.round(xpForCreature(info.level, '') / 4) * ec.count
         continue
       }
@@ -226,8 +172,10 @@ export function Dnd4eEncounterEditor({ encounter, onSave, creatures, onNavigate 
       const modifier = effIdx >= 3 ? 'solo' : effIdx >= 2 ? 'elite' : ''
       xp += xpForCreature(info.level, modifier) * ec.count
     }
+    // Traps count like monsters of their level and rank (their XP is printed).
+    for (const et of allTraps) xp += (trapRows.find(r => r.key === trapKey(et))?.xp ?? 0) * et.count
     return xp
-  }, [encounter.creatures, resolveInfo])
+  }, [encounter.creatures, allTraps, resolveInfo, trapRows])
 
   // Actual encounter level from creatures currently added
   const actualEL = partyReady && totalXP > 0 ? encounterLevel(totalXP, partySize!) : undefined
@@ -252,8 +200,8 @@ export function Dnd4eEncounterEditor({ encounter, onSave, creatures, onNavigate 
       const existing = encounter.creatures.find(c => ecMatches(c, entryId))
       // Auto-detect native minions by name suffix
       const entryName = campaignCreature?.name ?? comp.index?.find(e => e.id === entryId)?.name ?? ''
-      // Auto-detect minions: check the name AND the statBlock isMinion field
-      const autoMinion = /\bminion\b/i.test(entryName) || !!(campaignCreature?.statBlock?.isMinion) || !!(compStatBlocks[entryId]?.isMinion)
+      // Auto-detect minions by name or the campaign creature's stat block; printed minions are minions by rank anyway
+      const autoMinion = /\bminion\b/i.test(entryName) || !!(campaignCreature?.statBlock?.isMinion)
       if (existing) {
         save({
           creatures: encounter.creatures.map(c =>
@@ -276,6 +224,7 @@ export function Dnd4eEncounterEditor({ encounter, onSave, creatures, onNavigate 
     if (entryId === previewId) return
     setPreviewId(entryId)
     setSelectedRowKey(null)
+    setSelectedTrapKey(null)
     const campaignCreature = creatures.find(c => c.id === entryId)
     if (campaignCreature) {
       setPreviewCreature(campaignCreature)
@@ -286,51 +235,13 @@ export function Dnd4eEncounterEditor({ encounter, onSave, creatures, onNavigate 
     previewRef.current?.scrollTo(0, 0)
   }, [previewId, creatures])
 
-  // Lazy-fetch compendium creature statblocks for any encounter creature missing one
-  useEffect(() => {
-    const missing = encounter.creatures
-      .map(ec => ec.compendiumId)
-      .filter((id): id is string => !!id && !compStatBlocks[id])
-    if (missing.length === 0) return
-    let cancelled = false
-    Promise.all(missing.map(async id => {
-      const creature = await window.api.compendium.get(id)
-      // Patch hp into the cached statBlock so template merges have the correct base HP
-      const sb = creature?.statBlock ? { ...creature.statBlock } : null
-      if (sb && sb.hp == null) sb.hp = creature.maxHp ?? creature.hp
-      return [id, sb] as const
-    })).then(results => {
-      if (cancelled) return
-      setCompStatBlocks(prev => {
-        const next = { ...prev }
-        for (const [id, sb] of results) if (sb) next[id] = sb as Record<string, unknown>
-        return next
-      })
-    })
-    return () => { cancelled = true }
-  }, [encounter.creatures, compStatBlocks])
-
-  // Resolve the live (post-applied-templates) statBlock + name for an encounter row.
-  // Optional themeOverride replaces ec.monsterTheme for live preview purposes.
-  const resolveCurrentSb = useCallback((ec: EncounterCreature, themeOverride?: { name: string; attackPower: string; utilityPower: string; skillChoice?: number } | null): { name: string; sb: Record<string, unknown> } | null => {
-    let baseSb: Record<string, unknown> | undefined
-    let name = ''
-    if (ec.creatureId) {
-      const c = creatures.find(x => x.id === ec.creatureId)
-      if (!c) return null
-      baseSb = { ...c.statBlock }
-      // Imported creatures store HP on the wrapper, not in statBlock
-      if (baseSb.hp == null) baseSb.hp = c.maxHp ?? c.hp
-      name = ec.overrideName || c.name
-    } else if (ec.compendiumId) {
-      baseSb = compStatBlocks[ec.compendiumId]
-      const entry = comp.index?.find(e => e.id === ec.compendiumId)
-      name = ec.overrideName || (entry?.name ?? '')
-      if (!baseSb) return null
-    } else return null
-    const sb = applyEncounterOverrides(baseSb, ec, themeOverride)
-    return { name, sb }
-  }, [creatures, compStatBlocks, comp.index])
+  // Previews that differ from the saved rows: the template being considered in template mode, and the
+  // theme being picked before it is applied.
+  const templateTarget = templateModeKey ? encounter.creatures.find(c => ecMatches(c, templateModeKey)) : undefined
+  const hoverPreview = useRowPreview(templateTarget && previewTemplateName
+    ? { ...templateTarget, monsterTemplates: [...(templateTarget.monsterTemplates ?? []), previewTemplateName] } : undefined)
+  const selectedEc = selectedRowKey ? encounter.creatures.find(c => ecMatches(c, selectedRowKey)) : undefined
+  const themePreview = useRowPreview(selectedEc && themePickerKey === selectedRowKey ? selectedEc : undefined, pendingTheme)
 
   const toggleMinion = (key: string) => {
     save({
@@ -362,6 +273,7 @@ export function Dnd4eEncounterEditor({ encounter, onSave, creatures, onNavigate 
 
   const selectRow = (key: string) => {
     setSelectedRowKey(key === selectedRowKey ? null : key)
+    setSelectedTrapKey(null)
     setPreviewId(null)
     setPreviewCreature(null)
   }
@@ -490,59 +402,8 @@ export function Dnd4eEncounterEditor({ encounter, onSave, creatures, onNavigate 
   const annotations = useCampaignStore(s => s.annotations)
 
   const startCombat = async () => {
+    // Main adds the encounter's creatures as kit monsters with each row's adjustments applied.
     await window.api.combat.init(encounter.id)
-
-    // First pass: build all combatant entries with base names
-    const pending: { baseName: string; hp: number; maxHp: number; sb: any; imageId?: string; tokenImageId?: string; entityId?: string; initiativeGroupId?: string }[] = []
-    for (const ec of encounter.creatures) {
-      let creature: Creature | null = null
-
-      if (ec.creatureId) {
-        creature = creatures.find(c => c.id === ec.creatureId) ?? null
-      } else if (ec.compendiumId) {
-        // Resolve from compendium — check for campaign override first
-        const override = creatures.find(c => c.compendiumId === ec.compendiumId)
-        if (override) {
-          creature = override
-        } else {
-          creature = await window.api.compendium.resolve(ec.compendiumId)
-          // Apply annotation image/token if present
-          const ann = annotations[ec.compendiumId]
-          if (creature && ann) {
-            if (ann.imageId) creature.imageId = ann.imageId
-            if (ann.tokenImageId) creature.tokenImageId = ann.tokenImageId
-          }
-        }
-      }
-      if (!creature) continue
-
-      // Ensure statBlock.hp is set before applying overrides (imported creatures store HP on creature, not statBlock)
-      const baseSb = { ...creature.statBlock }
-      if (baseSb.hp == null) baseSb.hp = creature.maxHp ?? creature.hp
-      const sb = applyEncounterOverrides(baseSb, ec)
-      const combatHp = ec.isMinion ? 1 : (ec.overrideHp ?? (sb.hp as number) ?? creature.maxHp)
-      const baseName = ec.overrideName || creature.name
-
-      // Creatures from the same encounter row share a groupId for initiative grouping
-      const groupId = ec.count > 1 ? generateId() : undefined
-      for (let i = 0; i < ec.count; i++) {
-        pending.push({ baseName, hp: combatHp, maxHp: combatHp, sb, imageId: creature.imageId, tokenImageId: creature.tokenImageId, entityId: creature.id, initiativeGroupId: groupId })
-      }
-    }
-
-    // Add each creature — no letter suffixes; the DM assigns colors/numbers
-    // during initiative entry to distinguish duplicates.
-    for (const p of pending) {
-      await window.api.combat.addCombatant({
-        id: generateId(),
-        name: p.baseName, baseName: p.baseName,
-        isPC: false, hp: p.hp, maxHp: p.maxHp,
-        statBlock: p.sb,
-        imageId: p.imageId, tokenImageId: p.tokenImageId, entityId: p.entityId,
-        initiativeGroupId: p.initiativeGroupId,
-      })
-    }
-
     setView({ type: 'combat' })
   }
 
@@ -671,16 +532,17 @@ export function Dnd4eEncounterEditor({ encounter, onSave, creatures, onNavigate 
               const level = info.level
               const baseRole = info.role
               const baseModifier = info.modifier
-              const templates = (ec.monsterTemplates ?? []).map(n => MONSTER_TEMPLATES.find(t => t.name === n)).filter(Boolean)
+              const templates = (ec.monsterTemplates ?? []).map(n => findByRef(catalog.templates, n)).filter(Boolean)
               const effectiveRole = templates.length > 0 ? templates[templates.length - 1]!.role : baseRole
               const templateCount = templates.length
-              // Template prerequisites — use statBlock if available (campaign creature), else skip
-              const sb = info.statBlock
+              // Template prerequisites are checked by main against the row's adjusted monster.
+              const preview = info.preview
               const modifierLevels = ['', 'standard', 'elite', 'solo']
               const baseIdx = baseModifier === 'solo' ? 3 : baseModifier === 'elite' ? 2 : 1
               const effectiveIdx = Math.min(baseIdx + templateCount, 3)
               const effectiveModifier = modifierLevels[effectiveIdx] === 'standard' ? '' : modifierLevels[effectiveIdx]
-              const isMinion = !!ec.isMinion || !!sb?.isMinion
+              const nativeMinion = preview?.baseRank === 'minion'
+              const isMinion = !!ec.isMinion || nativeMinion
               const creatureXP = isMinion
                 ? Math.round(xpForCreature(level, '') / 4)
                 : xpForCreature(level, effectiveModifier)
@@ -690,16 +552,15 @@ export function Dnd4eEncounterEditor({ encounter, onSave, creatures, onNavigate 
               const levelDelta = partyLevel != null ? Math.abs(level - partyLevel) : 0
               const outOfRange = partyLevel != null && levelDelta > 4
               const appliedNames = ec.monsterTemplates ?? []
-              const availableTemplates = sb ? MONSTER_TEMPLATES.filter(t => meetsPrerequisite(sb, t) && !appliedNames.includes(t.name)) : []
+              const availableTemplates = preview ? catalog.templates.filter(t => preview.eligible.includes(t.ref) && !appliedNames.includes(t.ref)) : []
               const maxTemplates = baseModifier === 'solo' ? 0 : baseModifier === 'elite' ? 1 : 2
               const canAddTemplate = !isMinion && templateCount < maxTemplates && availableTemplates.length > 0
               const hasTemplates = appliedNames.length > 0
               // Minion toggle is incompatible with elite/solo (base or via templates)
-              const nativeMinion = !!(sb?.isMinion)
               const canBeMinion = !nativeMinion && baseModifier !== 'elite' && baseModifier !== 'solo' && templateCount === 0
 
               const inTemplateMode = templateModeKey === key
-              const templateBtnDisabled = isMinion || !sb || templateCount >= maxTemplates || availableTemplates.length === 0
+              const templateBtnDisabled = isMinion || !preview || templateCount >= maxTemplates || availableTemplates.length === 0
 
               const handleNavigate = () => {
                 if (ec.creatureId) onNavigate(ec.creatureId)
@@ -793,7 +654,7 @@ export function Dnd4eEncounterEditor({ encounter, onSave, creatures, onNavigate 
                           templateBtnDisabled
                             ? (isMinion ? 'Minions can\'t take templates' :
                                templateCount >= maxTemplates ? 'No template slots remaining' :
-                               !sb ? 'Loading creature data…' : 'No eligible templates')
+                               !preview ? 'Loading creature data…' : 'No eligible templates')
                             : (inTemplateMode ? 'Exit template mode' : 'Add a functional template')
                         }
                         style={{
@@ -811,7 +672,7 @@ export function Dnd4eEncounterEditor({ encounter, onSave, creatures, onNavigate 
                           if (themePickerKey === key) { setThemePickerKey(null); setPendingTheme(null) }
                           else { setThemePickerKey(key); setPendingTheme(null); setSelectedRowKey(key) }
                         }}
-                        title={ec.monsterTheme ? `Theme: ${ec.monsterTheme.name} (click to change)` : 'Add a theme'}
+                        title={ec.monsterTheme ? `Theme: ${findByRef(catalog.themes, ec.monsterTheme.name)?.name ?? ec.monsterTheme.name} (click to change)` : 'Add a theme'}
                         style={{
                           padding: '0 5px', borderRadius: 'var(--radius-sm)',
                           ...xsStyle, fontWeight: 600,
@@ -870,6 +731,12 @@ export function Dnd4eEncounterEditor({ encounter, onSave, creatures, onNavigate 
           )}
         </div>
 
+        <EncounterTraps traps={encounter.traps ?? []} onChange={traps => save({ traps: traps.length ? traps : undefined })}
+          location={location && locationTraps.length ? { name: location.name, traps: locationTraps } : undefined}
+          selectedKey={selectedTrapKey}
+          onSelect={key => { setSelectedTrapKey(key); if (key) { setSelectedRowKey(null); setPreviewId(null); setPreviewCreature(null) } }} />
+        <EncounterDiseases sources={diseaseSources} />
+
         {/* Bottom toolbar: background image picker + start combat */}
         <div style={{
           padding: '4px var(--space-2)', borderTop: '1px solid var(--sb-separator)',
@@ -881,7 +748,7 @@ export function Dnd4eEncounterEditor({ encounter, onSave, creatures, onNavigate 
             onChange={id => save({ backgroundImageId: id || undefined })}
           />
           <span style={{ flex: 1 }} />
-          {encounter.creatures.length > 0 && (
+          {(encounter.creatures.length > 0 || allTraps.length > 0) && (
             <button onClick={startCombat}
               title="Start combat with this encounter"
               style={{
@@ -901,11 +768,10 @@ export function Dnd4eEncounterEditor({ encounter, onSave, creatures, onNavigate 
       {/* Bottom of left column: creature search OR template search */}
       {templateModeKey ? (() => {
         const targetEc = encounter.creatures.find(c => ecMatches(c, templateModeKey))
-        const targetCurrent = targetEc ? resolveCurrentSb(targetEc) : null
         const appliedNames = targetEc?.monsterTemplates ?? []
         return (
           <TemplatePanel
-            targetSb={targetCurrent?.sb ?? null}
+            eligible={rowPreviews[templateModeKey]?.eligible ?? null}
             appliedNames={appliedNames}
             previewTemplateName={previewTemplateName}
             onSelect={setPreviewTemplateName}
@@ -922,34 +788,27 @@ export function Dnd4eEncounterEditor({ encounter, onSave, creatures, onNavigate 
 
       {/* ─── Right column: preview ─── */}
       <div ref={previewRef} className="stat-block-4e" style={{ flex: '1 1 320px', minWidth: 280, overflow: 'auto', minHeight: 0, fontSize: 12 }}>
-        {(() => {
+        {selectedTrapKey && !templateModeKey ? <TrapPreview row={allTraps.find(t => trapKey(t) === selectedTrapKey)} /> : null}
+        {selectedTrapKey && !templateModeKey ? null : (() => {
           // Template mode: live merged preview of the target row + (optional) hovered template
           if (templateModeKey) {
-            const targetEc = encounter.creatures.find(c => ecMatches(c, templateModeKey))
-            const targetCurrent = targetEc ? resolveCurrentSb(targetEc) : null
-            if (!targetCurrent) {
+            const targetEc = templateTarget
+            const previewTemplate = previewTemplateName
+              ? findByRef(catalog.templates, previewTemplateName) ?? null
+              : null
+            // The hovered template's preview until it arrives, then the row as saved.
+            const current = (previewTemplate ? hoverPreview : undefined) ?? rowPreviews[templateModeKey]
+            if (!targetEc || !current) {
               return (
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: 'var(--color-text-muted)', fontStyle: 'italic', padding: 'var(--space-4)', textAlign: 'center' }}>
                   Loading creature data…
                 </div>
               )
             }
-            let mergedSb = targetCurrent.sb
-            const previewTemplate = previewTemplateName
-              ? MONSTER_TEMPLATES.find(t => t.name === previewTemplateName) ?? null
-              : null
-            if (previewTemplate) {
-              const previewIndex = (targetEc?.monsterTemplates?.length ?? 0)
-              mergedSb = applyMonsterTemplate(mergedSb, previewTemplate, previewIndex)
-            }
-            const synthetic: Creature = {
-              id: 'preview', name: targetCurrent.name,
-              hp: (mergedSb.hp as number) ?? 0, maxHp: (mergedSb.hp as number) ?? 0,
-              statBlock: mergedSb, createdAt: '', updatedAt: '',
-            }
+            const synthetic = kitViewCreature(current.monster, current.attribution, { id: 'preview', name: targetEc.overrideName || current.monster.name })
             const chips: TemplateChip[] = []
             ;(targetEc?.monsterTemplates ?? []).forEach((name, slot) => {
-              chips.push({ name, slot })
+              chips.push({ name: findByRef(catalog.templates, name)?.name ?? name, slot })
             })
             if (previewTemplate) {
               chips.push({ name: previewTemplate.name, slot: chips.length, preview: true })
@@ -957,34 +816,31 @@ export function Dnd4eEncounterEditor({ encounter, onSave, creatures, onNavigate 
             return <Dnd4eCreatureViewer creature={synthetic} tooltip={tooltip}
               templateChips={chips}
               onTemplateChipClick={(name) => {
-                const t = MONSTER_TEMPLATES.find(t => t.name === name)
+                const t = findByRef(catalog.templates, name)
                 if (t) setTemplateInfoPopup(t)
               }} />
           }
           // Selected encounter row: show its current merged stat block (no template overlay)
           if (selectedRowKey) {
-            const targetEc = encounter.creatures.find(c => ecMatches(c, selectedRowKey))
-            // When the theme picker is open for this row, use pendingTheme for live preview
-            const themeOverride = themePickerKey === selectedRowKey ? pendingTheme : undefined
-            const targetCurrent = targetEc ? resolveCurrentSb(targetEc, themeOverride) : null
-            if (targetCurrent) {
+            const targetEc = selectedEc
+            // While the theme picker is open for this row, preview the theme being picked.
+            const targetCurrent = (themePickerKey === selectedRowKey ? themePreview : undefined) ?? rowPreviews[selectedRowKey]
+            if (targetEc && targetCurrent) {
               const isCustom = !!targetEc?.creatureId
               const entityKey = targetEc?.creatureId ?? targetEc?.compendiumId
               const customCreature = isCustom ? creatures.find(c => c.id === targetEc?.creatureId) : undefined
-              const synthetic: Creature = {
-                id: 'selected', name: targetCurrent.name,
-                hp: (targetCurrent.sb.hp as number) ?? 0, maxHp: (targetCurrent.sb.hp as number) ?? 0,
-                statBlock: targetCurrent.sb, createdAt: '', updatedAt: '',
+              const synthetic = kitViewCreature(targetCurrent.monster, targetCurrent.attribution, {
+                id: 'selected', name: targetEc.overrideName || targetCurrent.monster.name,
                 imageId: customCreature?.imageId,
                 tokenImageId: customCreature?.tokenImageId,
-                tokenCrop: (customCreature as any)?.tokenCrop,
-              }
-              const chips: TemplateChip[] = (targetEc?.monsterTemplates ?? []).map((name, slot) => ({ name, slot }))
+                tokenCrop: customCreature?.tokenCrop,
+              })
+              const chips: TemplateChip[] = (targetEc?.monsterTemplates ?? []).map((name, slot) => ({ name: findByRef(catalog.templates, name)?.name ?? name, slot }))
               return <Dnd4eCreatureViewer creature={synthetic} tooltip={tooltip}
                 compendiumId={targetEc?.compendiumId}
                 templateChips={chips.length > 0 ? chips : undefined}
                 onTemplateChipClick={(name) => {
-                  const t = MONSTER_TEMPLATES.find(t => t.name === name)
+                  const t = findByRef(catalog.templates, name)
                   if (t) setTemplateInfoPopup(t)
                 }}
                 onPopout={() => {
@@ -1142,8 +998,9 @@ function DraggableTemplateWindow({ template, onClose }: { template: MonsterTempl
 
 // ─── Template Panel (replaces compendium panel during template-mode) ───
 
-function TemplatePanel({ targetSb, appliedNames, previewTemplateName, onSelect, onActivate, onShowInfo, onExit }: {
-  targetSb: Record<string, unknown> | null
+function TemplatePanel({ eligible, appliedNames, previewTemplateName, onSelect, onActivate, onShowInfo, onExit }: {
+  /** Refs of the templates the target qualifies for (null while loading). */
+  eligible: string[] | null
   appliedNames: string[]
   previewTemplateName: string | null
   onSelect: (name: string | null) => void
@@ -1151,27 +1008,28 @@ function TemplatePanel({ targetSb, appliedNames, previewTemplateName, onSelect, 
   onShowInfo: (template: MonsterTemplate) => void
   onExit: () => void
 }) {
+  const { templates } = useTemplateCatalog()
   const [search, setSearch] = useState('')
   const [eligibleOnly, setEligibleOnly] = useState(true)
   const [roleFilter, setRoleFilter] = useState<string[]>([])
 
   const allRoles = useMemo(
-    () => [...new Set(MONSTER_TEMPLATES.map(t => t.role))].sort(),
+    () => [...new Set(templates.map(t => t.role))].sort(),
     []
   )
 
   const filtered = useMemo(() => {
     const q = search.toLowerCase()
-    return MONSTER_TEMPLATES.filter(t => {
-      if (appliedNames.includes(t.name)) return false
+    return templates.filter(t => {
+      if (appliedNames.includes(t.ref)) return false
       if (q && !t.name.toLowerCase().includes(q) && !t.role.toLowerCase().includes(q) && !t.prerequisite.toLowerCase().includes(q)) return false
       if (roleFilter.length > 0 && !roleFilter.includes(t.role)) return false
-      if (eligibleOnly && targetSb && !meetsPrerequisite(targetSb, t)) return false
+      if (eligibleOnly && eligible && !eligible.includes(t.ref)) return false
       return true
     })
-  }, [search, eligibleOnly, roleFilter, targetSb, appliedNames])
+  }, [search, eligibleOnly, roleFilter, eligible, appliedNames])
 
-  const total = MONSTER_TEMPLATES.length - appliedNames.length
+  const total = templates.length - appliedNames.length
 
   const GRID_COLS = '1fr 50px 70px 1fr'
   const xs = { fontSize: 'var(--font-size-xs)' }
@@ -1217,11 +1075,11 @@ function TemplatePanel({ targetSb, appliedNames, previewTemplateName, onSelect, 
 
       {/* List */}
       <VirtualizedList items={filtered} renderRow={(t) => {
-        const isSelected = previewTemplateName === t.name
+        const isSelected = previewTemplateName === t.ref
         return (
           <div
-            onClick={() => onSelect(isSelected ? null : t.name)}
-            onDoubleClick={() => onActivate(t.name)}
+            onClick={() => onSelect(isSelected ? null : t.ref)}
+            onDoubleClick={() => onActivate(t.ref)}
             title="Click to preview, double-click to apply"
             style={{
               display: 'grid', gridTemplateColumns: GRID_COLS, height: '100%',
@@ -1245,7 +1103,7 @@ function TemplatePanel({ targetSb, appliedNames, previewTemplateName, onSelect, 
       <div style={{ color: 'var(--color-text-muted)', padding: 'var(--space-2)', flexShrink: 0, fontSize: 'var(--font-size-xs)', display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
         <span>{filtered.length.toLocaleString()} of {total.toLocaleString()}</span>
         {previewTemplateName && (
-          <button onClick={() => onShowInfo(MONSTER_TEMPLATES.find(t => t.name === previewTemplateName)!)}
+          <button onClick={() => onShowInfo(findByRef(templates, previewTemplateName ?? undefined)!)}
             className="ghost" style={{ color: 'inherit', font: 'inherit' }}>
             view base template
           </button>
@@ -1437,10 +1295,11 @@ function ThemePicker({ currentTheme, onApply, onRemove, onClose, onPreview }: {
     }
   }, [selectedThemeName, selectedAttack, selectedUtility, skillChoice])
 
-  const theme = MONSTER_THEMES.find(t => t.name === selectedThemeName)
+  const { themes } = useTemplateCatalog()
+  const theme = findByRef(themes, selectedThemeName)
   const attackPowers = theme?.powers.filter(p => p.category === 'attack') ?? []
   const utilityPowers = theme?.powers.filter(p => p.category === 'utility') ?? []
-  const parsedSkills = theme?.skillModifications ? parseSkillModifications(theme.skillModifications) : null
+  const parsedSkills = theme?.skills ?? (theme?.skillModifications ? parseSkillModifications(theme.skillModifications) : null)
   const hasSkillChoice = !!parsedSkills?.choices && parsedSkills.choices.length > 1
 
   const canApply = !!theme && !!selectedAttack && !!selectedUtility
@@ -1477,8 +1336,8 @@ function ThemePicker({ currentTheme, onApply, onRemove, onClose, onPreview }: {
           style={{ flex: 1, fontSize: 'var(--font-size-xs)' }}
         >
           <option value="">— Select a theme —</option>
-          {MONSTER_THEMES.map(t => (
-            <option key={t.name} value={t.name}>{t.name} ({t.source})</option>
+          {themes.map(t => (
+            <option key={t.ref} value={t.ref}>{t.name} ({t.custom ? 'Custom' : t.source})</option>
           ))}
         </select>
         {currentTheme && (

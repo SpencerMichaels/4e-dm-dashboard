@@ -19,6 +19,7 @@ export type CombatEventType =
   | 'bloodied' | 'death'
   | 'turn-start' | 'turn-end'
   | 'attack-hit' | 'attack-miss'
+  | 'trap-triggered' | 'trap-disabled'
 
 export interface CombatEvent {
   timestamp: number
@@ -65,7 +66,11 @@ export interface CombatantState {
   miniIndicator?: string
   miniNumber?: number           // Numbered marker (1–9) shown on the token badge
   miniDescriptor?: string       // Short descriptor appended in parens, e.g. "bow" → "Orc Raider (bow)"
-  statBlock?: Record<string, unknown>
+  /** Kit content combat reads (src/common/combat/facts.ts); absent for PCs. Traps are `kind: "trap"`. */
+  kind?: 'creature' | 'trap'
+  content?: import('@kit').Monster | import('@kit').Trap
+  /** What encounter templates, theme, and level adjustment changed, for the stat block's attribution. */
+  attribution?: import('../rules/adjust-monster').Attribution
   imageId?: string
   tokenImageId?: string
   color?: string              // PC chip color or monster mini color (CSS color string)

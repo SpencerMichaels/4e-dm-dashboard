@@ -1,3 +1,5 @@
+import type { TrapRef } from './campaign'
+
 export interface EncounterCreature {
   creatureId?: string            // Campaign creature ID (custom or cloned)
   compendiumId?: string          // Official compendium entry ID (no import needed)
@@ -16,14 +18,36 @@ export interface EncounterCreature {
   }
 }
 
+/** A trap or hazard in an encounter: a campaign trap record or a published trap. */
+export interface EncounterTrap extends TrapRef {
+  count: number
+  overrideName?: string
+  /** Shown in the Player window from the start; traps start hidden unless this is set. */
+  visible?: boolean
+}
+
 export interface Encounter {
   id: string
   name: string
   description?: string
   creatures: EncounterCreature[]
+  traps?: EncounterTrap[]
   locationId?: string
   backgroundImageId?: string  // encounter-specific background for player display
   tags: string[]
   createdAt: string
   updatedAt: string
+}
+
+/** An encounter row resolved for preview and combat: the kit monster with the row's adjustments applied. */
+export interface EncounterRowPreview {
+  monster: import('@kit').Monster
+  attribution: import('../rules/adjust-monster').Attribution
+  entityId?: string
+  imageId?: string
+  tokenImageId?: string
+  /** Rank before the row's adjustments (a printed minion can't take templates). */
+  baseRank: import('@kit').Rank
+  /** Refs of the templates whose prerequisites the adjusted monster meets. */
+  eligible: string[]
 }

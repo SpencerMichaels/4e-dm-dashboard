@@ -1,3 +1,4 @@
+import { isDefeated } from '@common/combat/facts'
 import { useEffect, useRef, useState } from 'react'
 import type { CombatantState, CombatState } from '@common/types'
 import { useUiStore } from '../../stores/ui-store'
@@ -518,7 +519,7 @@ export function QuickConditionMenu({ combatantId, combatant, position, onClose, 
           {/* Other combatants — each row offers "self" and "allies" */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
             {Object.values(combat.combatants)
-              .filter(c => c.id !== combatantId && c.id !== currentTurnId && (c.isPC ? !c.dead : c.hp > 0))
+              .filter(c => c.id !== combatantId && c.id !== currentTurnId && !isDefeated(c))
               .map(c => (
                 <div key={c.id} style={{ display: 'flex', gap: 3, alignItems: 'center' }}>
                   <button onClick={() => applyGrantsCA('source', c.id)} style={{
@@ -561,7 +562,7 @@ export function QuickConditionMenu({ combatantId, combatant, position, onClose, 
             {Object.values(combat.combatants)
               // PCs have hp=0 by design (engine doesn't track PC HP) — filter
               // them via the `dead` flag instead.
-              .filter(c => c.id !== combatantId && (c.isPC ? !c.dead : c.hp > 0))
+              .filter(c => c.id !== combatantId && !isDefeated(c))
               .map(c => {
                 const isDefault = c.id === currentTurnId
                 return (

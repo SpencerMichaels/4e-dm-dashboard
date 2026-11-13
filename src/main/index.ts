@@ -7,6 +7,7 @@ import { registerCompendiumHandlers } from './ipc/compendium-handlers'
 import { registerSettingsHandlers } from './ipc/settings-handlers'
 import { migrateLegacyUserData } from './data/migrate-user-data'
 import { loadAppSettings } from './data/app-settings-store'
+import { registerAuthoringHandlers } from './ipc/authoring-handlers'
 
 migrateLegacyUserData()
 
@@ -20,6 +21,7 @@ app.whenReady().then(async () => {
   registerSystemHandlers()
   registerCompendiumHandlers()
   registerSettingsHandlers()
+  await registerAuthoringHandlers()
 
   // Create windows
   createDmWindow()

@@ -19,15 +19,23 @@ export function getPlayerWindow(): BrowserWindow | null {
   return playerWindow
 }
 
+// Automated UI tests set this so their windows never appear on (or take focus from) the desktop.
+const hiddenWindows = process.env.FOUR_E_HIDDEN_WINDOWS === '1'
+
 export function createDmWindow(): BrowserWindow {
   dmWindow = new BrowserWindow({
     width: 1400,
     height: 900,
+    show: !hiddenWindows,
     title: '4e DM Dashboard — DM',
     backgroundColor: windowBackground(),
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
       sandbox: false,
+      // Hidden test windows would otherwise get throttled timers and no animation frames.
+      backgroundThrottling: !hiddenWindows,
+      // Offscreen rendering keeps painting without a window, so tests can still take screenshots.
+      offscreen: hiddenWindows,
     },
   })
 
@@ -61,11 +69,15 @@ export function createPlayerWindow(): BrowserWindow {
     width: 1920,
     height: 1080,
     ...bounds,
+    show: !hiddenWindows,
     title: '4e DM Dashboard — Player',
     backgroundColor: windowBackground(),
     autoHideMenuBar: true,
     webPreferences: {
       preload: join(__dirname, '../preload/player.js'),
+      backgroundThrottling: !hiddenWindows,
+      // Offscreen rendering keeps painting without a window, so tests can still take screenshots.
+      offscreen: hiddenWindows,
       sandbox: false,
     },
   })

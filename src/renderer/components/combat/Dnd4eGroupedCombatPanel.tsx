@@ -1,6 +1,9 @@
+import { isDefeated } from '@common/combat/facts'
+import { toPowerCardEntry } from '../creature/power-card-entry'
 import type { GroupedCombatPanelProps } from './panel-types'
 import type { PowerEntry } from '../creature/PowerEntryEditor'
 import type { CombatantState } from '@common/types'
+import { combatStatBlock } from './combat-view'
 import { PowerCardView, type PowerCardEntry } from '../creature/PowerCardView'
 import { sign } from '../creature/dnd4e-utils'
 import { detectConditions } from './condition-detection'
@@ -11,43 +14,6 @@ import { hpPercentage, hpColor, formatConditionName } from '@renderer/utils/comb
 import styles from './Dnd4eGroupedCombatPanel.module.css'
 import '../creature/statblock.css'
 
-/** Convert a PowerEntry to a PowerCardEntry for read-only display */
-function toPowerCardEntry(p: PowerEntry): PowerCardEntry {
-  let kw: string[] | undefined = normalizeStringArray(p.keywords)
-  if (kw.length === 0) kw = undefined
-
-  let usage = p.usage || 'at-will'
-  if (kw) {
-    const hasEncounterKw = kw.some(k => /^\d+\/encounter$/i.test(String(k).trim()))
-    if (hasEncounterKw) usage = 'encounter'
-  }
-
-  return {
-    name: p.name,
-    usage,
-    actionType: p.actionType,
-    rechargeValue: usage === 'recharge' && p.rechargeCondition ? (parseInt(p.rechargeCondition) || undefined) : undefined,
-    rechargeCondition: usage === 'recharge' && p.rechargeCondition && isNaN(parseInt(p.rechargeCondition)) ? p.rechargeCondition : undefined,
-    keywords: kw?.length ? kw : undefined,
-    rangeType: (p as any).range ?? p.rangeType,
-    rangeValue: p.rangeValue,
-    target: p.target,
-    attackBonus: p.attackBonus ?? null,
-    defense: p.defense,
-    damage: p.damage,
-    hit: p.hit,
-    critical: (p as any).critical,
-    secondary: (p as any).secondary,
-    aftereffect: (p as any).aftereffect,
-    miss: p.miss,
-    effect: p.effect,
-    trigger: p.trigger,
-    requirement: p.requirement,
-    sustain: p.sustain,
-    text: (p as any).text,
-    levelScaling: (p as any).levelScaling,
-  }
-}
 
 /** Derive a short designator label for a grouped creature.
  *  Strips the baseName to show only the distinguishing parts:
@@ -97,7 +63,7 @@ export function Dnd4eGroupedCombatPanel({
   const ref = combatants[0]
   if (!ref) return null
 
-  const sb = (ref.statBlock ?? {}) as Record<string, any>
+  const sb = combatStatBlock(ref)
   const baseName = ref.baseName ?? ref.name
   const actions = Array.isArray(sb.actions) ? sb.actions as PowerEntry[] : []
 
@@ -162,7 +128,7 @@ export function Dnd4eGroupedCombatPanel({
           const hpPct = hpPercentage(c.hp, c.maxHp)
           const designator = getDesignator(c)
           const chipBg = c.color ?? DEFAULT_DESIGNATOR_BG
-          const isDead = c.dead || c.hp <= 0
+          const isDead = isDefeated(c)
 
           return (
             <div key={c.id} className={styles.stateRow} style={isDead ? { opacity: 0.45 } : undefined}>

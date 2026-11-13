@@ -4,7 +4,9 @@ import { useUiStore } from '../../stores/ui-store'
 import { useHotkeys } from '../../hooks/use-hotkeys'
 import { Dnd4eCombatPanel } from './Dnd4eCombatPanel'
 import { Dnd4eGroupedCombatPanel } from './Dnd4eGroupedCombatPanel'
-import type { CombatNotification, CombatantState } from '@common/types'
+import type { CombatNotification, CombatantState, DiseaseRef } from '@common/types'
+import { exposePc } from '../disease/disease-refs'
+import { damageModifiers } from '@common/combat/facts'
 import { InitiativeEntry } from './InitiativeEntry'
 import { InitiativeList } from './InitiativeList'
 import { DamageHealDialog } from './DamageHealDialog'
@@ -17,6 +19,7 @@ import { PopoutStatblockPanel } from './PopoutStatblockPanel'
 import { AttackApplyPanel } from './AttackApplyPanel'
 import { ReadyActionDialog } from './ReadyActionDialog'
 import { EffectDialog } from './EffectDialog'
+import { TriggeredTraps } from './TriggeredTraps'
 
 export interface AttackMode {
   phase: 'select' | 'resolve' | 'apply'
@@ -50,6 +53,8 @@ export function CombatView() {
   const [attackMode, setAttackMode] = useState<AttackMode | null>(null)
   const [hideInspectedActions, setHideInspectedActions] = useState(true)
   const [pendingCondition, setPendingCondition] = useState<{ conditionId: string; value?: number; customDescription?: string; sourceId?: string; duration?: any; multi: boolean; grantsCATo?: 'all' | 'source' | 'source-allies' } | null>(null)
+  // A disease clicked in a power: the next targets picked are exposed to it (PCs only; tracked on their records).
+  const [pendingDisease, setPendingDisease] = useState<{ ref: DiseaseRef; name: string } | null>(null)
   const [pendingAction, setPendingAction] = useState<{ type: 'damage' | 'heal'; multi: boolean } | null>(null)
   const [readyDialog, setReadyDialog] = useState<{ combatantId: string } | null>(null)
   const [dialog, setDialog] = useState<
@@ -149,6 +154,25 @@ export function CombatView() {
     }
     prevCombatRef.current = combat
   }, [combat])
+
+  // Handler for exposing PCs to a disease named in a power (click the name, then the targets), like conditions.
+  const handleApplyDiseaseToTargets = useCallback((ref: DiseaseRef, name: string, multi: boolean) => {
+    setPendingDisease({ ref, name })
+    setPendingCondition(null)
+    setAttackMode({ phase: 'select', targetIds: [], results: {}, currentIndex: 0, singleTarget: !multi })
+  }, [])
+  const exposeTargets = useCallback(async (ids: string[]) => {
+    if (!pendingDisease || !combat) return
+    for (const id of ids) {
+      const t = combat.combatants[id]
+      // Only PCs carry diseases between sessions.
+      if (!t?.isPC || !t.entityId) continue
+      await exposePc(t.entityId, pendingDisease.ref)
+      addEvent('condition-applied', id, t.name, { conditionId: 'disease', conditionName: `exposed to ` })
+    }
+    setPendingDisease(null)
+    setAttackMode(null)
+  }, [pendingDisease, combat, addEvent])
 
   // Handler for applying a condition via target selection (from power card keyword click)
   const handleApplyConditionToTargets = useCallback((condition: { conditionId: string; value?: number; duration?: any }, multi: boolean) => {
@@ -296,6 +320,7 @@ export function CombatView() {
   const attackModeToggleTarget = useCallback(async (id: string) => {
     if (!attackMode || attackMode.phase !== 'select') return
     if (attackMode.singleTarget) {
+      if (pendingDisease) { await exposeTargets([id]); return }
       if (pendingCondition) {
         await window.api.combat.addCondition(id, {
           conditionId: pendingCondition.conditionId,
@@ -327,10 +352,11 @@ export function CombatView() {
         return { ...prev, targetIds }
       })
     }
-  }, [attackMode])
+  }, [attackMode, pendingDisease, exposeTargets])
 
   const attackModeConfirmSelection = useCallback(async () => {
     if (!attackMode || attackMode.phase !== 'select' || attackMode.targetIds.length === 0) return
+    if (pendingDisease) { await exposeTargets(attackMode.targetIds); return }
     if (pendingCondition) {
       // Condition apply mode: apply to all targets and exit
       for (const id of attackMode.targetIds) {
@@ -357,7 +383,7 @@ export function CombatView() {
     const results: Record<string, 'hit' | 'miss' | null> = {}
     for (const id of attackMode.targetIds) results[id] = null
     setAttackMode({ ...attackMode, phase: 'resolve', results, currentIndex: 0, defense: 'AC' })
-  }, [attackMode])
+  }, [attackMode, pendingDisease, exposeTargets])
 
   const attackModeResolve = useCallback((result: 'hit' | 'miss') => {
     if (!attackMode || attackMode.phase !== 'resolve') return
@@ -383,6 +409,7 @@ export function CombatView() {
   const attackModeCancel = useCallback(() => {
     setAttackMode(null)
     setPendingCondition(null)
+    setPendingDisease(null)
     setPendingAction(null)
   }, [])
 
@@ -505,6 +532,12 @@ export function CombatView() {
   const inspectedIds = selectedIds.filter(id => id !== currentId)
   const showInspectPanel = inspectedIds.length > 0
 
+  const toggleTrapDisabled = (id: string) => {
+    const t = combat.combatants[id]
+    if (!t.dead) addEvent('trap-disabled', id, t.name)
+    window.api.combat.updateCombatant(id, { dead: !t.dead })
+  }
+
   const renderDetailPanel = (combatant: CombatantState, opts?: { hideMainActionPowers?: boolean }) => {
     const isCurrent = combatant.id === currentId
     return (
@@ -532,7 +565,9 @@ export function CombatView() {
         onPinCard={handlePinCard}
         pinnedKeys={pinnedKeys}
         onPopoutStatblock={(id) => setPoppedOutStatblockIds(prev => prev.includes(id) ? prev : [...prev, id])}
+        onToggleDisabled={() => toggleTrapDisabled(combatant.id)}
         onApplyConditionToTargets={handleApplyConditionToTargets}
+        onApplyDiseaseToTargets={handleApplyDiseaseToTargets}
         hideMainActionPowers={opts?.hideMainActionPowers}
       />
     )
@@ -575,7 +610,9 @@ export function CombatView() {
           boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
         }}>
           <span style={{ fontWeight: 700 }}>
-            {attackMode.phase === 'select' ? (pendingCondition
+            {attackMode.phase === 'select' ? (pendingDisease
+              ? (attackMode.singleTarget ? `🦠 Click a PC to expose to ${pendingDisease.name}` : `🦠 Select PCs to expose to ${pendingDisease.name} (Space to confirm)`)
+              : pendingCondition
               ? (attackMode.singleTarget ? '🎯 Click a target to apply condition' : '🎯 Select targets for condition (Space to confirm)')
               : pendingAction
               ? (attackMode.singleTarget ? `💥 Click a target to ${pendingAction.type}` : `💥 Select targets to ${pendingAction.type} (Space to confirm)`)
@@ -603,6 +640,14 @@ export function CombatView() {
             <button onClick={() => setShowSettings(true)} title="Combat settings" style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 16, padding: '0 4px' }}>⚙</button>
           </div>
         </div>
+
+        <TriggeredTraps
+          combat={combat}
+          selectedIds={selectedIds}
+          onInspect={id => setSelectedIds([id])}
+          onTrigger={id => { setSelectedIds([id]); addEvent('trap-triggered', id, combat.combatants[id].name) }}
+          onToggleDisabled={toggleTrapDisabled}
+        />
 
         <div style={{ flex: '1 1 auto', minHeight: 200, overflow: 'auto' }}>
           <InitiativeList
@@ -730,8 +775,8 @@ export function CombatView() {
           initialAmount={dialog.initialAmount}
           resistEntries={
             !dialog.multiTargetIds
-              ? (Array.isArray((combat.combatants[dialog.combatantId]?.statBlock as any)?.resistances)
-                ? ((combat.combatants[dialog.combatantId]?.statBlock as any).resistances as { type: string; value?: number }[])
+              ? (combat.combatants[dialog.combatantId]
+                ? damageModifiers(combat.combatants[dialog.combatantId]).resist
                     .filter((r): r is { type: string; value: number } => typeof r.value === 'number')
                 : undefined)
               : undefined

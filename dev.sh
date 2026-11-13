@@ -17,12 +17,21 @@ if [[ "$FORCE_BUILD" == true ]] || ! docker image inspect "$IMAGE_NAME" &>/dev/n
     docker build -f "$SCRIPT_DIR/.devcontainer/Dockerfile" -t "$IMAGE_NAME" "$SCRIPT_DIR/.devcontainer/"
 fi
 
+# App data (campaigns, drafts, homebrew, settings) lives in a named volume so it
+# survives the container: --rm deletes everything else. Images built before the
+# Dockerfile created this mount point would leave a new volume owned by root.
+if ! docker volume inspect tabletop-userdata &>/dev/null; then
+    docker volume create tabletop-userdata >/dev/null
+    docker run --rm --user root --entrypoint chown -v tabletop-userdata:/data "$IMAGE_NAME" node:node /data
+fi
+
 exec docker run -it --rm \
     --cap-add=NET_ADMIN \
     --cap-add=NET_RAW \
     -v "$SCRIPT_DIR":/workspace \
     -v tabletop-bashhistory:/commandhistory \
     -v tabletop-codex-config:/home/node/.codex \
+    -v tabletop-userdata:/home/node/.config/4e-dm-dashboard \
     -v "$XDG_RUNTIME_DIR/$WAYLAND_DISPLAY:/tmp/wayland-0" \
     -e WAYLAND_DISPLAY=wayland-0 \
     -e XDG_RUNTIME_DIR=/tmp \

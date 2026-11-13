@@ -4,6 +4,7 @@ import { generateId } from '@common/utils/id'
 import { resolveHpDescriptor } from '@common/utils/hp'
 import { rollD6, rollD20 } from '@common/utils/dice'
 import dnd4e from '../../common/rules/dnd4e'
+import * as facts from '@common/combat/facts'
 
 // ──────────────────────────────────────────────────
 // Helpers — extracted to reduce duplication
@@ -266,8 +267,9 @@ function shouldSkip(combatantId: string): boolean {
   const c = combatState.combatants[combatantId]
   if (!c) return false
   if (c.dead) return true
-  // Monsters skip at 0 HP; PCs skip only when explicitly marked dead (they may be Dying but still take turns)
-  if (!c.isPC && c.hp <= 0) {
+  // Monsters skip at 0 HP; PCs skip only when explicitly marked dead (they may be Dying but still take turns).
+  // Traps without hit points have 0 HP and still act until disabled (marked dead).
+  if (!c.isPC && c.hp <= 0 && facts.hasHitPoints(c)) {
     // Don't skip if creature has a revival ability (Troll Healing, Rise Again, etc.)
     if (getStatBlockRevival(c)) return false
     return true
@@ -400,7 +402,7 @@ function buildSourceExpireItems(
  */
 function buildSaveItems(combatant: CombatantState): PlayerTurnItem[] {
   const items: PlayerTurnItem[] = []
-  const saveBonus = ((combatant.statBlock as any)?.savingThrowBonus as number) ?? 0
+  const saveBonus = facts.saveBonus(combatant)
   const saveEnds = combatant.conditions.filter(co =>
     (co.duration?.type === 'save-ends' || co.duration?.type === 'unlimited') && co.conditionId !== 'dying'
   )
@@ -484,9 +486,7 @@ function computeOngoingDamage(
 
 function buildOngoingDamageItems(combatant: CombatantState): PlayerTurnItem[] {
   const items: PlayerTurnItem[] = []
-  const resistances = Array.isArray((combatant.statBlock as any)?.resistances) ? (combatant.statBlock as any).resistances as { type: string; value?: number }[] : []
-  const immunities = Array.isArray((combatant.statBlock as any)?.immunities) ? (combatant.statBlock as any).immunities as { type: string }[] : []
-  const vulnerabilities = Array.isArray((combatant.statBlock as any)?.weaknesses) ? (combatant.statBlock as any).weaknesses as { type: string; value?: number }[] : []
+  const { resist: resistances, immune: immunities, vulnerable: vulnerabilities } = facts.damageModifiers(combatant)
 
   for (const cond of combatant.conditions.filter(c => c.conditionId.startsWith('ongoing-damage') && c.value)) {
     const rawDmg = cond.value ?? 0
@@ -504,21 +504,11 @@ function buildOngoingDamageItems(combatant: CombatantState): PlayerTurnItem[] {
   return items
 }
 
-/** Pre-parsed regeneration data from statBlock (set at import time) */
-interface StatBlockRegen { value: number; inhibitDamageTypes?: string[] }
-/** Pre-parsed revival data from statBlock (set at import time) */
-interface StatBlockRevival { hp: number; abilityName: string }
-
-function getStatBlockRegen(combatant: CombatantState): StatBlockRegen | undefined {
-  return (combatant.statBlock as any)?.regeneration as StatBlockRegen | undefined
-}
-
-function getStatBlockRevival(combatant: CombatantState): StatBlockRevival | undefined {
-  return (combatant.statBlock as any)?.revival as StatBlockRevival | undefined
-}
+const getStatBlockRegen = facts.regeneration
+const getStatBlockRevival = facts.revival
 
 /**
- * For creatures with a static Regeneration trait (pre-parsed in statBlock.regeneration),
+ * For creatures with a static Regeneration trait,
  * auto-add a "regenerating" condition at turn start when below max HP.
  * Avoids spoiling regen by not adding the condition until the creature is actually damaged.
  */
@@ -607,18 +597,17 @@ function buildRegenAndOngoingItems(combatant: CombatantState): PlayerTurnItem[] 
 /**
  * Start-of-turn recharge items: one per used power whose usage is 'recharge'
  * (4e recharge rolls happen at the start of the creature's turn), in power
- * index order. Threshold comes from the power's rechargeCondition (e.g. "5").
+ * index order. Threshold comes from the power's recharge roll (e.g. 5).
  */
 function buildRechargeItems(combatant: CombatantState): PlayerTurnItem[] {
   const items: PlayerTurnItem[] = []
-  const actions = (combatant.statBlock as any)?.actions
-  if (!actions) return items
+  const entries = facts.combatEntries(combatant)
   for (const [idxStr, count] of Object.entries(combatant.usedPowers)) {
     if (!count) continue
     const powerIdx = parseInt(idxStr)
-    const power = actions[powerIdx]
+    const power = entries[powerIdx]
     if (!power || power.usage !== 'recharge') continue
-    const threshold = parseInt(power.rechargeCondition) || 6
+    const threshold = power.rechargeMin ?? 6
     items.push({
       id: `rch-${powerIdx}`, phase: 'start', kind: 'recharge',
       label: `Recharge ${power.name} (${threshold}+)`, dc: threshold,
@@ -825,7 +814,7 @@ function tryHideDeadCreatures(): void {
   }
   for (const c of Object.values(combatState.combatants)) {
     if (c.hiddenDead) continue
-    const isDead = c.dead || (!c.isPC && c.hp <= 0)
+    const isDead = facts.isDefeated(c)
     if (!isDead) continue
     // Don't hide creatures with regen or revival abilities
     if (c.conditions.some(co => co.conditionId === 'regenerating')) continue
@@ -1130,9 +1119,11 @@ export function damageCombatant(
   const c = combatState.combatants[combatantId]
   if (!c) throw new Error(`Combatant ${combatantId} not found`)
   const notifications: CombatNotification[] = []
-  const isMinion = !!(c.statBlock && (c.statBlock as Record<string, unknown>).isMinion)
+  const isMinion = facts.isMinion(c)
   // Minions take no damage from a miss, even if the power deals half on miss
   if (isMinion && !wasHit) return { state: combatState, notifications }
+  // Traps without hit points take no damage; they're disabled instead.
+  if (!facts.hasHitPoints(c)) return { state: combatState, notifications }
   const wasAlreadyDead = c.hp <= 0 || c.dead
   let remaining = amount
   if (c.tempHp > 0) { const absorbed = Math.min(c.tempHp, remaining); c.tempHp -= absorbed; remaining -= absorbed }
@@ -1383,8 +1374,8 @@ export function toPlayerCombatState(state: CombatState): PlayerCombatState {
     // when the DM clicks "Start Combat"
     if (state.phase === 'initiative-entry' && !c.isPC) continue
     let label: string, color: string, hpPct: number
-    if (c.isPC) {
-      // PCs track their own HP — no descriptor shown
+    if (c.isPC || !facts.hasHitPoints(c)) {
+      // PCs track their own HP, and traps without hit points have none: no descriptor shown
       label = ''
       color = 'var(--muted)'
       hpPct = 100

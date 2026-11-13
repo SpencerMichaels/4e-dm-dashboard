@@ -32,6 +32,10 @@ export function renderEvent(e: CombatEvent): string {
       return `${e.sourceName ?? '?'} hit ${e.targetName}${d.defense ? ' (vs ' + d.defense + ')' : ''}`
     case 'attack-miss':
       return `${e.sourceName ?? '?'} missed ${e.targetName}${d.defense ? ' (vs ' + d.defense + ')' : ''}`
+    case 'trap-triggered':
+      return `${e.targetName} is triggered!`
+    case 'trap-disabled':
+      return `${e.targetName} is disabled`
     default:
       return `${e.targetName}: ${e.type}`
   }
@@ -48,6 +52,8 @@ export function eventColor(type: CombatEvent['type']): string {
     case 'bloodied': return 'var(--damage)'
     case 'attack-hit': return 'var(--success)'
     case 'attack-miss': return 'var(--notify)'
+    case 'trap-triggered': return 'var(--warning)'
+    case 'trap-disabled': return 'var(--success)'
     case 'turn-start': case 'turn-end': return ''
     default: return ''
   }

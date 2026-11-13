@@ -2,6 +2,7 @@
 
 // Commands (DM renderer → main process via invoke)
 export const CMD = {
+  AUTHORING_CALL: 'authoring:call',
   // Campaign
   CAMPAIGN_CREATE: 'campaign:create',
   CAMPAIGN_OPEN: 'campaign:open',
@@ -48,6 +49,7 @@ export const CMD = {
   COMBAT_UNUSE_POWER: 'combat:unuse-power',
   COMBAT_SET_SURPRISE: 'combat:set-surprise',
   COMBAT_REORDER: 'combat:reorder',
+  COMBAT_PREVIEW_ROW: 'combat:preview-row',
 
   // System
   SYSTEM_GET_RULES: 'system:get-rules',
@@ -55,6 +57,7 @@ export const CMD = {
   // App settings (<userData>/app-settings.json)
   SETTINGS_GET: 'settings:get',
   SETTINGS_SET_THEME: 'settings:set-theme',
+  SETTINGS_DISMISS_TIP: 'settings:dismiss-tip',
 
   // Links
   LINKS_GET: 'links:get',
@@ -80,6 +83,10 @@ export const CMD = {
   COMPENDIUM_TRAP_GET: 'compendium:trap-get',
   COMPENDIUM_DISEASE_INDEX: 'compendium:disease-index',
   COMPENDIUM_DISEASE_GET: 'compendium:disease-get',
+  /** A published entry converted to the kit schema (traps, diseases, templates, themes). */
+  COMPENDIUM_KIT_GET: 'compendium:kit-get',
+  /** Index rows for kinds without a parsed index (templates, themes). */
+  COMPENDIUM_KIT_INDEX: 'compendium:kit-index',
 
   // Player
   PLAYER_READY: 'player:ready',
@@ -91,6 +98,7 @@ export const CMD = {
 
 // Broadcasts (main process → all renderers via send)
 export const SYNC = {
+  AUTHORING: 'sync:authoring',
   CAMPAIGN_STATE: 'sync:campaign-state',
   CAMPAIGN_ENTITY_UPDATE: 'sync:campaign-entity-update',
   COMBAT_STATE: 'sync:combat-state',

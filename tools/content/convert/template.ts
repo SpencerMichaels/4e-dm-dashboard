@@ -174,6 +174,8 @@ function convertTemplatePower(p: TemplatePower, notes: Notes): { power?: Power; 
       keywords,
       trigger: optLine(p.trigger),
       requirement: optLine(requirement),
+      // A power with no attack roll can still have a range ("close burst 5").
+      range: !attacks.length && p.rangeType ? toRange(p.rangeType, p.rangeValue ?? '') : undefined,
       attacks,
       effect: optLine(p.description),
     } as Power),

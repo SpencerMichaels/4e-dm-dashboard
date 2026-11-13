@@ -1,3 +1,4 @@
+import { DiseaseChips } from '../disease/disease-refs'
 import { usageTone, DND4E_ACTION_TYPES, sign, normalizeDamage, type DamagePart } from './dnd4e-utils'
 import { tint, withAlpha } from '../../utils/color'
 import type { DetectedCondition } from '../combat/condition-detection'
@@ -53,6 +54,7 @@ export interface PowerCardEntry {
   secondary?: string
   aftereffect?: string
   sustain?: string
+  special?: string
   text?: string
   levelScaling?: { level: number; text: string }[]
 }
@@ -86,7 +88,9 @@ export function PowerCardView({ entry: e, selectedLevel, detectedConditions, onC
           cursor: 'pointer', color: 'var(--color-action-point)', fontWeight: 600,
           userSelect: 'none',
         }}
-        title={`Click to apply ${seg.detection.conditionName} (shift-click to apply to multiple targets)`}
+        title={seg.detection.disease
+          ? `Click, then a PC, to expose them to ${seg.detection.conditionName} (shift-click for several)`
+          : `Click to apply ${seg.detection.conditionName} (shift-click to apply to multiple targets)`}
       >{seg.text}</span>
     ) : <span key={i}>{seg.text}</span>)
   }
@@ -178,6 +182,7 @@ export function PowerCardView({ entry: e, selectedLevel, detectedConditions, onC
         {e.miss && <div><b style={labelStyle}>Miss</b> {renderHighlighted(e.miss, 'miss')}</div>}
         {e.effect && <div><b style={labelStyle}>Effect</b> {renderHighlighted(e.effect, 'effect')}</div>}
         {e.sustain && <div><b style={labelStyle}>Sustain</b> {e.sustain}</div>}
+        {e.special && <div><b style={labelStyle}>Special</b> {e.special}</div>}
         {e.text && e.text.split('\n').map((line, j) => (
           <div key={j}>{line}</div>
         ))}
@@ -194,6 +199,8 @@ export function PowerCardView({ entry: e, selectedLevel, detectedConditions, onC
             ))}</>
           )
         )}
+        {/* Diseases the power exposes its target to */}
+        <DiseaseChips text={[e.hit, e.secondary, e.aftereffect, e.miss, e.effect, e.special, e.text].filter(Boolean).join(' ')} />
       </div>
     </div>
   )

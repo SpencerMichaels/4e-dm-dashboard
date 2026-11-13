@@ -1,23 +1,22 @@
 import { useUiStore } from '../../stores/ui-store'
 import { useCampaignStore } from '../../stores/campaign-store'
 import { HomeView } from '../campaign/HomeView'
+import { AuthoringView } from '../authoring/AuthoringView'
 import { NoteEditor } from '../campaign/NoteEditor'
 import { CreatureEditor } from '../campaign/CreatureEditor'
 import { EncounterEditor } from '../campaign/EncounterEditor'
 import { LocationEditor } from '../campaign/LocationEditor'
 import { MapEditor } from '../campaign/MapEditor'
-import { ItemEditor } from '../campaign/ItemEditor'
 import { EntityList } from '../campaign/EntityList'
 import { CombatView } from '../combat/CombatView'
-import { Dnd4eTrapBrowser } from '../compendium/Dnd4eTrapBrowser'
-import { Dnd4eDiseaseBrowser } from '../compendium/Dnd4eDiseaseBrowser'
-import { Dnd4eTemplateBrowser } from '../compendium/Dnd4eTemplateBrowser'
-import { Dnd4eThemeBrowser } from '../compendium/Dnd4eThemeBrowser'
+import { RecordCompendium } from '../compendium/RecordCompendium'
+import { ITEM_KIND, TRAP_KIND, DISEASE_KIND, TEMPLATE_KIND, THEME_KIND } from '../compendium/record-kinds'
 
 export function ContentArea() {
   const view = useUiStore((s) => s.view)
   const campaignId = useCampaignStore((s) => s.campaignId)
 
+  if (view.type === 'authoring') return <AuthoringView draftId={view.draftId} />
   if (!campaignId) {
     return <HomeView />
   }
@@ -36,19 +35,19 @@ export function ContentArea() {
     case 'map':
       return <MapEditor mapId={view.mapId} key={view.mapId} />
     case 'item':
-      return <ItemEditor itemId={view.itemId} key={view.itemId} />
+      return <RecordCompendium kind={ITEM_KIND} initialId={view.itemId} key="item" />
     case 'combat':
       return <CombatView />
     case 'entity-list':
       return <EntityList entityType={view.entityType} key={view.entityType} />
     case 'trap-compendium':
-      return <Dnd4eTrapBrowser />
+      return <RecordCompendium kind={TRAP_KIND} key="trap" />
     case 'disease-compendium':
-      return <Dnd4eDiseaseBrowser />
+      return <RecordCompendium kind={DISEASE_KIND} key="disease" />
     case 'template-compendium':
-      return <Dnd4eTemplateBrowser />
+      return <RecordCompendium kind={TEMPLATE_KIND} key="template" />
     case 'theme-compendium':
-      return <Dnd4eThemeBrowser />
+      return <RecordCompendium kind={THEME_KIND} key="theme" />
     default:
       return <HomeView />
   }

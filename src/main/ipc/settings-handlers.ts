@@ -15,4 +15,11 @@ export function registerSettingsHandlers(): void {
     broadcastToAll(SYNC.APP_SETTINGS, settings)
     return settings
   })
+
+  ipcMain.handle(CMD.SETTINGS_DISMISS_TIP, async (_e, id: unknown) => {
+    if (typeof id !== 'string' || !id) throw new Error('Expected a tip ID')
+    const settings = await updateAppSettings({ dismissedTips: [...getAppSettings().dismissedTips, id] })
+    broadcastToAll(SYNC.APP_SETTINGS, settings)
+    return settings
+  })
 }
