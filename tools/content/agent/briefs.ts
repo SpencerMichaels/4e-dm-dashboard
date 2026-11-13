@@ -1,13 +1,15 @@
 // Write one agent brief per sampled entry in a single run, so cleaning agents
 // only Read a file (no container start per brief).
 //
-// Run: npm run content:agent:briefs -- --sample <sample.json> --repo <content repo> --out <dir>
+// Run: npm run content:agent:briefs -- --sample <sample.json> --repo <content repo> (--out <dir> | --tag <name>)
 //        [--tier small|full] [--responses <dir>] [--app <host app dir>]
 //
-// Briefs go to <out>/<kind>-<id>.md. Each tells its agent to write the reply to
-// <responses>/<kind>/<id>.json (default responses dir: <out> with "briefs"
-// replaced by "responses", e.g. pilot/briefs-2 -> pilot/responses-2) and gives
-// the exact check command. --app is the app checkout as the host sees it
+// Briefs go to <out>/<kind>-<id>.md; --tag <name> means --out <repo>/pilot/briefs-<name>.
+// Each tells its agent to write the reply to <responses>/<kind>/<id>.json
+// (default responses dir: <out> with "briefs" replaced by "responses", e.g.
+// pilot/briefs-2b-opus -> pilot/responses-2b-opus) and gives the exact check
+// command, which points at that reply. Agents only run the check; replies are
+// applied later in one batch (content:agent:apply-all). --app is the app checkout as the host sees it
 // (default $APP_HOST_DIR, else this checkout); set it when running in the container.
 
 import { mkdirSync, readFileSync, writeFileSync } from 'fs'
@@ -21,13 +23,22 @@ export function defaultResponsesDir(out: string): string {
   return name.includes('briefs') ? join(dirname(out), name.replace('briefs', 'responses')) : join(out, 'responses')
 }
 
+/** Brief and reply directories from --out or --tag, and --responses. */
+export function briefDirs(args: string[], repo: string): { out: string; responses: string } | undefined {
+  const tag = argValue(args, '--tag')
+  const outArg = argValue(args, '--out') ?? (tag ? join(repo, 'pilot', `briefs-${tag}`) : undefined)
+  if (!outArg) return undefined
+  const out = resolve(outArg)
+  return { out, responses: resolve(argValue(args, '--responses') ?? defaultResponsesDir(out)) }
+}
+
 function main() {
   const args = process.argv.slice(2)
   const samplePath = argValue(args, '--sample')
-  const out = argValue(args, '--out')
-  if (!samplePath || !out) throw new Error('Usage: briefs --sample <sample.json> --repo <dir> --out <dir> [--tier <name>] [--responses <dir>] [--app <dir>]')
   const repo = contentRepo(args)
-  const responses = resolve(argValue(args, '--responses') ?? defaultResponsesDir(resolve(out)))
+  const dirs = briefDirs(args, repo)
+  if (!samplePath || !dirs) throw new Error('Usage: briefs --sample <sample.json> --repo <dir> (--out <dir> | --tag <name>) [--tier <name>] [--responses <dir>] [--app <dir>]')
+  const { out, responses } = dirs
   const app = appDir(args)
   const ids = sampleIds(JSON.parse(readFileSync(samplePath, 'utf-8')), argValue(args, '--tier'))
 

@@ -115,11 +115,14 @@ function oneLine(decl: string): string {
 
 /** Agents give `quote` instead of the stored `at` span (apply resolves it). */
 const AGENT_CLAUSE_BASE = `interface ClauseBase {
-  /** Exact words from the owning Line.text; apply turns them into the stored span. 'unparsed' clauses give only text. */
+  /** Exact words from the owning Line.text (see the quote rules). Every kind except unparsed. */
   quote: string
-  /** Condition text ("if the target is bloodied"): shown, never auto-applied. */
+  /** The printed condition words, verbatim, whenever the print makes the clause conditional. */
   if?: string
 }`
+
+/** Agents write an unparsed clause as just { text }: no kind, no quote. */
+const AGENT_UNPARSED = "| { text: string } // unparsed: the exact printed words; no kind, no quote"
 
 /**
  * The kit declarations an entry of this kind uses: the entry type and
@@ -141,7 +144,8 @@ export function schemaExcerpt(kind: AgentKind): string {
   }
   visit(KIND_LABEL[kind][1])
   const part = (decls: Decl[]) => decls.filter(d => needed.has(d))
-    .map(d => d.names.includes('ClauseBase') ? AGENT_CLAUSE_BASE : agentForm(d.text)).join('\n\n')
+    .map(d => d.names.includes('ClauseBase') ? AGENT_CLAUSE_BASE : agentForm(d.text).replace(/\| \{ kind: 'unparsed'; text: string \}/, AGENT_UNPARSED))
+    .join('\n\n')
   return `// vocab.ts\n${part(vocab)}\n\n// schema.ts\n${part(schema)}`
 }
 

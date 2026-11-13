@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest'
 import type { Disease } from '@kit'
 import { applyAll } from './apply-all'
 import { applyFile, applyResponse, describePath, parseResponse } from './apply'
-import { defaultResponsesDir } from './briefs'
+import { briefDirs, defaultResponsesDir } from './briefs'
 import { buildBrief, checkCommand, compactJson, htmlToText, schemaExcerpt } from './prompt'
 import { atToQuote, resolveQuotes } from './quotes'
 import { mulberry32, pick, sampleIds, tieredSample } from './sample'
@@ -65,7 +65,7 @@ describe('quotes', () => {
     clauses: [
       { quote: 'the target is dazed until the end of your next turn', kind: 'condition', condition: 'dazed', who: 'target', duration: { kind: 'turn-end', whose: 'source', next: true } },
       { quote: 'the target is', kind: 'unparsed', text: 'x' },
-      { text: 'slowed (save ends)', kind: 'unparsed' },
+      { text: 'slowed (save ends)' },
     ],
   })
 
@@ -93,7 +93,7 @@ describe('quotes', () => {
     resolveQuotes(entry)
     const quoted = atToQuote(entry) as any
     expect(quoted.effect.clauses[0].quote).toBe('The target is dazed until the end of your next turn')
-    expect(quoted.effect.clauses[1]).toEqual({ kind: 'unparsed', text: 'the target is' })
+    expect(quoted.effect.clauses[1]).toEqual({ text: 'the target is' })
     resolveQuotes(quoted)
     expect(quoted).toEqual(entry)
   })
@@ -106,6 +106,9 @@ describe('brief', () => {
     expect(s).toContain('type Clause')
     expect(s).toContain("type ConditionId = 'blinded' | 'dazed'")
     expect(s).toContain('quote: string')
+    expect(s).toContain('| { text: string } // unparsed')
+    expect(s).not.toContain("kind: 'unparsed'")
+    expect(s).toContain("kind: 'redirect-attack'")
     expect(s).not.toMatch(/\bat: \[number, number\]/)
     expect(s).not.toContain('interface Item')
     expect(s).not.toContain('MonsterTemplate')
@@ -138,6 +141,9 @@ describe('brief', () => {
     expect(brief).toContain(`docker run --rm --network none -v /src/app:/workspace -v ${repo}:${repo} -w /workspace tabletop-dev npm run -s content:agent:apply -- diseases disease11 ${reply} --repo ${repo} --check`)
     expect(checkCommand('traps', 'trap1', { repo: '/r', reply: '/elsewhere/trap1.json', app: '/a' })).toContain('-v /elsewhere:/elsewhere')
     expect(defaultResponsesDir('/c/pilot/briefs-2')).toBe('/c/pilot/responses-2')
+    expect(briefDirs(['--tag', '2b-opus'], '/c')).toEqual({ out: '/c/pilot/briefs-2b-opus', responses: '/c/pilot/responses-2b-opus' })
+    expect(briefDirs(['--out', '/c/b', '--responses', '/c/r'], '/c')).toEqual({ out: '/c/b', responses: '/c/r' })
+    expect(briefDirs([], '/c')).toBeUndefined()
   })
 })
 
@@ -150,6 +156,15 @@ describe('apply', () => {
     expect(parseResponse('Here it is:\n{"entry":{"id":"x"}}\nDone.').entry).toEqual({ id: 'x' })
     expect(() => parseResponse('{"entry": {"id": "x",}}')).toThrow(/not valid JSON/)
     expect(() => parseResponse('{"notes": []}')).toThrow(/no "entry" object/)
+  })
+
+  it('takes { text } with no kind as an unparsed clause', () => {
+    const reply = JSON.parse(JSON.stringify(disease))
+    reply.stages[1].line.clauses = [{ text: 'The target is weakened.' }]
+    const { result, entry } = applyResponse('diseases', 'disease11', { entry: reply, confidence: 'high' }, disease, opts)
+    expect(result.errors).toEqual([])
+    expect((entry as any).stages[1].line.clauses[0]).toEqual({ at: [0, 23], kind: 'unparsed', text: 'The target is weakened.' })
+    expect(Object.keys((entry as any).stages[1].line.clauses[0])).toEqual(['at', 'kind', 'text'])
   })
 
   it('accepts a valid entry, resolves quotes and rewrites provenance', () => {

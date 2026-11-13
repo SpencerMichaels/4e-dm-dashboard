@@ -45,8 +45,9 @@ export function forEachLine(entry: unknown, visit: (line: Line, path: string) =>
 /**
  * Replace each clause's `quote` with `at` (in place). The search starts after
  * the previous clause's span and falls back to anywhere in the line. An
- * `unparsed` clause with neither `quote` nor `at` is located by its `text`.
- * A clause with only `at` is kept as it is.
+ * unparsed clause may be just `{ text }`: no kind means 'unparsed', and with
+ * neither `quote` nor `at` it is located by its text. A clause with only `at`
+ * is kept as it is.
  */
 export function resolveQuotes(entry: unknown): QuoteError[] {
   const errors: QuoteError[] = []
@@ -56,6 +57,8 @@ export function resolveQuotes(entry: unknown): QuoteError[] {
       const cl = raw as unknown as Record<string, unknown>
       if (typeof cl !== 'object' || cl === null) return raw
       const p = `${path}.clauses[${i}]`
+      // The minimal unparsed shape: { "text": "<exact words>" }.
+      if (cl.kind === undefined && typeof cl.text === 'string') cl.kind = 'unparsed'
       let quote = cl.quote
       if (quote === undefined && cl.at === undefined && cl.kind === 'unparsed' && typeof cl.text === 'string') quote = cl.text
       if (quote === undefined) {
@@ -73,7 +76,8 @@ export function resolveQuotes(entry: unknown): QuoteError[] {
         return raw
       }
       from = start + q.length
-      const { quote: _q, at: _a, ...rest } = cl
+      const { quote: _q, at: _a, kind, ...others } = cl
+      const rest: Record<string, unknown> = { kind, ...others }
       // Unparsed text is its span, in the printed wording.
       if (rest.kind === 'unparsed') rest.text = line.text.substring(start, from)
       return { at: [start, from], ...rest } as unknown as typeof raw
@@ -82,14 +86,14 @@ export function resolveQuotes(entry: unknown): QuoteError[] {
   return errors
 }
 
-/** The inverse, for briefs: every clause's `at` becomes `quote` (unparsed clauses keep only `text`). */
+/** The inverse, for briefs: every clause's `at` becomes `quote`; unparsed clauses become just `{ text }`. */
 export function atToQuote<T>(entry: T): T {
   const copy = JSON.parse(JSON.stringify(entry)) as T
   forEachLine(copy, line => {
     line.clauses = line.clauses.map(raw => {
       const { at, ...rest } = raw as unknown as Record<string, unknown>
       if (!Array.isArray(at)) return raw
-      if (rest.kind === 'unparsed') return rest as unknown as typeof raw
+      if (rest.kind === 'unparsed') return { text: rest.text } as unknown as typeof raw
       return { quote: line.text.substring(at[0] as number, at[1] as number), ...rest } as unknown as typeof raw
     })
   })
