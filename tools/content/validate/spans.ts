@@ -22,7 +22,8 @@ export function spanProblem(clause: Clause, span: string): string | undefined {
   switch (clause.kind) {
     case 'damage':
       if (!compactDice(span).includes(compactDice(clause.dice))) return `dice "${clause.dice}" not in span`
-      if (!has('damage')) return 'no "damage" in span'
+      // Inline crits ("(crit 2d8 + 11)") need not say "damage".
+      if (clause.critical ? !has('crit') : !has('damage')) return clause.critical ? 'no "crit" in span' : 'no "damage" in span'
       for (const t of clause.types) if (!has(t)) return `type "${t}" not in span`
       return
     case 'damage-formula':
@@ -47,6 +48,20 @@ export function spanProblem(clause: Clause, span: string): string | undefined {
     case 'temp-hp': return has('temporary') ? undefined : 'no "temporary" in span'
     case 'regeneration': return has('regenerat') || has('regain') ? undefined : 'no "regeneration" in span'
     case 'revive': return num(clause.hp) ? undefined : `hp ${clause.hp} not in span`
+    case 'use-power': return has(clause.power.toLowerCase()) || has(/\battack|\buses?\b/i) ? undefined : `power "${clause.power}" not in span`
+    case 'recharge-power': return has('recharge') ? undefined : 'no "recharge" in span'
+    case 'lose-healing-surge': return has('surge') ? undefined : 'no "healing surge" in span'
+    case 'concealment':
+      if (!has('conceal')) return 'no "concealment" in span'
+      return !clause.total || has('total') ? undefined : 'no "total" in span'
+    case 'zone': return has('zone') ? undefined : 'no "zone" in span'
+    case 'saving-throw':
+      if (!has(/sav(e|ing)/i)) return 'no "saving throw" in span'
+      return clause.bonus === undefined || num(Math.abs(clause.bonus)) ? undefined : `bonus ${clause.bonus} not in span`
+    case 'summon': {
+      const words = clause.creature.toLowerCase().split(/\W+/).filter(w => w.length > 2)
+      return words.some(w => s.includes(w.replace(/s$/, ''))) || has(/summon|appear|conjure|create/i) ? undefined : `creature "${clause.creature}" not in span`
+    }
     case 'unparsed':
       return span.replace(/\s+/g, ' ').trim() === clause.text.replace(/\s+/g, ' ').trim() ? undefined : 'unparsed text differs from span'
   }

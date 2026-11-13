@@ -67,17 +67,17 @@ export function armorFrom(description: string): { armor: NonNullable<Item['armor
 /** The slot heading when it names a kind of item rather than a body slot ("Consumable", "Divine Boon"). */
 function subtypeOf(it: ParsedItem, slot: ItemSlot | undefined): string | undefined {
   if (/group set/i.test(it.rarity ?? '')) return 'Group Set'
-  if (it.alchemicalType && it.alchemicalType !== 'Alchemical Item') return it.alchemicalType
   const s = normText(it.slot ?? '')
   if (!s || slot) return undefined
-  // Rituals print their category there (kept in ritual.category); sets say "Item Set".
-  if (it.category === 'ritual' || s === 'Item Set' || (s === 'Alchemical Item' && it.alchemicalType)) return undefined
+  // Rituals print their category there (kept in ritual.category); sets say "Item Set";
+  // alchemical items keep their type in alchemical.type.
+  if (it.category === 'ritual' || s === 'Item Set' || it.alchemicalType) return undefined
   return s
 }
 
-/** "15 lb.Cost: Special" -> "15 lb." (the parser runs the next label into the weight). */
-function cleanWeight(w: string): string {
-  return normText(w.replace(/(?:Cost|Price):[\s\S]*$/i, ''))
+/** "15 lb.Cost: Special" -> "15 lb." (the parser runs the next label or the source into the weight). */
+export function cleanWeight(w: string): string {
+  return normText(w.replace(/(?:Cost|Price):[\s\S]*$|Published in[\s\S]*$/i, ''))
 }
 
 export function convertItem(id: string, it: ParsedItem, ctx: ConvertContext, rawHtml?: string): Item {
@@ -106,11 +106,6 @@ export function convertItem(id: string, it: ParsedItem, ctx: ConvertContext, raw
   if (it.enhancement && !/^(attack rolls and damage rolls|ac|fortitude, reflex, and will)\.?$/i.test(it.enhancement.trim())) {
     notes.add(`enhancement applies to: ${it.enhancement}`)
   }
-  if (it.propertyScaling?.length) notes.add(`property scaling: ${it.propertyScaling.map(s => `Level ${s.level}: ${s.text}`).join(' ')}`)
-  if (it.special) notes.add(`special: ${normText(it.special)}`)
-  if (it.requirement) notes.add(`requirement: ${normText(it.requirement)}`)
-  if (it.formulaCost) notes.add(`alchemical formula cost: ${it.formulaCost}`)
-  if (it.alchemicalType === 'Alchemical Item') notes.add(`alchemical type: ${it.alchemicalType}`)
 
   const isWeapon = it.category === 'weapon' && (it.damage || it.proficiency)
   const isRitual = it.category === 'ritual' || !!it.keySkill
@@ -128,6 +123,10 @@ export function convertItem(id: string, it: ParsedItem, ctx: ConvertContext, raw
     itemType: it.itemType || undefined,
     critical: optLine(it.critical),
     properties: (it.properties ?? []).map(p => line(p)),
+    propertyLevelSteps: it.propertyScaling?.length ? it.propertyScaling.map(s => ({ level: s.level, text: normText(s.text) })) : undefined,
+    special: optLine(it.special),
+    requirement: optLine(it.requirement),
+    weight: it.weight && !isWeapon ? cleanWeight(it.weight) || undefined : undefined,
     powers: (it.powers ?? []).map(p => convertItemPower(p, notes)),
     weapon: isWeapon ? compact({
       damage: it.damage ?? '',
@@ -146,6 +145,7 @@ export function convertItem(id: string, it: ParsedItem, ctx: ConvertContext, raw
       componentCost: it.componentCost ?? '',
       category: it.ritualCategory ?? '',
     } : undefined,
+    alchemical: it.alchemicalType || it.formulaCost ? compact({ type: it.alchemicalType || undefined, formulaCost: it.formulaCost || undefined }) : undefined,
     itemSet: it.itemSet || undefined,
     flavor: it.flavor ?? '',
     description: it.descriptionParts ? it.descriptionParts.map(d => convertDescriptionPart(d, notes))
@@ -153,7 +153,6 @@ export function convertItem(id: string, it: ParsedItem, ctx: ConvertContext, raw
     sources: parseSources(it.source ?? '', notes),
     provenance: undefined as never,
   }
-  if (it.weight && !isWeapon) notes.add(`weight: ${cleanWeight(it.weight)}`)
   item.provenance = provenanceFor(ctx, notes)
   return compact(item)
 }

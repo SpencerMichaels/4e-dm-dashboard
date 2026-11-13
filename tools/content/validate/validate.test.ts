@@ -86,6 +86,7 @@ describe('shape', () => {
       detect: [{ skill: 'Perception', dc: null, text: 'automatic' }], hp: 60, hpText: '60 in each of six 5-foot sections',
       immune: [], resist: [{ type: 'special', text: 'half damage from melee attacks' }],
       traits: [{ name: 'Writhing Tentacles', keywords: [], text: { text: 'Enemies treat the squares as difficult terrain.', clauses: [] } }],
+      auras: [],
       powers: [], countermeasures: [], flavor: '', description: '', sources: [{ book: 'Dungeon Magazine 197' }], provenance: prov,
     }
     expect(validateEntry('traps', trap).errors).toEqual([])
@@ -101,7 +102,7 @@ describe('shape', () => {
       .toEqual(['$.endurance.improveDc.text', '$.endurance.maintainDc'])
 
     const template = {
-      id: 'elite-dragon', name: 'Elite Dragon', kind: 'functional', role: 'any', raisesRank: true,
+      id: 'elite-dragon', name: 'Elite Dragon', kind: 'functional', role: 'any', rankChange: 'down',
       prerequisite: { text: 'Solo dragon', check: { kind: 'all', of: [
         { kind: 'rank', any: ['solo'] }, { kind: 'not', of: { kind: 'keyword', any: ['devil'] } },
         { kind: 'any-of', of: [{ kind: 'keyword', any: ['dragon'] }] },
@@ -110,6 +111,8 @@ describe('shape', () => {
       traits: [], auras: [], powers: [], description: '', sources: [{ book: 'DMG' }], provenance: prov,
     }
     expect(validateEntry('templates', template).errors).toEqual([])
+    expect(validateEntry('templates', { ...template, rankChange: undefined, raisesRank: true }).errors.map(e => e.path))
+      .toEqual(['$.raisesRank', '$.rankChange'])
   })
 
   it('checks clause fields', () => {
@@ -153,5 +156,58 @@ describe('math bands', () => {
     const epic = { level: 35, xp: 47000, hp: 260, defenses: { ac: 49, fortitude: 46, reflex: 44, will: 44 } }
     expect(checkMonsterBands(monster(epic)).filter(f => f.rule === 'xp')).toEqual([])
     expect(checkMonsterBands(monster({ ...epic, xp: 19000 })).filter(f => f.rule === 'xp')[0].message).toMatch(/expected 47000/)
+  })
+})
+
+describe('schema v3', () => {
+  it('accepts the new clause kinds, durations, Who values and power fields', () => {
+    const m = monster({ sources: [{ book: 'The Book of Vile Darkness', page: '2-77' }] })
+    const text = 'The dragon uses bite twice. Its breath recharges, and each creature in the zone loses a healing surge and has partial concealment. It makes a saving throw with a +2 bonus. Two kobolds appear. (crit 2d8 + 11) Allies in the aura gain a +2 bonus to attack rolls and damage rolls.'
+    const at = (s: string): [number, number] => [text.indexOf(s), text.indexOf(s) + s.length]
+    m.powers[0].usesPerRound = 1
+    m.powers[0].effect = { text, clauses: [
+      { at: at('uses bite twice'), kind: 'use-power', power: 'Bite', times: 2, who: 'self' },
+      { at: at('Its breath recharges'), kind: 'recharge-power', power: 'Breath' },
+      { at: at('loses a healing surge'), kind: 'lose-healing-surge', count: 1, who: 'creatures-in-area', if: 'in the zone' },
+      { at: at('has partial concealment'), kind: 'concealment', who: 'creatures-in-area', duration: { kind: 'while-in-aura' } },
+      { at: at('makes a saving throw with a +2 bonus'), kind: 'saving-throw', bonus: 2, who: 'self' },
+      { at: at('Two kobolds appear'), kind: 'summon', creature: 'kobold', count: 2 },
+      { at: at('(crit 2d8 + 11)'), kind: 'damage', dice: '2d8+11', types: [], who: 'target', critical: true },
+      { at: at('+2 bonus to attack rolls and damage rolls'), kind: 'modifier', stat: ['attack', 'damage'], value: 2, who: 'allies-in-area', duration: { kind: 'permanent' }, saveGroup: 'a' },
+      { at: at('in the zone'), kind: 'zone', duration: { kind: 'encounter' } },
+    ] }
+    expect(validateEntry('monsters', m).errors).toEqual([])
+  })
+
+  it('rejects unknown clause fields (such as a leftover quote) and bad v3 values', () => {
+    const m = monster()
+    const cl = m.powers[0].attacks[0].hit!.clauses[0] as any
+    cl.quote = '2d8 + 4 damage'
+    cl.extra = false
+    m.powers[0].usesPerRound = 0
+    expect(validateEntry('monsters', m).errors.map(e => e.path)).toEqual(expect.arrayContaining([
+      '$.powers[0].usesPerRound', '$.powers[0].attacks[0].hit.clauses[0].quote', '$.powers[0].attacks[0].hit.clauses[0].extra',
+    ]))
+  })
+
+  it('accepts trap auras, terrain usage, the triggered action and the new item fields', () => {
+    const prov = { origin: 'parser', by: 'tools/content@test', at: '2026-11-12' }
+    const trap = {
+      id: 'trap1', name: 'Pit', kind: 'terrain', usage: 'single-use', level: 1, role: 'obstacle', rank: 'standard', xp: 100,
+      detect: [], immune: [], resist: [], traits: [],
+      auras: [{ name: 'Spores', keywords: [], range: 1, text: { text: 'Creatures in the aura are slowed.', clauses: [] } }],
+      powers: [{ name: 'Collapse', action: 'triggered', usage: 'at-will', keywords: [], attacks: [] }],
+      countermeasures: [], flavor: '', description: '', sources: [{ book: 'DMG' }], provenance: prov,
+    }
+    expect(validateEntry('traps', trap).errors).toEqual([])
+    expect(validateEntry('traps', { ...trap, usage: 'once' }).errors.map(e => e.path)).toEqual(['$.usage'])
+    const item = {
+      id: 'item1', name: 'Alchemist\'s Fire', category: 'alchemical', level: 1, rarity: null, levels: [{ level: 1, price: 20 }],
+      properties: [], propertyLevelSteps: [{ level: 11, text: 'Resist 10' }], weight: '1 lb.',
+      special: { text: 'You cannot use more than one.', clauses: [] }, requirement: { text: 'You must be a living construct.', clauses: [] },
+      powers: [], alchemical: { type: 'Volatile', formulaCost: '20 gp' }, flavor: '', description: [], sources: [{ book: 'AV' }], provenance: prov,
+    }
+    expect(validateEntry('items', item).errors).toEqual([])
+    expect(validateEntry('items', { ...item, alchemical: { cost: 1 } }).errors.map(e => e.path)).toEqual(['$.alchemical.cost'])
   })
 })

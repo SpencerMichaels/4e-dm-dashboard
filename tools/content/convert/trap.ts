@@ -1,6 +1,6 @@
 // Parsed trap (trap-parser output) -> kit Trap.
 
-import { SKILLS, isOneOf, type Attack, type Power, type Trait, type Trap } from '@kit'
+import { SKILLS, isOneOf, type Attack, type Aura, type Power, type Trait, type Trap } from '@kit'
 import type { ParsedTrap, TrapAction } from '../trap-parser'
 import {
   Notes, compact, damageModifier, failedSaveN, hitLine, line, normText, optLine, parseAttackLine, parseSources,
@@ -46,11 +46,12 @@ export function convertTrap(id: string, t: ParsedTrap, ctx: ConvertContext): Tra
   const kindKey = (t.trapType ?? '').toLowerCase()
   const kind = KIND_MAP[kindKey]
   if (!kind) notes.add(`trap type "${t.trapType}" is not a kit Trap kind; using trap`)
-  if (kindKey.includes('single-use') || kindKey.includes('at-will')) notes.add(`trap type: ${t.trapType}`)
+  const usage: Trap['usage'] = kindKey.startsWith('single-use') ? 'single-use' : kindKey.startsWith('at-will') ? 'at-will' : undefined
   const rank: Trap['rank'] = t.modifier === 'Elite' ? 'elite' : t.modifier === 'Solo' ? 'solo' : 'standard'
 
   const detect = parseDetect(t.perception ?? '', 'Perception', notes)
   const traits: Trait[] = []
+  const auras: Aura[] = []
   // Skill sections are detect/knowledge checks; anything else printed as a
   // section of its own ("Special", "Portal Effects") is a trait.
   for (const s of t.additionalSkills ?? []) {
@@ -64,8 +65,9 @@ export function convertTrap(id: string, t: ParsedTrap, ctx: ConvertContext): Tra
       const body = a.text ?? a.effect ?? ''
       if (isSkillHeading(a.name)) { detect.push(...parseDetect(body, normText(a.name), notes)); continue }
       const { name, keywords } = nameAndKeywords(a.name)
-      if (/^aura \d+$/i.test(a.usage ?? '')) notes.add(`trait "${name}": ${a.usage} (Trait has no aura range)`)
-      else if (a.usage) notes.add(`trait "${name}": usage "${a.usage}"`)
+      const aura = (a.usage ?? '').match(/^aura (\d+)$/i)
+      if (aura) { auras.push({ name: name || 'Aura', keywords, text: line(body), range: parseInt(aura[1]) }); continue }
+      if (a.usage) notes.add(`trait "${name}": usage "${a.usage}"`)
       traits.push({ name: name || 'Trait', keywords, text: line(body) })
       continue
     }
@@ -98,6 +100,7 @@ export function convertTrap(id: string, t: ParsedTrap, ctx: ConvertContext): Tra
     id,
     name: t.name,
     kind: kind ?? 'trap',
+    usage,
     level: t.level,
     role: (t.role ?? '').toLowerCase(),
     rank,
@@ -111,6 +114,7 @@ export function convertTrap(id: string, t: ParsedTrap, ctx: ConvertContext): Tra
     resist,
     trigger: optLine(t.trigger),
     traits,
+    auras,
     powers,
     countermeasures: (t.countermeasures ?? []).map(c => line(c)),
     flavor: t.flavor ?? '',

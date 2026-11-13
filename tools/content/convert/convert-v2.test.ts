@@ -1,11 +1,11 @@
-// Converter tests for the 4e-kit schema v2 fields.
+// Converter tests for the 4e-kit schema v2 and v3 fields.
 
 import { describe, expect, it } from 'vitest'
 import { MONSTER_TEMPLATES } from '../../../src/renderer/components/creature/monster-templates'
 import { parseTrapHtml } from '../trap-parser'
 import { Notes, damageModifier, parseSources, splitRangePrefix, type ConvertContext } from './common'
 import { checkFrom, enduranceFrom } from './disease'
-import { armorFrom, parsePrice, tierOf } from './item'
+import { armorFrom, cleanWeight, parsePrice, tierOf } from './item'
 import { convertPower } from './monster'
 import { convertTemplate, convertTheme, prereqFromCheck } from './template'
 import { convertTrap, isSkillHeading } from './trap'
@@ -23,8 +23,8 @@ describe('shared v2 pieces', () => {
       { book: 'Dungeon Magazine 156', page: 59 }, { book: 'Dungeon Magazine 156', page: 68 },
     ])
     expect(notes.list).toEqual([])
-    expect(parseSources('The Book of Vile Darkness, page(s) 2-77.', notes)).toEqual([{ book: 'The Book of Vile Darkness' }])
-    expect(notes.list).toEqual(['source page "2-77" in The Book of Vile Darkness is not a page number'])
+    expect(parseSources('The Book of Vile Darkness, page(s) 2-77.', notes)).toEqual([{ book: 'The Book of Vile Darkness', page: '2-77' }])
+    expect(notes.list).toEqual([])
   })
 
   it('keeps text-only resistances as text', () => {
@@ -92,6 +92,8 @@ describe('items', () => {
     expect(tierOf('Paragon Tier Group Set')).toBe('paragon')
     expect(tierOf('Epic Level')).toBe('epic')
     expect(tierOf('Heroic to Epic Tier')).toBeUndefined()
+    expect(cleanWeight('15 lbPublished in Player\'s Handbook, page(s) 220.')).toBe('15 lb')
+    expect(cleanWeight('1 lb.Cost: Special')).toBe('1 lb.')
     expect(armorFrom('Masterwork mail.\nAC Bonus: +8\nMinimum Enhancement Value: +3\nCheck: -1\nSpeed: -1\nWeight: 40 lb.\nType: Chainmail')).toEqual({
       armor: { category: 'Chainmail', acBonus: 8, check: -1, speed: -1, minEnhancement: 3 }, rest: 'Masterwork mail.\nWeight: 40 lb.',
     })
@@ -110,13 +112,23 @@ describe('traps', () => {
         { skill: 'Perception', dc: null, text: 'automatic' },
         { skill: 'Arcana', dc: 20, text: 'The character discerns the wall is a link to the Far Realm.' },
       ],
-      traits: [{ name: 'Writhing Tentacles', keywords: [], text: { text: 'Enemies treat squares within the aura as difficult terrain.', clauses: [] } }],
+      traits: [],
+      auras: [{ name: 'Writhing Tentacles', keywords: [], range: 1, text: { text: 'Enemies treat squares within the aura as difficult terrain.', clauses: [] } }],
       sources: [{ book: 'Dungeon Magazine 197' }],
     })
     expect(t.powers).toHaveLength(1)
     expect(t.powers[0]).toMatchObject({ name: 'Madness', action: 'free', keywords: ['charm'] })
     expect(t.powers[0].attacks[0].failedSaves!.map(f => f.n)).toEqual([1, 3])
-    expect(t.provenance.notes).toEqual(['trait "Writhing Tentacles": Aura 1 (Trait has no aura range)'])
+    expect(t.provenance.notes).toBeUndefined()
+    expect(t.usage).toBeUndefined()
+  })
+
+  it('reads terrain usage and a Triggered Action with no action type', () => {
+    const html = TRAP.replace('>Object<', '>Single-Use Terrain<').replace(' (<i>Free Action</i>)', '')
+    const t = convertTrap('trap2', parseTrapHtml(html), ctx)
+    expect(t).toMatchObject({ kind: 'terrain', usage: 'single-use' })
+    expect(t.powers[0].action).toBe('triggered')
+    expect(t.provenance.notes).toBeUndefined()
   })
 
   it('tells skill sections from traits', () => {
@@ -170,6 +182,8 @@ describe('templates and themes', () => {
     const anyRole = convertTemplate(MONSTER_TEMPLATES.find(t => t.role === 'any')!, ctx)
     expect(anyRole.role).toBe('any')
     expect(anyRole.provenance.notes ?? []).not.toContainEqual(expect.stringMatching(/role/))
+    expect(anyRole.rankChange).toBe('up')
+    expect(convertTemplate(byName['Elite Dragon'], ctx).rankChange).toBe('down')
   })
 
   it('keeps theme recommendations that are not just roles', () => {

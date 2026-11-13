@@ -61,7 +61,7 @@ export class Checker {
 
 function duration(c: Checker, d: unknown, path: string): void {
   if (!c.obj(d, path)) return
-  const kinds = ['save-ends', 'turn-end', 'turn-start', 'encounter', 'sustain', 'instant', 'indefinite']
+  const kinds = ['save-ends', 'turn-end', 'turn-start', 'encounter', 'sustain', 'instant', 'indefinite', 'while-in-aura', 'permanent']
   c.oneOf(kinds, d.kind, `${path}.kind`)
   if (d.kind === 'turn-end' || d.kind === 'turn-start') {
     c.oneOf(['source', 'target'], d.whose, `${path}.whose`)
@@ -70,7 +70,7 @@ function duration(c: Checker, d: unknown, path: string): void {
   if (d.kind === 'sustain') c.oneOf(ACTION_TYPES, d.action, `${path}.action`)
 }
 
-const WHO = ['target', 'self', 'each-target', 'ally', 'enemies-in-area', 'other']
+const WHO = ['target', 'self', 'each-target', 'ally', 'enemies-in-area', 'creatures-in-area', 'allies-in-area', 'other']
 const MOD_STATS = ['attack', 'ac', 'fortitude', 'reflex', 'will', 'defenses', 'speed', 'saving-throws', 'damage']
 
 function damageTypes(c: Checker, v: unknown, path: string): void {
@@ -78,37 +78,78 @@ function damageTypes(c: Checker, v: unknown, path: string): void {
   v.forEach((t, i) => c.oneOf(DAMAGE_TYPES, t, `${path}[${i}]`))
 }
 
+/** Fields each clause kind may have besides `at`, `if` and `kind`. */
+const CLAUSE_FIELDS: Record<string, string[]> = {
+  'damage': ['dice', 'types', 'who', 'extra', 'critical'],
+  'damage-formula': ['text', 'types'],
+  'half-damage': [],
+  'ongoing-damage': ['amount', 'types', 'who', 'duration', 'saveGroup'],
+  'condition': ['condition', 'who', 'duration', 'saveGroup'],
+  'grants-ca': ['to', 'who', 'duration', 'saveGroup'],
+  'forced-move': ['move', 'squares', 'who'],
+  'move': ['move', 'squares', 'who'],
+  'modifier': ['stat', 'value', 'who', 'duration', 'saveGroup'],
+  'resistance': ['type', 'value', 'who', 'duration', 'saveGroup'],
+  'vulnerability': ['type', 'value', 'who', 'duration', 'saveGroup'],
+  'heal': ['amount', 'who'],
+  'temp-hp': ['amount', 'who'],
+  'regeneration': ['value', 'who', 'duration'],
+  'revive': ['hp'],
+  'use-power': ['power', 'times', 'who'],
+  'recharge-power': ['power'],
+  'lose-healing-surge': ['count', 'who'],
+  'concealment': ['total', 'who', 'duration'],
+  'zone': ['duration'],
+  'saving-throw': ['bonus', 'who'],
+  'summon': ['creature', 'count'],
+  'unparsed': ['text'],
+}
+
 export function clause(c: Checker, cl: unknown, path: string): void {
   if (!c.obj(cl, path)) return
   if (!Array.isArray(cl.at) || cl.at.length !== 2 || !cl.at.every(n => Number.isInteger(n))) c.fail(`${path}.at`, 'expected [start, end] integers')
   c.optional(cl, 'if', path, (v, p) => c.str(v, p))
+  const fields = CLAUSE_FIELDS[String(cl.kind)]
+  if (!fields) { c.fail(`${path}.kind`, `unknown clause kind "${String(cl.kind)}"`); return }
+  c.keys(cl, ['at', 'if', 'kind', ...fields], path)
   const who = () => c.oneOf(WHO, cl.who, `${path}.who`)
+  const dur = () => duration(c, cl.duration, `${path}.duration`)
+  const flag = (k: string) => { if (cl[k] !== undefined && cl[k] !== true) c.fail(`${path}.${k}`, 'expected true or absent') }
+  c.optional(cl, 'saveGroup', path, (v, p) => c.str(v, p, { nonEmpty: true }))
   switch (cl.kind) {
-    case 'damage': c.str(cl.dice, `${path}.dice`, { nonEmpty: true }); damageTypes(c, cl.types, `${path}.types`); who(); break
+    case 'damage':
+      c.str(cl.dice, `${path}.dice`, { nonEmpty: true }); damageTypes(c, cl.types, `${path}.types`); who(); flag('extra'); flag('critical'); break
     case 'damage-formula': c.str(cl.text, `${path}.text`, { nonEmpty: true }); damageTypes(c, cl.types, `${path}.types`); break
     case 'half-damage': break
-    case 'ongoing-damage':
-      c.int(cl.amount, `${path}.amount`, { min: 1 }); damageTypes(c, cl.types, `${path}.types`); who()
-      duration(c, cl.duration, `${path}.duration`); c.optional(cl, 'saveGroup', path, (v, p) => c.str(v, p)); break
-    case 'condition':
-      c.oneOf(CONDITION_IDS, cl.condition, `${path}.condition`); who(); duration(c, cl.duration, `${path}.duration`)
-      c.optional(cl, 'saveGroup', path, (v, p) => c.str(v, p)); break
-    case 'grants-ca': c.oneOf(['all', 'source', 'source-allies'], cl.to, `${path}.to`); who(); duration(c, cl.duration, `${path}.duration`); break
+    case 'ongoing-damage': c.int(cl.amount, `${path}.amount`, { min: 1 }); damageTypes(c, cl.types, `${path}.types`); who(); dur(); break
+    case 'condition': c.oneOf(CONDITION_IDS, cl.condition, `${path}.condition`); who(); dur(); break
+    case 'grants-ca': c.oneOf(['all', 'source', 'source-allies'], cl.to, `${path}.to`); who(); dur(); break
     case 'forced-move': c.oneOf(['push', 'pull', 'slide'], cl.move, `${path}.move`); c.int(cl.squares, `${path}.squares`, { min: 0 }); who(); break
     case 'move': c.oneOf(['shift', 'teleport', 'swap'], cl.move, `${path}.move`); c.optional(cl, 'squares', path, (v, p) => c.int(v, p, { min: 0 })); who(); break
-    case 'modifier': c.oneOf(MOD_STATS, cl.stat, `${path}.stat`); c.int(cl.value, `${path}.value`); who(); duration(c, cl.duration, `${path}.duration`); break
+    case 'modifier':
+      if (Array.isArray(cl.stat)) {
+        if (cl.stat.length === 0) c.fail(`${path}.stat`, 'expected at least one stat')
+        cl.stat.forEach((s, i) => c.oneOf(MOD_STATS, s, `${path}.stat[${i}]`))
+      } else c.oneOf(MOD_STATS, cl.stat, `${path}.stat`)
+      c.int(cl.value, `${path}.value`); who(); dur(); break
     case 'resistance':
     case 'vulnerability':
       if (cl.type !== 'all') c.oneOf(DAMAGE_TYPES, cl.type, `${path}.type`)
-      c.int(cl.value, `${path}.value`); who(); duration(c, cl.duration, `${path}.duration`); break
+      c.int(cl.value, `${path}.value`); who(); dur(); break
     case 'heal':
       if (!(cl.amount === 'surge-value' || cl.amount === 'half-surge-value')) c.int(cl.amount, `${path}.amount`, { min: 0 })
       who(); break
     case 'temp-hp': c.int(cl.amount, `${path}.amount`, { min: 0 }); who(); break
-    case 'regeneration': c.int(cl.value, `${path}.value`, { min: 0 }); who(); duration(c, cl.duration, `${path}.duration`); break
+    case 'regeneration': c.int(cl.value, `${path}.value`, { min: 0 }); who(); dur(); break
     case 'revive': c.int(cl.hp, `${path}.hp`, { min: 0 }); break
+    case 'use-power': c.str(cl.power, `${path}.power`, { nonEmpty: true }); c.optional(cl, 'times', path, (v, p) => c.int(v, p, { min: 1 })); who(); break
+    case 'recharge-power': c.str(cl.power, `${path}.power`, { nonEmpty: true }); break
+    case 'lose-healing-surge': c.int(cl.count, `${path}.count`, { min: 1 }); who(); break
+    case 'concealment': flag('total'); who(); dur(); break
+    case 'zone': dur(); break
+    case 'saving-throw': c.optional(cl, 'bonus', path, (v, p) => c.int(v, p)); who(); break
+    case 'summon': c.str(cl.creature, `${path}.creature`, { nonEmpty: true }); c.optional(cl, 'count', path, (v, p) => c.int(v, p, { min: 1 })); break
     case 'unparsed': c.str(cl.text, `${path}.text`, { nonEmpty: true }); break
-    default: c.fail(`${path}.kind`, `unknown clause kind "${String(cl.kind)}"`)
   }
 }
 
@@ -132,7 +173,7 @@ function sources(c: Checker, v: unknown, path: string): void {
     if (!c.obj(s, p)) return
     c.keys(s, ['book', 'page'], p)
     c.str(s.book, `${p}.book`)
-    c.optional(s, 'page', p, (x, q) => c.int(x, q, { min: 0 }))
+    c.optional(s, 'page', p, (x, q) => { if (typeof x === 'string') c.str(x, q, { nonEmpty: true }); else c.int(x, q, { min: 0 }) })
   })
 }
 
@@ -178,7 +219,7 @@ function attack(c: Checker, a: unknown, path: string): void {
   }))
 }
 
-const POWER_KEYS = ['name', 'action', 'usage', 'recharge', 'usesPerEncounter', 'basic', 'keywords', 'trigger', 'requirement',
+const POWER_KEYS = ['name', 'action', 'usage', 'recharge', 'usesPerEncounter', 'usesPerRound', 'basic', 'keywords', 'trigger', 'requirement',
   'range', 'attacks', 'effect', 'sustain', 'special', 'levelSteps', 'extraLines']
 
 export function power(c: Checker, p: unknown, path: string, extraKeys: string[] = []): void {
@@ -196,6 +237,7 @@ export function power(c: Checker, p: unknown, path: string, extraKeys: string[] 
     }
   } else if (p.recharge !== undefined) c.fail(`${path}.recharge`, 'recharge without usage "recharge"')
   c.optional(p, 'usesPerEncounter', path, (v, q) => c.int(v, q, { min: 1 }))
+  c.optional(p, 'usesPerRound', path, (v, q) => c.int(v, q, { min: 1 }))
   c.optional(p, 'basic', path, (v, q) => c.oneOf(['melee', 'ranged'], v, q))
   if (c.arr(p.keywords, `${path}.keywords`)) p.keywords.forEach((k, i) => c.str(k, `${path}.keywords[${i}]`, { nonEmpty: true }))
   optLine(c, p, 'trigger', path)
@@ -209,15 +251,23 @@ export function power(c: Checker, p: unknown, path: string, extraKeys: string[] 
     lineShape(c, v.line, `${q}.line`)
   })
   optLine(c, p, 'special', path)
-  c.optional(p, 'levelSteps', path, (v, q) => {
-    if (c.arr(v, q)) v.forEach((s, i) => { if (c.obj(s, `${q}[${i}]`)) { c.int(s.level, `${q}[${i}].level`, { min: 1 }); c.str(s.text, `${q}[${i}].text`) } })
-  })
+  c.optional(p, 'levelSteps', path, (v, q) => levelSteps(c, v, q))
   c.optional(p, 'extraLines', path, (v, q) => list(c, v, q, (x, r) => {
     if (!c.obj(x, r)) return
     c.keys(x, ['label', 'line'], r)
     c.str(x.label, `${r}.label`, { nonEmpty: true })
     lineShape(c, x.line, `${r}.line`)
   }))
+}
+
+/** { level, text }[]: power levelSteps and item propertyLevelSteps. */
+function levelSteps(c: Checker, v: unknown, path: string): void {
+  list(c, v, path, (s, p) => {
+    if (!c.obj(s, p)) return
+    c.keys(s, ['level', 'text'], p)
+    c.int(s.level, `${p}.level`, { min: 1 })
+    c.str(s.text, `${p}.text`)
+  })
 }
 
 function trait(c: Checker, t: unknown, path: string, aura = false): void {
@@ -305,7 +355,7 @@ export function monsterShape(c: Checker, m: unknown): void {
 export function itemShape(c: Checker, it: unknown): void {
   if (!c.obj(it, '$')) return
   c.keys(it, ['id', 'name', 'category', 'level', 'rarity', 'tier', 'levels', 'slot', 'subtype', 'itemType', 'critical', 'properties',
-    'powers', 'weapon', 'armor', 'ritual', 'itemSet', 'flavor', 'description', 'sources', 'provenance'], '$')
+    'propertyLevelSteps', 'special', 'requirement', 'weight', 'powers', 'weapon', 'armor', 'ritual', 'alchemical', 'itemSet', 'flavor', 'description', 'sources', 'provenance'], '$')
   c.str(it.id, '$.id', { nonEmpty: true })
   c.str(it.name, '$.name', { nonEmpty: true })
   c.oneOf(['item', 'weapon', 'armor', 'implement', 'ritual', 'alchemical', 'set'], it.category, '$.category')
@@ -326,6 +376,15 @@ export function itemShape(c: Checker, it: unknown): void {
   c.optional(it, 'itemType', '$', (v, p) => c.str(v, p))
   optLine(c, it, 'critical', '$')
   list(c, it.properties, '$.properties', (l, p) => lineShape(c, l, p))
+  c.optional(it, 'propertyLevelSteps', '$', (v, q) => levelSteps(c, v, q))
+  optLine(c, it, 'special', '$')
+  optLine(c, it, 'requirement', '$')
+  c.optional(it, 'weight', '$', (v, p) => c.str(v, p, { nonEmpty: true }))
+  c.optional(it, 'alchemical', '$', (a, p) => {
+    if (!c.obj(a, p)) return
+    c.keys(a, ['type', 'formulaCost'], p)
+    for (const k of ['type', 'formulaCost']) c.optional(a, k, p, (v, q) => c.str(v, q, { nonEmpty: true }))
+  })
   list(c, it.powers, '$.powers', (x, p) => power(c, x, p))
   c.optional(it, 'weapon', '$', (w, p) => {
     if (!c.obj(w, p)) return
@@ -357,11 +416,12 @@ export function itemShape(c: Checker, it: unknown): void {
 
 export function trapShape(c: Checker, t: unknown): void {
   if (!c.obj(t, '$')) return
-  c.keys(t, ['id', 'name', 'kind', 'level', 'role', 'rank', 'xp', 'detect', 'initiative', 'hp', 'hpText', 'defenses', 'immune',
-    'resist', 'trigger', 'traits', 'powers', 'countermeasures', 'flavor', 'description', 'sources', 'provenance'], '$')
+  c.keys(t, ['id', 'name', 'kind', 'usage', 'level', 'role', 'rank', 'xp', 'detect', 'initiative', 'hp', 'hpText', 'defenses', 'immune',
+    'resist', 'trigger', 'traits', 'auras', 'powers', 'countermeasures', 'flavor', 'description', 'sources', 'provenance'], '$')
   c.str(t.id, '$.id', { nonEmpty: true })
   c.str(t.name, '$.name', { nonEmpty: true })
   c.oneOf(['trap', 'hazard', 'terrain', 'object', 'area', 'special'], t.kind, '$.kind')
+  c.optional(t, 'usage', '$', (v, p) => c.oneOf(['at-will', 'single-use'], v, p))
   c.int(t.level, '$.level', { min: 0 })
   c.str(t.role, '$.role')
   c.oneOf(['standard', 'elite', 'solo'], t.rank, '$.rank')
@@ -383,6 +443,7 @@ export function trapShape(c: Checker, t: unknown): void {
   damageModifiers(c, t.resist, '$.resist')
   optLine(c, t, 'trigger', '$')
   list(c, t.traits, '$.traits', (x, p) => trait(c, x, p))
+  list(c, t.auras, '$.auras', (x, p) => trait(c, x, p, true))
   list(c, t.powers, '$.powers', (x, p) => power(c, x, p))
   list(c, t.countermeasures, '$.countermeasures', (l, p) => lineShape(c, l, p))
   c.str(t.flavor, '$.flavor'); c.str(t.description, '$.description')
@@ -446,14 +507,14 @@ function prereq(c: Checker, p: unknown, path: string): void {
 
 export function templateShape(c: Checker, t: unknown): void {
   if (!c.obj(t, '$')) return
-  c.keys(t, ['id', 'name', 'kind', 'role', 'raisesRank', 'leader', 'prerequisite', 'keyword', 'originChange', 'senses', 'defenses',
+  c.keys(t, ['id', 'name', 'kind', 'role', 'rankChange', 'leader', 'prerequisite', 'keyword', 'originChange', 'senses', 'defenses',
     'hpPerLevel', 'hpNote', 'savingThrows', 'actionPoints', 'immune', 'resist', 'vulnerable', 'regeneration', 'traits', 'auras',
     'powers', 'description', 'sources', 'provenance'], '$')
   c.str(t.id, '$.id', { nonEmpty: true })
   c.str(t.name, '$.name', { nonEmpty: true })
   c.oneOf(['functional', 'class'], t.kind, '$.kind')
   c.oneOf([...ROLES, 'any'], t.role, '$.role')
-  if (t.raisesRank !== true) c.fail('$.raisesRank', 'expected true')
+  c.oneOf(['up', 'down'], t.rankChange, '$.rankChange')
   if (c.obj(t.prerequisite, '$.prerequisite')) {
     c.str(t.prerequisite.text, '$.prerequisite.text')
     c.optional(t.prerequisite, 'check', '$.prerequisite', (v, p) => prereq(c, v, p))

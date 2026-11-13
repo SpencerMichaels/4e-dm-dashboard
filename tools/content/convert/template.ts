@@ -212,7 +212,8 @@ export function convertTemplate(t: AppTemplate, ctx: ConvertContext): MonsterTem
     name: t.name,
     kind: 'functional',
     role: t.role as Role | 'any',
-    raisesRank: true,
+    // Templates that need a solo (Elite Dragon) tone it down to elite.
+    rankChange: /^solo\b/i.test(t.prerequisite) ? 'down' : 'up',
     leader: t.leader ? true : undefined,
     prerequisite: compact({ text: t.prerequisite, check: check ?? undefined }),
     keyword: t.keyword,

@@ -54,8 +54,8 @@ export function kebab(text: string): string {
 /**
  * "Monster Manual 3, page(s) 132, Dungeon Magazine 190." ->
  *   [{ book: 'Monster Manual 3', page: 132 }, { book: 'Dungeon Magazine 190' }]
- * The first entry is the primary source. Booklet pages ("page(s) 2-77") have
- * no SourceRef form: the page is left out and noted.
+ * The first entry is the primary source. Booklet pages ("page(s) 2-77") keep
+ * the printed text: { book, page: "2-77" }.
  */
 export function parseSources(source: string, notes: Notes): SourceRef[] {
   const text = normText(source ?? '').replace(/^Published in\s+/i, '').replace(/\.$/, '')
@@ -65,8 +65,7 @@ export function parseSources(source: string, notes: Notes): SourceRef[] {
     const page = token.match(/^page\(s\)\s*(\S+)$/i)
     const last = refs[refs.length - 1]
     if (page && last) {
-      if (/^\d+$/.test(page[1])) { if (last.page === undefined) last.page = parseInt(page[1]) }
-      else notes.add(`source page "${page[1]}" in ${last.book} is not a page number`)
+      if (last.page === undefined) last.page = /^\d+$/.test(page[1]) ? parseInt(page[1]) : page[1]
     } else if (/^\d+$/.test(token) && last) {
       // "page(s) 59, 68": another page of the same book.
       refs.push({ book: last.book, page: parseInt(token) })
@@ -101,6 +100,8 @@ export function toActionType(raw: string | undefined): ActionType | undefined {
   const s = (raw ?? '').toLowerCase().replace(/\s+action$/, '').replace(/\s+/g, '-').trim()
   if (isOneOf(ACTION_TYPES, s)) return s
   if (s === 'no') return 'no-action'
+  // Traps' "Triggered Actions" heading with no printed action type.
+  if (s === 'triggered' || s === 'triggered-actions') return 'triggered'
   return undefined
 }
 
