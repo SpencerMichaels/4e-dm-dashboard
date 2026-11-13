@@ -38,6 +38,7 @@ const HP_RANK: Record<string, number> = { standard: 1, elite: 2, solo: 4 }
 
 export function checkMonsterBands(m: Monster): Flag[] {
   const flags: Flag[] = []
+  // The creature-builder benchmarks stop at level 30; the XP table goes to 40.
   const level = Math.min(Math.max(m.level, 1), 30)
 
   const xp = monsterXp(m.level, m.rank)

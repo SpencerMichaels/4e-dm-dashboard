@@ -34,6 +34,11 @@ export class Checker {
     if (opts.max !== undefined && v > opts.max) this.fail(path, `expected <= ${opts.max}, got ${v}`)
     return true
   }
+  num(v: unknown, path: string, opts: { min?: number } = {}): v is number {
+    if (typeof v !== 'number' || !Number.isFinite(v)) { this.fail(path, 'expected a number'); return false }
+    if (opts.min !== undefined && v < opts.min) this.fail(path, `expected >= ${opts.min}, got ${v}`)
+    return true
+  }
   arr(v: unknown, path: string): v is unknown[] {
     if (Array.isArray(v)) return true
     this.fail(path, 'expected an array')
@@ -118,10 +123,17 @@ function optLine(c: Checker, o: Record<string, unknown>, key: string, path: stri
   c.optional(o, key, path, (v, p) => lineShape(c, v, p))
 }
 
-function source(c: Checker, s: unknown, path: string): void {
-  if (!c.obj(s, path)) return
-  c.str(s.book, `${path}.book`)
-  c.optional(s, 'page', path, (v, p) => c.int(v, p, { min: 0 }))
+/** sources: SourceRef[], at least one (the primary source). */
+function sources(c: Checker, v: unknown, path: string): void {
+  if (!c.arr(v, path)) return
+  if (v.length === 0) c.fail(path, 'expected at least one source')
+  v.forEach((s, i) => {
+    const p = `${path}[${i}]`
+    if (!c.obj(s, p)) return
+    c.keys(s, ['book', 'page'], p)
+    c.str(s.book, `${p}.book`)
+    c.optional(s, 'page', p, (x, q) => c.int(x, q, { min: 0 }))
+  })
 }
 
 function provenance(c: Checker, p: unknown, path: string): void {
@@ -144,7 +156,7 @@ function range(c: Checker, r: unknown, path: string): void {
 
 function attack(c: Checker, a: unknown, path: string): void {
   if (!c.obj(a, path)) return
-  c.keys(a, ['label', 'after', 'range', 'target', 'bonus', 'vs', 'hit', 'miss', 'critical', 'aftereffect', 'firstFailedSave'], path)
+  c.keys(a, ['label', 'after', 'range', 'target', 'bonus', 'vs', 'hit', 'miss', 'critical', 'aftereffect', 'failedSaves'], path)
   c.oneOf(['primary', 'secondary', 'tertiary'], a.label, `${path}.label`)
   c.optional(a, 'after', path, (v, p) => c.oneOf(['hit', 'miss', 'always'], v, p))
   range(c, a.range, `${path}.range`)
@@ -156,12 +168,18 @@ function attack(c: Checker, a: unknown, path: string): void {
     else if (b.kind === 'formula') c.str(b.text, `${path}.bonus.text`, { nonEmpty: true })
     else c.fail(`${path}.bonus.kind`, `unknown bonus kind "${String(b.kind)}"`)
   }
-  c.oneOf(DEFENSES, a.vs, `${path}.vs`)
-  for (const k of ['hit', 'miss', 'critical', 'aftereffect', 'firstFailedSave']) optLine(c, a, k, path)
+  c.oneOf([...DEFENSES, 'any'], a.vs, `${path}.vs`)
+  for (const k of ['hit', 'miss', 'critical', 'aftereffect']) optLine(c, a, k, path)
+  c.optional(a, 'failedSaves', path, (v, q) => list(c, v, q, (f, p) => {
+    if (!c.obj(f, p)) return
+    c.keys(f, ['n', 'line'], p)
+    if (f.n !== 'each') c.int(f.n, `${p}.n`, { min: 1 })
+    lineShape(c, f.line, `${p}.line`)
+  }))
 }
 
 const POWER_KEYS = ['name', 'action', 'usage', 'recharge', 'usesPerEncounter', 'basic', 'keywords', 'trigger', 'requirement',
-  'attacks', 'effect', 'sustain', 'special', 'levelSteps']
+  'range', 'attacks', 'effect', 'sustain', 'special', 'levelSteps', 'extraLines']
 
 export function power(c: Checker, p: unknown, path: string, extraKeys: string[] = []): void {
   if (!c.obj(p, path)) return
@@ -182,6 +200,7 @@ export function power(c: Checker, p: unknown, path: string, extraKeys: string[] 
   if (c.arr(p.keywords, `${path}.keywords`)) p.keywords.forEach((k, i) => c.str(k, `${path}.keywords[${i}]`, { nonEmpty: true }))
   optLine(c, p, 'trigger', path)
   optLine(c, p, 'requirement', path)
+  c.optional(p, 'range', path, (v, q) => range(c, v, q))
   if (c.arr(p.attacks, `${path}.attacks`)) p.attacks.forEach((a, i) => attack(c, a, `${path}.attacks[${i}]`))
   optLine(c, p, 'effect', path)
   c.optional(p, 'sustain', path, (v, q) => {
@@ -193,6 +212,12 @@ export function power(c: Checker, p: unknown, path: string, extraKeys: string[] 
   c.optional(p, 'levelSteps', path, (v, q) => {
     if (c.arr(v, q)) v.forEach((s, i) => { if (c.obj(s, `${q}[${i}]`)) { c.int(s.level, `${q}[${i}].level`, { min: 1 }); c.str(s.text, `${q}[${i}].text`) } })
   })
+  c.optional(p, 'extraLines', path, (v, q) => list(c, v, q, (x, r) => {
+    if (!c.obj(x, r)) return
+    c.keys(x, ['label', 'line'], r)
+    c.str(x.label, `${r}.label`, { nonEmpty: true })
+    lineShape(c, x.line, `${r}.line`)
+  }))
 }
 
 function trait(c: Checker, t: unknown, path: string, aura = false): void {
@@ -208,11 +233,14 @@ function list<T>(c: Checker, v: unknown, path: string, each: (item: unknown, p: 
   if (c.arr(v, path)) v.forEach((x, i) => each(x, `${path}[${i}]`))
 }
 
-function typedValues(c: Checker, v: unknown, path: string, needValue: boolean): void {
+/** DamageModifier[]: a type with a value, or with neither value nor text when the type says it all, or text-only. */
+function damageModifiers(c: Checker, v: unknown, path: string): void {
   list(c, v, path, (x, p) => {
     if (!c.obj(x, p)) return
-    c.str(x.type, `${p}.type`)
-    if (needValue) c.int(x.value, `${p}.value`, { min: 0 })
+    c.keys(x, ['type', 'value', 'text', 'note'], p)
+    c.str(x.type, `${p}.type`, { nonEmpty: true })
+    c.optional(x, 'value', p, (n, q) => c.int(n, q, { min: 0 }))
+    c.optional(x, 'text', p, (n, q) => c.str(n, q, { nonEmpty: true }))
     c.optional(x, 'note', p, (n, q) => c.str(n, q))
   })
 }
@@ -225,7 +253,7 @@ export function monsterShape(c: Checker, m: unknown): void {
   c.keys(m, ['id', 'name', 'level', 'role', 'rank', 'leader', 'size', 'origin', 'type', 'keywords', 'xp', 'hp', 'initiative',
     'perception', 'senses', 'speed', 'defenses', 'savingThrowBonus', 'actionPoints', 'immune', 'resist', 'vulnerable',
     'regeneration', 'abilities', 'skills', 'alignment', 'languages', 'equipment', 'traits', 'auras', 'powers', 'description',
-    'source', 'provenance'], path)
+    'sources', 'provenance'], path)
   c.str(m.id, '$.id', { nonEmpty: true })
   c.str(m.name, '$.name', { nonEmpty: true })
   c.int(m.level, '$.level', { min: 0, max: 40 })
@@ -254,8 +282,8 @@ export function monsterShape(c: Checker, m: unknown): void {
   c.int(m.savingThrowBonus, '$.savingThrowBonus', { min: 0 })
   c.int(m.actionPoints, '$.actionPoints', { min: 0 })
   list(c, m.immune, '$.immune', (x, p) => { if (c.obj(x, p)) c.str(x.type, `${p}.type`, { nonEmpty: true }) })
-  typedValues(c, m.resist, '$.resist', true)
-  typedValues(c, m.vulnerable, '$.vulnerable', true)
+  damageModifiers(c, m.resist, '$.resist')
+  damageModifiers(c, m.vulnerable, '$.vulnerable')
   c.optional(m, 'regeneration', '$', (r, p) => {
     if (!c.obj(r, p)) return
     c.int(r.value, `${p}.value`, { min: 0 })
@@ -270,27 +298,31 @@ export function monsterShape(c: Checker, m: unknown): void {
   list(c, m.traits, '$.traits', (t, p) => trait(c, t, p))
   list(c, m.auras, '$.auras', (t, p) => trait(c, t, p, true))
   list(c, m.powers, '$.powers', (x, p) => power(c, x, p))
-  source(c, m.source, '$.source')
+  sources(c, m.sources, '$.sources')
   provenance(c, m.provenance, '$.provenance')
 }
 
 export function itemShape(c: Checker, it: unknown): void {
   if (!c.obj(it, '$')) return
-  c.keys(it, ['id', 'name', 'category', 'level', 'rarity', 'levels', 'slot', 'itemType', 'critical', 'properties', 'powers',
-    'weapon', 'ritual', 'itemSet', 'flavor', 'description', 'source', 'provenance'], '$')
+  c.keys(it, ['id', 'name', 'category', 'level', 'rarity', 'tier', 'levels', 'slot', 'subtype', 'itemType', 'critical', 'properties',
+    'powers', 'weapon', 'armor', 'ritual', 'itemSet', 'flavor', 'description', 'sources', 'provenance'], '$')
   c.str(it.id, '$.id', { nonEmpty: true })
   c.str(it.name, '$.name', { nonEmpty: true })
   c.oneOf(['item', 'weapon', 'armor', 'implement', 'ritual', 'alchemical', 'set'], it.category, '$.category')
   c.int(it.level, '$.level', { min: 0 })
   c.oneOf(['common', 'uncommon', 'rare'], it.rarity, '$.rarity', { nullable: true })
+  c.optional(it, 'tier', '$', (v, p) => c.oneOf(['heroic', 'paragon', 'epic'], v, p))
   list(c, it.levels, '$.levels', (l, p) => {
     if (!c.obj(l, p)) return
+    c.keys(l, ['level', 'enhancement', 'price', 'priceText'], p)
     c.int(l.level, `${p}.level`, { min: 0 })
     c.optional(l, 'enhancement', p, (v, q) => c.int(v, q))
-    c.int(l.price, `${p}.price`, { min: 0 })
+    if (l.price !== null) c.num(l.price, `${p}.price`, { min: 0 })
+    c.optional(l, 'priceText', p, (v, q) => c.str(v, q, { nonEmpty: true }))
   })
   c.optional(it, 'slot', '$', (v, p) => c.oneOf(['head', 'neck', 'arms', 'hands', 'waist', 'feet', 'ring', 'body', 'weapon',
     'implement', 'tattoo', 'wondrous', 'mount', 'ki-focus'], v, p))
+  c.optional(it, 'subtype', '$', (v, p) => c.str(v, p, { nonEmpty: true }))
   c.optional(it, 'itemType', '$', (v, p) => c.str(v, p))
   optLine(c, it, 'critical', '$')
   list(c, it.properties, '$.properties', (l, p) => lineShape(c, l, p))
@@ -301,6 +333,13 @@ export function itemShape(c: Checker, it: unknown): void {
     list(c, w.groups, `${p}.groups`, (g, q) => c.str(g, q)); list(c, w.properties, `${p}.properties`, (g, q) => c.str(g, q))
     c.str(w.category, `${p}.category`)
   })
+  c.optional(it, 'armor', '$', (a, p) => {
+    if (!c.obj(a, p)) return
+    c.keys(a, ['category', 'acBonus', 'check', 'speed', 'minEnhancement'], p)
+    c.str(a.category, `${p}.category`)
+    c.int(a.acBonus, `${p}.acBonus`, { min: 0 })
+    for (const k of ['check', 'speed', 'minEnhancement']) c.optional(a, k, p, (v, q) => c.int(v, q))
+  })
   c.optional(it, 'ritual', '$', (r, p) => {
     if (!c.obj(r, p)) return
     for (const k of ['keySkill', 'castTime', 'duration', 'componentCost', 'category']) c.str(r[k], `${p}.${k}`)
@@ -309,55 +348,76 @@ export function itemShape(c: Checker, it: unknown): void {
   c.str(it.flavor, '$.flavor')
   list(c, it.description, '$.description', (d, p) => {
     if (!c.obj(d, p)) return
-    c.oneOf(['text', 'heading', 'table', 'properties'], d.type, `${p}.type`)
+    c.oneOf(['text', 'heading', 'table', 'properties', 'power'], d.type, `${p}.type`)
+    if (d.type === 'power') power(c, d.power, `${p}.power`)
   })
-  source(c, it.source, '$.source')
+  sources(c, it.sources, '$.sources')
   provenance(c, it.provenance, '$.provenance')
 }
 
 export function trapShape(c: Checker, t: unknown): void {
   if (!c.obj(t, '$')) return
-  c.keys(t, ['id', 'name', 'kind', 'level', 'role', 'rank', 'xp', 'detect', 'initiative', 'hp', 'defenses', 'immune', 'resist',
-    'trigger', 'powers', 'countermeasures', 'flavor', 'description', 'source', 'provenance'], '$')
+  c.keys(t, ['id', 'name', 'kind', 'level', 'role', 'rank', 'xp', 'detect', 'initiative', 'hp', 'hpText', 'defenses', 'immune',
+    'resist', 'trigger', 'traits', 'powers', 'countermeasures', 'flavor', 'description', 'sources', 'provenance'], '$')
   c.str(t.id, '$.id', { nonEmpty: true })
   c.str(t.name, '$.name', { nonEmpty: true })
-  c.oneOf(['trap', 'hazard', 'terrain', 'object'], t.kind, '$.kind')
+  c.oneOf(['trap', 'hazard', 'terrain', 'object', 'area', 'special'], t.kind, '$.kind')
   c.int(t.level, '$.level', { min: 0 })
   c.str(t.role, '$.role')
   c.oneOf(['standard', 'elite', 'solo'], t.rank, '$.rank')
   c.int(t.xp, '$.xp', { min: 0 })
   list(c, t.detect, '$.detect', (d, p) => {
     if (!c.obj(d, p)) return
-    c.str(d.skill, `${p}.skill`); c.int(d.dc, `${p}.dc`, { min: 0 }); c.str(d.text, `${p}.text`)
+    c.str(d.skill, `${p}.skill`)
+    if (d.dc !== null) c.int(d.dc, `${p}.dc`, { min: 0 })
+    c.str(d.text, `${p}.text`)
   })
   c.optional(t, 'initiative', '$', (v, p) => c.int(v, p))
   c.optional(t, 'hp', '$', (v, p) => c.int(v, p, { min: 1 }))
+  c.optional(t, 'hpText', '$', (v, p) => c.str(v, p, { nonEmpty: true }))
   c.optional(t, 'defenses', '$', (d, p) => {
     if (!c.obj(d, p)) return
     for (const [k, v] of Object.entries(d)) { c.oneOf(DEFENSES, k, `${p}.${k}`); c.int(v, `${p}.${k}`) }
   })
   list(c, t.immune, '$.immune', (x, p) => { if (c.obj(x, p)) c.str(x.type, `${p}.type`) })
-  typedValues(c, t.resist, '$.resist', true)
+  damageModifiers(c, t.resist, '$.resist')
   optLine(c, t, 'trigger', '$')
+  list(c, t.traits, '$.traits', (x, p) => trait(c, x, p))
   list(c, t.powers, '$.powers', (x, p) => power(c, x, p))
   list(c, t.countermeasures, '$.countermeasures', (l, p) => lineShape(c, l, p))
   c.str(t.flavor, '$.flavor'); c.str(t.description, '$.description')
-  source(c, t.source, '$.source')
+  sources(c, t.sources, '$.sources')
   provenance(c, t.provenance, '$.provenance')
+}
+
+/** A disease DC: a number, or { text } for level-relative DCs ("15 + encounter level", "Moderate DC"). */
+function dc(c: Checker, v: unknown, path: string): void {
+  if (typeof v === 'object' && v !== null && !Array.isArray(v)) {
+    const o = v as Record<string, unknown>
+    c.keys(o, ['text'], path)
+    c.str(o.text, `${path}.text`, { nonEmpty: true })
+  } else c.int(v, path, { min: 1 })
 }
 
 export function diseaseShape(c: Checker, d: unknown): void {
   if (!c.obj(d, '$')) return
-  c.keys(d, ['id', 'name', 'level', 'attack', 'endurance', 'stages', 'flavor', 'source', 'provenance'], '$')
+  c.keys(d, ['id', 'name', 'level', 'attack', 'endurance', 'check', 'stages', 'flavor', 'sources', 'provenance'], '$')
   c.str(d.id, '$.id', { nonEmpty: true })
   c.str(d.name, '$.name', { nonEmpty: true })
   c.int(d.level, '$.level', { min: 0 })
   c.optional(d, 'attack', '$', (a, p) => attack(c, a, p))
   if (c.obj(d.endurance, '$.endurance')) {
-    c.int(d.endurance.improveDc, '$.endurance.improveDc', { min: 1 })
-    c.int(d.endurance.maintainDc, '$.endurance.maintainDc', { min: 1 })
+    c.keys(d.endurance, ['improveDc', 'maintainDc', 'worsenText'], '$.endurance')
+    dc(c, d.endurance.improveDc, '$.endurance.improveDc')
+    dc(c, d.endurance.maintainDc, '$.endurance.maintainDc')
     c.optional(d.endurance, 'worsenText', '$.endurance', (v, p) => c.str(v, p))
   }
+  c.optional(d, 'check', '$', (v, p) => {
+    if (!c.obj(v, p)) return
+    c.keys(v, ['skill', 'text'], p)
+    c.str(v.skill, `${p}.skill`)
+    c.str(v.text, `${p}.text`, { nonEmpty: true })
+  })
   list(c, d.stages, '$.stages', (s, p) => {
     if (!c.obj(s, p)) return
     c.int(s.stage, `${p}.stage`, { min: 0 })
@@ -365,7 +425,7 @@ export function diseaseShape(c: Checker, d: unknown): void {
     lineShape(c, s.line, `${p}.line`)
   })
   c.str(d.flavor, '$.flavor')
-  source(c, d.source, '$.source')
+  sources(c, d.sources, '$.sources')
   provenance(c, d.provenance, '$.provenance')
 }
 
@@ -376,7 +436,10 @@ function prereq(c: Checker, p: unknown, path: string): void {
     case 'keyword': list(c, p.any, `${path}.any`, (k, q) => c.str(k, q, { nonEmpty: true })); break
     case 'origin': list(c, p.any, `${path}.any`, (k, q) => c.oneOf(ORIGINS, k, q)); break
     case 'type': list(c, p.any, `${path}.any`, (k, q) => c.oneOf(CREATURE_TYPES, k, q)); break
-    case 'all': list(c, p.of, `${path}.of`, (k, q) => prereq(c, k, q)); break
+    case 'rank': list(c, p.any, `${path}.any`, (k, q) => c.oneOf(RANKS, k, q)); break
+    case 'all':
+    case 'any-of': list(c, p.of, `${path}.of`, (k, q) => prereq(c, k, q)); break
+    case 'not': prereq(c, p.of, `${path}.of`); break
     default: c.fail(`${path}.kind`, `unknown prerequisite kind "${String(p.kind)}"`)
   }
 }
@@ -385,11 +448,11 @@ export function templateShape(c: Checker, t: unknown): void {
   if (!c.obj(t, '$')) return
   c.keys(t, ['id', 'name', 'kind', 'role', 'raisesRank', 'leader', 'prerequisite', 'keyword', 'originChange', 'senses', 'defenses',
     'hpPerLevel', 'hpNote', 'savingThrows', 'actionPoints', 'immune', 'resist', 'vulnerable', 'regeneration', 'traits', 'auras',
-    'powers', 'description', 'source', 'provenance'], '$')
+    'powers', 'description', 'sources', 'provenance'], '$')
   c.str(t.id, '$.id', { nonEmpty: true })
   c.str(t.name, '$.name', { nonEmpty: true })
   c.oneOf(['functional', 'class'], t.kind, '$.kind')
-  c.oneOf(ROLES, t.role, '$.role')
+  c.oneOf([...ROLES, 'any'], t.role, '$.role')
   if (t.raisesRank !== true) c.fail('$.raisesRank', 'expected true')
   if (c.obj(t.prerequisite, '$.prerequisite')) {
     c.str(t.prerequisite.text, '$.prerequisite.text')
@@ -401,28 +464,30 @@ export function templateShape(c: Checker, t: unknown): void {
   c.int(t.hpPerLevel, '$.hpPerLevel', { min: 0 })
   c.int(t.savingThrows, '$.savingThrows', { min: 0 })
   c.int(t.actionPoints, '$.actionPoints', { min: 0 })
+  damageModifiers(c, t.vulnerable, '$.vulnerable')
   list(c, t.traits, '$.traits', (x, p) => trait(c, x, p))
   list(c, t.auras, '$.auras', (x, p) => trait(c, x, p, true))
   list(c, t.powers, '$.powers', (x, p) => power(c, x, p))
   c.str(t.description, '$.description')
-  source(c, t.source, '$.source')
+  sources(c, t.sources, '$.sources')
   provenance(c, t.provenance, '$.provenance')
 }
 
 export function themeShape(c: Checker, t: unknown): void {
   if (!c.obj(t, '$')) return
-  c.keys(t, ['id', 'name', 'description', 'originChange', 'skills', 'powers', 'source', 'provenance'], '$')
+  c.keys(t, ['id', 'name', 'description', 'originChange', 'skills', 'powers', 'sources', 'provenance'], '$')
   c.str(t.id, '$.id', { nonEmpty: true })
   c.str(t.name, '$.name', { nonEmpty: true })
   c.str(t.description, '$.description')
   c.optional(t, 'originChange', '$', (v, p) => c.oneOf(ORIGINS, v, p))
   list(c, t.powers, '$.powers', (x, p) => {
-    power(c, x, p, ['category', 'recommendedFor', 'flavor'])
+    power(c, x, p, ['category', 'recommendedFor', 'recommendedText', 'flavor'])
     if (c.obj(x, p)) {
       c.oneOf(['attack', 'utility'], x.category, `${p}.category`)
       c.optional(x, 'recommendedFor', p, (v, q) => list(c, v, q, (r, s) => c.oneOf(ROLES, r, s)))
+      c.optional(x, 'recommendedText', p, (v, q) => c.str(v, q, { nonEmpty: true }))
     }
   })
-  source(c, t.source, '$.source')
+  sources(c, t.sources, '$.sources')
   provenance(c, t.provenance, '$.provenance')
 }

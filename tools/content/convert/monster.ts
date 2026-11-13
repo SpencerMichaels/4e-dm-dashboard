@@ -6,14 +6,17 @@ import {
   type Sense, type Skill, type Speed, type Trait,
 } from '@kit'
 import {
-  Notes, compact, hitLine, line, normText, optLine, parseAttackLine, parseSource, provenanceFor, sortedRecord,
-  toActionType, toDefense, toRange, toRecharge, toUsage, type ConvertContext,
+  Notes, compact, damageModifier, failedSaveN, hitLine, labelText, line, normText, optLine, parseAttackLine, parseSources,
+  provenanceFor, sortedRecord, splitRangePrefix, toActionType, toDefense, toRange, toRecharge, toUsage, type ConvertContext,
 } from './common'
 
-/** Body labels that map to Power/Attack fields; anything else is noted. */
+/**
+ * Body labels that map to Power/Attack fields. Failed-saving-throw lines go
+ * to Attack.failedSaves; any other label becomes one of Power.extraLines.
+ */
 const KNOWN_LABELS = new Set([
   'attack', 'hit', 'miss', 'effect', 'trigger', 'sustain', 'secondary', 'secondary hit', 'secondary miss',
-  'secondary effect', 'aftereffect', 'requirement', 'special', 'first failed saving throw', 'body',
+  'aftereffect', 'requirement', 'special', 'body',
 ])
 
 export function convertMonster(id: string, parsed: any, ctx: ConvertContext): Monster {
@@ -76,8 +79,8 @@ export function convertMonster(id: string, parsed: any, ctx: ConvertContext): Mo
     savingThrowBonus: sb.savingThrowBonus ?? 0,
     actionPoints: sb.actionPoints ?? 0,
     immune: (sb.immunities ?? []).map((i: any) => ({ type: String(i.type).toLowerCase() })),
-    resist: (sb.resistances ?? []).map((r: any) => resistEntry(r, 'resist', notes)),
-    vulnerable: (sb.weaknesses ?? []).map((r: any) => resistEntry(r, 'vulnerable', notes)),
+    resist: (sb.resistances ?? []).map((r: any) => damageModifier(r.type, r.value, r.note)),
+    vulnerable: (sb.weaknesses ?? []).map((r: any) => damageModifier(r.type, r.value, r.note)),
     regeneration: regen ? {
       value: regen.value,
       suppressedBy: (regen.inhibitDamageTypes ?? []).filter((t: string) => isOneOf(DAMAGE_TYPES, t)) as DamageType[],
@@ -92,17 +95,12 @@ export function convertMonster(id: string, parsed: any, ctx: ConvertContext): Mo
     auras,
     powers,
     description: sb.description ?? '',
-    source: parseSource(sb.source ?? '', notes),
+    sources: parseSources(sb.source ?? '', notes),
     provenance: undefined as never,
   }
   if (rank === 'minion' && parsed.hp !== 1) notes.add(`minion printed HP ${parsed.hp}`)
   monster.provenance = provenanceFor(ctx, notes)
   return compact(monster)
-}
-
-function resistEntry(r: { type: string; value?: number; note?: string }, what: string, notes: Notes) {
-  if (typeof r.value !== 'number') notes.add(`${what} "${r.type}" has no numeric value (stored as 0)`)
-  return compact({ type: r.type.toLowerCase(), value: r.value ?? 0, note: r.note })
 }
 
 const SENSE_MAP: Record<string, string> = {
@@ -154,6 +152,7 @@ export function convertPower(a: any, notes: Notes): Power {
   const usage = toUsage(a.usage) ?? 'at-will'
 
   const attacks: Attack[] = []
+  const extraLines: NonNullable<Power['extraLines']> = []
   if (a.attackBonus != null) {
     const vs = toDefense(a.defense)
     if (!vs) notes.add(`power "${a.name}": attack vs "${a.defense}" is not a kit Defense`)
@@ -167,30 +166,46 @@ export function convertPower(a: any, notes: Notes): Power {
       hit: hitText ? hitLine(hitText, a.damage ?? []) : undefined,
       miss: optLine(p.miss),
       aftereffect: optLine(p.aftereffect),
-      firstFailedSave: optLine(p['first failed saving throw']),
     } as Attack)
     attacks.push(primary)
   }
+  let secondary: Attack | undefined
   if (p.secondary) {
     const parsedAtk = parseAttackLine(p.secondary)
     if (parsedAtk) {
       const after = /secondary attack/i.test(p.hit ?? '') ? 'hit' : /secondary attack/i.test(p.miss ?? '') ? 'miss' : undefined
-      attacks.push(compact({
+      secondary = compact({
         label: 'secondary', after, ...parsedAtk,
         hit: optLine(p['secondary hit']), miss: optLine(p['secondary miss']),
-      } as Attack))
-      if (p['secondary effect']) notes.add(`power "${a.name}": secondary effect line not mapped: ${normText(p['secondary effect'])}`)
-    } else {
-      notes.add(`power "${a.name}": secondary attack not parsed: ${normText(p.secondary)}`)
+      } as Attack)
+      attacks.push(secondary)
     }
   }
 
-  // Old-format powers print everything in one paragraph ("body"); when no
-  // attack was found, the whole paragraph is the effect.
-  const effectText = p.effect ?? (attacks.length === 0 ? p.body : undefined)
-
+  // Lines with no field of their own, in printed order. Failed saving throws
+  // follow the attack printed before them; an unparsed secondary attack keeps
+  // its lines as labeled extra lines.
+  let current: Attack | undefined = attacks[0]
   for (const [label, text] of Object.entries(p)) {
-    if (!KNOWN_LABELS.has(label)) notes.add(`power "${a.name}": line "${label}" has no schema field: ${normText(text)}`)
+    if (label === 'secondary' && secondary) current = secondary
+    const secondaryLine = label === 'secondary' || label === 'secondary hit' || label === 'secondary miss'
+    if (KNOWN_LABELS.has(label) && !(secondaryLine && !secondary)) continue
+    const n = failedSaveN(label)
+    if (n !== undefined && current) {
+      (current.failedSaves ??= []).push({ n, line: line(text) })
+      continue
+    }
+    extraLines.push({ label: label === 'secondary' ? 'Secondary Attack' : labelText(label), line: line(text) })
+  }
+
+  // Old-format powers print everything in one paragraph ("body"); when no
+  // attack was found, the whole paragraph is the effect. A power with no
+  // attack prints its range at the start of the effect ("Close burst 5; ...").
+  let effectText: string | undefined = p.effect ?? (attacks.length === 0 ? p.body : undefined)
+  let range: Power['range']
+  if (attacks.length === 0 && effectText) {
+    const split = splitRangePrefix(effectText)
+    if (split) { range = split.range; effectText = split.rest }
   }
 
   const sustainAction = toActionType(a.sustain)
@@ -205,10 +220,12 @@ export function convertPower(a: any, notes: Notes): Power {
     keywords: lowerKeywords(a.keywords),
     trigger: optLine(trigger),
     requirement: optLine(p.requirement ?? a.requirement),
+    range,
     attacks,
     effect: optLine(effectText),
     sustain: p.sustain ? { action: sustainAction ?? 'minor', line: line(p.sustain) } : undefined,
     special: optLine(p.special),
+    extraLines: extraLines.length > 0 ? extraLines : undefined,
   } as Power)
   if (usage === 'recharge' && !a.rechargeCondition) notes.add(`power "${a.name}": recharge with no condition`)
   return power

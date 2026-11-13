@@ -4,7 +4,7 @@
 import {
   DAMAGE_TYPES, ORIGINS, ROLES, SENSE_KINDS, isOneOf,
   type Attack, type Aura, type Clause, type CreatureType, type DamageType, type MonsterTemplate,
-  type MonsterTheme, type Power, type Role, type TemplatePrereq, type ThemePower, type Trait, type Usage,
+  type MonsterTheme, type Power, type Rank, type Role, type TemplatePrereq, type ThemePower, type Trait, type Usage,
 } from '@kit'
 import type {
   MonsterTemplate as AppTemplate, TemplatePower,
@@ -24,15 +24,28 @@ import {
 const GRID_TYPES = ['humanoid', 'beast', 'magical beast', 'animate']
 const GRID_LEVELS = [1, 10, 11, 30]
 const GRID_SUBTYPES = [[], ['undead'], ['undead', 'zombie'], ['swarm'], ['devil'], ['dragon'], ['reptile'], ['demon']]
-const GRID = GRID_TYPES.flatMap(creatureType => GRID_LEVELS.flatMap(level => GRID_SUBTYPES.map(subtypes => ({ creatureType, level, subtypes }))))
+const GRID_RANKS: { monsterModifier: string; isMinion: boolean }[] = [
+  { monsterModifier: '', isMinion: false }, { monsterModifier: 'elite', isMinion: false },
+  { monsterModifier: 'solo', isMinion: false }, { monsterModifier: '', isMinion: true },
+]
+const GRID = GRID_TYPES.flatMap(creatureType => GRID_LEVELS.flatMap(level => GRID_SUBTYPES.flatMap(subtypes =>
+  GRID_RANKS.map(r => ({ creatureType, level, subtypes, ...r })))))
+type GridBlock = (typeof GRID)[number]
 
-function evalPrereq(p: TemplatePrereq, sb: { creatureType: string; level: number; subtypes: string[] }): boolean {
+function rankOf(sb: GridBlock): Rank {
+  return sb.isMinion ? 'minion' : sb.monsterModifier === 'elite' ? 'elite' : sb.monsterModifier === 'solo' ? 'solo' : 'standard'
+}
+
+function evalPrereq(p: TemplatePrereq, sb: GridBlock): boolean {
   switch (p.kind) {
     case 'min-level': return sb.level >= p.level
     case 'keyword': return p.any.some(k => sb.subtypes.includes(k))
     case 'origin': return false
     case 'type': return p.any.includes(sb.creatureType.replace(' ', '-') as CreatureType)
+    case 'rank': return p.any.includes(rankOf(sb))
     case 'all': return p.of.every(q => evalPrereq(q, sb))
+    case 'any-of': return p.of.some(q => evalPrereq(q, sb))
+    case 'not': return !evalPrereq(p.of, sb)
   }
 }
 
@@ -45,15 +58,23 @@ function prereqCandidates(): TemplatePrereq[] {
     ...typeSets.map(any => [{ kind: 'type', any } as TemplatePrereq]),
   ]
   const keywords = ['undead', 'zombie', 'swarm', 'dragon', 'reptile', 'devil', 'demon']
+  const keywordParts: (TemplatePrereq | undefined)[] = [
+    undefined,
+    ...keywords.map(k => ({ kind: 'keyword', any: [k] }) as TemplatePrereq),
+    ...keywords.map(k => ({ kind: 'not', of: { kind: 'keyword', any: [k] } }) as TemplatePrereq),
+  ]
   const out: TemplatePrereq[] = []
   for (const typePart of prims) {
     for (const lvl of [undefined, 11]) {
-      for (const kw of [undefined, ...keywords]) {
-        const parts: TemplatePrereq[] = [...typePart]
-        if (lvl) parts.push({ kind: 'min-level', level: lvl })
-        if (kw) parts.push({ kind: 'keyword', any: [kw] })
-        if (parts.length === 0) continue
-        out.push(parts.length === 1 ? parts[0] : { kind: 'all', of: parts })
+      for (const kw of keywordParts) {
+        for (const rank of [undefined, 'solo' as const]) {
+          const parts: TemplatePrereq[] = [...typePart]
+          if (lvl) parts.push({ kind: 'min-level', level: lvl })
+          if (rank) parts.push({ kind: 'rank', any: [rank] })
+          if (kw) parts.push(kw)
+          if (parts.length === 0) continue
+          out.push(parts.length === 1 ? parts[0] : { kind: 'all', of: parts })
+        }
       }
     }
   }
@@ -64,7 +85,7 @@ function prereqCandidates(): TemplatePrereq[] {
 
 const CANDIDATES = prereqCandidates()
 
-export function prereqFromCheck(check: ((sb: Record<string, unknown>) => boolean) | undefined): TemplatePrereq | undefined | null {
+export function prereqFromCheck(check: ((sb: any) => boolean) | undefined): TemplatePrereq | undefined | null {
   if (!check) return undefined
   const truth = GRID.map(sb => !!check({ ...sb }))
   for (const c of CANDIDATES) {
@@ -185,12 +206,12 @@ export function convertTemplate(t: AppTemplate, ctx: ConvertContext): MonsterTem
     if (!kind || !isOneOf(SENSE_KINDS, kind)) { notes.add(`sense "${s}" is not a kit SenseKind`); return [] }
     return [compact({ kind, range: m![2] ? parseInt(m![2]) : undefined })]
   })
-  if (!isOneOf(ROLES, t.role)) notes.add(`role "${t.role}" is not a kit Role`)
+  if (!isOneOf(ROLES, t.role) && t.role !== 'any') notes.add(`role "${t.role}" is not a kit Role`)
   const tpl: MonsterTemplate = {
     id: kebab(t.name),
     name: t.name,
     kind: 'functional',
-    role: t.role as Role,
+    role: t.role as Role | 'any',
     raisesRank: true,
     leader: t.leader ? true : undefined,
     prerequisite: compact({ text: t.prerequisite, check: check ?? undefined }),
@@ -208,7 +229,7 @@ export function convertTemplate(t: AppTemplate, ctx: ConvertContext): MonsterTem
     auras,
     powers,
     description: t.description ?? '',
-    source: { book: t.source ?? '' },
+    sources: [{ book: t.source ?? '' }],
     provenance: undefined as never,
   }
   tpl.provenance = provenanceFor(ctx, notes)
@@ -236,8 +257,9 @@ export function convertTheme(t: AppTheme, ctx: ConvertContext): MonsterTheme {
     const words = (p.recommendedFor ?? '').toLowerCase().split(/[,\s]+/)
     const roles = [...new Set(words.map(w => ROLE_WORDS[w]).filter(Boolean))]
     const other = (p.recommendedFor ?? '').split(',').map(s => s.trim()).filter(s => s && !ROLE_WORDS[s.toLowerCase()])
-    if (other.length > 0) notes.add(`power "${p.name}": recommended for "${p.recommendedFor}" (only roles kept)`)
-    powers.push(compact({ ...base, category: p.category, recommendedFor: roles.length > 0 ? roles : undefined, flavor: p.flavorText }))
+    // The printed recommendation is kept when it says more than the roles ("leaders", "any role").
+    const recommendedText = other.length > 0 ? normText(p.recommendedFor ?? '') : undefined
+    powers.push(compact({ ...base, category: p.category, recommendedFor: roles.length > 0 ? roles : undefined, recommendedText, flavor: p.flavorText }))
   }
   const originWord = (t.originChange ?? '').toLowerCase().match(/origin becomes (\w+)/)?.[1]
   if (t.originChange && !isOneOf(ORIGINS, originWord)) notes.add(`origin change "${t.originChange}" not parsed`)
@@ -250,7 +272,7 @@ export function convertTheme(t: AppTheme, ctx: ConvertContext): MonsterTheme {
     originChange: isOneOf(ORIGINS, originWord) ? originWord : undefined,
     skills: skills && (skills.always.length > 0 || skills.choices?.length) ? compact({ always: skills.always, choices: skills.choices, bonus: skills.bonus }) : undefined,
     powers,
-    source: { book: t.source },
+    sources: [{ book: t.source }],
     provenance: undefined as never,
   }
   theme.provenance = provenanceFor(ctx, notes)

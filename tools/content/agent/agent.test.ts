@@ -11,7 +11,7 @@ const disease: Disease = {
   id: 'disease11', name: 'Test Rot', level: 4,
   endurance: { improveDc: 14, maintainDc: 10 },
   stages: [{ stage: 0, line: { text: 'The target recovers.', clauses: [] } }, { stage: 1, final: true, line: { text: 'The target is weakened.', clauses: [] } }],
-  flavor: '', source: { book: 'Test' },
+  flavor: '', sources: [{ book: 'Test' }],
   provenance: { origin: 'parser', by: 'tools/content@test', at: '2026-11-12' },
 }
 
@@ -33,6 +33,11 @@ describe('prompt', () => {
     expect(s).toContain('CONDITION_IDS')
     expect(s).not.toContain('export interface Item')
     expect(s).not.toContain('XP_BY_LEVEL')
+    // v2: the shared DamageModifier is declared before the first section.
+    expect(s).toContain('export interface DamageModifier')
+    expect(s).toContain('failedSaves?:')
+    expect(s).not.toContain('SCHEMA_VERSION')
+    expect(s).not.toContain("from './vocab'")
   })
 
   it('fills every placeholder', () => {
