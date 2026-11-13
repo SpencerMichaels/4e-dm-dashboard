@@ -2,36 +2,29 @@
 
 import { XP_BY_LEVEL } from '@kit'
 
-// Power card header tones, from the kit's 4ecb power tones (tokens.css).
-// Recharge powers share the encounter tone; traits and auras use the feature
-// tone. Each fill has a matching text color (white on most, dark on the light
-// daily gray and item orange).
-type PowerTone = 'at-will' | 'encounter' | 'daily' | 'feature' | 'item'
-const USAGE_TONES: Record<string, PowerTone> = {
+// Power card header tones: the muted 4e book colors (--card-* in theme.css),
+// with white text. Kept separate from the kit's brighter --power-* tones.
+type CardTone = 'at-will' | 'encounter' | 'daily' | 'recharge' | 'consumable' | 'trait'
+const USAGE_TONES: Record<string, CardTone> = {
   'at-will': 'at-will', 'At-Will': 'at-will',
   'encounter': 'encounter', 'Encounter': 'encounter',
-  'recharge': 'encounter', 'Recharge': 'encounter',
+  'recharge': 'recharge', 'Recharge': 'recharge',
   'daily': 'daily', 'Daily': 'daily',
-  'consumable': 'item', 'Consumable': 'item',
-  'trait': 'feature', 'aura': 'feature',
+  'consumable': 'consumable', 'Consumable': 'consumable',
+  'trait': 'trait', 'aura': 'trait',
 }
 
-/** Header fill for a power usage (a CSS color; a theme token). */
+/** Header fill for a power usage (a theme token). */
 export const USAGE_COLORS: Record<string, string> = Object.fromEntries(
-  Object.entries(USAGE_TONES).map(([usage, tone]) => [usage, `var(--power-${tone})`]),
+  Object.entries(USAGE_TONES).map(([usage, tone]) => [usage, `var(--card-${tone})`]),
 )
 
-/** Text color for a USAGE_COLORS fill. */
-export const USAGE_TEXT_COLORS: Record<string, string> = Object.fromEntries(
-  Object.entries(USAGE_TONES).map(([usage, tone]) => [usage, `var(--power-${tone}-contrast)`]),
-)
-
-/** Header fill and text color for a usage; unknown usages are daily-gray, none is the neutral card tone. */
+/** Header fill and text color for a usage; unknown usages use the recharge gray, none the stat block header. */
 export function usageTone(usage: string | undefined): { fill: string; text: string } {
-  if (usage && USAGE_COLORS[usage]) return { fill: USAGE_COLORS[usage], text: USAGE_TEXT_COLORS[usage] }
+  if (usage && USAGE_COLORS[usage]) return { fill: USAGE_COLORS[usage], text: 'var(--card-text)' }
   return usage
-    ? { fill: 'var(--power-daily)', text: 'var(--power-daily-contrast)' }
-    : { fill: 'var(--tone-neutral)', text: 'var(--tone-neutral-contrast)' }
+    ? { fill: 'var(--card-recharge)', text: 'var(--card-text)' }
+    : { fill: 'var(--sb-header-bg)', text: 'var(--sb-header-text)' }
 }
 
 export const DND4E_ACTION_TYPES: Record<string, string> = {

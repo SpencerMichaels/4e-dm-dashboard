@@ -28,7 +28,7 @@ Roadmap decided 2026-11-12. The reasoning is in the "Feasibility Study: 4e-Only 
 - [x] EB Garamond for display text, `system-ui` for the UI, Arial for cards; remove the Mentor/DnDVecna fonts
 - [ ] Lucide icons replacing the emoji and glyphs
 - [x] Player window on tokens
-- [x] Power tones (power card headers, reaction tiles, power editor) and condition pill tones from the palette
+- [x] Power card headers, reaction tiles and the power editor use the muted book tones (`--card-*`), and stat block headers the book brown/beige (`--sb-*`), by user preference over 4ecb's navy and brighter power tones; condition pills use palette tones
 - [x] TipTap note content (display-face headings, lists, blockquote, code, links, placeholder)
 - [ ] Components: dialog, buttons, tables
 - [ ] Remaining hardcoded colors (convert to tokens): `Dnd4eEncounterEditor.tsx` (theme/template teal `#0d9488`, difficulty colors from `dnd4e-utils.ts` `DIFFICULTY_TIERS`/`difficultyThresholds`), `QuickConditionMenu.tsx` (selection blues, gray hovers), `InitiativeEntry.tsx`, `InitiativeList.tsx` (rgba highlights), `PCListView.tsx`, `Dnd4eCreatureViewer.tsx` (`TEMPLATE_COLORS`, `THEME_COLOR`), `Dnd4eCombatPanel.tsx`, `Dnd4eGroupedCombatPanel.tsx`, `Dnd4eItemEditor.tsx`, `CombatView.tsx`, `MapEditor.tsx`, `CombatToken.tsx` (ring grays), the compendium browsers' list highlights, small shared widgets (`TokenCropOverlay`, `MultiSelectDropdown`, `FloatingPanel`, `CreatureImageEditor`, `PinnedCardsPanel`, `ConditionPill`), modal/palette backdrops. Data colors that stay hex for now: damage-type pastels (`damage-types.ts`), class-mark defaults (`class-marks.ts`), creature-builder tier/role colors (`dnd4e.ts`), `resolveHpDescriptor` fallbacks (`src/common/utils/hp.ts`), token name colors.

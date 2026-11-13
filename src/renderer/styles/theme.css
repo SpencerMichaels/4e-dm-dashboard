@@ -63,14 +63,24 @@
   /* Dead: constant deep fill under white text */
   --cond-dead: color-mix(in srgb, var(--power-encounter) 35%, var(--brand-navy));
 
-  /* Stat blocks and cards (statblock.css). Header bars use 4ecb's neutral
-     card tone in both themes, with white text. */
-  --sb-header-bg: var(--tone-neutral);
-  --sb-header-text: var(--tone-neutral-contrast);
-  --sb-subheader-bg: color-mix(in srgb, var(--tone-neutral) 75%, var(--brand-blue));
-  --sb-row-alt: color-mix(in srgb, var(--text) 4%, transparent);
-  --sb-separator: var(--border);
-  --sb-power-alt: color-mix(in srgb, var(--text) 6%, transparent);
+  /* Stat blocks and cards (statblock.css): the 4e books' warm brown/beige
+     header bars, in both themes. Deliberately not 4ecb's navy card tone. */
+  --sb-header-bg: #62584a;
+  --sb-header-text: #f0e8d0;
+  --sb-subheader-bg: #7a6f5e;
+  --sb-row-alt: rgba(178, 164, 120, 0.08);
+  --sb-separator: rgba(178, 164, 120, 0.25);
+  --sb-power-alt: rgba(140, 128, 100, 0.12);
+
+  /* Power card headers: muted book tones, white text, both themes.
+     Deliberately not 4ecb's brighter --power-* tones. */
+  --card-at-will: #4a7a5a;
+  --card-encounter: #7a4a4a;
+  --card-daily: #5a5a7a;
+  --card-recharge: #6a6a72;
+  --card-consumable: #6a6a72;
+  --card-trait: #7a6f5e;
+  --card-text: #fff;
 
   /* Player window panels over the (optional) scene background image */
   --player-panel: color-mix(in srgb, var(--surface) 72%, transparent);
