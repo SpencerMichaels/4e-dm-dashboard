@@ -31,13 +31,14 @@ Roadmap decided 2026-11-12. The reasoning is in the "Feasibility Study: 4e-Only 
 
 ## 5. Agent-cleaned content (one-time)
 Covers monsters (5,326; 24,950 actions, of which 9,305 have their mechanics in prose only), items (4,095), traps (776), diseases (69), and the glossary (450). Player powers and feats are out of scope; they arrive through character import.
-- [ ] Private content repo: one JSON file per entry, recording provenance (parser, agent, or human)
-- [ ] Fix systematic parser errors deterministically (split words like "Fi re", dropped "plus Xd6 <type>" damage, range text leaking into effects)
-- [ ] Validators:
-  - schema validation
-  - DMG math bands per level and role (attack, damage, HP, defenses, XP)
-  - round-trip render of structured data back to text, diffed against the source text
-- [ ] Pilot: 100 random monsters; measure cost, accuracy, and schema gaps; revise the schema
+- [x] Private content repo `~/Projects/4e-content`: one JSON file per entry in the kit schema, recording provenance (parser, agent, or human). Built by `npm run content:convert` (`tools/content/convert/`); only exact clauses so far, everything else `clauses: []`
+- [x] Fix systematic parser errors deterministically (split words like "Fi re", dropped "plus Xd6 <type>" damage, range text leaking into effects), with Vitest fixtures from `content/raw`
+- [ ] Validators (`npm run content:validate`, `tools/content/validate/`):
+  - [x] schema validation (shape, closed vocabularies, clause spans)
+  - [x] DMG math bands per level and role (attack, damage, HP, defenses, XP); outliers are flagged
+  - [ ] round-trip render of structured data back to text, diffed against the source text
+- [ ] Pilot: 100 random monsters; measure cost, accuracy, and schema gaps; revise the schema. Harness ready, not run: `content:agent:sample` (seeded sample in `4e-content/pilot/sample.json`), `content:agent:prompt`, `content:agent:apply`
+- [ ] Schema changes found while converting (vs "Any", text-only resistances, extra failed-save lines, item subtypes, trap traits, level-relative disease DCs, ...); decide in the kit before the pilot
 - [ ] Full agent pass; a second agent verifies flagged entries; user reviews the flagged queue plus a random sample with a measured error rate
 - [ ] Drive combat automation from the effect clauses; delete the regex `condition-detection.ts`
 
