@@ -34,6 +34,17 @@ Roadmap decided 2026-11-12. The reasoning is in the "Feasibility Study: 4e-Only 
 - [ ] Remaining hardcoded colors (convert to tokens): `Dnd4eEncounterEditor.tsx` (theme/template teal `#0d9488`, difficulty colors from `dnd4e-utils.ts` `DIFFICULTY_TIERS`/`difficultyThresholds`), `QuickConditionMenu.tsx` (selection blues, gray hovers), `InitiativeEntry.tsx`, `InitiativeList.tsx` (rgba highlights), `PCListView.tsx`, `Dnd4eCreatureViewer.tsx` (`TEMPLATE_COLORS`, `THEME_COLOR`), `Dnd4eCombatPanel.tsx`, `Dnd4eGroupedCombatPanel.tsx`, `Dnd4eItemEditor.tsx`, `CombatView.tsx`, `MapEditor.tsx`, `CombatToken.tsx` (ring grays), the compendium browsers' list highlights, small shared widgets (`TokenCropOverlay`, `MultiSelectDropdown`, `FloatingPanel`, `CreatureImageEditor`, `PinnedCardsPanel`, `ConditionPill`), modal/palette backdrops. Data colors that stay hex for now: damage-type pastels (`damage-types.ts`), class-mark defaults (`class-marks.ts`), creature-builder tier/role colors (`dnd4e.ts`), `resolveHpDescriptor` fallbacks (`src/common/utils/hp.ts`), token name colors.
 - [ ] Move call sites off the legacy `--color-*` aliases onto the kit tokens, then delete the aliases
 
+### Monster power cards (see the "Monster Power Cards: Proposal" doc)
+Decided 2026-11-12: used powers collapse to their header row; keywords stay in the header (Monster Manual style); keyboard bindings for focused cards come later; 4ecb's `CreatureCard` stays separate from this card.
+- [ ] Cleanup: one `toPowerCardEntry` (three copies today), a typed `_levelAdjust`, card styles moved from inline into `statblock.css`
+- [ ] Kit helpers: `ACTION_TYPE_ICON`/`RANGE_KIND_ICON` names, `usageChipLabel`, `rechargeLabel`, `abbreviateDefense`, `POWER_LINE_ORDER` and line grouping, `textAtLevel`
+- [ ] Card pass 1 (today's parser data): Lucide icons, usage chip in the header (text, not color alone), attack line of its own, line groups in book order with spacing, "Sustain Minor", Special/failed-save/extra lines and the basic-attack marker, pin in the header, focusable cards, traits and auras on the same card
+- [ ] Live pinned cards (not snapshots) and reaction tiles rendered by the same card, collapsed
+- [ ] Card pass 2 (after the switch to the kit `Monster` type, section 5): damage folded into Hit, structured secondary attacks, level-tier selection, click-to-apply driven by effect clauses including "save ends both" groups
+
+### 4ecb follow-up
+- [ ] Try muted card tones in 4ecb's builder (not print, which keeps the vivid set). Measured 2026-11-12 in OKLCH: 4ecb's power tones have chroma 0.15–0.19, about twice its own UI accents (0.07–0.10); the book tones sit at 0.05–0.07. 4ecb also needs muted utility, feature and item tones the book set lacks. Check white-text contrast ≥ 4.5:1 and OK ΔE ≥ 0.08 between usages, including under a color-blindness simulation.
+
 ## 5. Agent-cleaned content (one-time)
 Covers monsters (5,326; 24,950 actions, of which 9,305 have their mechanics in prose only), items (4,095), traps (776), diseases (69), and the glossary (450). Player powers and feats are out of scope; they arrive through character import.
 - [x] Private content repo `~/Projects/4e-content`: one JSON file per entry in the kit schema, recording provenance (parser, agent, or human). Built by `npm run content:convert` (`tools/content/convert/`); only exact clauses so far, everything else `clauses: []`
