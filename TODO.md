@@ -88,7 +88,7 @@ Must be done before the repo gets a public remote. Steps 8.1–8.3 are ordinary 
 - [ ] Commit hashes change: update hash references in `CLEANUP.md`, `tasks.md`, etc. if any matter
 
 ## 9. Packaging and publishing
-- [ ] Publish `4e-kit` too, and switch the submodule URL in `.gitmodules` from the local path to its remote (same for 4ecb)
+- [x] Publish `4e-kit` (github.com/SpencerMichaels/4e-kit, public) and point both apps' submodule URLs at it
 - [ ] Rebase or rework `codex/cross-platform-packaging` (electron-builder, CI workflow, Nix flake, `BUILDING.md`) onto the renamed, 4e-only, pack-loading app
 - [ ] Add the public remote and push
 
