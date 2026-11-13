@@ -80,6 +80,9 @@
   --player-card-border: color-mix(in srgb, var(--text) 18%, transparent);
   --player-card-border-current: color-mix(in srgb, var(--accent) 55%, transparent);
   --player-divider: color-mix(in srgb, var(--text) 12%, transparent);
+  /* A glow in the page color behind large text, so titles stay legible over
+     the scene image in either theme */
+  --player-text-shadow: color-mix(in srgb, var(--background) 85%, transparent);
 
   /* ── Legacy aliases (--color-*) ─────────────────────────────── */
   --color-bg-primary: var(--background);

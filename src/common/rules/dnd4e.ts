@@ -51,10 +51,10 @@ const dnd4e: SystemPlugin = {
     })),
   ],
   hpDescriptors: [
-    { minPercent: 100, maxPercent: Infinity, label: 'Unharmed', color: '#2f9e44' },
-    { minPercent: 51, maxPercent: 100, label: 'Wounded', color: '#f59e0b' },
-    { minPercent: 1, maxPercent: 51, label: 'Bloodied', color: '#e03131' },
-    { minPercent: 0, maxPercent: 1, label: 'Down', color: '#868e96' },
+    { minPercent: 100, maxPercent: Infinity, label: 'Unharmed', color: 'var(--hp-full)' },
+    { minPercent: 51, maxPercent: 100, label: 'Wounded', color: 'var(--hp-mid)' },
+    { minPercent: 1, maxPercent: 51, label: 'Bloodied', color: 'var(--hp-low)' },
+    { minPercent: 0, maxPercent: 1, label: 'Down', color: 'var(--hp-down)' },
   ],
   settings: [
     {

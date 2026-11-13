@@ -15,8 +15,8 @@ export function StoryDisplay({ scene }: Props) {
       flexDirection: 'column',
       alignItems: 'center',
       justifyContent: 'center',
-      background: '#111',
-      color: '#eee',
+      background: 'var(--background)',
+      color: 'var(--text)',
       position: 'relative',
       overflow: 'hidden',
     }}>
@@ -34,7 +34,7 @@ export function StoryDisplay({ scene }: Props) {
           fontSize: '4rem',
           fontWeight: 700,
           textAlign: 'center',
-          textShadow: '0 2px 20px rgba(0,0,0,0.8)',
+          textShadow: '0 2px 20px var(--player-text-shadow)',
           zIndex: 1,
         }}>
           {scene.title}

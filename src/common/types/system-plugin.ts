@@ -17,7 +17,7 @@ export interface HpDescriptor {
   minPercent: number                  // Inclusive lower bound
   maxPercent: number                  // Exclusive upper bound
   label: string                       // e.g. "Bloodied", "Barely Standing"
-  color: string                       // CSS color for player display
+  color: string                       // CSS color for player display (a theme token, e.g. 'var(--hp-low)')
 }
 
 export interface AppliedCondition {
