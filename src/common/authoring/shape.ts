@@ -74,7 +74,7 @@ function duration(c: Checker, d: unknown, path: string): void {
 
 const WHO = ['target', 'self', 'each-target', 'ally', 'enemies-in-area', 'creatures-in-area', 'allies-in-area', 'rider', 'mount', 'other']
 const MOD_STATS = [
-  'attack', 'ac', 'fortitude', 'reflex', 'will', 'defenses', 'speed', 'saving-throws', 'damage', 'initiative', 'forced-movement', 'recharge',
+  'attack', 'ac', 'fortitude', 'reflex', 'will', 'defenses', 'speed', 'saving-throws', 'death-saves', 'damage', 'initiative', 'forced-movement', 'recharge', 'escape', 'roll',
   ...SKILLS.map(s => `skill:${s}`), 'skill-checks', ...ABILITIES.map(a => `ability:${a}`), 'ability-checks',
 ]
 
@@ -85,51 +85,58 @@ function damageTypes(c: Checker, v: unknown, path: string): void {
 
 /** Fields each clause kind may have besides `at`, `if`, `unless`, `optional` and `kind`. */
 const CLAUSE_FIELDS: Record<string, string[]> = {
-  'damage': ['dice', 'types', 'typeChoice', 'who', 'extra', 'critical', 'by', 'per', 'duration'],
+  'damage': ['dice', 'types', 'typeChoice', 'who', 'extra', 'critical', 'by', 'per', 'duration', 'saveGroup'],
   'damage-formula': ['text', 'types'],
-  'half-damage': ['who', 'duration'],
+  'half-damage': ['who', 'duration', 'saveGroup'],
+  'no-damage': ['who', 'duration', 'saveGroup'],
   'ongoing-damage': ['amount', 'types', 'typeChoice', 'who', 'duration', 'saveGroup', 'saveModifier', 'increase'],
-  'condition': ['condition', 'who', 'duration', 'saveGroup', 'escapeDc', 'saveModifier'],
+  'condition': ['condition', 'who', 'duration', 'saveGroup', 'escapeDc', 'saveModifier', 'observer'],
   'grants-ca': ['to', 'who', 'duration', 'saveGroup'],
-  'forced-move': ['move', 'squares', 'who'],
-  'move': ['move', 'squares', 'who'],
+  'forced-move': ['move', 'squares', 'squaresText', 'who'],
+  'move': ['move', 'squares', 'squaresText', 'who'],
   'modifier': ['stat', 'value', 'who', 'duration', 'saveGroup', 'per'],
   'resistance': ['type', 'typeChoice', 'value', 'who', 'duration', 'saveGroup'],
   'vulnerability': ['type', 'typeChoice', 'value', 'who', 'duration', 'saveGroup'],
-  'heal': ['amount', 'who', 'perTarget', 'per'],
+  'heal': ['amount', 'who', 'perTarget', 'per', 'spendSurge'],
   'temp-hp': ['amount', 'who', 'per'],
-  'regeneration': ['value', 'who', 'duration'],
+  'regeneration': ['value', 'who', 'duration', 'saveGroup'],
   'revive': ['hp'],
   'use-power': ['power', 'times', 'who'],
-  'recharge-power': ['power'],
+  'recharge-power': ['power', 'others', 'roll', 'who'],
   'lose-healing-surge': ['count', 'who'],
-  'concealment': ['total', 'who', 'duration'],
+  'concealment': ['total', 'who', 'duration', 'saveGroup', 'observer'],
   'zone': ['duration', 'blocksLineOfSight'],
   'saving-throw': ['bonus', 'who'],
   'summon': ['creature', 'count'],
   'redirect-attack': ['who'],
-  'crit-range': ['min', 'who', 'duration'],
+  'crit-range': ['min', 'who', 'duration', 'saveGroup'],
   'power-restriction': ['what', 'powers', 'who', 'duration', 'saveGroup'],
   'status': ['status', 'who', 'duration', 'saveGroup'],
   'opportunity-reach': ['who'],
-  'difficult-terrain': ['who', 'duration'],
+  'difficult-terrain': ['who', 'duration', 'saveGroup'],
   'charge': ['who'],
   'disease': ['disease', 'diseaseId', 'stage', 'who'],
   'reroll': ['what', 'keep', 'who'],
   'action-point': ['amount', 'who'],
-  'sense': ['sense', 'range', 'who', 'duration'],
-  'speed': ['mode', 'value', 'change', 'hover', 'who', 'duration'],
-  'choice': ['options', 'chooser'],
-  'automatic': ['what', 'who', 'duration'],
-  'lose-resistance': ['types', 'value', 'who', 'duration'],
-  'immunity': ['to', 'who', 'duration'],
+  'sense': ['sense', 'range', 'who', 'duration', 'saveGroup'],
+  'speed': ['mode', 'value', 'change', 'hover', 'who', 'duration', 'saveGroup'],
+  'choice': ['options', 'chooser', 'rolls'],
+  'automatic': ['what', 'who', 'duration', 'saveGroup'],
+  'lose-resistance': ['types', 'value', 'what', 'who', 'duration', 'saveGroup'],
+  'immunity': ['to', 'who', 'duration', 'saveGroup'],
   'end-effect': ['conditions', 'who'],
   'extra-action': ['action', 'who'],
+  'drop-to-zero': ['who'],
+  'move-limit': ['limit', 'squares', 'who', 'duration', 'saveGroup'],
+  'swallow': ['who', 'duration', 'escapeDc'],
+  'share-damage': ['part', 'transfer', 'who', 'duration'],
+  'aura-size': ['aura', 'value', 'change', 'duration'],
+  'size-change': ['size', 'reach', 'who', 'duration', 'saveGroup'],
   'unparsed': ['text'],
 }
 
 const RESTRICTIONS = [
-  'encounter', 'daily', 'attack', 'all', 'standard', 'move', 'minor', 'immediate', 'opportunity', 'shift', 'teleport', 'charge', 'named',
+  'encounter', 'daily', 'attack', 'all', 'standard', 'move', 'minor', 'immediate', 'opportunity', 'shift', 'teleport', 'charge', 'fly', 'non-basic', 'non-at-will', 'named',
 ]
 const REROLL_WHAT = ['attack', 'save', 'damage', 'check']
 const SPEED_MODES = ['walk', 'fly', 'climb', 'swim', 'burrow', 'teleport', 'overland-flight']
@@ -168,6 +175,8 @@ export function clause(c: Checker, cl: unknown, path: string, inChoice = false):
     if (new Set(v).size !== v.length) c.fail(p, 'expected distinct values')
     v.forEach((w, i) => c.oneOf(WHO, w, `${p}[${i}]`))
   }
+  // observer: the one creature for whom it holds ("treats the dragon as invisible": observer target).
+  const observer = () => { if (cl.observer !== undefined) c.oneOf(WHO, cl.observer, `${path}.observer`) }
   // per: the printed scaling words ("for each creature in the burst"; spans.ts checks they are printed).
   c.optional(cl, 'per', path, (v, p) => c.str(v, p, { nonEmpty: true }))
   const dur = () => duration(c, cl.duration, `${path}.duration`)
@@ -194,23 +203,35 @@ export function clause(c: Checker, cl: unknown, path: string, inChoice = false):
       if (cl.duration !== undefined) dur()
       break
     case 'damage-formula': c.str(cl.text, `${path}.text`, { nonEmpty: true }); damageTypes(c, cl.types, `${path}.types`); break
-    case 'half-damage': if (cl.who !== undefined) who(); if (cl.duration !== undefined) dur(); break
+    case 'half-damage':
+    case 'no-damage': if (cl.who !== undefined) who(); if (cl.duration !== undefined) dur(); break
     case 'ongoing-damage':
       c.int(cl.amount, `${path}.amount`, { min: 1 }); damageTypes(c, cl.types, `${path}.types`); typeChoice(c, cl, path); who(); dur(); flag('increase'); break
     case 'condition':
       c.oneOf(CONDITION_IDS, cl.condition, `${path}.condition`); who(); dur()
       c.optional(cl, 'escapeDc', path, (v, p) => c.int(v, p, { min: 1 }))
       if (cl.escapeDc !== undefined && cl.condition !== 'grabbed') c.fail(`${path}.escapeDc`, 'escapeDc only on a grabbed condition')
+      observer()
       break
     case 'grants-ca': c.oneOf(['all', 'source', 'source-allies', 'rider', 'mount', 'ally'], cl.to, `${path}.to`); who(); dur(); break
-    case 'forced-move': c.oneOf(['push', 'pull', 'slide'], cl.move, `${path}.move`); c.int(cl.squares, `${path}.squares`, { min: 0 }); who(); break
-    case 'move': c.oneOf(['shift', 'teleport', 'swap', 'fly', 'move'], cl.move, `${path}.move`); c.optional(cl, 'squares', path, (v, p) => c.int(v, p, { min: 0 })); who(); break
+    case 'forced-move':
+    case 'move':
+      c.oneOf(cl.kind === 'move' ? ['shift', 'teleport', 'swap', 'fly', 'move'] : ['push', 'pull', 'slide'], cl.move, `${path}.move`); who()
+      // squares, or squaresText for a printed distance that is not a number (a forced move needs one of them).
+      c.optional(cl, 'squares', path, (v, p) => c.int(v, p, { min: 0 }))
+      c.optional(cl, 'squaresText', path, (v, p) => c.str(v, p, { nonEmpty: true }))
+      if (cl.squares !== undefined && cl.squaresText !== undefined) c.fail(`${path}.squaresText`, 'expected squares or squaresText, not both')
+      if (cl.kind === 'forced-move' && cl.squares === undefined && cl.squaresText === undefined) c.fail(`${path}.squares`, 'expected squares, or squaresText for a distance that is not a number')
+      break
     case 'modifier':
       if (Array.isArray(cl.stat)) {
         if (cl.stat.length === 0) c.fail(`${path}.stat`, 'expected at least one stat')
         cl.stat.forEach((s, i) => c.oneOf(MOD_STATS, s, `${path}.stat[${i}]`))
       } else c.oneOf(MOD_STATS, cl.stat, `${path}.stat`)
-      c.int(cl.value, `${path}.value`); who(); dur(); break
+      // value: a whole number, or dice ("1d6", "-1d6").
+      if (typeof cl.value === 'string') { if (!/^-?\d+d\d+(\s*[+-]\s*\d+)?$/.test(cl.value)) c.fail(`${path}.value`, 'expected a number or dice ("1d6", "-1d6")') }
+      else c.int(cl.value, `${path}.value`)
+      who(); dur(); break
     case 'resistance':
     case 'vulnerability':
       if (cl.type === 'choice') { if (cl.typeChoice === undefined) c.fail(`${path}.typeChoice`, 'type "choice" needs typeChoice') }
@@ -220,14 +241,18 @@ export function clause(c: Checker, cl: unknown, path: string, inChoice = false):
       c.int(cl.value, `${path}.value`); who(); dur(); break
     case 'heal':
       amount(['surge-value', 'half-surge-value', 'damage-dealt', 'half-damage-dealt'])
-      flag('perTarget'); who(); break
+      flag('perTarget'); flag('spendSurge'); who(); break
     case 'temp-hp': amount(['surge-value']); who(); break
     case 'regeneration': c.int(cl.value, `${path}.value`, { min: 0 }); who(); dur(); break
     case 'revive': c.int(cl.hp, `${path}.hp`, { min: 0 }); break
     case 'use-power': c.str(cl.power, `${path}.power`, { nonEmpty: true }); c.optional(cl, 'times', path, (v, p) => c.int(v, p, { min: 1 })); who(); break
-    case 'recharge-power': c.str(cl.power, `${path}.power`, { nonEmpty: true }); break
+    case 'recharge-power':
+      c.str(cl.power, `${path}.power`, { nonEmpty: true }); flag('roll')
+      if (cl.others !== undefined) names('others')
+      if (cl.who !== undefined) who()
+      break
     case 'lose-healing-surge': c.int(cl.count, `${path}.count`, { min: 1 }); who(); break
-    case 'concealment': flag('total'); who(); dur(); break
+    case 'concealment': flag('total'); who(); dur(); observer(); break
     case 'zone': dur(); flag('blocksLineOfSight'); break
     case 'saving-throw': c.optional(cl, 'bonus', path, (v, p) => c.int(v, p)); who(); break
     case 'summon': c.str(cl.creature, `${path}.creature`, { nonEmpty: true }); c.optional(cl, 'count', path, (v, p) => c.int(v, p, { min: 1 })); break
@@ -261,7 +286,7 @@ export function clause(c: Checker, cl: unknown, path: string, inChoice = false):
       break
     case 'action-point': c.int(cl.amount, `${path}.amount`, { min: 1 }); who(); break
     case 'sense':
-      c.oneOf([...SENSE_KINDS, 'see-invisible'], cl.sense, `${path}.sense`); who(); dur()
+      c.oneOf([...SENSE_KINDS, 'see-invisible', 'sight-limit'], cl.sense, `${path}.sense`); who(); dur()
       c.optional(cl, 'range', path, (v, p) => c.int(v, p, { min: 1 }))
       break
     case 'speed':
@@ -273,9 +298,15 @@ export function clause(c: Checker, cl: unknown, path: string, inChoice = false):
       break
     case 'choice': {
       // Two or more options, each a non-empty list of clauses (never another choice).
-      c.optional(cl, 'chooser', path, (v, p) => c.oneOf(['self', 'target'], v, p))
+      c.optional(cl, 'chooser', path, (v, p) => c.oneOf(['self', 'target', 'roll'], v, p))
       const p = `${path}.options`
       if (!c.arr(cl.options, p)) break
+      // rolls: the printed die results, one per option ("1-3", "4-5", "6"), only with chooser 'roll'.
+      if (cl.rolls !== undefined) {
+        names('rolls')
+        if (cl.chooser !== 'roll') c.fail(`${path}.rolls`, 'rolls only with chooser "roll"')
+        else if (Array.isArray(cl.rolls) && cl.rolls.length !== cl.options.length) c.fail(`${path}.rolls`, `expected one roll result per option (${cl.options.length})`)
+      }
       if (cl.options.length < 2) c.fail(p, 'expected two or more options')
       cl.options.forEach((opt, i) => {
         if (!c.arr(opt, `${p}[${i}]`)) return
@@ -284,18 +315,42 @@ export function clause(c: Checker, cl: unknown, path: string, inChoice = false):
       })
       break
     }
-    case 'automatic': c.oneOf(['hit', 'critical', 'save'], cl.what, `${path}.what`); who(); dur(); break
+    case 'automatic': c.oneOf(['hit', 'miss', 'critical', 'save'], cl.what, `${path}.what`); who(); dur(); break
     case 'lose-resistance':
       if (c.arr(cl.types, `${path}.types`)) {
         if (cl.types.length === 0) c.fail(`${path}.types`, 'expected at least one type')
         cl.types.forEach((t, i) => c.oneOf([...DAMAGE_TYPES, 'all'], t, `${path}.types[${i}]`))
       }
-      c.optional(cl, 'value', path, (v, p) => c.int(v, p, { min: 1 })); who(); dur(); break
+      c.optional(cl, 'value', path, (v, p) => c.int(v, p, { min: 1 }))
+      c.optional(cl, 'what', path, (v, p) => list(c, v, p, (x, q) => c.oneOf(['resistance', 'vulnerability', 'immunity'], x, q)))
+      who(); dur(); break
     case 'immunity': names('to'); who(); dur(); break
     case 'end-effect':
       c.optional(cl, 'conditions', path, (v, p) => list(c, v, p, (x, q) => c.oneOf(CONDITION_IDS, x, q)))
       who(); break
     case 'extra-action': c.oneOf(ACTION_TYPES, cl.action, `${path}.action`); who(); break
+    case 'drop-to-zero': who(); break
+    case 'move-limit':
+      c.oneOf(['away', 'closer', 'leave', 'stop', 'within'], cl.limit, `${path}.limit`); who(); dur()
+      c.optional(cl, 'squares', path, (v, p) => c.int(v, p, { min: 0 }))
+      if (cl.limit === 'within' && cl.squares === undefined) c.fail(`${path}.squares`, 'limit "within" needs squares')
+      break
+    case 'swallow': who(); dur(); c.optional(cl, 'escapeDc', path, (v, p) => c.int(v, p, { min: 1 })); break
+    case 'share-damage':
+      c.oneOf(['all', 'half', 'rest'], cl.part, `${path}.part`); who(); flag('transfer')
+      if (cl.duration !== undefined) dur()
+      break
+    case 'aura-size':
+      c.optional(cl, 'aura', path, (v, p) => c.str(v, p, { nonEmpty: true })); dur()
+      c.optional(cl, 'value', path, (v, p) => c.int(v, p, { min: 0 }))
+      c.optional(cl, 'change', path, (v, p) => { if (c.int(v, p) && v === 0) c.fail(p, 'expected a non-zero change') })
+      if ((cl.value === undefined) === (cl.change === undefined)) c.fail(`${path}.value`, 'expected value or change')
+      break
+    case 'size-change':
+      c.optional(cl, 'size', path, (v, p) => c.oneOf(SIZES, v, p))
+      c.optional(cl, 'reach', path, (v, p) => c.int(v, p, { min: 0 }))
+      if (cl.size === undefined && cl.reach === undefined) c.fail(`${path}.size`, 'expected size or reach')
+      who(); dur(); break
     case 'unparsed': c.str(cl.text, `${path}.text`, { nonEmpty: true }); break
   }
 }
@@ -493,7 +548,7 @@ export function monsterShape(c: Checker, m: unknown): void {
     } else c.str(x.if, `${p}.if`, { nonEmpty: true })
     return true
   }
-  c.keys(m, ['id', 'name', 'level', 'role', 'rank', 'leader', 'size', 'origin', 'type', 'keywords', 'xp', 'hp', 'hpIf', 'initiative',
+  c.keys(m, ['id', 'name', 'level', 'role', 'rank', 'leader', 'size', 'origin', 'type', 'keywords', 'xp', 'hp', 'hpText', 'hpIf', 'initiative',
     'perception', 'senses', 'speed', 'defenses', 'defensesIf', 'savingThrowBonus', 'savingThrowNotes', 'actionPoints', 'immune', 'resist', 'vulnerable',
     'regeneration', 'abilities', 'skills', 'skillNotes', 'alignment', 'languages', 'equipment', 'traits', 'auras', 'powers', 'description',
     'sources', 'provenance'], path)
@@ -508,7 +563,9 @@ export function monsterShape(c: Checker, m: unknown): void {
   c.oneOf(CREATURE_TYPES, m.type, '$.type', { nullable: true })
   list(c, m.keywords, '$.keywords', (k, p) => c.str(k, p, { nonEmpty: true }))
   c.int(m.xp, '$.xp', { min: 0 })
-  c.int(m.hp, '$.hp', { min: 1 })
+  // hp 0 only with hpText ("infinite hit points").
+  c.int(m.hp, '$.hp', { min: m.hpText === undefined ? 1 : 0 })
+  c.optional(m, 'hpText', '$', (v, p) => c.str(v, p, { nonEmpty: true }))
   c.optional(m, 'hpIf', '$', (v, q) => list(c, v, q, (x, p) => conditionalValue(x, p)))
   c.int(m.initiative, '$.initiative')
   c.int(m.perception, '$.perception')
@@ -526,7 +583,12 @@ export function monsterShape(c: Checker, m: unknown): void {
   c.int(m.savingThrowBonus, '$.savingThrowBonus', { min: 0 })
   c.optional(m, 'savingThrowNotes', '$', (v, p) => list(c, v, p, (n, q) => c.str(n, q, { nonEmpty: true })))
   c.int(m.actionPoints, '$.actionPoints', { min: 0 })
-  list(c, m.immune, '$.immune', (x, p) => { if (c.obj(x, p)) c.str(x.type, `${p}.type`, { nonEmpty: true }) })
+  list(c, m.immune, '$.immune', (x, p) => {
+    if (!c.obj(x, p)) return
+    c.keys(x, ['type', 'note'], p)
+    c.str(x.type, `${p}.type`, { nonEmpty: true })
+    c.optional(x, 'note', p, (v, q) => c.str(v, q, { nonEmpty: true }))
+  })
   damageModifiers(c, m.resist, '$.resist')
   damageModifiers(c, m.vulnerable, '$.vulnerable')
   c.optional(m, 'regeneration', '$', (r, p) => {

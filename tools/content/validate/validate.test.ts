@@ -793,3 +793,99 @@ describe('schema v12', () => {
     expect(validateEntry('monsters', bad).errors.map(e => e.path)).toEqual(['$.hpIf[0].if', '$.powers[0].attacks[0].name'])
   })
 })
+
+describe('schema v13', () => {
+  const p = (cl: unknown, span: string, after = '', before = '') => spanProblem(cl as any, span, after, before)
+  const at = (q: string, text: string) => { const i = text.indexOf(q); return [i, i + q.length] }
+  const errors = (clauses: unknown[], text: string) => {
+    const m = monster()
+    m.powers[0].effect = { text, clauses } as any
+    return validateEntry('monsters', m).errors.map(e => e.message)
+  }
+  const se = { kind: 'save-ends' }
+
+  it('checks the new clause kinds', () => {
+    expect(p({ kind: 'no-damage', who: 'self' }, 'it takes no damage')).toBeUndefined()
+    expect(p({ kind: 'no-damage', who: 'self' }, 'it takes half damage')).toMatch(/no damage/)
+    expect(p({ kind: 'drop-to-zero', who: 'self' }, 'reduces it to 0 hit points')).toBeUndefined()
+    expect(p({ kind: 'drop-to-zero', who: 'target' }, 'kills the target instantly')).toBeUndefined()
+    const limit = { kind: 'move-limit', limit: 'away', who: 'target', duration: se }
+    expect(p(limit, "can't move away from the dragon")).toBeUndefined()
+    expect(p({ ...limit, limit: 'leave' }, "can't leave the zone")).toBeUndefined()
+    expect(p({ ...limit, limit: 'within', squares: 2 }, 'cannot move more than 2 squares from the post')).toBeUndefined()
+    expect(p({ ...limit, limit: 'closer' }, "can't move away from the dragon")).toMatch(/closer/)
+    const swallow = { kind: 'swallow', who: 'target', duration: { kind: 'indefinite' }, escapeDc: 22 }
+    expect(p(swallow, 'the target is swallowed', ' (escape DC 22).')).toBeUndefined()
+    expect(p(swallow, 'the target is grabbed', ' (escape DC 22).')).toMatch(/swallow/)
+    expect(p({ kind: 'share-damage', part: 'rest', transfer: true, who: 'ally' }, 'the ally takes the rest of the damage')).toBeUndefined()
+    expect(p({ kind: 'share-damage', part: 'half', who: 'target' }, 'the target takes the same damage')).toMatch(/half/)
+    expect(p({ kind: 'aura-size', aura: 'noxious fumes', value: 3, duration: { kind: 'encounter' } }, 'noxious fumes expands to aura 3')).toBeUndefined()
+    expect(p({ kind: 'size-change', size: 'large', reach: 2, who: 'self', duration: { kind: 'encounter' } }, 'becomes Large, and its reach becomes 2')).toBeUndefined()
+    expect(p({ kind: 'size-change', size: 'huge', who: 'self', duration: { kind: 'encounter' } }, 'becomes Large')).toMatch(/huge/)
+    const text = 'It takes no damage. The target is swallowed. Its size changes.'
+    expect(errors([
+      { at: at('takes no damage', text), kind: 'no-damage', who: 'self', duration: { kind: 'soon' } },
+      { at: at('swallowed', text), kind: 'swallow', who: 'target' },
+      { at: at('size changes', text), kind: 'size-change', who: 'self', duration: se },
+    ], text).join('\n')).toMatch(/"soon" is not one of[\s\S]*expected an object[\s\S]*expected size or reach/)
+  })
+
+  it('accepts the new fields and values', () => {
+    const forced = { kind: 'forced-move', move: 'slide', squaresText: 'to the edge of the burst', who: 'target' }
+    expect(p(forced, 'slides the target to the edge of the burst')).toBeUndefined()
+    expect(p(forced, 'slides the target 2 squares')).toMatch(/squaresText/)
+    const text = 'The target slides to the edge of the burst. It treats the dragon as invisible (save ends).'
+    expect(errors([
+      { at: at('slides to the edge of the burst', text), ...forced },
+      { at: at('treats the dragon as invisible (save ends)', text), kind: 'condition', condition: 'invisible', who: 'self', observer: 'target', duration: se, saveGroup: 'a' },
+    ], text)).toEqual([])
+    expect(errors([{ at: at('slides', text), kind: 'forced-move', move: 'slide', who: 'target' }], text).join('\n')).toMatch(/expected squares, or squaresText/)
+    const roll = { kind: 'modifier', stat: 'roll', value: '1d6', who: 'ally', duration: { kind: 'instant' } }
+    expect(p(roll, 'adds 1d6 to the triggering roll')).toBeUndefined()
+    expect(p({ ...roll, value: '-1d6' }, 'subtracts 1d6 from the triggering roll')).toBeUndefined()
+    expect(p({ ...roll, value: '1d8' }, 'adds 1d6 to the triggering roll')).toMatch(/1d8/)
+    expect(p({ ...roll, stat: 'death-saves', value: -2 }, 'take a -2 penalty to death saving throws')).toBeUndefined()
+    expect(p({ ...roll, stat: 'escape', value: -4 }, 'takes a -4 penalty to the check', ' to escape the grab.')).toBeUndefined()
+    expect(p({ ...roll, stat: ['skill-checks', 'ability-checks'], value: -2 }, 'takes a -2 penalty to checks')).toBeUndefined()
+    expect(p({ kind: 'heal', amount: 'surge-value', spendSurge: true, who: 'ally' }, 'spends a healing surge')).toBeUndefined()
+    const recharge = { kind: 'recharge-power', power: 'raging storm', others: ['fist of the storm'] }
+    expect(p(recharge, 'Raging storm and fist of the storm recharge')).toBeUndefined()
+    expect(p({ ...recharge, others: ['storm maw'] }, 'Raging storm and fist of the storm recharge')).toMatch(/storm maw/)
+    expect(p({ kind: 'automatic', what: 'miss', who: 'other', duration: { kind: 'instant' } }, 'the attack automatically misses')).toBeUndefined()
+    expect(p({ kind: 'automatic', what: 'critical', who: 'self', duration: { kind: 'instant' } }, 'the attack is treated as a critical hit')).toBeUndefined()
+    expect(p({ kind: 'lose-resistance', types: ['radiant'], what: ['vulnerability'], who: 'self', duration: se }, 'loses vulnerability to radiant damage')).toBeUndefined()
+    expect(p({ kind: 'lose-resistance', types: ['poison'], what: ['immunity', 'resistance'], who: 'self', duration: se }, 'loses any immunity to poison')).toMatch(/resist/)
+    expect(p({ kind: 'immunity', to: ['prone'], who: 'self', duration: { kind: 'permanent' } }, 'cannot be knocked prone')).toBeUndefined()
+    const restrict = { kind: 'power-restriction', who: 'target', duration: se }
+    expect(p({ ...restrict, what: 'fly' }, 'cannot fly')).toBeUndefined()
+    expect(p({ ...restrict, what: 'non-basic' }, 'can make only basic attacks')).toBeUndefined()
+    expect(p({ kind: 'status', status: 'no-stand', who: 'target', duration: se }, 'cannot stand up')).toBeUndefined()
+    expect(p({ kind: 'status', status: 'ignore-cover', who: 'self', duration: { kind: 'permanent' } }, 'ignores cover')).toBeUndefined()
+    expect(p({ kind: 'sense', sense: 'sight-limit', range: 2, who: 'target', duration: se }, 'cannot see more than 2 squares away')).toBeUndefined()
+    expect(p({ kind: 'condition', condition: 'removed-from-play', who: 'target', duration: se }, 'is banished')).toBeUndefined()
+    expect(p({ kind: 'move', move: 'move', who: 'self' }, 'leaps up to 8 squares')).toBeUndefined()
+    expect(p({ kind: 'redirect-attack', who: 'other' }, "becomes the attack's target")).toBeUndefined()
+    expect(p({ kind: 'crit-range', min: 17, who: 'self', duration: { kind: 'permanent' } }, 'can score a critical hit', ' against a prone creature on a roll of 17-20.')).toBeUndefined()
+    expect(p({ kind: 'concealment', who: 'other', observer: 'target', duration: se, saveGroup: 'a' }, 'have concealment against the target')).toBeUndefined()
+  })
+
+  it('accepts roll tables, shared option words and "one of the following"', () => {
+    const text = 'Roll a d6: 1-3, the target is dazed; 4-6, the target is slowed. It recharges cascade of fire or grasping tendrils.'
+    const cond = (c: string) => ({ at: at(c, text), kind: 'condition', condition: c, who: 'target', duration: se })
+    const table = { at: at('Roll a d6: 1-3, the target is dazed; 4-6, the target is slowed', text), kind: 'choice', chooser: 'roll', rolls: ['1-3', '4-6'], options: [[cond('dazed')], [cond('slowed')]] }
+    const shared = { at: at('recharges cascade of fire or grasping tendrils', text), kind: 'choice', options: [
+      [{ at: at('recharges cascade of fire', text), kind: 'recharge-power', power: 'cascade of fire' }],
+      [{ at: at('grasping tendrils', text), kind: 'recharge-power', power: 'grasping tendrils' }],
+    ] }
+    expect(errors([table, shared], text)).toEqual([])
+    expect(errors([{ ...table, rolls: ['1-3'] }], text).join('\n')).toMatch(/one roll result per option/)
+    expect(errors([{ ...table, chooser: 'self' }], text).join('\n')).toMatch(/rolls only with chooser "roll"/)
+    expect(p({ kind: 'choice', options: [] }, 'gains one of the following benefits')).toBeUndefined()
+  })
+
+  it('accepts hp 0 only with hpText, and immunity notes', () => {
+    expect(validateEntry('monsters', monster({ hp: 0, hpText: 'The colossus has infinite hit points', immune: [{ type: 'fear', note: 'while bloodied only' }] })).errors).toEqual([])
+    expect(validateEntry('monsters', monster({ hp: 0 })).errors.map(e => e.path)).toEqual(['$.hp'])
+    expect(validateEntry('monsters', monster({ immune: [{ type: 'fear', when: 'x' }] as any })).errors.map(e => e.path)).toEqual(['$.immune[0].when'])
+  })
+})

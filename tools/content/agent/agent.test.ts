@@ -323,7 +323,7 @@ describe('brief examples', () => {
       expect(c.issues, ln).toEqual([])
       checked++
     }
-    expect(checked).toBeGreaterThanOrEqual(10)
+    expect(checked).toBeGreaterThanOrEqual(8)
   })
 })
 

@@ -24,7 +24,8 @@ const CONDITION_WORDS: Record<string, RegExp> = {
   'marked': /\bmark(s|ed|ing)?\b/i,
   'petrified': /\bpetrif/i,
   'prone': /\bprone\b/i,
-  'removed-from-play': /\bremoved? from play/i,
+  // "removed from play", "banished", "disappears", "removed from the battle grid".
+  'removed-from-play': /\bremoved? from (play|the battle)|\bbanish|\bdisappear/i,
   'restrained': /\brestrain/i,
   'slowed': /\bslow(s|ed)?\b/i,
   'stunned': /\bstun(s|ned|ning)?\b/i,
@@ -37,7 +38,7 @@ const CONDITION_WORDS: Record<string, RegExp> = {
 const MOVE_WORDS: Record<string, RegExp> = {
   push: /\bpush/i, pull: /\bpull/i, slide: /\bslid(e|es|ing)?\b/i,
   shift: /\bshift/i, teleport: /\bteleport/i, swap: /\b(swap|switch|trade)/i,
-  fly: /\bfl(y|ies|ying|ew|own)\b/i, move: /\b(mov(e|es|ed|ing)|walk|jump|climb|burrow|swim)/i,
+  fly: /\bfl(y|ies|ying|ew|own)\b/i, move: /\b(mov(e|es|ed|ing)|walk|jump|leap|climb|burrow|swim)/i,
 }
 
 const STATUS_WORDS: Record<string, RegExp> = {
@@ -48,21 +49,27 @@ const STATUS_WORDS: Record<string, RegExp> = {
   'no-regain-hp': /\bregain|\bheal/i,
   'no-healing-surges': /\bsurge/i,
   'ignore-difficult-terrain': /\bdifficult terrain/i,
+  'no-stand': /\bstand/i,
+  'ignore-cover': /\bcover/i,
+  'ignore-concealment': /\bconceal/i,
 }
 
 const SENSE_WORDS: Record<string, RegExp> = {
   'darkvision': /\bdarkvision/i, 'low-light-vision': /\blow-light vision/i, 'blindsight': /\bblindsight/i,
   'tremorsense': /\btremorsense/i, 'truesight': /\btruesight/i, 'all-around-vision': /\ball-around vision/i,
   'see-invisible': /\bsee(s|ing)? invisib/i,
+  'sight-limit': /\bsee|\bsight/i,
 }
 
 const RESTRICTION_WORDS: Record<string, RegExp> = {
   encounter: /\bencounter/i, daily: /\bdaily/i, attack: /\battack/i, all: /\b(power|attack|action)/i,
   standard: /\bstandard/i, move: /\bmove/i, minor: /\bminor/i, immediate: /\bimmediate/i, opportunity: /\bopportunit/i,
-  shift: /\bshift/i, teleport: /\bteleport/i, charge: /\bcharg/i,
+  shift: /\bshift/i, teleport: /\bteleport/i, charge: /\bcharg/i, fly: /\bfl(y|ies|ying|ight)\b/i,
+  // "can make only basic attacks", "can use only at-will powers"
+  'non-basic': /\bbasic/i, 'non-at-will': /\bat-will/i,
 }
 
-const AUTOMATIC_WORDS: Record<string, RegExp> = { hit: /\bhit/i, critical: /\bcrit/i, save: /\bsav(e|es|ing)\b|\bsucceed/i }
+const AUTOMATIC_WORDS: Record<string, RegExp> = { hit: /\bhit/i, miss: /\bmiss/i, critical: /\bcrit/i, save: /\bsav(e|es|ing)\b|\bsucceed/i }
 
 const ABILITY_NAMES: Record<string, string> = {
   str: 'strength', con: 'constitution', dex: 'dexterity', int: 'intelligence', wis: 'wisdom', cha: 'charisma',
@@ -72,8 +79,12 @@ const ABILITY_NAMES: Record<string, string> = {
 function checkStatWords(stat: string): RegExp | undefined {
   if (stat.startsWith('skill:')) return new RegExp(`\\b${stat.slice(6)}`, 'i')
   if (stat.startsWith('ability:')) return new RegExp(`\\b${ABILITY_NAMES[stat.slice(8)] ?? stat.slice(8)}`, 'i')
-  if (stat === 'skill-checks') return /\bskill/i
-  if (stat === 'ability-checks') return /\bability check/i
+  // Bare "checks" ("a -2 penalty to checks") is both skill and ability checks.
+  if (stat === 'skill-checks') return /\bskill|\bchecks\b/i
+  if (stat === 'ability-checks') return /\bability check|\bchecks\b/i
+  if (stat === 'death-saves') return /\bdeath sav/i
+  if (stat === 'escape') return /\bescap/i
+  if (stat === 'roll') return /\broll/i
   if (stat === 'initiative') return /\binitiative/i
   // "moves 1 square fewer than the effect specifies", "reduces any forced movement by 1 square"
   if (stat === 'forced-movement') return /\bfewer\b|\bless\b|\bforced\b|\breduc/i
@@ -120,6 +131,8 @@ export function spanProblem(clause: Clause, span: string, after = '', before = '
   const hasType = (t: string) => has(t) || after.toLowerCase().includes(t)
   /** A dice amount (heal, temp-hp) is in the span. */
   const diceAmount = (amount: unknown) => typeof amount === 'string' && /\dd\d/.test(amount) && !hasDice(span, amount) ? `dice "${amount}" not in span` : undefined
+  /** A printed distance that is not a number ("to the edge of the burst") lies in the quote. */
+  const squaresText = (t: string) => findFragment(span, t).length > 0 ? undefined : `squaresText "${t}" not in span`
   const anyType = (types: string[] | undefined) => !types || types.some(hasType) || has(/one of|choice|choose|chosen/i)
   /** The quote continues a comma list that `word` opens earlier in the sentence ("resist 10 necrotic, 10 fire"). */
   const continuesList = (word: RegExp) => {
@@ -171,10 +184,15 @@ export function spanProblem(clause: Clause, span: string, after = '', before = '
     case 'grants-ca': return has('combat advantage') ? undefined : 'no "combat advantage" in span'
     case 'forced-move':
       if (!has(MOVE_WORDS[clause.move] ?? clause.move)) return `no "${clause.move}" in span`
-      return num(clause.squares) || clause.squares === 1 ? undefined : `${clause.squares} squares not in span`
-    case 'move': return has(MOVE_WORDS[clause.move] ?? clause.move) ? undefined : `no "${clause.move}" in span`
+      if (clause.squaresText !== undefined) return squaresText(clause.squaresText)
+      return clause.squares === undefined || num(clause.squares) || clause.squares === 1 ? undefined : `${clause.squares} squares not in span`
+    case 'move':
+      if (!has(MOVE_WORDS[clause.move] ?? clause.move)) return `no "${clause.move}" in span`
+      return clause.squaresText === undefined ? undefined : squaresText(clause.squaresText)
     case 'modifier': {
-      if (!num(Math.abs(clause.value))) return `value ${clause.value} not in span`
+      // A dice value ("adds 1d6 to the triggering roll"; "-1d6" for subtracts) has its dice in the quote.
+      if (typeof clause.value === 'string') { if (!hasDice(span, clause.value.replace(/^-/, ''))) return `dice "${clause.value.replace(/^-/, '')}" not in span` }
+      else if (!num(Math.abs(clause.value))) return `value ${clause.value} not in span`
       // A check stat names its skill or ability in the quote or the rest of its sentence.
       const sentence = span + after.split(/(?<=[.!?;])\s/)[0]
       for (const stat of Array.isArray(clause.stat) ? clause.stat : [clause.stat]) {
@@ -187,12 +205,18 @@ export function spanProblem(clause: Clause, span: string, after = '', before = '
     case 'vulnerability': return has('vulnerab') || continuesList(/\bvulnerab/i) ? undefined : 'no "vulnerable" in span (or earlier in its comma list)'
     case 'heal':
       if (!has(/regain|heal|hit points|healing surge/i)) return 'no healing words in span ("regains", "hit points")'
+      if (clause.spendSurge && !has('surge')) return 'no "healing surge" in span for spendSurge'
       return diceAmount(clause.amount)
     case 'temp-hp': return has('temporary') ? diceAmount(clause.amount) : 'no "temporary" in span'
     case 'regeneration': return has('regenerat') || has('regain') ? undefined : 'no "regeneration" in span'
     case 'revive': return num(clause.hp) ? undefined : `hp ${clause.hp} not in span`
     case 'use-power': return has(clause.power.toLowerCase()) || has(/\battack|\buses?\b|\bmakes?\b/i) ? undefined : `power "${clause.power}" not in span`
-    case 'recharge-power': return has(/recharg|\bregains? the use\b/i) ? undefined : 'no "recharge" or "regains the use" in span'
+    case 'recharge-power': {
+      if (!has(/recharg|\bregains? the use\b/i)) return 'no "recharge" or "regains the use" in span'
+      // others: each further printed power name ("Raging storm and fist of the storm recharge").
+      const other = (clause.others ?? []).find(o => !s.includes(o.toLowerCase()))
+      return other === undefined ? undefined : `power "${other}" not in span`
+    }
     case 'lose-healing-surge': return has('surge') ? undefined : 'no "healing surge" in span'
     // "lightly obscured" is concealment, "heavily obscured" total concealment.
     case 'concealment':
@@ -211,12 +235,14 @@ export function spanProblem(clause: Clause, span: string, after = '', before = '
     }
     case 'redirect-attack':
       // Also "changes the attack's target to ...", "must make the attack against ...", "targets a creature of the devil's choice".
-      return has(/\binstead\b|redirect|becomes the target|\btargets? (it|him|her|the \w+|a creature)\b|\bchang\w* [^.;]{0,40}\btarget|\bmake the attack against/i) ? undefined : 'no "instead" or "redirect" in span'
+      return has(/\binstead\b|redirect|becomes the target|\btargets? (it|him|her|the \w+|a creature)\b|\bchang\w* [^.;]{0,40}\btarget|\bmake the attack against|\bbecomes the (triggering )?attack['’]s target|\battack['’]s target\b|\btargets? (another|a different) creature/i) ? undefined : 'no "instead" or "redirect" in span'
     case 'crit-range':
       if (!has('crit')) return 'no "critical" in span'
-      return num(clause.min) ? undefined : `${clause.min} not in span`
+      // The roll may follow a condition later in the sentence ("against a prone target on a roll of 17-20").
+      return num(clause.min) || numIn(clause.min, span + after.split(/(?<=[.!?;])\s/)[0]) ? undefined : `${clause.min} not in span or the rest of its sentence`
     case 'power-restriction': {
-      if (!has(/\b(can[’']t|can ?not|cannot|unable|no longer|may not|doesn[’']t|does not)\b/i)) return 'no "can\'t" or "cannot" in span'
+      // "only" for a positive restriction ("can make only basic attacks": non-basic).
+      if (!has(/\b(can[’']t|can ?not|cannot|unable|no longer|may not|doesn[’']t|does not|only)\b/i)) return 'no "can\'t", "cannot" or "only" in span'
       const what = Array.isArray(clause.what) ? clause.what : [clause.what]
       const missing = what.find(w => w !== 'named' && !has(RESTRICTION_WORDS[w] ?? w))
       if (missing) return `no "${missing}" in span`
@@ -250,20 +276,58 @@ export function spanProblem(clause: Clause, span: string, after = '', before = '
       return !clause.hover || has('hover') ? undefined : 'no "hover" in span'
     }
     // The options' own spans are checked by checkLineSpans.
-    case 'choice': return has(/\b(or|either)\b/i) ? undefined : 'no "or" or "either" in span'
+    // "or"/"either"; a die roll table (chooser 'roll': "roll a d6", each of `rolls` printed); "one of the following".
+    case 'choice': {
+      if (clause.chooser === 'roll') {
+        if (!has(/\broll|\bd\d/i)) return 'no "roll" or die ("d6") in span'
+        const r = (clause.rolls ?? []).find(x => findFragment(span, x).length === 0)
+        return r === undefined ? undefined : `roll result "${r}" not in span`
+      }
+      return has(/\b(or|either)\b|\bone of the following/i) ? undefined : 'no "or", "either" or "one of the following" in span'
+    }
     case 'automatic':
-      if (!has(/\bautomatic/i)) return 'no "automatically" in span'
+      // "is treated as a critical hit", "becomes a critical hit" need no "automatic".
+      if (!has(/\bautomatic/i) && !(clause.what === 'critical' && has(/\b(is|becomes?|treated as|counts as) a critical hit/i))) return 'no "automatically" in span'
       return has(AUTOMATIC_WORDS[clause.what] ?? clause.what) ? undefined : `no "${clause.what}" in span`
     case 'lose-resistance':
-      if (!has(/\bresist/i)) return 'no "resist" in span'
+      // what: the resistance, vulnerability or immunity words ("loses vulnerability to radiant").
+      for (const w of clause.what ?? ['resistance']) {
+        const word = { resistance: 'resist', vulnerability: 'vulnerab', immunity: 'immun' }[w] ?? w
+        if (!has(word)) return `no "${word}" in span`
+      }
       return clause.value === undefined || num(clause.value) ? undefined : `value ${clause.value} not in span`
-    case 'immunity': return has(/\bimmun/i) ? undefined : 'no "immune" in span'
+    // "cannot be knocked prone", "can't be marked" also state an immunity.
+    case 'immunity': return has(/\bimmun|\bcan ?not be\b|\bcan[’']t be\b/i) ? undefined : 'no "immune" or "cannot be" in span'
     case 'end-effect': return has(/\bend(s|ed|ing)?\b|\bno longer\b|\bremov|\brid of\b/i) ? undefined : 'no "ends", "no longer" or "removes" in span'
     case 'extra-action': {
       // The action's name: "move action", "standard action", "immediate reaction".
       const word = clause.action === 'no-action' ? 'action' : clause.action.split('-').pop()!
       return has(new RegExp(`\\b${word}`, 'i')) ? undefined : `no "${word}" in span`
     }
+    case 'no-damage': return has(/\bno damage|\bnegat|\bharmless|\bnot take (any )?damage|\bdoesn['’]t take (any )?damage/i) ? undefined : 'no "no damage" in span'
+    case 'drop-to-zero': return has(/\b0 hit points|\bkill|\bdies\b|\bslain\b|\bdestroy/i) ? undefined : 'no "0 hit points" or "kill" in span'
+    case 'move-limit': {
+      const word = { away: /\baway\b/i, closer: /\bcloser|\btoward/i, leave: /\bleav|\bexit|\bout of\b/i, stop: /\bstop|\bends?\b/i, within: /\bmore than|\bfarther|\bwithin\b/i }[clause.limit]
+      if (word && !has(word)) return `no "${word.source.replace(/\\b/g, '')}" in span for limit "${clause.limit}"`
+      return clause.squares === undefined || num(clause.squares) ? undefined : `${clause.squares} squares not in span`
+    }
+    case 'swallow': {
+      if (!has(/\bswallow|\bengulf|\babsorb|\binside\b|\bentomb/i)) return 'no "swallow", "engulf" or "absorb" in span'
+      const sentence = span + after.split(/(?<=[.!?])\s/)[0]
+      return clause.escapeDc === undefined || (/escape/i.test(sentence) && numIn(clause.escapeDc, sentence)) ? undefined : `no "escape DC ${clause.escapeDc}" in the span or the rest of its sentence`
+    }
+    case 'share-damage':
+      if (!has(/\bdamage/i)) return 'no "damage" in span'
+      if (clause.part === 'half' && !has(/\bhal(f|ved?)\b/i)) return 'no "half" in span'
+      return clause.part === 'rest' && !has(/\brest\b|\bremain/i) ? 'no "rest" or "remaining" in span' : undefined
+    case 'aura-size':
+      if (!has(/\baura/i)) return 'no "aura" in span'
+      for (const n of [clause.value, clause.change]) if (n !== undefined && !num(Math.abs(n))) return `${Math.abs(n)} not in span`
+      return undefined
+    case 'size-change':
+      if (clause.size !== undefined && !has(new RegExp(`\\b${clause.size}`, 'i'))) return `size "${clause.size}" not in span`
+      if (clause.reach !== undefined && !(has(/\breach/i) && num(clause.reach))) return `no "reach ${clause.reach}" in span`
+      return undefined
     case 'unparsed':
       return span.replace(/\s+/g, ' ').trim() === clause.text.replace(/\s+/g, ' ').trim() ? undefined : 'unparsed text differs from span'
   }
@@ -330,7 +394,7 @@ export function fragmentProblems(cl: Clause, text: string, a: number, b: number,
 export function checkLineSpans(l: Line, path: string, name = ''): Issue[] {
   const issues: Issue[] = []
   if (!l || typeof l.text !== 'string' || !Array.isArray(l.clauses)) return issues
-  const check = (cl: Clause, p: string, lo: number, hi: number) => {
+  const check = (cl: Clause, p: string, lo: number, hi: number, option = false) => {
     const [a, b] = Array.isArray(cl?.at) ? cl.at : [NaN, NaN]
     if (!(Number.isInteger(a) && Number.isInteger(b) && a >= lo && a <= b && b <= hi)) {
       issues.push({ path: p, message: lo === 0 && hi === l.text.length
@@ -338,7 +402,11 @@ export function checkLineSpans(l: Line, path: string, name = ''): Issue[] {
         : `span [${a}, ${b}) outside its choice's span [${lo}, ${hi})` })
       return
     }
-    const problem = spanProblem(cl, l.text.substring(a, b), l.text.substring(b), l.text.substring(0, a))
+    let problem = spanProblem(cl, l.text.substring(a, b), l.text.substring(b), l.text.substring(0, a))
+    // An option may share its kind's words with the choice's leading or trailing words ("recharges
+    // cascade of fire or grasping tendrils", "fearsome roar or breath weapon recharges").
+    if (problem && option && (spanProblem(cl, l.text.substring(lo, b), l.text.substring(b), l.text.substring(0, lo)) === undefined
+      || spanProblem(cl, l.text.substring(a, hi), l.text.substring(hi), l.text.substring(0, a)) === undefined)) problem = undefined
     if (problem) issues.push({ path: p, message: `${cl.kind}: ${problem} ("${l.text.substring(a, b)}")` })
     for (const message of fragmentProblems(cl, l.text, a, b, name)) issues.push({ path: p, message })
     // per: printed scaling words of the line ("for each creature in the burst"), in or after the quote.
@@ -354,7 +422,7 @@ export function checkLineSpans(l: Line, path: string, name = ''): Issue[] {
         if (!Array.isArray(opt)) return
         opt.forEach((x, j) => {
           const q = `${p}.options[${i}][${j}]`
-          check(x as Clause, q, a, b)
+          check(x as Clause, q, a, b, true)
           const at = (x as Clause)?.at
           if (!Array.isArray(at)) return
           const clash = seen.find(([s, e]) => at[0] < e && at[1] > s)
