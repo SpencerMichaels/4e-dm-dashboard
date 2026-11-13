@@ -5,7 +5,7 @@
 
 import {
   ACTION_TYPES, CONDITION_IDS, DAMAGE_TYPES, DEFENSES, isOneOf,
-  type ActionType, type Attack, type Clause, type DamageType, type Defense,
+  type ActionType, type Attack, type Clause, type DamageModifier, type DamageType, type Defense,
   type Line, type Provenance, type Range, type RangeKind, type Recharge, type SourceRef, type Usage,
 } from '@kit'
 
@@ -51,16 +51,48 @@ export function kebab(text: string): string {
 
 // ── Source ──
 
-/** "Monster Manual 3, page(s) 132, Dungeon Magazine 190." -> { book: 'Monster Manual 3', page: 132 } */
-export function parseSource(source: string, notes: Notes): SourceRef {
-  const text = normText(source ?? '').replace(/\.$/, '')
-  if (!text) return { book: '' }
-  const m = text.match(/^(.+?),\s*page\(s\)\s*(\d+)/)
-  const book = m ? m[1].trim() : text.split(',')[0].trim()
-  const page = m ? parseInt(m[2]) : undefined
-  const rest = m ? text.substring(m[0].length).replace(/^[-\d\s]*,?\s*/, '') : text.split(',').slice(1).join(',').trim()
-  if (rest) notes.add(`also published in: ${rest}`)
-  return compact({ book, page })
+/**
+ * "Monster Manual 3, page(s) 132, Dungeon Magazine 190." ->
+ *   [{ book: 'Monster Manual 3', page: 132 }, { book: 'Dungeon Magazine 190' }]
+ * The first entry is the primary source. Booklet pages ("page(s) 2-77") have
+ * no SourceRef form: the page is left out and noted.
+ */
+export function parseSources(source: string, notes: Notes): SourceRef[] {
+  const text = normText(source ?? '').replace(/^Published in\s+/i, '').replace(/\.$/, '')
+  if (!text) return [{ book: '' }]
+  const refs: SourceRef[] = []
+  for (const token of text.split(/\s*,\s*/).filter(Boolean)) {
+    const page = token.match(/^page\(s\)\s*(\S+)$/i)
+    const last = refs[refs.length - 1]
+    if (page && last) {
+      if (/^\d+$/.test(page[1])) { if (last.page === undefined) last.page = parseInt(page[1]) }
+      else notes.add(`source page "${page[1]}" in ${last.book} is not a page number`)
+    } else if (/^\d+$/.test(token) && last) {
+      // "page(s) 59, 68": another page of the same book.
+      refs.push({ book: last.book, page: parseInt(token) })
+    } else {
+      refs.push({ book: token })
+    }
+  }
+  return refs.length > 0 ? refs : [{ book: '' }]
+}
+
+// ── Resistances ──
+
+/**
+ * A resistance or vulnerability. Numeric entries keep their type ("resist 10
+ * fire"); a damage type with no number ("vulnerable radiant: see text") keeps
+ * the type and no value; anything else ("insubstantial", "half damage from
+ * melee and ranged attacks") is text-only: { type: 'special', text }.
+ */
+export function damageModifier(rawType: string, value?: number, note?: string): DamageModifier {
+  const type = normText(rawType).toLowerCase()
+  const n = note ? normText(note) : undefined
+  if (typeof value === 'number') return compact({ type, value, note: n })
+  const variable = type.match(/^(\d+)\/variable$/)
+  if (variable) return compact({ type: 'variable', value: parseInt(variable[1]), note: n })
+  if (isOneOf(DAMAGE_TYPES, type) || type === 'all' || type === 'silver') return compact({ type, note: n })
+  return compact({ type: 'special', text: normText(rawType), note: n })
 }
 
 // ── Action, usage, range, defense ──
@@ -90,9 +122,49 @@ export function toRecharge(condition: string | undefined): Recharge | undefined 
   return { kind: 'text', text: c }
 }
 
-export function toDefense(raw: string | undefined): Defense | undefined {
-  const d = (raw ?? '').toLowerCase()
+/** A defense, or 'any' ("vs. Any": the attacker picks). */
+export function toDefense(raw: string | undefined): Defense | 'any' | undefined {
+  const d = (raw ?? '').toLowerCase().trim()
+  if (d === 'any' || d === 'any defense') return 'any'
   return isOneOf(DEFENSES, d) ? d : undefined
+}
+
+/** "Second Failed Saving Throw" -> 2, "Each Failed Saving Throw" -> 'each'; undefined for other labels. */
+export function failedSaveN(label: string): number | 'each' | undefined {
+  const m = label.toLowerCase().trim().match(/^(first|second|third|fourth|fifth|sixth|each) failed saving throw$/)
+  if (!m) return undefined
+  return m[1] === 'each' ? 'each' : ['first', 'second', 'third', 'fourth', 'fifth', 'sixth'].indexOf(m[1]) + 1
+}
+
+/** Printed label from a lowercased parser key: "1. fire ray (fire)" -> "1. Fire Ray (fire)". */
+export function labelText(key: string): string {
+  let depth = 0
+  return key.replace(/[()]|\b[a-z]/g, ch => {
+    if (ch === '(') depth++
+    else if (ch === ')') depth--
+    else if (depth === 0) return ch.toUpperCase()
+    return ch
+  })
+}
+
+const RANGE_PREFIX = /^((?:close (?:burst|blast)|area (?:burst|wall)|ranged|melee|reach)\s+(?:\d+(?:\s+within\s+\d+)?|sight|touch)|personal)(?:\s*\(([^()]*(?:\([^()]*\)[^()]*)*)\))?\s*[.;:]\s*/i
+
+/**
+ * The range a non-attack power prints at the start of its effect:
+ * "Close burst 5; one ally ..." / "Ranged 5 (one ally). The target ...".
+ * The target in parentheses goes into Range.note; the rest stays the effect.
+ */
+export function splitRangePrefix(text: string): { range: Range; rest: string } | undefined {
+  const t = normText(text)
+  const m = t.match(RANGE_PREFIX)
+  if (!m) return undefined
+  const rest = t.substring(m[0].length).trim()
+  if (!rest) return undefined
+  const head = m[1]
+  const kind = rangeKindOf(head)
+  const value = head.replace(/^(close burst|close blast|area burst|area wall|ranged|melee|reach|personal)\s*/i, '')
+  const range = toRange(kind, value, m[2]?.trim() || undefined)
+  return { range, rest }
 }
 
 /** Parser rangeType/rangeValue ("area-burst", "2 within 10") -> kit Range. */
@@ -123,7 +195,7 @@ export function toRange(rangeType: string, rangeValue: string, note?: string): R
  */
 export function parseAttackLine(text: string): Pick<Attack, 'range' | 'target' | 'bonus' | 'vs'> | undefined {
   const t = normText(text)
-  const m = t.match(/^(.*?)\s*;?\s*(\+\d+|[^;]*?level\s*\+\s*\d+|[^;]*?\+\s*\d+)\s+vs\.?\s+(AC|Fortitude|Reflex|Will)\b/i)
+  const m = t.match(/^(.*?)\s*;?\s*(\+\d+|[^;]*?level\s*\+\s*\d+|[^;]*?\+\s*\d+)\s+vs\.?\s+(AC|Fortitude|Reflex|Will|Any)\b/i)
   if (!m) return undefined
   const vs = toDefense(m[3])
   if (!vs) return undefined

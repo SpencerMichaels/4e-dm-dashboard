@@ -19,7 +19,7 @@ function monster(over: Partial<Monster> = {}): Monster {
         hit: { text: '2d8 + 4 damage.', clauses: [{ at: [0, 14], kind: 'damage', dice: '2d8+4', types: [], who: 'target' }] },
       }],
     }],
-    description: '', source: { book: 'Test' },
+    description: '', sources: [{ book: 'Test' }],
     provenance: { origin: 'parser', by: 'tools/content@test', at: '2026-11-12' },
     ...over,
   }
@@ -35,6 +35,81 @@ describe('shape', () => {
     delete (bad as any).hp
     const { errors } = validateEntry('monsters', bad)
     expect(errors.map(e => e.path)).toEqual(expect.arrayContaining(['$.size', '$.role', '$.extra', '$.hp']))
+  })
+
+  it('accepts the v2 fields', () => {
+    const m = monster({
+      resist: [{ type: 'fire', value: 10 }, { type: 'special', text: 'insubstantial' }],
+      vulnerable: [{ type: 'radiant', note: 'see text' }],
+      sources: [{ book: 'Monster Manual 3', page: 132 }, { book: 'Dungeon Magazine 190' }],
+    })
+    const atk = m.powers[0].attacks[0]
+    atk.vs = 'any'
+    atk.failedSaves = [{ n: 2, line: { text: 'The target is petrified.', clauses: [] } }, { n: 'each', line: { text: 'It takes 5 damage.', clauses: [] } }]
+    m.powers.push({
+      name: 'Rally', action: 'minor', usage: 'encounter', keywords: [], attacks: [],
+      range: { kind: 'close-burst', size: 5, note: 'allies in the burst' },
+      effect: { text: 'Each target gains 5 temporary hit points.', clauses: [] },
+      extraLines: [{ label: 'Ooze Form', line: { text: 'The mimic becomes an ooze.', clauses: [] } }],
+    })
+    expect(validateEntry('monsters', m).errors).toEqual([])
+  })
+
+  it('rejects the v1 fields and malformed v2 ones', () => {
+    const m = { ...monster(), source: { book: 'Test' } } as any
+    m.powers[0].attacks[0].firstFailedSave = { text: 'x', clauses: [] }
+    m.powers[0].attacks[0].failedSaves = [{ n: 0, line: { text: 'x', clauses: [] } }]
+    m.resist = [{ type: 'fire', value: -1 }]
+    const paths = validateEntry('monsters', m).errors.map(e => e.path)
+    expect(paths).toEqual(expect.arrayContaining([
+      '$.source', '$.powers[0].attacks[0].firstFailedSave', '$.powers[0].attacks[0].failedSaves[0].n', '$.resist[0].value',
+    ]))
+    delete m.sources
+    expect(validateEntry('monsters', m).errors.map(e => e.path)).toContain('$.sources')
+  })
+
+  it('checks item, trap, disease and template v2 shapes', () => {
+    const prov = { origin: 'parser', at: '2026-11-12' }
+    const item = {
+      id: 'armor60', name: 'Baazrag Leather Armor', category: 'armor', level: 0, rarity: null, tier: 'heroic',
+      levels: [{ level: 0, price: null, priceText: 'Special' }, { level: 1, price: 0.5, priceText: '5 sp' }],
+      subtype: 'Gear', armor: { category: 'Leather', acBonus: 3, minEnhancement: 4 },
+      properties: [], powers: [], flavor: '',
+      description: [{ type: 'power', power: { name: 'Power', action: 'standard', usage: 'daily', keywords: [], attacks: [] } }],
+      sources: [{ book: 'Dark Sun Campaign Setting', page: 118 }], provenance: prov,
+    }
+    expect(validateEntry('items', item).errors).toEqual([])
+    expect(validateEntry('items', { ...item, tier: 'mythic' }).errors.map(e => e.path)).toEqual(['$.tier'])
+
+    const trap = {
+      id: 'trap1', name: 'Wall', kind: 'area', level: 13, role: 'warder', rank: 'elite', xp: 1600,
+      detect: [{ skill: 'Perception', dc: null, text: 'automatic' }], hp: 60, hpText: '60 in each of six 5-foot sections',
+      immune: [], resist: [{ type: 'special', text: 'half damage from melee attacks' }],
+      traits: [{ name: 'Writhing Tentacles', keywords: [], text: { text: 'Enemies treat the squares as difficult terrain.', clauses: [] } }],
+      powers: [], countermeasures: [], flavor: '', description: '', sources: [{ book: 'Dungeon Magazine 197' }], provenance: prov,
+    }
+    expect(validateEntry('traps', trap).errors).toEqual([])
+
+    const disease = {
+      id: 'disease1', name: 'Mummy Rot', level: 21,
+      endurance: { improveDc: { text: "15 + two-thirds mummy's level" }, maintainDc: 10 },
+      check: { skill: 'Insight', text: 'The target makes an Insight check.' },
+      stages: [], flavor: '', sources: [{ book: 'Monster Manual' }], provenance: prov,
+    }
+    expect(validateEntry('diseases', disease).errors).toEqual([])
+    expect(validateEntry('diseases', { ...disease, endurance: { improveDc: { text: '' }, maintainDc: 0 } }).errors.map(e => e.path))
+      .toEqual(['$.endurance.improveDc.text', '$.endurance.maintainDc'])
+
+    const template = {
+      id: 'elite-dragon', name: 'Elite Dragon', kind: 'functional', role: 'any', raisesRank: true,
+      prerequisite: { text: 'Solo dragon', check: { kind: 'all', of: [
+        { kind: 'rank', any: ['solo'] }, { kind: 'not', of: { kind: 'keyword', any: ['devil'] } },
+        { kind: 'any-of', of: [{ kind: 'keyword', any: ['dragon'] }] },
+      ] } },
+      senses: [], defenses: {}, hpPerLevel: 8, savingThrows: 2, actionPoints: 1, immune: [], resist: [], vulnerable: [],
+      traits: [], auras: [], powers: [], description: '', sources: [{ book: 'DMG' }], provenance: prov,
+    }
+    expect(validateEntry('templates', template).errors).toEqual([])
   })
 
   it('checks clause fields', () => {
@@ -72,5 +147,11 @@ describe('math bands', () => {
     const rules = checkMonsterBands(monster({ xp: 400, hp: 200, defenses: { ac: 30, fortitude: 18, reflex: 16, will: 5 } })).map(f => f.rule)
     expect(rules).toEqual(['xp', 'hp', 'ac', 'defense'])
     expect(checkMonsterBands(monster({ rank: 'minion', hp: 74, xp: 50 })).map(f => f.rule)).toEqual(['hp'])
+  })
+
+  it('checks XP up to level 40', () => {
+    const epic = { level: 35, xp: 47000, hp: 260, defenses: { ac: 49, fortitude: 46, reflex: 44, will: 44 } }
+    expect(checkMonsterBands(monster(epic)).filter(f => f.rule === 'xp')).toEqual([])
+    expect(checkMonsterBands(monster({ ...epic, xp: 19000 })).filter(f => f.rule === 'xp')[0].message).toMatch(/expected 47000/)
   })
 })

@@ -5,15 +5,18 @@
 //   (CONTENT_REV overrides the git short hash recorded in provenance.by)
 //
 // Monsters are re-parsed from content/raw with the parser's `printed` option
-// (the printed text of each line goes into Line.text); items, traps and
-// diseases come from content/parsed. Files whose provenance.origin is not
-// 'parser' (agent or human edits) are never overwritten.
+// (the printed text of each line goes into Line.text), and traps are
+// re-parsed from content/raw (trait text and extra labeled lines); items and
+// diseases come from content/parsed, with the raw item HTML for the tier
+// heading. Files whose provenance.origin is not 'parser' (agent or human
+// edits) are never overwritten.
 
 import { execSync } from 'child_process'
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs'
 import { join } from 'path'
 import type { Provenance } from '@kit'
 import { parseMonsterHtml } from '../html-parser'
+import { parseTrapHtml } from '../trap-parser'
 import { MONSTER_TEMPLATES } from '../../../src/renderer/components/creature/monster-templates'
 import { MONSTER_THEMES } from '../../../src/renderer/components/creature/monster-themes'
 import type { ConvertContext } from './common'
@@ -26,7 +29,9 @@ import { convertTrap } from './trap'
 const ROOT = join(__dirname, '..', '..', '..')
 const CONTENT = join(ROOT, 'content')
 
-export const CONTENT_DIRS = ['monsters', 'items', 'traps', 'diseases', 'templates', 'themes'] as const
+const RAW_ITEM_FILES = ['item.json', 'weapon.json', 'armor.json', 'implement.json', 'ritual.json']
+
+export const CONTENT_DIRS =['monsters', 'items', 'traps', 'diseases', 'templates', 'themes'] as const
 export type ContentDir = (typeof CONTENT_DIRS)[number]
 
 export function gitRev(): string {
@@ -90,9 +95,10 @@ function main() {
     return convertMonster(id, creature, ctx)
   }]))
   const items = readJson<Record<string, any>>('parsed/items.json')
-  run('items', Object.keys(items).sort().map(id => [id, () => convertItem(id, items[id], ctx)]))
-  const traps = readJson<Record<string, any>>('parsed/traps.json')
-  run('traps', Object.keys(traps).sort().map(id => [id, () => convertTrap(id, traps[id], ctx)]))
+  const rawItems: Record<string, string> = Object.assign({}, ...RAW_ITEM_FILES.map(f => readJson<Record<string, string>>(`raw/${f}`)))
+  run('items', Object.keys(items).sort().map(id => [id, () => convertItem(id, items[id], ctx, rawItems[id])]))
+  const rawTraps = readJson<Record<string, string>>('raw/trap.json')
+  run('traps', Object.keys(rawTraps).sort().map(id => [id, () => convertTrap(id, parseTrapHtml(rawTraps[id]), ctx)]))
   const diseases = readJson<Record<string, any>>('parsed/diseases.json')
   run('diseases', Object.keys(diseases).sort().map(id => [id, () => convertDisease(id, diseases[id], ctx)]))
   run('templates', MONSTER_TEMPLATES.map(t => [convertTemplate(t, ctx).id, () => convertTemplate(t, ctx)]))

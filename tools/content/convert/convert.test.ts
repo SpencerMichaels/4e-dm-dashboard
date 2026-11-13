@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { MONSTER_TEMPLATES } from '../../../src/renderer/components/creature/monster-templates'
 import { parseMonsterHtml } from '../html-parser'
-import { Notes, damageClauses, parseAttackLine, parseSource, saveEndsClauses, toRecharge, type ConvertContext } from './common'
+import { Notes, damageClauses, parseAttackLine, saveEndsClauses, toRecharge, type ConvertContext } from './common'
 import { enduranceFrom } from './disease'
 import { convertMonster } from './monster'
 import { prereqFromCheck } from './template'
@@ -23,9 +23,9 @@ describe('convertMonster', () => {
       defenses: { ac: 23, fortitude: 20, reflex: 21, will: 22 },
       abilities: { str: 10, con: 17, dex: 18, int: 13, wis: 11, cha: 20 },
       skills: { athletics: 9, stealth: 13 },
-      source: { book: 'Monster Manual 3', page: 132 },
+      sources: [{ book: 'Monster Manual 3', page: 132 }, { book: 'Dungeon Magazine 190' }],
     })
-    expect(m.provenance).toEqual({ ...ctx.provenance, notes: ['also published in: Dungeon Magazine 190'] })
+    expect(m.provenance).toEqual(ctx.provenance)
   })
 
   it('keeps the printed hit line and adds only exact clauses', () => {
@@ -70,11 +70,10 @@ describe('clause helpers', () => {
     })
   })
 
-  it('toRecharge and parseSource', () => {
+  it('toRecharge', () => {
     expect(toRecharge('5-6')).toEqual({ kind: 'roll', min: 5 })
     expect(toRecharge('when first bloodied')).toEqual({ kind: 'bloodied' })
     expect(toRecharge('if the power misses')).toEqual({ kind: 'text', text: 'if the power misses' })
-    expect(parseSource("Dungeon Master's Guide 2, page(s) 73.", new Notes())).toEqual({ book: "Dungeon Master's Guide 2", page: 73 })
   })
 })
 

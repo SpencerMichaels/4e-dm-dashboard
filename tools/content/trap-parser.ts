@@ -13,7 +13,13 @@ export interface TrapAction {
   effect?: string
   sustain?: string
   requirement?: string
+  /** Unlabeled paragraphs under the header (trait text, skill DC lines). */
+  text?: string
+  /** Labeled lines with no field above ("First Failed Saving Throw", "Aftereffect", "Special"). */
+  extra?: { label: string; text: string }[]
 }
+
+const KNOWN_TRAP_LABELS = /^(?:trigger|attack|hit|miss|effect(?:\s*\([^)]*\))?|sustain(?:\s+\w+)?|requirement)$/i
 
 export interface ParsedTrap {
   name: string
@@ -338,6 +344,17 @@ function parseThHeadFormat(html: string): ParsedTrap {
           attack = attack.substring(actionPrefix[0].length)
         }
 
+        // Paragraphs the fields above don't take: unlabeled text, other labels.
+        const textParts: string[] = []
+        const extra: { label: string; text: string }[] = []
+        for (const pm of bodyHtml.matchAll(/<p class=(?:tbod|thStat)>([\s\S]*?)<\/p>/gi)) {
+          const lm = pm[1].match(/^\s*<i>([^<]+)<\/i>\s*:?\s*/)
+          if (lm && KNOWN_TRAP_LABELS.test(lm[1].trim())) continue
+          const body = stripHtml(lm ? pm[1].substring(lm[0].length) : pm[1]).replace(/^:\s*/, '').trim()
+          if (lm) extra.push({ label: lm[1].trim().replace(/:$/, ''), text: body })
+          else if (body) textParts.push(body)
+        }
+
         actions.push({
           name: actionName,
           usage: normalizeTrapUsage(usage),
@@ -349,6 +366,8 @@ function parseThHeadFormat(html: string): ParsedTrap {
           effect: extractField('Effect(?:\\s*\\([^)]*\\))?'),
           sustain: extractField('Sustain (?:Minor|Move|Standard|Free)') || extractField('Sustain'),
           requirement: extractField('Requirement'),
+          ...(textParts.length > 0 ? { text: textParts.join('\n') } : {}),
+          ...(extra.length > 0 ? { extra } : {}),
         })
       }
 
