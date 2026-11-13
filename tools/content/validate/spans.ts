@@ -29,7 +29,8 @@ const CONDITION_WORDS: Record<string, RegExp> = {
   'slowed': /\bslow(s|ed)?\b/i,
   'stunned': /\bstun(s|ned|ning)?\b/i,
   'surprised': /\bsurpris/i,
-  'unconscious': /\bunconscious/i,
+  // "falls asleep" is unconscious in 4e (the wake rule is an `until` duration).
+  'unconscious': /\bunconscious|\basleep\b|\bsleep(s|ing)?\b/i,
   'weakened': /\bweaken/i,
 }
 
@@ -55,7 +56,20 @@ const RESTRICTION_WORDS: Record<string, RegExp> = {
   encounter: /\bencounter/i, daily: /\bdaily/i, attack: /\battack/i, all: /\b(power|attack|action)/i,
 }
 
-const NUMBER_WORDS = ['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten']
+const ABILITY_NAMES: Record<string, string> = {
+  str: 'strength', con: 'constitution', dex: 'dexterity', int: 'intelligence', wis: 'wisdom', cha: 'charisma',
+}
+
+/** The words a check modifier stat needs ("skill:athletics": "athletics"), or undefined for other stats. */
+function checkStatWords(stat: string): RegExp | undefined {
+  if (stat.startsWith('skill:')) return new RegExp(`\\b${stat.slice(6)}`, 'i')
+  if (stat.startsWith('ability:')) return new RegExp(`\\b${ABILITY_NAMES[stat.slice(8)] ?? stat.slice(8)}`, 'i')
+  if (stat === 'skill-checks') return /\bskill/i
+  if (stat === 'ability-checks') return /\bability check/i
+  return undefined
+}
+
+const NUMBER_WORDS =['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten']
 
 function compactDice(s: string): string {
   return s.replace(/\s+/g, '').replace(/−/g, '-').toLowerCase()
@@ -110,7 +124,16 @@ export function spanProblem(clause: Clause, span: string, after = ''): string | 
       if (!has(MOVE_WORDS[clause.move] ?? clause.move)) return `no "${clause.move}" in span`
       return num(clause.squares) || clause.squares === 1 ? undefined : `${clause.squares} squares not in span`
     case 'move': return has(MOVE_WORDS[clause.move] ?? clause.move) ? undefined : `no "${clause.move}" in span`
-    case 'modifier': return num(Math.abs(clause.value)) ? undefined : `value ${clause.value} not in span`
+    case 'modifier': {
+      if (!num(Math.abs(clause.value))) return `value ${clause.value} not in span`
+      // A check stat names its skill or ability in the quote or the rest of its sentence.
+      const sentence = span + after.split(/(?<=[.!?;])\s/)[0]
+      for (const stat of Array.isArray(clause.stat) ? clause.stat : [clause.stat]) {
+        const re = checkStatWords(stat)
+        if (re && !re.test(sentence)) return `no "${re.source.replace(/\\b/g, '')}" for stat "${stat}" in the span or the rest of its sentence`
+      }
+      return undefined
+    }
     case 'resistance': return has('resist') ? undefined : 'no "resist" in span'
     case 'vulnerability': return has('vulnerab') ? undefined : 'no "vulnerable" in span'
     case 'heal': return has(/regain|heal|hit points|healing surge/i) ? undefined : 'no healing words in span ("regains", "hit points")'
@@ -161,6 +184,8 @@ export function spanProblem(clause: Clause, span: string, after = ''): string | 
       if (!has(SENSE_WORDS[clause.sense] ?? clause.sense)) return clause.sense === 'see-invisible' ? 'no "see invisible" in span' : `no "${clause.sense}" in span`
       return clause.range === undefined || num(clause.range) ? undefined : `range ${clause.range} not in span`
     }
+    // The options' own spans are checked by checkLineSpans.
+    case 'choice': return has(/\b(or|either)\b/i) ? undefined : 'no "or" or "either" in span'
     case 'unparsed':
       return span.replace(/\s+/g, ' ').trim() === clause.text.replace(/\s+/g, ' ').trim() ? undefined : 'unparsed text differs from span'
   }
@@ -224,17 +249,35 @@ export function fragmentProblems(cl: Clause, text: string, a: number, b: number)
 export function checkLineSpans(l: Line, path: string): Issue[] {
   const issues: Issue[] = []
   if (!l || typeof l.text !== 'string' || !Array.isArray(l.clauses)) return issues
-  l.clauses.forEach((cl, i) => {
-    const p = `${path}.clauses[${i}]`
+  const check = (cl: Clause, p: string, lo: number, hi: number) => {
     const [a, b] = Array.isArray(cl?.at) ? cl.at : [NaN, NaN]
-    if (!(Number.isInteger(a) && Number.isInteger(b) && a >= 0 && a <= b && b <= l.text.length)) {
-      issues.push({ path: p, message: `span [${a}, ${b}) outside text (length ${l.text.length})` })
+    if (!(Number.isInteger(a) && Number.isInteger(b) && a >= lo && a <= b && b <= hi)) {
+      issues.push({ path: p, message: lo === 0 && hi === l.text.length
+        ? `span [${a}, ${b}) outside text (length ${l.text.length})`
+        : `span [${a}, ${b}) outside its choice's span [${lo}, ${hi})` })
       return
     }
     const problem = spanProblem(cl, l.text.substring(a, b), l.text.substring(b))
     if (problem) issues.push({ path: p, message: `${cl.kind}: ${problem} ("${l.text.substring(a, b)}")` })
     for (const message of fragmentProblems(cl, l.text, a, b)) issues.push({ path: p, message })
-  })
+    // A choice's option clauses lie inside its span and do not overlap each other.
+    if (cl.kind === 'choice' && Array.isArray(cl.options)) {
+      const seen: [number, number, string][] = []
+      cl.options.forEach((opt, i) => {
+        if (!Array.isArray(opt)) return
+        opt.forEach((x, j) => {
+          const q = `${p}.options[${i}][${j}]`
+          check(x as Clause, q, a, b)
+          const at = (x as Clause)?.at
+          if (!Array.isArray(at)) return
+          const clash = seen.find(([s, e]) => at[0] < e && at[1] > s)
+          if (clash) issues.push({ path: q, message: `option quote "${l.text.substring(at[0], at[1])}" overlaps another option's quote "${l.text.substring(clash[0], clash[1])}"` })
+          seen.push([at[0], at[1], q])
+        })
+      })
+    }
+  }
+  l.clauses.forEach((cl, i) => check(cl, `${path}.clauses[${i}]`, 0, l.text.length))
   return issues
 }
 

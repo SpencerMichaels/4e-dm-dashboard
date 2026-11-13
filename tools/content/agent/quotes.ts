@@ -52,50 +52,75 @@ export function forEachLine(entry: unknown, visit: (line: Line, path: string) =>
 export function resolveQuotes(entry: unknown): QuoteError[] {
   const errors: QuoteError[] = []
   forEachLine(entry, (line, path) => {
-    let from = 0
-    line.clauses = line.clauses.map((raw, i) => {
-      const cl = raw as unknown as Record<string, unknown>
-      if (typeof cl !== 'object' || cl === null) return raw
-      const p = `${path}.clauses[${i}]`
-      // The minimal unparsed shape: { "text": "<exact words>" }.
-      if (cl.kind === undefined && typeof cl.text === 'string') cl.kind = 'unparsed'
-      let quote = cl.quote
-      if (quote === undefined && cl.at === undefined && cl.kind === 'unparsed' && typeof cl.text === 'string') quote = cl.text
-      if (quote === undefined) {
-        if (Array.isArray(cl.at) && typeof cl.at[1] === 'number') from = cl.at[1]
-        return raw
-      }
-      if (typeof quote !== 'string' || !quote.trim()) {
-        errors.push({ path: p, message: 'quote must be a non-empty string' })
-        return raw
-      }
-      const q = quote.trim()
-      const start = findQuote(line.text, q, from)
-      if (start < 0) {
-        errors.push({ path: p, message: `quote "${q}" is not in the line text "${line.text}"` })
-        return raw
-      }
-      from = start + q.length
-      const { quote: _q, at: _a, kind, ...others } = cl
-      const rest: Record<string, unknown> = { kind, ...others }
-      // Unparsed text is its span, in the printed wording.
-      if (rest.kind === 'unparsed') rest.text = line.text.substring(start, from)
-      return { at: [start, from], ...rest } as unknown as typeof raw
-    })
+    line.clauses = resolveList(line.text, line.clauses as unknown[], `${path}.clauses`, 0, line.text.length, errors) as Line['clauses']
   })
   return errors
+}
+
+/**
+ * Resolve a list of clauses whose quotes lie in text[lo, hi): the whole line,
+ * or a choice clause's span for its options (searched inside that span only).
+ */
+function resolveList(text: string, clauses: unknown[], path: string, lo: number, hi: number, errors: QuoteError[]): unknown[] {
+  const scope = text.substring(lo, hi)
+  const whole = lo === 0 && hi === text.length
+  let from = 0
+  const options = (cl: Record<string, unknown>, p: string, a: number, b: number) => {
+    if (cl.kind === 'choice' && Array.isArray(cl.options)) {
+      cl.options = cl.options.map((opt, j) => Array.isArray(opt) ? resolveList(text, opt, `${p}.options[${j}]`, a, b, errors) : opt)
+    }
+  }
+  return clauses.map((raw, i) => {
+    const cl = raw as Record<string, unknown>
+    if (typeof cl !== 'object' || cl === null) return raw
+    const p = `${path}[${i}]`
+    // The minimal unparsed shape: { "text": "<exact words>" }.
+    if (cl.kind === undefined && typeof cl.text === 'string') cl.kind = 'unparsed'
+    let quote = cl.quote
+    if (quote === undefined && cl.at === undefined && cl.kind === 'unparsed' && typeof cl.text === 'string') quote = cl.text
+    if (quote === undefined) {
+      if (Array.isArray(cl.at) && typeof cl.at[0] === 'number' && typeof cl.at[1] === 'number') {
+        from = cl.at[1] - lo
+        options(cl, p, cl.at[0], cl.at[1])
+      }
+      return raw
+    }
+    if (typeof quote !== 'string' || !quote.trim()) {
+      errors.push({ path: p, message: 'quote must be a non-empty string' })
+      return raw
+    }
+    const q = quote.trim()
+    const found = findQuote(scope, q, from)
+    if (found < 0) {
+      errors.push({ path: p, message: whole
+        ? `quote "${q}" is not in the line text "${text}"`
+        : `option quote "${q}" is not inside its choice's quote "${scope}"` })
+      return raw
+    }
+    from = found + q.length
+    const [start, end] = [lo + found, lo + from]
+    const { quote: _q, at: _a, kind, ...others } = cl
+    const rest: Record<string, unknown> = { kind, ...others }
+    // Unparsed text is its span, in the printed wording.
+    if (rest.kind === 'unparsed') rest.text = text.substring(start, end)
+    // A choice's options are quoted inside the choice's own span.
+    options(rest, p, start, end)
+    return { at: [start, end], ...rest }
+  })
 }
 
 /** The inverse, for briefs: every clause's `at` becomes `quote`; unparsed clauses become just `{ text }`. */
 export function atToQuote<T>(entry: T): T {
   const copy = JSON.parse(JSON.stringify(entry)) as T
-  forEachLine(copy, line => {
-    line.clauses = line.clauses.map(raw => {
-      const { at, ...rest } = raw as unknown as Record<string, unknown>
-      if (!Array.isArray(at)) return raw
-      if (rest.kind === 'unparsed') return { text: rest.text } as unknown as typeof raw
-      return { quote: line.text.substring(at[0] as number, at[1] as number), ...rest } as unknown as typeof raw
-    })
+  const toQuote = (text: string, clauses: unknown[]): unknown[] => clauses.map(raw => {
+    const { at, ...rest } = raw as Record<string, unknown>
+    if (!Array.isArray(at)) return raw
+    if (rest.kind === 'unparsed') return { text: rest.text }
+    if (rest.kind === 'choice' && Array.isArray(rest.options)) {
+      rest.options = rest.options.map(opt => Array.isArray(opt) ? toQuote(text, opt) : opt)
+    }
+    return { quote: text.substring(at[0] as number, at[1] as number), ...rest }
   })
+  forEachLine(copy, line => { line.clauses = toQuote(line.text, line.clauses as unknown[]) as Line['clauses'] })
   return copy
 }

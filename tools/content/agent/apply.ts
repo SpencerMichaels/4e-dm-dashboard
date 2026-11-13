@@ -103,7 +103,10 @@ export function diseaseIndex(repo: string): Map<string, string> {
 /** Set diseaseId on disease clauses whose printed name matches a disease exactly (agents give only the name). */
 export function fillDiseaseIds(entry: unknown, index: Map<string, string>): void {
   forEachLine(entry, line => {
-    for (const cl of line.clauses as unknown as Record<string, unknown>[]) {
+    const top = line.clauses as unknown as Record<string, unknown>[]
+    // Choice options hold clauses too (one level deep).
+    const nested = top.flatMap(cl => cl?.kind === 'choice' && Array.isArray(cl.options) ? (cl.options as unknown[]).flat() as Record<string, unknown>[] : [])
+    for (const cl of [...top, ...nested]) {
       if (cl?.kind !== 'disease' || typeof cl.disease !== 'string' || cl.diseaseId !== undefined) continue
       const id = index.get(diseaseKey(cl.disease))
       if (id) cl.diseaseId = id

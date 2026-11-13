@@ -113,11 +113,15 @@ lower confidence.
   a different defense. Take it out of `range.note`.
 - A power with no attack roll that prints a range ("Close burst 5 (allies in
   the burst)") has it in `range`, targets in `range.note`; the effect keeps the rest.
-- **Hit or effect.** `hit` holds what happens on a hit. A printed "Effect:" line,
-  or a sentence that applies whether the attack hits or misses ("After the
-  first or second attack, the wolf can shift 4 squares"), goes in the power's
-  `effect`, even when the print runs it into the hit text. Words stay verbatim;
-  say in `notes` what moved.
+- **Hit or effect.** `hit` holds what happens on a hit. A printed "Effect:" or
+  "Hit or Miss:" line, or a sentence that applies whether the attack hits or
+  misses ("After the first or second attack, the wolf can shift 4 squares"),
+  goes in the power's `effect`, even when the print runs it into the hit text.
+  A sustain sentence inside a hit line ("Sustain Minor: ...") goes in
+  `sustain.line`; a sentence about how the power may be used ("This power
+  counts as a ranged basic attack", "can use this power in place of a melee
+  basic attack when charging") goes in `special`, unparsed. Words stay
+  verbatim; say in `notes` what moved.
 - Labeled lines with no field of their own (form lines, numbered eye rays, an
   unparseable "Secondary Attack:") go in `extraLines` as `{label, line}`. An eye
   ray's "Ranged 10; +24 vs. Reflex" words are one unparsed clause.
@@ -125,7 +129,9 @@ lower confidence.
   `usesPerEncounter: 2`. "requires greatsword" / "requires combat advantage" is
   the power's `requirement` line, as is a usage condition that is not a
   trigger ("usable only while bloodied", "only while bloodied" in the usage
-  parentheses).
+  parentheses). A trait whose name carries such a condition ("Dragonborn Fury
+  (only while bloodied)", no action or usage printed) is a power with
+  `action: "no-action"`, `usage: "unknown"` and that `requirement`.
 - "Area 1 square within 10 squares" is `{"kind": "area-burst", "size": 0, "within": 10}`.
 - Set the power's `sustain` whenever it prints one; when the sustain is only
   inline ("(sustain minor)"), it is `{"action": "minor"}` with no `line`.
@@ -203,8 +209,6 @@ never write `at`. An unparsed clause is just `{"text": "<exact printed words>"}`
   the print clearly applies it to both ("2d6 + 5 or 3d6 + 5 fire damage"). An
   alternative roll ("or 5d6 + 7 against a prone target") is a damage clause
   quoting the dice, with `if`; the base roll gets the same words as `unless`.
-- One effect on several subjects ("The overseer and one ally turn invisible")
-  is one clause with a `who` list: `["self", "ally"]`.
 - A condition a zone imposes ("is blinded while within the zone") has the
   zone's duration, with the "in the zone" words as `if`.
 - Words two clauses share (a duration, a subject) go in one quote only; the
@@ -249,13 +253,7 @@ never write `at`. An unparsed clause is just `{"text": "<exact printed words>"}`
     goes in `if`, verbatim.
   - `unless`: when the print states the condition as the case in which the
     clause does NOT apply, copy those words into `unless` (never a "not:"
-    prefix). "...slowed (save ends). If the target is already slowed, it is
-    instead immobilized": the slowed clause has `"unless": "If the target is
-    already slowed"`; the immobilized clause has `"if": "If the target is
-    already slowed"`. "or else": "the target must answer the question
-    truthfully or else take 3d8 + 11 psychic damage": the damage clause quotes
-    "take 3d8 + 11 psychic damage" with `"unless": "the target must answer the
-    question truthfully"`.
+    prefix), as in the Inverted condition and Or else examples below.
   - `optional: true`: the print makes the effect a choice ("can shift 4
     squares", "the target can be grabbed", "can make a melee basic attack",
     "can make a saving throw"). The quote keeps the "can" words. Never express
@@ -268,21 +266,31 @@ never write `at`. An unparsed clause is just `{"text": "<exact printed words>"}`
   (creatures attacking it, creatures adjacent to it with no area). A narrower
   group ("undead in the burst", "Fey allies") takes the nearest value and keeps
   the narrowing words in the quote, never in `if`.
-- `charge`: "charges" and "can charge" (`optional: true`); the attack it makes
-  is the power's own attack.
 - `disease`: `disease` is the name as printed, without "level 6" ("contracts
   level 6 mummy rot": "mummy rot"); `stage` when printed. Tools fill `diseaseId`.
-- `reroll`: `what` is rerolled; `keep` only when the print says which roll
-  counts ("use the second result": `new`; "the higher result": `higher`).
-- `sense`: the sense id or `see-invisible` ("can see invisible creatures");
-  `range` when printed; an always-on trait has duration `permanent`.
+- `reroll`: `what` is rerolled (a list for "an attack roll, check, or save");
+  `keep` only when the print says which roll counts ("use the second result":
+  `new`; "the higher result": `higher`).
+- `choice`: either/or outcomes ("slides 4 squares or is knocked prone"). The
+  choice quotes the whole alternative (with its "or"); `options` has one list
+  of clauses per option, each quoted inside the choice's quote. An option no
+  kind fits is `[{"text": "..."}]`. `chooser` when printed ("the target
+  chooses": `target`; the source picks: `self`). Never a choice inside an
+  option; an option written with "can" alone is `optional`, not a choice.
+- "falls asleep" is `condition` `unconscious` (4e sleep); its wake rule is the duration.
+- `modifier` stats for checks: `skill:<skill>`, `skill-checks` (all),
+  `ability:<ability>` ("Strength checks": `ability:str`), `ability-checks`.
+  A bonus that replaces a standard one ("+2 bonus to attack rolls when
+  charging (instead of +1)") stays unparsed.
 - `modifier` stat `defenses` already includes AC: "+4 bonus to AC and all
   defenses" is `"stat": "defenses"`, never `["ac", "defenses"]`.
 - Threatening Reach ("can make opportunity attacks against all enemies within
   its reach") is `opportunity-reach` with `optional: true`.
 - grants-ca `to`: `source` is the clause's source only; `source-allies` is the
   source and its allies (use it for "the dragon and its allies" and for "the
-  Imperator and an ally"); `all` is every creature.
+  Imperator and an ally"); `all` is every creature; `rider`, `mount` or `ally`
+  when only that third party gains it ("the dire wolf's rider gains combat
+  advantage against the target": `to: "rider"`, `who: "target"`).
 - `duration`: "until the end of your next turn" is
   `{"kind":"turn-end","whose":"source","next":true}`; `whose: "target"` when it
   is the attack target's turn. `instant` for damage; `permanent` for always-on
@@ -292,10 +300,17 @@ never write `at`. An unparsed clause is just `{"text": "<exact printed words>"}`
   (`{"kind":"until","text":"until the end of the triggering enemy's next turn"}`).
   `until.text` is the printed words wherever they exist, never a paraphrase; a
   duration printed as its own sentence ("The effect lasts until ...") goes in
-  the clause's `until` and the sentence stays uncovered. `this-power`: only the
-  attacks the same power makes ("each at a -2 penalty"). A grab "(until
-  escape)" is `indefinite`. Ongoing damage with no printed duration is
-  `save-ends` (the 4e default); say so in `notes`.
+  the clause's `until` and the sentence stays uncovered (damage has no
+  duration: its `if` gets the sentence's "until ..." words). A bonus to one
+  later roll ("+2 bonus to its next attack roll", "to a single attack roll") is
+  `until` with those printed words. `this-power`: only the attacks the same
+  power makes ("each at a -2 penalty"; "This attack does not provoke
+  opportunity attacks" is status `no-provoke`). An effect that lasts only
+  during the power's own move ("+4 bonus to AC against opportunity attacks
+  during the move", insubstantial while moving) is `instant`, like
+  no-provoke on a move. A grab "(until escape)" is `indefinite`. Ongoing
+  damage with no printed duration is `save-ends` (the 4e default); say so in
+  `notes`.
 - `typeChoice`: "damage of one of the following types: acid, cold or fire" is
   chosen when used: `types: []` and `typeChoice` lists them (resistance: `type: "choice"`).
 
@@ -314,13 +329,13 @@ never write `at`. An unparsed clause is just `{"text": "<exact printed words>"}`
 
 | kind | the quote must contain |
 |---|---|
-| damage | the dice or flat number ("2d6 + 5" for `2d6+5`), not "damage"; "crit" if `critical`; each type in `types`, in the quote or the words after it |
+| damage | the dice or flat number in printed term order ("2d6 + 5" for `2d6+5`; "crit 22 + 2d8" for `22+2d8`), not "damage"; "crit" if `critical`; each type in `types`, in the quote or the words after it |
 | ongoing-damage | "ongoing" and the amount |
-| condition | the condition word in any form ("dazes", "knocks prone", "removed from play"); with `escapeDc`, "escape" and the number ("escape DC 21", "escapes (DC 21)"), in the quote or later in its sentence |
+| condition | the condition word in any form ("dazes", "knocks prone", "removed from play"; "asleep" for unconscious); with `escapeDc`, "escape" and the number ("escape DC 21", "escapes (DC 21)"), in the quote or later in its sentence |
 | forced-move, move | push / pull / slide / shift / teleport / swap (or switch) / fly / move (or walk, jump, climb) in any form; forced-move also the squares unless 1 |
-| modifier, revive | the number (digits or a word) |
+| modifier, revive | the number (digits or a word); a check stat also its skill or ability name ("Stealth", "Strength") in the quote or later in its sentence |
 | grants-ca | "combat advantage" |
-| resistance, vulnerability | "resist", "vulnerable" |
+| resistance, vulnerability | "resist", "vulnerab" ("vulnerable", "vulnerability") |
 | heal / temp-hp | "regains", "heals" or "hit points" / "temporary" |
 | regeneration, recharge-power, lose-healing-surge | "regenerat" or "regain", "recharge", "surge" |
 | half-damage | "half" or "halved" ("half damage", "half as much", "the damage is halved") |
@@ -339,22 +354,19 @@ never write `at`. An unparsed clause is just `{"text": "<exact printed words>"}`
 | reroll | "reroll" or "roll ... again" ("roll the attack again") |
 | action-point | "action point" and the amount ("an action point" for 1) |
 | sense | the sense name ("tremorsense", "low-light vision") or "see invisible", and `range` |
+| choice | "or" or "either"; every option clause's quote lies inside it |
 | damage-formula | "damage" |
 
 **Examples** (one clause or field each):
-- Conditional trait: `{"quote": "gains combat advantage", "kind": "grants-ca", "to": "source", "who": "target", "duration": {"kind": "permanent"}, "if": "against a target that has one or more of the wolf's allies adjacent to it"}`
 - Split condition ("At the start of an encounter, the assassin deals 2d6 extra damage against any enemy that has not yet acted during the encounter"): `{"quote": "2d6 extra damage", "kind": "damage", "dice": "2d6", "types": [], "who": "target", "extra": true, "if": ["At the start of an encounter", "against any enemy that has not yet acted during the encounter"]}`
 - Inverted condition ("The target is slowed (save ends). If the target is already slowed, it is instead immobilized (save ends)"): `{"quote": "slowed (save ends)", "kind": "condition", "condition": "slowed", "who": "target", "duration": {"kind": "save-ends"}, "unless": "If the target is already slowed"}, {"quote": "it is instead immobilized (save ends)", "kind": "condition", "condition": "immobilized", "who": "target", "duration": {"kind": "save-ends"}, "if": "If the target is already slowed"}`
 - Or else ("the target must answer the question truthfully or else take 3d8 + 11 psychic damage"): `{"quote": "take 3d8 + 11 psychic damage", "kind": "damage", "dice": "3d8+11", "types": ["psychic"], "who": "target", "unless": "the target must answer the question truthfully"}`
 - Save ends both: `{"quote": "dazed", "kind": "condition", "condition": "dazed", "who": "target", "duration": {"kind": "save-ends"}, "saveGroup": "a"}, {"quote": "slowed (save ends both)", "kind": "condition", "condition": "slowed", "who": "target", "duration": {"kind": "save-ends"}, "saveGroup": "a"}`
 - Several stats: `{"quote": "+2 bonus to attack rolls and damage rolls until the end of its next turn", "kind": "modifier", "stat": ["attack", "damage"], "value": 2, "who": "self", "duration": {"kind": "turn-end", "whose": "source", "next": true}}`
-- Extra damage: `{"quote": "2d10 extra damage", "kind": "damage", "dice": "2d10", "types": [], "who": "target", "extra": true, "if": "with melee attacks against a prone target"}`
 - Option ("After the first or second attack, the dire winter wolf can shift 4 squares", in `effect`): `{"quote": "the dire winter wolf can shift 4 squares", "kind": "move", "move": "shift", "squares": 4, "who": "self", "optional": true, "if": "After the first or second attack"}`; "the target can be grabbed" is a grabbed condition clause with `"optional": true`.
 - Type choice: `{"quote": "4d10 + 6 damage of one of the following types: acid, cold, or fire", "kind": "damage", "dice": "4d10+6", "types": [], "typeChoice": ["acid", "cold", "fire"], "who": "target"}`
 - Zone: `{"quote": "The blast creates a zone that lasts until the end of the dragon's next turn (sustain minor)", "kind": "zone", "duration": {"kind": "sustain", "action": "minor"}}, {"quote": "takes 10 fire damage", "kind": "damage", "dice": "10", "types": ["fire"], "who": "creatures-in-area", "if": "Any creature that enters or starts its turn in the zone"}`, and the power gets `"sustain": {"action": "minor"}`.
 - Trigger: `"trigger": {"text": "An enemy hits the guard.", "clauses": []}`; its interrupt: `{"quote": "The triggering attack targets the guard instead", "kind": "redirect-attack", "who": "self"}`
-- Base plus typed part ("2d8+10 plus 2d6 lightning damage"): `{"quote": "2d8+10", "kind": "damage", "dice": "2d8+10", "types": [], "who": "target"}, {"quote": "2d6 lightning damage", "kind": "damage", "dice": "2d6", "types": ["lightning"], "who": "target"}`
-- Base plus a cold part ("1d8+5 plus 1d10 cold damage"): `{"quote": "1d8+5", "kind": "damage", "dice": "1d8+5", "types": [], "who": "target"}, {"quote": "1d10 cold damage", "kind": "damage", "dice": "1d10", "types": ["cold"], "who": "target"}` (cold is not the base's type)
 - Base plus ongoing ("1d10+6 and ongoing 5 poison damage (save ends)"): `{"quote": "1d10+6", "kind": "damage", "dice": "1d10+6", "types": [], "who": "target"}, {"quote": "ongoing 5 poison damage (save ends)", "kind": "ongoing-damage", "amount": 5, "types": ["poison"], "who": "target", "duration": {"kind": "save-ends"}}`
 - Difficult terrain ("The aura is difficult terrain for enemies"): `{"quote": "is difficult terrain", "kind": "difficult-terrain", "who": "enemies-in-area", "duration": {"kind": "permanent"}}`
 - Fly and no-provoke ("The dragon flies up to 12 squares without provoking opportunity attacks"): `{"quote": "flies up to 12 squares", "kind": "move", "move": "fly", "squares": 12, "who": "self"}, {"quote": "without provoking opportunity attacks", "kind": "status", "status": "no-provoke", "who": "self", "duration": {"kind": "instant"}}`
@@ -366,6 +378,11 @@ never write `at`. An unparsed clause is just `{"text": "<exact printed words>"}`
 - Action point and rider ("its rider gains 1 action point"): `{"quote": "gains 1 action point", "kind": "action-point", "amount": 1, "who": "rider"}`
 - Sense ("The wraith gains tremorsense 10 until the end of its next turn"): `{"quote": "gains tremorsense 10 until the end of its next turn", "kind": "sense", "sense": "tremorsense", "range": 10, "who": "self", "duration": {"kind": "turn-end", "whose": "source", "next": true}}`; ("The beholder can see invisible creatures"): `{"quote": "can see invisible creatures", "kind": "sense", "sense": "see-invisible", "who": "self", "duration": {"kind": "permanent"}}`
 - This power only ("The dragon makes two claw attacks, each at a -2 penalty"): `{"quote": "makes two claw attacks", "kind": "use-power", "power": "claw", "times": 2, "who": "self"}, {"quote": "-2 penalty", "kind": "modifier", "stat": "attack", "value": -2, "who": "self", "duration": {"kind": "this-power"}}`
+- Choice ("The target slides 4 squares or is knocked prone"): `{"quote": "slides 4 squares or is knocked prone", "kind": "choice", "options": [[{"quote": "slides 4 squares", "kind": "forced-move", "move": "slide", "squares": 4, "who": "target"}], [{"quote": "knocked prone", "kind": "condition", "condition": "prone", "who": "target", "duration": {"kind": "indefinite"}}]]}`
+- Choice of attacks ("The dragon makes two fang attacks, two flame attacks, or one of each"): `{"quote": "two fang attacks, two flame attacks, or one of each", "kind": "choice", "options": [[{"quote": "two fang attacks", "kind": "use-power", "power": "fang", "times": 2, "who": "self"}], [{"quote": "two flame attacks", "kind": "use-power", "power": "flame", "times": 2, "who": "self"}], [{"text": "one of each"}]]}`
+- Rider ("The dire wolf's rider gains combat advantage against the target until the end of the dire wolf's next turn"): `{"quote": "gains combat advantage against the target until the end of the dire wolf's next turn", "kind": "grants-ca", "to": "rider", "who": "target", "duration": {"kind": "turn-end", "whose": "source", "next": true}}`
+- Skill check ("The assassin gains a +5 bonus to Stealth checks until the end of its next turn"): `{"quote": "+5 bonus to Stealth checks until the end of its next turn", "kind": "modifier", "stat": "skill:stealth", "value": 5, "who": "self", "duration": {"kind": "turn-end", "whose": "source", "next": true}}`
+- Asleep ("The target falls asleep for 1 hour or until woken"): `{"quote": "falls asleep for 1 hour or until woken", "kind": "condition", "condition": "unconscious", "who": "target", "duration": {"kind": "until", "text": "for 1 hour or until woken"}}`
 {{#items}}
 - Weapon critical: `"critical": {"text": "+1d6 damage per plus", "clauses": [{"quote": "+1d6 damage per plus", "kind": "damage-formula", "text": "+1d6 damage per plus", "types": []}]}`
 - An entry with nothing to structure (a ritual is often only description) needs

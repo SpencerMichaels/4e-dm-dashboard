@@ -100,6 +100,31 @@ describe('quotes', () => {
     resolveQuotes(quoted)
     expect(quoted).toEqual(entry)
   })
+
+  it('resolves choice option quotes inside the choice quote, and back again', () => {
+    const text = 'The target is knocked prone, then slides 4 squares or is knocked prone.'
+    const entry = { effect: { text, clauses: [
+      { quote: 'knocked prone', kind: 'condition', condition: 'prone', who: 'target', duration: { kind: 'indefinite' } },
+      { quote: 'slides 4 squares or is knocked prone', kind: 'choice', options: [
+        [{ quote: 'slides 4 squares', kind: 'forced-move', move: 'slide', squares: 4, who: 'target' }],
+        [{ text: 'knocked prone' }],
+      ] },
+    ] } }
+    expect(resolveQuotes(entry)).toEqual([])
+    const choice = entry.effect.clauses[1] as any
+    expect(choice.at).toEqual([34, 70])
+    expect(choice.options[0][0].at).toEqual([34, 50])
+    // The option's "knocked prone" is the one inside the choice, not the earlier one.
+    expect(choice.options[1][0]).toEqual({ at: [57, 70], kind: 'unparsed', text: 'knocked prone' })
+    const quoted = atToQuote(entry) as any
+    expect(quoted.effect.clauses[1].options[1][0]).toEqual({ text: 'knocked prone' })
+    expect(quoted.effect.clauses[1].options[0][0].quote).toBe('slides 4 squares')
+    resolveQuotes(quoted)
+    expect(quoted).toEqual(entry)
+
+    const outside = { effect: { text, clauses: [{ quote: 'slides 4 squares or is knocked prone', kind: 'choice', options: [[{ quote: 'The target', kind: 'unparsed' }]] }] } }
+    expect(resolveQuotes(outside)).toEqual([{ path: '$.effect.clauses[0].options[0][0]', message: 'option quote "The target" is not inside its choice\'s quote "slides 4 squares or is knocked prone"' }])
+  })
 })
 
 describe('brief', () => {

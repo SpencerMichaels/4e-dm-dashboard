@@ -554,3 +554,58 @@ describe('schema v9', () => {
     for (const q of ['[0].defense', '[0].value', '[0].if', '[1].if', '[1].note']) expect(paths).toContain(`$.defensesIf${q}`)
   })
 })
+
+describe('schema v10', () => {
+  const p = (cl: unknown, span: string, after = '') => spanProblem(cl as any, span, after)
+  const t = 'The target slides 4 squares or is knocked prone.'
+  const at = (q: string, text = t) => { const i = text.indexOf(q); return [i, i + q.length] }
+  const choice = (options: unknown[][], q = 'slides 4 squares or is knocked prone') => ({ at: at(q), kind: 'choice', options })
+  const slide = { at: at('slides 4 squares'), kind: 'forced-move', move: 'slide', squares: 4, who: 'target' }
+  const prone = { at: at('knocked prone'), kind: 'condition', condition: 'prone', who: 'target', duration: { kind: 'indefinite' } }
+  const errors = (clauses: unknown[], text = t) => {
+    const m = monster()
+    m.powers[0].effect = { text, clauses } as any
+    return validateEntry('monsters', m).errors
+  }
+
+  it('accepts a choice whose options lie inside its span', () => {
+    expect(errors([choice([[slide], [prone]])])).toEqual([])
+    expect(errors([{ ...choice([[slide], [{ at: at('knocked prone'), kind: 'unparsed', text: 'knocked prone' }]]), chooser: 'target' }])).toEqual([])
+  })
+
+  it('rejects options outside the span, overlapping options, nesting, one option and no "or"', () => {
+    const short = errors([choice([[slide], [prone]], 'slides 4 squares or is knocked')])
+    expect(short.map(e => e.message).join('\n')).toMatch(/outside its choice's span/)
+    const overlap = errors([choice([[slide], [{ ...prone, at: at('squares or is knocked prone') }]])])
+    expect(overlap.map(e => e.message).join('\n')).toMatch(/overlaps another option/)
+    const nested = errors([choice([[slide], [choice([[prone], [prone]])]])])
+    expect(nested.map(e => e.message).join('\n')).toMatch(/cannot hold another choice/)
+    expect(errors([choice([[slide]])]).map(e => e.message).join('\n')).toMatch(/two or more options/)
+    expect(errors([{ ...choice([[slide], [prone]]), chooser: 'dm' }]).map(e => e.path)).toContain('$.powers[0].effect.clauses[0].chooser')
+    expect(p({ kind: 'choice', options: [] }, 'slides 4 squares and is knocked prone')).toMatch(/"or"/)
+    expect(p({ kind: 'choice', options: [] }, 'either slides 4 squares')).toBeUndefined()
+  })
+
+  it('accepts third-party grants-ca, check stats and reroll lists', () => {
+    const text = "The dire wolf's rider gains combat advantage against the target, a +2 bonus to Athletics checks and Strength checks, and can reroll an attack roll or save."
+    expect(errors([
+      { at: at('gains combat advantage', text), kind: 'grants-ca', to: 'rider', who: 'target', duration: { kind: 'permanent' } },
+      { at: at('+2 bonus to Athletics checks and Strength checks', text), kind: 'modifier', stat: ['skill:athletics', 'ability:str'], value: 2, who: 'rider', duration: { kind: 'permanent' } },
+      { at: at('can reroll an attack roll or save', text), kind: 'reroll', what: ['attack', 'save'], who: 'rider', optional: true },
+    ], text)).toEqual([])
+    const bad = errors([{ at: at('gains combat advantage', text), kind: 'modifier', stat: ['skill:flying', 'ability:luck'], value: 2, who: 'rider', duration: { kind: 'permanent' } }], text)
+    expect(bad.map(e => e.path)).toEqual(expect.arrayContaining(['$.powers[0].effect.clauses[0].stat[0]', '$.powers[0].effect.clauses[0].stat[1]']))
+  })
+
+  it('needs the skill or ability name for a check stat, and reads "asleep" as unconscious', () => {
+    const mod = { kind: 'modifier', stat: 'skill:stealth', value: 5, who: 'self', duration: { kind: 'permanent' } }
+    expect(p(mod, '+5 bonus to Stealth checks')).toBeUndefined()
+    expect(p(mod, '+5 bonus', ' to Stealth checks.')).toBeUndefined()
+    expect(p(mod, '+5 bonus to Perception checks')).toMatch(/stealth/)
+    expect(p({ ...mod, stat: 'ability:str' }, '+5 bonus to Strength checks')).toBeUndefined()
+    expect(p({ ...mod, stat: 'skill-checks' }, '+5 bonus to all skill checks')).toBeUndefined()
+    const asleep = { kind: 'condition', condition: 'unconscious', who: 'target', duration: { kind: 'until', text: 'until woken' } }
+    expect(p(asleep, 'falls asleep until woken')).toBeUndefined()
+    expect(p(asleep, 'falls down')).toMatch(/unconscious/)
+  })
+})

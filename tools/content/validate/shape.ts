@@ -73,7 +73,10 @@ function duration(c: Checker, d: unknown, path: string): void {
 }
 
 const WHO = ['target', 'self', 'each-target', 'ally', 'enemies-in-area', 'creatures-in-area', 'allies-in-area', 'rider', 'mount', 'other']
-const MOD_STATS = ['attack', 'ac', 'fortitude', 'reflex', 'will', 'defenses', 'speed', 'saving-throws', 'damage']
+const MOD_STATS = [
+  'attack', 'ac', 'fortitude', 'reflex', 'will', 'defenses', 'speed', 'saving-throws', 'damage',
+  ...SKILLS.map(s => `skill:${s}`), 'skill-checks', ...ABILITIES.map(a => `ability:${a}`), 'ability-checks',
+]
 
 function damageTypes(c: Checker, v: unknown, path: string): void {
   if (!c.arr(v, path)) return
@@ -115,10 +118,12 @@ const CLAUSE_FIELDS: Record<string, string[]> = {
   'reroll': ['what', 'keep', 'who'],
   'action-point': ['amount', 'who'],
   'sense': ['sense', 'range', 'who', 'duration'],
+  'choice': ['options', 'chooser'],
   'unparsed': ['text'],
 }
 
 const RESTRICTIONS = ['encounter', 'daily', 'attack', 'all']
+const REROLL_WHAT = ['attack', 'save', 'damage', 'check']
 
 /** typeChoice: two or more damage types, with `types` empty (or resistance type 'choice'). */
 function typeChoice(c: Checker, cl: Record<string, unknown>, path: string): void {
@@ -130,8 +135,9 @@ function typeChoice(c: Checker, cl: Record<string, unknown>, path: string): void
   if (Array.isArray(cl.types) && cl.types.length > 0) c.fail(`${path}.types`, 'expected [] with typeChoice')
 }
 
-export function clause(c: Checker, cl: unknown, path: string): void {
+export function clause(c: Checker, cl: unknown, path: string, inChoice = false): void {
   if (!c.obj(cl, path)) return
+  if (inChoice && cl.kind === 'choice') { c.fail(`${path}.kind`, 'a choice option cannot hold another choice'); return }
   if (!Array.isArray(cl.at) || cl.at.length !== 2 || !cl.at.every(n => Number.isInteger(n))) c.fail(`${path}.at`, 'expected [start, end] integers')
   // if / unless: one printed fragment or a non-empty list of them (spans.ts checks the words).
   const fragments = (v: unknown, p: string) => {
@@ -168,7 +174,7 @@ export function clause(c: Checker, cl: unknown, path: string): void {
       c.optional(cl, 'escapeDc', path, (v, p) => c.int(v, p, { min: 1 }))
       if (cl.escapeDc !== undefined && cl.condition !== 'grabbed') c.fail(`${path}.escapeDc`, 'escapeDc only on a grabbed condition')
       break
-    case 'grants-ca': c.oneOf(['all', 'source', 'source-allies'], cl.to, `${path}.to`); who(); dur(); break
+    case 'grants-ca': c.oneOf(['all', 'source', 'source-allies', 'rider', 'mount', 'ally'], cl.to, `${path}.to`); who(); dur(); break
     case 'forced-move': c.oneOf(['push', 'pull', 'slide'], cl.move, `${path}.move`); c.int(cl.squares, `${path}.squares`, { min: 0 }); who(); break
     case 'move': c.oneOf(['shift', 'teleport', 'swap', 'fly', 'move'], cl.move, `${path}.move`); c.optional(cl, 'squares', path, (v, p) => c.int(v, p, { min: 0 })); who(); break
     case 'modifier':
@@ -215,7 +221,11 @@ export function clause(c: Checker, cl: unknown, path: string): void {
       c.optional(cl, 'stage', path, (v, p) => c.int(v, p, { min: 0 }))
       break
     case 'reroll':
-      c.oneOf(['attack', 'save', 'damage', 'check'], cl.what, `${path}.what`); who()
+      if (Array.isArray(cl.what)) {
+        if (cl.what.length === 0) c.fail(`${path}.what`, 'expected at least one value')
+        cl.what.forEach((s, i) => c.oneOf(REROLL_WHAT, s, `${path}.what[${i}]`))
+      } else c.oneOf(REROLL_WHAT, cl.what, `${path}.what`)
+      who()
       c.optional(cl, 'keep', path, (v, p) => c.oneOf(['new', 'higher', 'lower'], v, p))
       break
     case 'action-point': c.int(cl.amount, `${path}.amount`, { min: 1 }); who(); break
@@ -223,6 +233,19 @@ export function clause(c: Checker, cl: unknown, path: string): void {
       c.oneOf([...SENSE_KINDS, 'see-invisible'], cl.sense, `${path}.sense`); who(); dur()
       c.optional(cl, 'range', path, (v, p) => c.int(v, p, { min: 1 }))
       break
+    case 'choice': {
+      // Two or more options, each a non-empty list of clauses (never another choice).
+      c.optional(cl, 'chooser', path, (v, p) => c.oneOf(['self', 'target'], v, p))
+      const p = `${path}.options`
+      if (!c.arr(cl.options, p)) break
+      if (cl.options.length < 2) c.fail(p, 'expected two or more options')
+      cl.options.forEach((opt, i) => {
+        if (!c.arr(opt, `${p}[${i}]`)) return
+        if (opt.length === 0) c.fail(`${p}[${i}]`, 'expected at least one clause')
+        opt.forEach((x, j) => clause(c, x, `${p}[${i}][${j}]`, true))
+      })
+      break
+    }
     case 'unparsed': c.str(cl.text, `${path}.text`, { nonEmpty: true }); break
   }
 }
