@@ -1,4 +1,5 @@
 // D&D 4e disease HTML parser — build-time only
+import { fixLigatureSplits } from './text-utils'
 
 export interface ParsedDisease {
   name: string
@@ -17,7 +18,7 @@ export interface DiseaseIndexEntry {
 }
 
 function stripHtml(html: string): string {
-  return html.replace(/<br\s*\/?>/gi, '\n').replace(/<\/p>/gi, '\n').replace(/<[^>]+>/g, '').replace(/^[ \t]+/gm, '').replace(/\n{3,}/g, '\n\n').trim()
+  return fixLigatureSplits(html.replace(/<br\s*\/?>/gi, '\n').replace(/<\/p>/gi, '\n').replace(/<[^>]+>/g, '').replace(/^[ \t]+/gm, '').replace(/\n{3,}/g, '\n\n').trim())
 }
 
 function extractText(html: string, regex: RegExp): string {

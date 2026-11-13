@@ -14,7 +14,7 @@ export const USAGE_COLORS: Record<string, string> = {
 export const DND4E_ACTION_TYPES: Record<string, string> = {
   'standard': 'standard action', 'move': 'move action', 'minor': 'minor action',
   'free': 'free action', 'immediate-interrupt': 'immediate interrupt',
-  'immediate-reaction': 'immediate reaction', 'no-action': 'no action',
+  'immediate-reaction': 'immediate reaction', 'opportunity': 'opportunity action', 'no-action': 'no action',
 }
 
 // XP by level (DMG p.56), from the shared 4e-kit vocabulary
@@ -133,6 +133,8 @@ export interface DamagePart {
   expr: string
   type: string
   ongoing: boolean
+  /** Ongoing damage that a save ends. */
+  saveEnds?: boolean
 }
 
 export function normalizeDamage(damage: DamagePart[] | string | undefined): DamagePart[] {

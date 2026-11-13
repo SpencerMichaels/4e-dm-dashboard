@@ -5,15 +5,25 @@
 import { generateId } from '../../src/common/utils/id'
 import type { Creature } from '../../src/common/types'
 import { allDamageTypes, attackTraits } from '../../src/common/rules/known-values'
+import { fixLigatureSplits, normalizeRecharge } from './text-utils'
+
+export interface ParseOptions {
+  /**
+   * Attach `printed` to each power: the printed text of every labeled line
+   * (attack, hit, miss, effect, ...) before damage and crit are split out.
+   * The kit converter needs it; the app's parsed JSON leaves it out.
+   */
+  printed?: boolean
+}
 
 /** Parse raw HTML into a Creature. */
-export function parseMonsterHtml(html: string, warnings: string[]): Creature {
-  return _parseMonsterHtml(html, warnings)
+export function parseMonsterHtml(html: string, warnings: string[], options: ParseOptions = {}): Creature {
+  return _parseMonsterHtml(html, warnings, options)
 }
 
 // ─── Strip HTML tags, keeping text content ───
 function stripHtml(html: string): string {
-  return html.replace(/<br\s*\/?>/gi, '\n').replace(/<\/td>\s*<td[^>]*>/gi, '\n').replace(/<\/tr>\s*<tr[^>]*>/gi, '\n').replace(/<[^>]+>/g, '').replace(/^[ \t]+/gm, '').trim()
+  return fixLigatureSplits(html.replace(/<br\s*\/?>/gi, '\n').replace(/<\/td>\s*<td[^>]*>/gi, '\n').replace(/<\/tr>\s*<tr[^>]*>/gi, '\n').replace(/<[^>]+>/g, '').replace(/^[ \t]+/gm, '').trim())
 }
 
 // ─── Extract bold text from HTML ───
@@ -22,7 +32,7 @@ function extractBold(html: string): string[] {
 }
 
 // ─── Main HTML parser ───
-function _parseMonsterHtml(html: string, warnings: string[]): Creature {
+function _parseMonsterHtml(html: string, warnings: string[], options: ParseOptions): Creature {
   const now = new Date().toISOString()
 
   // ── Header: <h1 class=monster> ──
@@ -109,10 +119,10 @@ function _parseMonsterHtml(html: string, warnings: string[]): Creature {
   }
 
   // Auras from stats block (bold name + "aura N;")
-  const statsAuras = parseAurasFromStatsHtml(statsHtml)
+  const statsAuras = parseAurasFromStatsHtml(statsHtml, options.printed)
 
   // ── Powers: <p class='flavor alt'> + <p class=flavorIndent> pairs ──
-  const actions = [...statsAuras, ...parsePowersFromHtml(html, warnings)]
+  const actions = [...statsAuras, ...parsePowersFromHtml(html, warnings, options)]
 
   // ── Footer: ability scores, skills from <p class='flavor alt'> with Skills/Str ──
   // Alignment, Languages, Equipment from <p class=flavor> with Alignment
@@ -186,12 +196,6 @@ function _parseMonsterHtml(html: string, warnings: string[]): Creature {
       }
     }
 
-    // Extract encounter usage from keywords
-    const kws = Array.isArray(a.keywords) ? a.keywords as string[] : []
-    const usageKw = kws.find((k: string) => /^\d+\/encounter$/i.test(k.trim()))
-    if (usageKw) {
-      a.encounterUses = parseInt(usageKw)
-    }
   }
 
   // ─── Extract regeneration and revival data ───
@@ -259,7 +263,7 @@ function _parseMonsterHtml(html: string, warnings: string[]): Creature {
 }
 
 // ─── Parse powers from HTML <p> tag pairs ───
-function parsePowersFromHtml(html: string, warnings: string[]): any[] {
+function parsePowersFromHtml(html: string, warnings: string[], options: ParseOptions): any[] {
   const results: any[] = []
 
   // Collect all <h2> and <p> blocks in document order
@@ -293,7 +297,7 @@ function parsePowersFromHtml(html: string, warnings: string[]): any[] {
 
   function flushPower() {
     if (!currentHeader) return
-    const parsed = parseOneAbility(currentHeader, currentBody, sectionToDefault(currentSection), warnings)
+    const parsed = parseOneAbility(currentHeader, currentBody, sectionToDefault(currentSection), warnings, options)
     if (parsed) results.push(parsed)
     currentHeader = null
     currentBody = []
@@ -324,8 +328,117 @@ function parsePowersFromHtml(html: string, warnings: string[]): any[] {
   return results
 }
 
+// ─── Header keyword cleanup ───
+// Header bolds after ✦ mix real keywords with usage metadata ("Encounter",
+// "Recharge", "2/Encounter", "At-Will (1/round)"). Split the two apart.
+interface HeaderKeywords {
+  keywords: string[]
+  usage?: 'encounter' | 'daily' | 'recharge'
+  encounterUses?: number
+  /** "1/round" frequency limits, reported as requirements. */
+  frequency: string[]
+}
+
+export function cleanHeaderKeywords(bolds: string[]): HeaderKeywords {
+  const out: HeaderKeywords = { keywords: [], frequency: [] }
+  const parts = bolds.flatMap(k => k.split(/[,;]/)).map(s => s.trim()).filter(Boolean)
+  for (const part of parts) {
+    const lower = part.toLowerCase()
+    let m: RegExpMatchArray | null
+    if (lower === 'at-will') continue
+    if (lower === 'encounter') { out.usage = 'encounter'; continue }
+    if (lower === 'daily') { out.usage = 'daily'; continue }
+    if ((m = lower.match(/^(\d+)\/encounter(?:\s*\((\d+\/\w+)\))?$/))) {
+      out.usage = 'encounter'
+      out.encounterUses = parseInt(m[1])
+      if (m[2]) out.frequency.push(m[2])
+      continue
+    }
+    if ((m = lower.match(/^at-will\s*\((\d+)\/(\w+)\)$/))) {
+      if (m[2] === 'encounter') { out.usage = 'encounter'; out.encounterUses = parseInt(m[1]) }
+      else out.frequency.push(`${m[1]}/${m[2]}`)
+      continue
+    }
+    // "Recharge", "Recharge 5", "or when first bloodied": the condition itself
+    // is read from the header text, so the fragments are dropped here.
+    if (/^recharge\b/.test(lower) || /^(?:or|and)\b.*\b(?:recharge|bloodied)\b/.test(lower) || /^[1-6⚀-⚅\s]+$/.test(lower)) {
+      out.usage = 'recharge'
+      continue
+    }
+    // "Acid, Cold, or Poison" split on commas leaves "or Poison".
+    out.keywords.push(part.replace(/^(?:or|and)\s+/i, ''))
+  }
+  return out
+}
+
+// ─── Range, target and notes from an attack's range part ───
+// "Close burst 5; targets enemies" / "Ranged 10 (one creature)" / "Melee 1 or Ranged 10"
+export function parseRangePart(rangePart: string): { rangeType: string; rangeValue: string; target: string; notes: string[] } {
+  const segs = rangePart.split(/\s*;\s*/).map(s => s.trim()).filter(Boolean)
+  let target = ''
+  const notes: string[] = []
+  let rangeType = 'melee'
+  let rangeValue = ''
+  const first = segs[0] ?? ''
+  if (/^targets?\b/i.test(first)) {
+    // No range at all: "Targets the triggering enemy"
+    target = first.replace(/^targets?\s+/i, '')
+  } else {
+    rangeType = parseRangeType(first)
+    const paren = first.match(/\((.+)\)\s*$/)
+    if (paren) target = paren[1].trim()
+    const value = parseRangeValue(first)
+    const lead = value.match(/^(?:\d+(?:\/\d+)?(?:\s+within\s+\d+)?(?:\s+squares?)?|sight|touch)\b/i)
+    rangeValue = lead ? lead[0].replace(/\s+squares?$/i, '') : ''
+    const rest = lead ? value.substring(lead[0].length).replace(/^[\s,.]+/, '') : value
+    if (rest) notes.push(rest)
+  }
+  for (const seg of segs.slice(1)) {
+    if (!target) target = seg.replace(/^targets?\s+/i, '')
+    else notes.push(seg)
+  }
+  return { rangeType, rangeValue, target, notes }
+}
+
+const LEADING_RANGE = /^((?:close burst|close blast|area burst|area wall|ranged|melee|reach)\b[^;.()]*(?:\([^)]*\))?)\s*[;.]\s*/i
+
+/**
+ * Pull a leading range ("Close burst 5; ...", "Ranged sight (one creature). ...")
+ * off the front of a utility power's effect text.
+ */
+export function splitLeadingRange(text: string): { range: string; target: string; rest: string } | null {
+  const m = text.match(LEADING_RANGE)
+  if (!m) return null
+  let rest = text.substring(m[0].length)
+  let target = ''
+  const t = rest.match(/^targets?\s+([^;.]+);\s*/i)
+  if (t) { target = t[1].trim(); rest = rest.substring(t[0].length) }
+  rest = rest.replace(/^Effect:\s*/i, '')
+  return { range: m[1].trim(), target, rest }
+}
+
+/** Action type named in a body label's parenthetical: "attack (immediate reaction)". */
+export function labelActionType(label: string): string | undefined {
+  const m = label.match(/\((free action|immediate interrupt|immediate reaction|no action|opportunity action)\)/i)
+  if (!m) return undefined
+  const a = m[1].toLowerCase()
+  if (a.includes('free')) return 'free'
+  if (a.includes('interrupt')) return 'immediate-interrupt'
+  if (a.includes('reaction')) return 'immediate-reaction'
+  if (a.includes('opportunity')) return 'opportunity'
+  return 'no-action'
+}
+
+/** "ACThe" (text run into the defense) -> "AC"; unknown defenses unchanged. */
+export function normalizeDefense(raw: string): string {
+  const m = raw.match(/^(AC|Fortitude|Reflex|Will)/i)
+  if (!m) return raw
+  const d = m[1].toLowerCase()
+  return d === 'ac' ? 'AC' : d.charAt(0).toUpperCase() + d.slice(1)
+}
+
 // ─── Parse a single ability from its header HTML and body block HTMLs ───
-function parseOneAbility(headerHtml: string, bodyBlocks: string[], sectionDefault: string = 'standard', warnings: string[] = []): any | null {
+function parseOneAbility(headerHtml: string, bodyBlocks: string[], sectionDefault: string = 'standard', warnings: string[] = [], options: ParseOptions = {}): any | null {
   const headerText = stripHtml(headerHtml)
   const bolds = extractBold(headerHtml)
 
@@ -340,20 +453,19 @@ function parseOneAbility(headerHtml: string, bodyBlocks: string[], sectionDefaul
   const name = bolds[0] ?? afterIcon.match(/^([A-Z][\w\s'\-]+?)(?:\s+[✦(]|\s*$)/)?.[1]?.trim() ?? afterIcon.trim()
   if (!name || name.length < 2) return null
 
-  // Keywords = bold words after ✦ (filter out usage types that appear as bold keywords).
-  // Some entries pack multiple keywords into one <b> tag comma-separated (e.g. "<b>Healing, Weapon</b>"),
-  // so we split on commas after extracting.
-  const usageWords = new Set(['at-will', 'encounter', 'daily'])
+  // Keywords = bold words after ✦, minus usage metadata. Some entries pack
+  // several keywords into one <b> tag ("<b>Healing, Weapon</b>").
   const hasStarKeywords = headerText.includes('✦')
-  const keywords = hasStarKeywords
-    ? bolds.slice(1).flatMap(k => k.split(',').map(s => s.trim())).filter(k => k && !usageWords.has(k.toLowerCase()))
-    : []
+  const headerKw = cleanHeaderKeywords(hasStarKeywords ? bolds.slice(1) : [])
+  const keywords = headerKw.keywords
 
   // Parse action paren
   const parenMatch = afterIcon.match(/\(([^)]+)\)/)
   const actionParen = parenMatch?.[1] ?? ''
   const parsed = parseActionParen(actionParen)
   let { actionType, usage: finalUsage, trigger, requirement, sustain, rechargeCondition, parenKeywords, unrecognized } = parsed
+  let encounterUses = headerKw.encounterUses
+  if (headerKw.frequency.length > 0) requirement = [requirement, ...headerKw.frequency].filter(Boolean).join('; ')
 
   // Merge keywords from paren into the header keywords
   if (parenKeywords.length > 0) keywords.push(...parenKeywords)
@@ -363,31 +475,17 @@ function parseOneAbility(headerHtml: string, bodyBlocks: string[], sectionDefaul
     warnings.push(`${name}: unrecognized paren segment(s): ${unrecognized.map(s => '"' + s + '"').join(', ')}`)
   }
 
-  // Override usage from bold header keywords if paren didn't specify
+  // Usage from the header after ✦ if the paren didn't specify one. "Recharge"
+  // may be bold or plain text ("✦ Recharge ⚄ ⚅"); its condition follows it.
   if (finalUsage === 'at-will' && hasStarKeywords) {
-    const headerUsage = bolds.slice(1).find(k => usageWords.has(k.toLowerCase()))
-    if (headerUsage) {
-      const u = headerUsage.toLowerCase()
-      if (u === 'encounter') finalUsage = 'encounter'
-      else if (u === 'daily') finalUsage = 'daily'
-    }
-    // Detect "Recharge" as a bold keyword — condition text follows in the header
-    // e.g. "✦ <b>Recharge</b> if the attack misses" or "✦ <b>Recharge</b> 5 6"
-    if (bolds.slice(1).some(k => k.toLowerCase() === 'recharge')) {
+    const afterStar = afterIcon.substring(afterIcon.indexOf('✦') + 1)
+    const rcMatch = afterStar.match(/\bRecharge\b\s*([^✦]*)/i)
+    if (rcMatch) {
       finalUsage = 'recharge'
-      // Extract the recharge condition from the header text after "Recharge"
-      const rcMatch = afterIcon.match(/\bRecharge\b\s+(.+?)(?:\s*$)/i)
-      if (rcMatch) {
-        let rc = rcMatch[1].trim()
-        // Normalize dice notation: "5 6" → "5-6", single digit → "N-6"
-        rc = rc.replace(/[⚅]/g,'6').replace(/[⚄]/g,'5').replace(/[⚃]/g,'4').replace(/[⚂]/g,'3').replace(/[⚁]/g,'2').replace(/[⚀]/g,'1')
-        const diceRange = rc.match(/^[\d\s]+$/)
-        if (diceRange) {
-          const nums = rc.replace(/\s+/g,'').split('').map(Number).sort((a,b) => a - b)
-          rc = nums[0] + '-' + nums[nums.length - 1]
-        }
-        if (!rechargeCondition) rechargeCondition = rc
-      }
+      const rc = normalizeRecharge(rcMatch[1].replace(/[,.;]+$/, ''))
+      if (!rechargeCondition && rc) rechargeCondition = rc
+    } else if (headerKw.usage) {
+      finalUsage = headerKw.usage
     }
   }
 
@@ -395,27 +493,31 @@ function parseOneAbility(headerHtml: string, bodyBlocks: string[], sectionDefaul
   const fields: Record<string, string> = {}
   let unlabeledText = ''
 
+  // After a "Secondary Attack" line, the Hit/Miss/Effect lines that follow
+  // belong to the secondary attack, not the primary one.
+  let inSecondary = false
   for (const blockHtml of bodyBlocks) {
     const labelMatch = blockHtml.match(/<i>([^<]+)<\/i>\s*/)
     if (labelMatch) {
       const label = labelMatch[1].replace(/:$/, '').trim().toLowerCase()
       const value = stripHtml(blockHtml.substring(labelMatch.index! + labelMatch[0].length)).trim()
-      if (label.startsWith('attack')) fields.attack = (fields.attack ? fields.attack + ' ' : '') + value
+      // "Attack (Immediate Reaction):", "Effect (No Action):", "Trigger (Free Action):"
+      const labelAction = /^(attack|effect|trigger)\b/.test(label) ? labelActionType(label) : undefined
+      if (labelAction) actionType = labelAction
+      if (label.startsWith('secondary') || label.startsWith('tertiary')) {
+        inSecondary = true
+        fields.secondary = (fields.secondary ? fields.secondary + ' ' : '') + value
+      }
+      else if (inSecondary && /^(hit|miss|effect)\b/.test(label)) {
+        const sub = label.replace(/\s*\(.*$/, '')
+        fields['secondary ' + sub] = value
+      }
+      else if (label.startsWith('attack')) fields.attack = (fields.attack ? fields.attack + ' ' : '') + value
       else if (label.startsWith('hit')) fields.hit = value
       else if (label.startsWith('miss')) fields.miss = value
-      else if (label.startsWith('effect')) {
-        fields.effect = value
-        const actMatch = label.match(/\((free action|immediate interrupt|immediate reaction|no action)\)/i)
-        if (actMatch) {
-          const a = actMatch[1].toLowerCase()
-          if (a.includes('free')) actionType = 'free'
-          else if (a.includes('interrupt')) actionType = 'immediate-interrupt'
-          else if (a.includes('reaction')) actionType = 'immediate-reaction'
-        }
-      }
+      else if (label.startsWith('effect')) fields.effect = value
       else if (label.startsWith('trigger')) fields.trigger = value
       else if (label.startsWith('sustain')) { fields.sustain = value; sustain = label.replace('sustain', '').trim() || value }
-      else if (label.startsWith('secondary')) fields.secondary = (fields.secondary ? fields.secondary + ' ' : '') + value
       else if (label.startsWith('aftereffect')) fields.aftereffect = value
       else if (label.startsWith('requirement')) fields.requirement = value
       else fields[label] = value
@@ -440,28 +542,30 @@ function parseOneAbility(headerHtml: string, bodyBlocks: string[], sectionDefaul
     if (bodyUsage) {
       const u = bodyUsage[1].toLowerCase()
       if (u === 'encounter') finalUsage = 'encounter'
-      else if (u === 'daily') finalUsage = 'encounter'
+      else if (u === 'daily') finalUsage = 'daily'
     }
   }
 
   // Recharge from body if not in paren
   if (finalUsage === 'recharge' && !rechargeCondition && unlabeledText) {
     const rc = unlabeledText.match(/[Rr]echarge\s+(.+?)(?=\s+Attack:|\s+Effect:|\n|$)/i)
-    if (rc) {
-      rechargeCondition = rc[1].replace(/[⚅]/g,'6').replace(/[⚄]/g,'5').replace(/[⚃]/g,'4').replace(/[⚂]/g,'3').replace(/[⚁]/g,'2').replace(/[⚀]/g,'1').replace(/\s+/g,' ').trim()
-      const dr = rechargeCondition.match(/^[\d\s]+$/)
-      if (dr) { const nums = rechargeCondition.replace(/\s+/g,'').split('').map(Number).sort((a,b)=>a-b); rechargeCondition = nums[0]+'-'+nums[nums.length-1] }
-    }
+    if (rc) rechargeCondition = normalizeRecharge(rc[1])
   }
+
+  // Printed text of each line, before damage and crit are split out (converter input)
+  const printed: Record<string, string> = { ...fields }
+  if (unlabeledText) printed.body = unlabeledText
 
   // Trait (no icon, no action paren, no ✦)
   if (!icon && !actionParen && !hasStarKeywords) {
+    const text = unlabeledText || Object.values(fields).join(' ')
     return {
       name, entryType: 'trait', actionType: '', usage: '',
       keywords: [], rangeType: '', rangeValue: '', target: '',
       attackBonus: null, attackNotes: '', defense: '', damage: [],
-      hit: '', miss: '', effect: (unlabeledText || Object.values(fields).join(' ')).substring(0, 500),
+      hit: '', miss: '', effect: text.substring(0, 500),
       trigger: '', requirement: '', sustain: '',
+      ...(options.printed ? { printed: { text } } : {}),
     }
   }
 
@@ -469,13 +573,15 @@ function parseOneAbility(headerHtml: string, bodyBlocks: string[], sectionDefaul
   const allBodyText = unlabeledText + ' ' + Object.values(fields).join(' ')
   if (icon === '☼' || allBodyText.toLowerCase().startsWith('aura') || afterIcon.toLowerCase().includes('aura')) {
     const auraRange = parseInt((afterIcon + ' ' + allBodyText).match(/[Aa]ura\s+(\d+)/)?.[1] ?? '1')
+    const text = allBodyText.replace(/^Aura\s+\d+\s*/i, '')
     return {
       name, entryType: 'aura', actionType: '', usage: '',
       keywords, rangeType: '', rangeValue: '', target: '',
       attackBonus: null, attackNotes: '', defense: '', damage: [],
       hit: '', miss: '',
-      effect: allBodyText.replace(/^Aura\s+\d+\s*/i, '').substring(0, 500),
+      effect: text.substring(0, 500),
       trigger: '', requirement: '', sustain: '', auraRange,
+      ...(options.printed ? { printed: { text: text.trim() } } : {}),
     }
   }
 
@@ -484,7 +590,7 @@ function parseOneAbility(headerHtml: string, bodyBlocks: string[], sectionDefaul
   let rangeValue = ''
   let target = ''
   let attackBonus: number | null = null
-  let attackNotes = ''
+  const notes: string[] = []
   let defense = 'AC'
   let damageRaw = ''
   let hit = ''
@@ -499,51 +605,55 @@ function parseOneAbility(headerHtml: string, bodyBlocks: string[], sectionDefaul
   if (fields.attack) {
     const atkLabeled = fields.attack.match(/(.+?)\s*;\s*\+(\d+)\s+vs\.?\s*(\w+)/)
     if (atkLabeled) {
-      const rangePart = atkLabeled[1].trim()
-      rangeType = parseRangeType(rangePart)
-      rangeValue = parseRangeValue(rangePart)
-      target = rangePart.match(/\((.+)\)/)?.[1] ?? ''
+      const r = parseRangePart(atkLabeled[1].trim())
+      rangeType = r.rangeType
+      rangeValue = r.rangeValue
+      target = r.target
+      notes.push(...r.notes)
       attackBonus = parseInt(atkLabeled[2])
-      defense = atkLabeled[3]
+      defense = normalizeDefense(atkLabeled[3])
+      // Text after the defense ("vs. ACIf Vestapalk targets only one creature, ...")
+      const tail = (atkLabeled[3].substring(defense.length) + fields.attack.substring(atkLabeled.index! + atkLabeled[0].length))
+        .replace(/^[\s.;,]+/, '').trim()
+      if (tail) notes.push(tail)
     }
   } else if (unlabeledText) {
     // Inline format
     const atkRollMatch = unlabeledText.match(/\+(\d+)\s+vs\.?\s*(\w+)\s*;\s*(.+)/is)
     if (atkRollMatch) {
       attackBonus = parseInt(atkRollMatch[1])
-      defense = atkRollMatch[2]
+      defense = normalizeDefense(atkRollMatch[2])
 
-      const beforeAtk = unlabeledText.substring(0, atkRollMatch.index).trim()
+      const beforeAtk = unlabeledText.substring(0, atkRollMatch.index).trim().replace(/;$/, '').trim()
       if (beforeAtk) {
-        rangeType = parseRangeType(beforeAtk)
-        rangeValue = parseRangeValue(beforeAtk)
-        const targetsMatch = beforeAtk.match(/targets?\s+(.+?)(?:;|$)/i)
-        if (targetsMatch) {
-          target = targetsMatch[1].trim()
-        } else {
-          const targetParen = beforeAtk.match(/\((.+)\)/)
-          if (targetParen) {
-            const parenParts = targetParen[1].split(/;\s*/)
-            target = parenParts[0].trim()
-            if (parenParts.length > 1) attackNotes = parenParts.slice(1).join('; ')
-          }
-        }
+        const r = parseRangePart(beforeAtk)
+        rangeType = r.rangeType
+        rangeValue = r.rangeValue
+        target = r.target
+        notes.push(...r.notes)
       }
 
       let afterAtk = atkRollMatch[3].trim()
       const lp = afterAtk.match(/^\(([^)]+)\)\s*;?\s*/)
       if (lp) {
         afterAtk = afterAtk.substring(lp[0].length)
-        if (lp[1].startsWith('+')) attackNotes = lp[1]
+        if (lp[1].startsWith('+')) notes.push(lp[1])
         else if (!target) target = lp[1]
-        else attackNotes = (attackNotes ? attackNotes + '; ' : '') + lp[1]
+        else notes.push(lp[1])
       }
-      const missInline = unlabeledText.match(/Miss:\s*(.+?)(?=\s+Effect:|\n|$)/i)
+      // Inline labels; "Aftereffect:" must not be read as "Effect:".
+      const missInline = unlabeledText.match(/\bMiss:\s*(.+?)(?=\s+(?<![A-Za-z])(?:Effect|Aftereffect):|\n|$)/i)
       if (missInline && !miss) miss = missInline[1].trim()
-      const effInline = unlabeledText.match(/Effect:\s*(.+?)(?=\n|$)/i)
+      const effInline = unlabeledText.match(/(?<![A-Za-z])Effect:\s*(.+?)(?=\n|$)/i)
       if (effInline && !effect) effect = effInline[1].trim()
-      const em = afterAtk.match(/^(.+?)\s*(?:Effect:|Miss:)/i)
+      const aftInline = unlabeledText.match(/\bAftereffect:\s*(.+?)(?=\s+(?:(?<![A-Za-z])Effect|Miss):|\n|$)/i)
+      if (aftInline && !fields.aftereffect) fields.aftereffect = aftInline[1].trim()
+      const em = afterAtk.match(/^(.+?)\s*(?:(?<![A-Za-z])Effect:|Aftereffect:|Miss:)/i)
       if (em) afterAtk = em[1].trim()
+      printed.hit = afterAtk
+      if (missInline) printed.miss = missInline[1].trim()
+      if (effInline) printed.effect = effInline[1].trim()
+      if (aftInline) printed.aftereffect = aftInline[1].trim()
 
       // Extract crit/critical parentheticals into the critical field before stripping
       const critParenMatch = afterAtk.match(/\((?:on\s+)?crit(?:ical)?\s+([^)]*)\)/i)
@@ -579,13 +689,33 @@ function parseOneAbility(headerHtml: string, bodyBlocks: string[], sectionDefaul
     effect = allBodyText.substring(0, 500)
   }
 
-  // Append secondary attack/aftereffect to hit if present
-  if (fields.secondary) hit = (hit ? hit + ' ' : '') + 'Secondary: ' + fields.secondary
-  if (fields.aftereffect) hit = (hit ? hit + ' ' : '') + 'Aftereffect: ' + fields.aftereffect
+  // Utility powers print their range at the front of the effect:
+  // "Close burst 5; targets allies; each target ..." — move it to the range fields.
+  if (attackBonus == null && !rangeValue) {
+    const lead = splitLeadingRange(effect.trim())
+    if (lead) {
+      const r = parseRangePart(lead.range)
+      rangeType = r.rangeType
+      rangeValue = r.rangeValue
+      target = lead.target || r.target
+      notes.push(...r.notes)
+      effect = lead.rest
+    }
+  }
+
   if (fields.requirement) requirement = requirement ? requirement + '; ' + fields.requirement : fields.requirement
 
   // Parse damageRaw into structured DamagePart[]
   const damage = parseDamageParts(damageRaw, allDamageTypes)
+
+  // "ongoing 5 fire damage (save ends)": once the ongoing part is structured,
+  // the "(save ends)" left at the front of the hit text belongs to it.
+  const lastPart = damage[damage.length - 1]
+  const orphanSave = hit.match(/^\(save ends\)\s*[.,;]?\s*/i)
+  if (orphanSave && lastPart?.ongoing) {
+    lastPart.saveEnds = true
+    hit = hit.substring(orphanSave[0].length)
+  }
 
   // Clean leading conjunctions from hit text
   hit = hit.replace(/^and\s+/i, '')
@@ -624,15 +754,21 @@ function parseOneAbility(headerHtml: string, bodyBlocks: string[], sectionDefaul
   return {
     name, entryType: 'action', actionType, usage: finalUsage,
     rechargeCondition: rechargeCondition || undefined,
-    keywords, rangeType, rangeValue, target, attackBonus, attackNotes, defense,
+    encounterUses,
+    keywords, rangeType, rangeValue, target, attackBonus, attackNotes: notes.join('; '), defense,
     damage, hit: cap(hit), miss: cap(miss), effect: cap(effect),
+    secondary: fields.secondary
+      ? cap([fields.secondary, ...['hit', 'miss', 'effect'].filter(k => fields['secondary ' + k]).map(k => `${cap(k)}: ${fields['secondary ' + k]}`)].join(' '))
+      : undefined,
+    aftereffect: fields.aftereffect ? cap(fields.aftereffect) : undefined,
     critical: cleanCritical(critical) || undefined,
     trigger: cap(trigger), requirement, sustain,
+    ...(options.printed ? { printed } : {}),
   }
 }
 
 // ─── Parse auras from the stats <p class=flavor> HTML ───
-function parseAurasFromStatsHtml(statsHtml: string): any[] {
+function parseAurasFromStatsHtml(statsHtml: string, printed = false): any[] {
   const results: any[] = []
   const auraRegex = /<b>([^<]+)<\/b>\s*aura\s+(\d+)\s*;\s*(.+?)(?=<br|<\/p|$)/gi
   let m
@@ -645,13 +781,14 @@ function parseAurasFromStatsHtml(statsHtml: string): any[] {
       attackBonus: null, attackNotes: '', defense: '', damage: [],
       hit: '', miss: '', effect: stripHtml(m[3]).substring(0, 250),
       trigger: '', requirement: '', sustain: '', auraRange: parseInt(m[2]),
+      ...(printed ? { printed: { text: stripHtml(m[3]) } } : {}),
     })
   }
   return results
 }
 
 // ─── Parse damage text into structured DamagePart[] ───
-interface DamagePart { expr: string; type: string; ongoing: boolean }
+interface DamagePart { expr: string; type: string; ongoing: boolean; saveEnds?: true }
 
 // ─── Split a Hit/damage text into damage expression(s) and hit effect ───
 // Scans tokens from the start, consuming while they look like damage components.
@@ -659,22 +796,27 @@ interface DamagePart { expr: string; type: string; ongoing: boolean }
 //
 // Damage tokens: digits, dice (1d8), operators (+/-), damage type words,
 // "damage", "ongoing", "plus", "and" (between types), "(crit ...)" parens.
-// Everything after the last damage token is hit effect text.
+// Everything after the last damage token is hit effect text, cut from the
+// original string so its spacing and punctuation survive.
 
 const DAMAGE_TYPES_SET = new Set(['acid', 'cold', 'fire', 'force', 'lightning', 'necrotic', 'poison', 'psychic', 'radiant', 'thunder'])
 
-function splitDamageFromHit(text: string): { damage: string; hit: string; critical: string } {
+/** Hit text that qualifies the damage before it: "plus 1d6 damage if the target is prone". */
+const CONDITIONAL_TAIL = /^(?:extra|if|against|when|while|for|per|to|on|instead)$/i
+
+export function splitDamageFromHit(text: string): { damage: string; hit: string; critical: string } {
   const trimmed = text.trim()
   // Tokenize: split on whitespace but keep parenthesized groups together
   const tokens: string[] = []
+  const starts: number[] = []
   let i = 0
   while (i < trimmed.length) {
     // Skip whitespace
     while (i < trimmed.length && /\s/.test(trimmed[i])) i++
     if (i >= trimmed.length) break
+    const start = i
     // Parenthesized group
     if (trimmed[i] === '(') {
-      const start = i
       let depth = 1
       i++
       while (i < trimmed.length && depth > 0) {
@@ -682,16 +824,17 @@ function splitDamageFromHit(text: string): { damage: string; hit: string; critic
         else if (trimmed[i] === ')') depth--
         i++
       }
-      tokens.push(trimmed.substring(start, i))
     } else {
       // Regular token: up to next whitespace or paren
-      const start = i
       while (i < trimmed.length && !/[\s(]/.test(trimmed[i])) i++
-      tokens.push(trimmed.substring(start, i))
     }
+    tokens.push(trimmed.substring(start, i))
+    starts.push(start)
   }
 
-  function isDamageToken(tok: string, nextTok?: string): boolean {
+  function isDamageToken(t: number): boolean {
+    const tok = tokens[t]
+    const nextTok = tokens[t + 1]
     const lower = tok.toLowerCase().replace(/[.,;:]+$/, '')
     // Pure punctuation — skip
     if (!lower) return true
@@ -713,7 +856,7 @@ function splitDamageFromHit(text: string): { damage: string; hit: string; critic
     // "ongoing" — only if followed by a number
     if (lower === 'ongoing' && nextTok && /^\d/.test(nextTok)) return true
     // "plus" — only if followed by another damage token
-    if (lower === 'plus' && nextTok && isDamageToken(nextTok, tokens[tokens.indexOf(nextTok) + 1])) return true
+    if (lower === 'plus' && nextTok && isDamageToken(t + 1)) return true
     // "and" / "or" between damage types: "fire and necrotic damage", "cold or fire damage"
     if ((lower === 'and' || lower === 'or') && nextTok && DAMAGE_TYPES_SET.has(nextTok.toLowerCase().replace(/[.,;:]+$/, ''))) return true
     // Crit parens: "(crit ...)" or "(critical ...)" — may be unclosed in source
@@ -724,10 +867,19 @@ function splitDamageFromHit(text: string): { damage: string; hit: string; critic
   // Consume damage tokens from the front
   let lastDmgIdx = -1
   for (let t = 0; t < tokens.length; t++) {
-    if (isDamageToken(tokens[t], tokens[t + 1])) {
-      lastDmgIdx = t
-    } else {
-      break
+    if (isDamageToken(t)) lastDmgIdx = t
+    else break
+  }
+
+  // A trailing "plus 1d6" whose sentence goes on ("extra damage against a
+  // prone target", "damage if the target is immobilized") is conditional:
+  // give the whole "plus ..." clause back to the hit text.
+  // (Critical-hit tails are handled below.)
+  if (lastDmgIdx >= 0 && lastDmgIdx + 1 < tokens.length && CONDITIONAL_TAIL.test(tokens[lastDmgIdx + 1])
+      && !/[.;]$/.test(tokens[lastDmgIdx])
+      && !/^[^.]*critical hit/i.test(trimmed.substring(starts[lastDmgIdx + 1]))) {
+    for (let t = lastDmgIdx; t > 0; t--) {
+      if (tokens[t].toLowerCase() === 'plus') { lastDmgIdx = t - 1; break }
     }
   }
 
@@ -735,10 +887,8 @@ function splitDamageFromHit(text: string): { damage: string; hit: string; critic
     return { damage: '', hit: trimmed, critical: '' }
   }
 
-  const dmgTokens = tokens.slice(0, lastDmgIdx + 1)
-  const hitTokens = tokens.slice(lastDmgIdx + 1)
-  let damage = dmgTokens.join(' ')
-  let hit = hitTokens.join(' ')
+  const damage = tokens.slice(0, lastDmgIdx + 1).join(' ')
+  let hit = lastDmgIdx + 1 < tokens.length ? trimmed.substring(starts[lastDmgIdx + 1]) : ''
   // Strip leading punctuation and conjunctions from hit text.
   // Keep "or" when followed by a dice/number expression (it's an alternative damage, not a stray conjunction).
   hit = hit.replace(/^[.,;:]+\s*/, '').replace(/^and\s+/i, '').replace(/^or\s+(?!\d)/i, '')
@@ -764,7 +914,8 @@ function splitDamageFromHit(text: string): { damage: string; hit: string; critic
 function parseDamageParts(raw: string, knownTypes: string[]): DamagePart[] {
   if (!raw || !raw.trim()) return []
 
-  const segments = raw.split(/\s+(?:plus|and)\s+|,\s+(?=(?:ongoing\s+)?\d)/i)
+  // "2d6 damage + 3d6 fire damage" is two parts, like "2d6 damage plus 3d6 fire damage".
+  const segments = raw.split(/\s+(?:plus|and)\s+|,\s+(?=(?:ongoing\s+)?\d)|(?<=\bdamage),?\s+\+\s+(?=\d)/i)
   const typePat = knownTypes.length > 0 ? new RegExp('\\b(' + knownTypes.join('|') + ')\\b', 'i') : null
   const parts: DamagePart[] = []
 
@@ -948,14 +1099,7 @@ function parseActionParen(str: string): ParsedParen {
   if (usage === 'recharge') {
     const rcMatch = str.match(/recharge[s]?\s+(.+?)(?=\)|$)/i)
     if (rcMatch) {
-      rechargeCondition = rcMatch[1]
-        .replace(/⚅/g, '6').replace(/⚄/g, '5').replace(/⚃/g, '4').replace(/⚂/g, '3').replace(/⚁/g, '2').replace(/⚀/g, '1')
-        .replace(/\s+/g, ' ').trim()
-      const diceRange = rechargeCondition.match(/^[\d\s]+$/)
-      if (diceRange) {
-        const nums = rechargeCondition.replace(/\s+/g, '').split('').map(Number).sort((a, b) => a - b)
-        rechargeCondition = nums[0] + '-' + nums[nums.length - 1]
-      }
+      rechargeCondition = normalizeRecharge(rcMatch[1])
     }
   }
 
@@ -1015,7 +1159,7 @@ function parseRangeType(str: string): string {
   if (l.includes('close blast')) return 'close-blast'
   if (l.includes('area burst')) return 'area-burst'
   if (l.includes('area wall')) return 'area-wall'
-  if (l.includes('ranged')) return 'ranged'
+  if (l.includes('ranged') || /^range\b/.test(l)) return 'ranged'
   if (l.includes('melee')) return 'melee'
   return 'melee'
 }
@@ -1029,7 +1173,7 @@ function parseRangeType(str: string): string {
 function parseRangeValue(rangePart: string): string {
   return rangePart
     // Strip the type keyword (and anything before it) from the start
-    .replace(/^.*?(close burst|close blast|area burst|area wall|ranged|melee|reach)\s*/i, '')
+    .replace(/^.*?(close burst|close blast|area burst|area wall|ranged|range|melee|reach)\s*/i, '')
     // Strip a trailing target parenthetical, e.g. "(creatures in the burst)"
     .replace(/\s*\(.*$/, '')
     // Strip trailing punctuation (semicolon, comma, period) so it doesn't

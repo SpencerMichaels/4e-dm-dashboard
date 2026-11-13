@@ -12,6 +12,8 @@ import '../creature/statblock.css'
 
 /** Extract max uses for a power: 1 for normal encounter, N for "N/Encounter" in keywords, Infinity for at-will */
 function getMaxUses(p: PowerEntry): number {
+  const uses = (p as any).encounterUses
+  if (typeof uses === 'number' && uses > 0) return uses
   const kw = Array.isArray(p.keywords) ? p.keywords : []
   for (const k of kw) {
     const m = String(k).match(/^(\d+)\/encounter$/i)
@@ -36,6 +38,9 @@ function toPowerCardEntry(p: PowerEntry): PowerCardEntry {
     const hasEncounterKw = kw.some(k => /^\d+\/encounter$/i.test(String(k).trim()))
     if (hasEncounterKw) usage = 'encounter'
   }
+  if ((p as any).encounterUses) {
+    usage = 'encounter'
+  }
 
   return {
     name: p.name,
@@ -52,6 +57,8 @@ function toPowerCardEntry(p: PowerEntry): PowerCardEntry {
     damage: p.damage,
     hit: p.hit,
     critical: (p as any).critical,
+    secondary: (p as any).secondary,
+    aftereffect: (p as any).aftereffect,
     miss: p.miss,
     effect: p.effect,
     trigger: p.trigger,

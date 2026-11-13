@@ -37,6 +37,8 @@ function toPowerCardEntry(p: PowerEntry): PowerCardEntry {
     damage: p.damage,
     hit: p.hit,
     critical: (p as any).critical,
+    secondary: (p as any).secondary,
+    aftereffect: (p as any).aftereffect,
     miss: p.miss,
     effect: p.effect,
     trigger: p.trigger,
