@@ -163,7 +163,13 @@ function countClauses(entry: unknown): { structured: number; unparsed: number } 
     if (typeof v !== 'object' || v === null) return
     const o = v as Record<string, unknown>
     if (typeof o.text === 'string' && Array.isArray(o.clauses)) {
-      for (const c of o.clauses as { kind?: string }[]) c?.kind === 'unparsed' ? n.unparsed++ : n.structured++
+      // A choice's option clauses count too (the choice itself is structured).
+      const count = (c: { kind?: string; options?: unknown }) => {
+        if (c?.kind === 'unparsed') n.unparsed++
+        else n.structured++
+        if (c?.kind === 'choice' && Array.isArray(c.options)) for (const opt of c.options) if (Array.isArray(opt)) opt.forEach(count)
+      }
+      ;(o.clauses as { kind?: string }[]).forEach(count)
       return
     }
     Object.values(o).forEach(walk)

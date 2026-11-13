@@ -685,3 +685,111 @@ describe('schema v11', () => {
     expect(validateEntry('monsters', aura({ range: 5, rangeText: 'sight' })).errors.map(e => e.message)).toEqual(['rangeText only when the size is not a number'])
   })
 })
+
+describe('schema v12', () => {
+  const p = (cl: unknown, span: string, after = '', before = '') => spanProblem(cl as any, span, after, before)
+  const at = (q: string, text: string) => { const i = text.indexOf(q); return [i, i + q.length] }
+  const errors = (clauses: unknown[], text: string) => {
+    const m = monster()
+    m.powers[0].effect = { text, clauses } as any
+    return validateEntry('monsters', m).errors.map(e => e.message)
+  }
+  const turn = { kind: 'turn-end', whose: 'source', next: true }
+
+  it('accepts lingering, dealt-by and scaled damage', () => {
+    const text = "Until the end of the hunter's next turn, the hunter's attacks against the target deal 1d6 extra damage, plus 1 extra damage for each creature in the burst."
+    const linger = { at: at('1d6 extra damage', text), kind: 'damage', dice: '1d6', types: [], who: 'target', extra: true, by: 'self', duration: turn, if: "Until the end of the hunter's next turn" }
+    const per = { at: at('1 extra damage', text), kind: 'damage', dice: '1', types: [], who: 'target', extra: true, per: 'for each creature in the burst' }
+    expect(errors([linger, per], text)).toEqual([])
+    expect(errors([{ ...per, per: 'per creature' }], text).join('\n')).toMatch(/not in the line text/)
+    expect(errors([{ ...per, per: 'in the burst' }], text).join('\n')).toMatch(/"for each \.\.\." words/)
+    expect(errors([{ ...linger, by: 'friend', duration: { kind: 'soon' } }], text).join('\n')).toMatch(/"friend" is not one of[\s\S]*"soon" is not one of/)
+  })
+
+  it('finds "crit" anywhere in the sentence of a critical damage clause', () => {
+    const crit = { kind: 'damage', dice: '8', types: ['thunder'], who: 'target', critical: true }
+    expect(p(crit, '8 thunder damage', ')', '1d8 + 5 damage (crit 4d8+23 damage plus ')).toBeUndefined()
+    expect(p({ ...crit, dice: '4d8+39', types: [] }, '4d8 + 39', '.', 'If the titan scores a critical hit, the damage is ')).toBeUndefined()
+    expect(p({ ...crit, dice: '6d10+41', types: [] }, '6d10 + 41 damage', ' if the stormsword scores a critical hit.')).toBeUndefined()
+    expect(p(crit, '8 thunder damage', '. Next.', 'Crit sentence. The target takes ')).toMatch(/crit/)
+  })
+
+  it('accepts dice and damage-dealt heals, dice temp-hp, and half-damage who and duration', () => {
+    const heal = { kind: 'heal', amount: '1d4+5', who: 'self' }
+    expect(p(heal, 'regains 1d4 + 5 hit points')).toBeUndefined()
+    expect(p(heal, 'regains 1d6 + 5 hit points')).toMatch(/dice "1d4\+5"/)
+    expect(p({ ...heal, amount: 'half-damage-dealt' }, 'regains hit points equal to half the damage dealt')).toBeUndefined()
+    expect(p({ kind: 'temp-hp', amount: '1d10+3', who: 'self' }, 'gains 1d10 + 3 temporary hit points')).toBeUndefined()
+    const text = 'It takes half damage from weapon attacks until the end of its next turn.'
+    expect(errors([{ at: at('half damage from weapon attacks until the end of its next turn', text), kind: 'half-damage', who: 'self', duration: turn }], text)).toEqual([])
+    expect(errors([{ at: at('half damage', text), kind: 'half-damage', who: 'self' }, { at: at('gains', 'x'), kind: 'heal', amount: 'lots', who: 'self' }], text).join('\n'))
+      .toMatch(/expected a number, dice/)
+  })
+
+  it('checks ongoing-damage increases, statuses, restrictions and stats', () => {
+    const inc = { kind: 'ongoing-damage', amount: 5, types: ['fire'], who: 'target', duration: { kind: 'save-ends' }, increase: true }
+    expect(p(inc, 'that damage increases by 5', '.', 'If the target is already taking ongoing fire damage, ')).toBeUndefined()
+    expect(p(inc, 'that damage increases by 5', '.', 'The target burns. ')).toMatch(/ongoing/)
+    const status = (s: string) => ({ kind: 'status', status: s, who: 'target', duration: { kind: 'save-ends' } })
+    expect(p(status('no-regain-hp'), 'cannot regain hit points')).toBeUndefined()
+    expect(p(status('no-healing-surges'), 'cannot spend healing surges')).toBeUndefined()
+    expect(p(status('ignore-difficult-terrain'), 'ignores difficult terrain')).toBeUndefined()
+    const restrict = { kind: 'power-restriction', what: ['immediate', 'opportunity'], who: 'target', duration: { kind: 'save-ends' } }
+    expect(p(restrict, "can't take immediate or opportunity actions")).toBeUndefined()
+    expect(p({ ...restrict, what: 'shift' }, 'cannot teleport')).toMatch(/no "shift"/)
+    expect(p({ ...restrict, what: 'named', powers: ['shadow cloak'] }, 'cannot use its shadow cloak power')).toBeUndefined()
+    expect(p({ ...restrict, what: 'named', powers: ['howling charge'] }, 'cannot use its shadow cloak power')).toMatch(/howling charge/)
+    const text = 'The target cannot shift.'
+    expect(errors([{ at: at('cannot shift', text), ...restrict, what: 'shift', powers: ['x'] }], text)).toContain('powers only with what "named"')
+    const fewer = { kind: 'modifier', stat: 'forced-movement', value: -1, who: 'self', duration: { kind: 'permanent' } }
+    expect(p(fewer, 'moves 1 square fewer than the effect specifies')).toBeUndefined()
+    expect(p({ ...fewer, stat: 'recharge', value: 1 }, '+1 bonus to recharge rolls')).toBeUndefined()
+    expect(p({ ...fewer, stat: 'recharge', value: 1 }, '+1 bonus to attack rolls')).toMatch(/recharg/)
+  })
+
+  it('checks the new clause kinds', () => {
+    const d = { kind: 'save-ends' }
+    expect(p({ kind: 'automatic', what: 'save', who: 'self', duration: { kind: 'permanent' } }, 'automatically succeeds on saving throws')).toBeUndefined()
+    expect(p({ kind: 'automatic', what: 'hit', who: 'self', duration: { kind: 'permanent' } }, 'automatically hits')).toBeUndefined()
+    expect(p({ kind: 'automatic', what: 'critical', who: 'self', duration: { kind: 'permanent' } }, 'automatically hits')).toMatch(/critical/)
+    expect(p({ kind: 'lose-resistance', types: ['all'], value: 10, who: 'target', duration: d }, 'ignores 10 points of resist all')).toBeUndefined()
+    expect(p({ kind: 'lose-resistance', types: ['fire'], who: 'target', duration: d }, "the target's fire vulnerability")).toMatch(/resist/)
+    expect(p({ kind: 'immunity', to: ['all'], who: 'self', duration: d }, 'is immune to all damage')).toBeUndefined()
+    expect(p({ kind: 'end-effect', conditions: ['marked'], who: 'self' }, 'is no longer marked')).toBeUndefined()
+    expect(p({ kind: 'end-effect', who: 'self' }, 'is marked')).toMatch(/ends/)
+    expect(p({ kind: 'extra-action', action: 'move', who: 'ally' }, 'can take an extra move action')).toBeUndefined()
+    expect(p({ kind: 'extra-action', action: 'minor', who: 'ally' }, 'can take an extra move action')).toMatch(/minor/)
+    const text = 'The target loses resist fire and is immune to fear. It is no longer dazed.'
+    expect(errors([
+      { at: at('loses resist fire', text), kind: 'lose-resistance', types: [], who: 'target', duration: d },
+      { at: at('immune to fear', text), kind: 'immunity', to: [], who: 'target', duration: d },
+      { at: at('no longer dazed', text), kind: 'end-effect', conditions: ['sleepy'], who: 'target' },
+    ], text).join('\n')).toMatch(/at least one type[\s\S]*at least one name[\s\S]*"sleepy" is not one of/)
+  })
+
+  it('accepts older save wording, obscured areas, lines of sight and other v12 span wordings', () => {
+    const slowed = { kind: 'condition', condition: 'slowed', who: 'target', duration: { kind: 'save-ends' }, saveModifier: -2 }
+    expect(p(slowed, 'slowed (save at -2 ends)')).toBeUndefined()
+    const conceal = { kind: 'concealment', who: 'creatures-in-area', duration: { kind: 'sustain', action: 'minor' } }
+    expect(p(conceal, 'is lightly obscured')).toBeUndefined()
+    expect(p({ ...conceal, total: true }, 'is heavily obscured')).toBeUndefined()
+    const zone = { kind: 'zone', duration: { kind: 'sustain', action: 'minor' }, blocksLineOfSight: true }
+    expect(p(zone, 'conjures a wall of swirling snow', '. The wall blocks line of sight.')).toBeUndefined()
+    expect(p(zone, 'conjures a wall of swirling snow', '. The wall is cold.')).toMatch(/line of sight/)
+    const reroll = { kind: 'reroll', what: 'attack', keep: 'lower', who: 'other' }
+    expect(p(reroll, 'must make two attack rolls and use the lower result')).toBeUndefined()
+    expect(p({ ...reroll, keep: 'new' }, 'must make a second attack roll and use the new result')).toBeUndefined()
+    expect(p({ kind: 'recharge-power', power: 'bladerager rend' }, 'regains the use of bladerager rend')).toBeUndefined()
+    expect(p({ kind: 'action-point', amount: 1, who: 'self' }, 'regains a spent action point')).toBeUndefined()
+    expect(p({ kind: 'redirect-attack', who: 'ally' }, "can change the triggering attack's target to an adjacent ally")).toBeUndefined()
+  })
+
+  it('accepts Attack.name, hpIf and regeneration suppressedText', () => {
+    const m = monster({ hpIf: [{ value: 99, if: 'if in a possessed body' }], regeneration: { value: 10, suppressedBy: [], suppressedText: 'while exposed to direct sunlight', text: '10 (while exposed to direct sunlight, it does not regenerate)' } })
+    m.powers[0].attacks[0].name = 'Earth Shock'
+    expect(validateEntry('monsters', m).errors).toEqual([])
+    const bad = monster({ hpIf: [{ value: 99 }] as any })
+    bad.powers[0].attacks[0].name = ''
+    expect(validateEntry('monsters', bad).errors.map(e => e.path)).toEqual(['$.hpIf[0].if', '$.powers[0].attacks[0].name'])
+  })
+})

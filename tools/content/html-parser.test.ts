@@ -103,6 +103,18 @@ describe('monster parser fixes', () => {
     const [a] = parsePowers("<p class='flavor alt'>⚔ <b>Tail Lash</b> ✦ <b>At-Will</b></p><p class=flavorIndent><i>Trigger:</i> An enemy moves adjacent to the dragon.</p><p class=flavorIndent><i>Attack (Immediate Reaction):</i> Melee 2 (triggering enemy); +15 vs. Reflex</p><p class=flavorIndent><i>Hit:</i> 2d6 + 5 damage.</p>", 'Triggered Actions')
     expect(a.actionType).toBe('immediate-reaction')
   })
+
+  it('keeps a requirement printed with the usage and the printed "when" of a trigger (v12)', () => {
+    const [a, b, c] = parsePowers("<p class='flavor alt'> <b>Sweeping Cut</b> (standard; requires greataxe, recharge ⚄⚅) ✦ <b>Weapon</b></p><p class=flavorIndent>close burst 1; +11 vs AC; 1d12+2 damage, and the target is knocked prone.</p>" +
+      "<p class='flavor alt'> <b>Warrior's Surge</b> (standard; usable only while bloodied, encounter) ✦ <b>Healing, Weapon</b></p><p class=flavorIndent>+8 vs AC; 1d8+3 damage, and the orc regains 10 hit points.</p>" +
+      "<p class='flavor alt'>⚔ <b>Passing Consumption</b> (immediate reaction, when missed by a melee attack made by an adjacent attacker, recharges when first bloodied) </p><p class=flavorIndent>The ghoul can make a gut maw attack that doesn't provoke opportunity attacks.</p>")
+    expect(a.requirement).toBe('requires greataxe')
+    expect(a.usage).toBe('recharge')
+    expect(b.requirement).toBe('usable only while bloodied')
+    expect(b.usage).toBe('encounter')
+    expect(c.trigger).toBe('when missed by a melee attack made by an adjacent attacker')
+    expect(c.triggerEvents).toBeUndefined()
+  })
 })
 
 describe('parser helpers', () => {

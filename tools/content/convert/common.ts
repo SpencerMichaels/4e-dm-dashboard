@@ -173,12 +173,13 @@ export function labelText(key: string): string {
   })
 }
 
-const RANGE_PREFIX = /^((?:close (?:burst|blast)|area (?:burst|wall)|ranged|melee|reach)\s+(?:\d+(?:\s+within\s+\d+)?|sight|touch)|personal)(?:\s*\(([^()]*(?:\([^()]*\)[^()]*)*)\))?\s*[.;:]\s*/i
+const RANGE_PREFIX = /^((?:close (?:burst|blast)|area (?:burst|wall)|wall|ranged|melee|reach)\s+(?:\d+(?:\/\d+)?(?:\s+squares?)?(?:\s*\(\d+ (?:squares? )?high\))?(?:\s+within\s+\d+(?:\s+squares?)?)?|sight|touch)|personal)(?:\s*\(([^()]*(?:\([^()]*\)[^()]*)*)\))?(?:\s*[.;:,]\s*|(?<=\))\s*)/i
 
 /**
  * The range a non-attack power prints at the start of its effect:
- * "Close burst 5; one ally ..." / "Ranged 5 (one ally). The target ...".
- * The target in parentheses goes into Range.note; the rest stays the effect.
+ * "Close burst 5; one ally ..." / "Ranged 5 (one ally). The target ..." /
+ * "Area wall 8 (4 high) within 10 squares; ...". The target in parentheses
+ * (and a wall's height) goes into Range.note; the rest stays the effect.
  */
 export function splitRangePrefix(text: string): { range: Range; rest: string } | undefined {
   const t = normText(text)
@@ -188,8 +189,10 @@ export function splitRangePrefix(text: string): { range: Range; rest: string } |
   if (!rest) return undefined
   const head = m[1]
   const kind = rangeKindOf(head)
-  const value = head.replace(/^(close burst|close blast|area burst|area wall|ranged|melee|reach|personal)\s*/i, '')
-  const range = toRange(kind, value, m[2]?.trim() || undefined)
+  let value = head.replace(/^(close burst|close blast|area burst|area wall|wall|ranged|melee|reach|personal)\s*/i, '').replace(/\s+squares?\b/gi, '')
+  const high = value.match(/\s*\((\d+ (?:squares? )?high)\)/i)
+  if (high) value = value.replace(high[0], '')
+  const range = toRange(kind, value, [high?.[1], m[2]?.trim()].filter(Boolean).join('; ') || undefined)
   return { range, rest }
 }
 
@@ -245,6 +248,7 @@ export function rangeKindOf(text: string): RangeKind {
   if (l.includes('close blast')) return 'close-blast'
   if (l.includes('area burst')) return 'area-burst'
   if (l.includes('area wall')) return 'area-wall'
+  if (/^wall \d/.test(l)) return 'area-wall'
   if (/\bpersonal\b/.test(l)) return 'personal'
   if (/\branged?\b/.test(l)) return 'ranged'
   return 'melee'
@@ -303,8 +307,8 @@ export function damageClauses(text: string, parts: DamagePartIn[]): Clause[] {
   return clauses
 }
 
-/** "(save ends)", or with a saving throw penalty: "(save ends, with a -2 penalty to the saving throw)" (group 1: "-2"). */
-const SAVE_ENDS = String.raw`\(save ends(?:[,;]? (?:with a |the target takes a )?([-–−]\d+) penalty (?:to|on) (?:the|this) saving throw)?\)`
+/** "(save ends)", or with a saving throw penalty: "(save at -2 ends)" (group 1) or "(save ends, with a -2 penalty to the saving throw)" (group 2). */
+const SAVE_ENDS = String.raw`\(save (?:at ([-–−]\d+) ends|ends(?:[,;]? (?:with a |the target takes a )?([-–−]\d+) penalty (?:to|on) (?:the|this) saving throw)?)\)`
 
 /** The saveModifier field for a SAVE_ENDS match's penalty group. */
 function saveModifier(penalty: string | undefined): { saveModifier?: number } {
@@ -323,14 +327,14 @@ export function saveEndsClauses(text: string): Clause[] {
     const start = m.index! + m[0].length - m[1].length
     clauses.push({
       at: [start, start + m[1].length], kind: 'ongoing-damage', amount: parseInt(m[2]),
-      types: m[3] ? [m[3].toLowerCase() as DamageType] : [], who: 'target', duration: { kind: 'save-ends' }, ...saveModifier(m[4]),
+      types: m[3] ? [m[3].toLowerCase() as DamageType] : [], who: 'target', duration: { kind: 'save-ends' }, ...saveModifier(m[4] ?? m[5]),
     })
   }
   const cond = new RegExp(`\\bthe target is (${CONDITION_ALT}) ${SAVE_ENDS}`, 'gi')
   for (const m of text.matchAll(cond)) {
     const condition = m[1].toLowerCase()
     if (!isOneOf(CONDITION_IDS, condition)) continue
-    clauses.push({ at: [m.index!, m.index! + m[0].length], kind: 'condition', condition, who: 'target', duration: { kind: 'save-ends' }, ...saveModifier(m[2]) })
+    clauses.push({ at: [m.index!, m.index! + m[0].length], kind: 'condition', condition, who: 'target', duration: { kind: 'save-ends' }, ...saveModifier(m[2] ?? m[3]) })
   }
   return clauses.sort((a, b) => a.at[0] - b.at[0])
 }

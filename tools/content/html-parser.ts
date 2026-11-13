@@ -738,7 +738,7 @@ function parseOneAbility(headerHtml: string, bodyBlocks: string[], sectionDefaul
       : undefined,
     aftereffect: fields.aftereffect ? cap(fields.aftereffect) : undefined,
     critical: cleanCritical(critical) || undefined,
-    trigger: cap(trigger), requirement, sustain,
+    trigger: /^when\b/.test(trigger) ? trigger : cap(trigger), requirement, sustain,
     ...(options.printed ? { printed } : {}),
   }
 }
@@ -1147,8 +1147,9 @@ function parseActionParen(str: string): ParsedParen {
   else if (lower.includes('recharge')) usage = 'recharge'
 
   let trigger = ''
-  // Trigger can start with ", when ..." (after action type) or be the entire paren "when ..."
-  const triggerMatch = str.match(/(?:^|,)\s*when\s+(.+?)(?:;\s|,\s*(?:recharge|encounter|at-will|daily)|\s*$)/i)
+  // Trigger can start with ", when ..." (after action type) or be the entire paren "when ...";
+  // it keeps the printed "when".
+  const triggerMatch = str.match(/(?:^|,)\s*(when\s+.+?)(?:;\s|,\s*(?:recharge|encounter|at-will|daily)|\s*$)/i)
   if (triggerMatch) trigger = triggerMatch[1].trim().replace(/,\s*$/, '')
 
   let sustain = ''
@@ -1186,7 +1187,14 @@ function parseActionParen(str: string): ParsedParen {
     const s = seg.trim()
     if (!s) continue
 
-    if (actionPat.test(s) || usagePat.test(s) || sustainPat.test(s) || triggerPat.test(s)) continue
+    if (actionPat.test(s) || usagePat.test(s) || sustainPat.test(s) || triggerPat.test(s)) {
+      // A requirement printed in the same segment as the usage or action:
+      // "requires greataxe, recharge ⚄⚅", "usable only while bloodied, encounter", "requires a free hand".
+      for (const part of s.split(/,\s*/).map(p => p.trim())) {
+        if (requirementPat.test(part) && !/^when\b/i.test(part)) requirement = requirement ? requirement + '; ' + part : part
+      }
+      continue
+    }
     if (rechargePat.test(s)) continue
     if (atkBonusPat.test(s)) continue
     if (/^[⚔➶ᗕ✻☼⚀⚁⚂⚃⚄⚅\s]+$/.test(s)) continue
