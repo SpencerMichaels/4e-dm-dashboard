@@ -253,14 +253,14 @@ export function Dnd4eCombatPanel({
           ))}
         </div>
       )}
-      <div className="sb-row sb-row-alt" style={{ fontSize: 11 }}>
+      <div className="sb-row" style={{ fontSize: 11 }}>
         <span><b className="sb-label">AC</b> {sb.ac ?? 10};</span>
         <span><b className="sb-label">Fortitude</b> {defs.fortitude ?? 10},</span>
         <span><b className="sb-label">Reflex</b> {defs.reflex ?? 10},</span>
         <span><b className="sb-label">Will</b> {defs.will ?? 10}</span>
       </div>
       {(immunities.length > 0 || resistances.length > 0 || weaknesses.length > 0) && (
-        <div className="sb-row sb-row-alt" style={{ fontSize: 11 }}>
+        <div className="sb-row" style={{ fontSize: 11 }}>
           {immunities.length > 0 && <span><b className="sb-label">Immune</b> {immunities.map(e => e.type).join(', ')}</span>}
           {immunities.length > 0 && (resistances.length > 0 || weaknesses.length > 0) && <>; </>}
           {resistances.length > 0 && <span><b className="sb-label">Resist</b> {resistances.map(e => `${e.type} ${e.value ?? ''}`).join(', ').trim()}</span>}
@@ -269,7 +269,7 @@ export function Dnd4eCombatPanel({
         </div>
       )}
       {saveBonus > 0 && (
-        <div className="sb-row sb-row-alt" style={{ fontSize: 11 }}>
+        <div className="sb-row" style={{ fontSize: 11 }}>
           <span><b className="sb-label">Saving Throws</b> +{saveBonus}</span>
         </div>
       )}

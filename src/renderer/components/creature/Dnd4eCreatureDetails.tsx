@@ -302,7 +302,7 @@ export function Dnd4eCreatureDetails({ creature, onSave: save, config, compact }
       )}
 
       {/* ── GROUP 2: HP, AC, Defenses, Immunities, Resistances, Weaknesses ── */}
-      <div className="sb-row sb-row-alt">
+      <div className="sb-row">
         <span title={tierTooltip(config.statDefs.find(d => d.key === 'hp')?.table, level)}>
           <b className="sb-label">HP</b>{' '}
           <input className="ghost" type="number" value={creature.hp}
@@ -315,7 +315,7 @@ export function Dnd4eCreatureDetails({ creature, onSave: save, config, compact }
         const defs = (sb.defenses as Record<string, number>) ?? {}
         const uDef = (key: string, val: number) => u('defenses', { ...defs, [key]: val })
         return (
-          <div className="sb-row sb-row-alt">
+          <div className="sb-row">
             <span title={tierTooltip(config.statDefs.find(d => d.key === 'ac')?.table, level)}>
               <b className="sb-label">AC</b> <input className="ghost" type="number" value={(sb.ac as number) ?? 10}
               onChange={e => u('ac', Number(e.target.value))} />
@@ -332,7 +332,7 @@ export function Dnd4eCreatureDetails({ creature, onSave: save, config, compact }
           </div>
         )
       })()}
-      <div className="sb-row sb-row-alt">
+      <div className="sb-row">
         <InlineEntryChips label="Immune" entries={Array.isArray(sb.immunities) ? sb.immunities as any[] : []}
           onChange={v => u('immunities', v)} suggestions={config.damageTypes} />
         <span>;</span>

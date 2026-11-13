@@ -282,17 +282,17 @@ export function Dnd4eCreatureViewer({ creature, tooltip: tip, compendiumId: comp
       )}
 
       {/* Group 2: HP, AC, Defenses, Immune/Resist/Vulnerable */}
-      <div className="sb-row sb-row-alt">
+      <div className="sb-row">
         <span><b className="sb-label">HP</b> <StatNumber value={creature.hp} field="hp" diffs={diffs} />; <b className="sb-label">Bloodied</b> {Math.floor(creature.hp / 2)}</span>
       </div>
-      <div className="sb-row sb-row-alt">
+      <div className="sb-row">
         <span><b className="sb-label">AC</b> <StatNumber value={(sb.ac as number) ?? 10} field="ac" diffs={diffs} />;</span>
         <span><b className="sb-label">Fortitude</b> <StatNumber value={defs.fortitude ?? 10} field="defenses.fortitude" diffs={diffs} />,</span>
         <span><b className="sb-label">Reflex</b> <StatNumber value={defs.reflex ?? 10} field="defenses.reflex" diffs={diffs} />,</span>
         <span><b className="sb-label">Will</b> <StatNumber value={defs.will ?? 10} field="defenses.will" diffs={diffs} /></span>
       </div>
       {(immunities.length > 0 || resistances.length > 0 || weaknesses.length > 0) && (
-        <div className="sb-row sb-row-alt">
+        <div className="sb-row">
           {immunities.length > 0 && <span><b className="sb-label">Immune</b> {immunities.map((e, i) => (
             <span key={i}>{i > 0 && ', '}<span style={templateItemStyle(e)} title={templateItemTitle(e, tooltip(e.type))}>{e.type}</span></span>
           ))}</span>}

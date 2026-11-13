@@ -47,7 +47,7 @@ Write colors as CSS custom properties, in both CSS files and inline styles. Use 
 Follow the formatting conventions of official 4e sources (e.g. the 4e stat block format on iws.mx). Key principles:
 - **Labels inline with values**, not on separate lines. `Initiative +10  Perception +11; low-light vision` — not three separate labeled rows.
 - **Group related stats on one line**: AC + defenses together, alignment + languages together, initiative + perception + senses together.
-- **Shade alternate logical groups** (`sb-row-alt` bands on every row of the shaded group), not separator lines, section headers, or whitespace.
+- **No separator lines or shading between stat block groups** (HP, defenses, immunities): the user found banded groups heavier than plain rows. Repeated rows in lists and tables still stripe.
 - **No section headers** for obvious groupings — the labels are self-documenting.
 - **Flavor text (description) at the bottom** — after the mechanical stats, before the source citation.
 - **Two-column responsive layout**: stats on the left, powers/abilities on the right. Use `flex-wrap` so columns stack on narrow windows.
