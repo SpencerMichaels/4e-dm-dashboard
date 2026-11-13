@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest'
 import type { Monster, Power } from '@kit'
 import { normalizeContent, scaffold, validate } from './core'
 import { applyPatch } from './patch'
+import { auraSize } from './legacy'
 import { creatureEditorChanges, draftToCreatureEditor, monsterFromEditor, monsterToEditor, splitHitDamage } from './creature-editor-adapter'
 import { testPower } from './fixtures'
 import type { Draft } from './types'
@@ -318,5 +319,23 @@ describe('editing a kit monster outside the Workshop', () => {
     const next = monsterFromEditor(m, before, after)
     expect(next.powers.map(p => p.name)).toEqual(['Draining touch', 'Veil', 'Cold grasp'])
     expect(next.powers[0]).toEqual(m.powers[0])
+  })
+})
+
+describe('auras sized in text', () => {
+  it('prints number, text, and conditional sizes', () => {
+    expect(auraSize({ range: 2 })).toBe('2')
+    expect(auraSize({ rangeText: 'sight' })).toBe('sight')
+    expect(auraSize({ range: 2, rangeIf: [{ value: 3, if: 'while bloodied' }] })).toBe('2 (3 while bloodied)')
+  })
+
+  it('keeps a text-sized aura through an unrelated edit', () => {
+    const m = content(draft(x => { x.auras.push({ name: 'Dread gaze', keywords: ['fear'], rangeText: 'sight', text: { text: 'Enemies in the aura take a -2 penalty to attack rolls.', clauses: [] } }) }))
+    const before = monsterToEditor(m)
+    const after = structuredClone(before)
+    after.name = 'Gazer'
+    const next = monsterFromEditor(m, before, after)
+    expect(next.auras[0]).toEqual(m.auras[0])
+    expect(next.auras[0].range).toBeUndefined()
   })
 })

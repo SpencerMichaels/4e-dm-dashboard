@@ -34,6 +34,16 @@ export function powerToLegacy(p: Power): Record<string, any> {
   }
 }
 
+/** An aura's printed size: "2", "sight", or "2 (3 while bloodied)". */
+export function auraSize(a: { range?: number; rangeText?: string; rangeIf?: { value: number; if: string | string[] }[] }): string {
+  const base = a.range !== undefined ? String(a.range) : a.rangeText ?? ''
+  const alt = (a.rangeIf ?? []).map(r => `${r.value} ${([] as string[]).concat(r.if).join(' ')}`)
+  return alt.length ? `${base} (${alt.join('; ')})` : base
+}
+
+/** "Fortitude 25 while bloodied": printed conditional defenses, for the stat block's notes. */
+const conditionalDefenses = (m: Monster) => (m.defensesIf ?? []).map(d => `${d.defense === 'ac' ? 'AC' : d.defense[0].toUpperCase() + d.defense.slice(1)} ${d.value} ${([] as string[]).concat(d.if).join(' ')}`)
+
 /** A kit monster in the creature viewer's and editor's (legacy-shaped) model; the kit content stays the source of truth. */
 export function monsterToCreature(m: Monster, id = m.id, at = m.provenance.at): Creature {
   const { walk, notes, ...speeds } = m.speed
@@ -50,10 +60,10 @@ export function monsterToCreature(m: Monster, id = m.id, at = m.provenance.at): 
       regeneration: m.regeneration ? { value: m.regeneration.value, inhibitDamageTypes: m.regeneration.suppressedBy } : undefined,
       actions: [
         ...m.traits.map(t => ({ name: t.name, entryType: 'trait', keywords: t.keywords, effect: t.text.text })),
-        ...m.auras.map(t => ({ name: t.name, entryType: 'aura', keywords: t.keywords, auraRange: t.range, effect: t.text.text })),
+        ...m.auras.map(t => ({ name: t.name, entryType: 'aura', keywords: t.keywords, auraRange: t.range, auraSize: auraSize(t), effect: t.text.text })),
         ...m.powers.map(powerToLegacy),
       ],
-      description: [m.description, notes ? `Movement: ${notes}` : '', ...(m.skillNotes ?? []), m.regeneration?.text ?? '', ...[...m.resist, ...m.vulnerable].filter(x => x.text || x.note).map(x => `${x.type}: ${x.text ?? ''} ${x.note ?? ''}`)].filter(Boolean).join('\n'),
+      description: [m.description, notes ? `Movement: ${notes}` : '', ...conditionalDefenses(m), ...(m.savingThrowNotes ?? []).map(n => `Saving throws: ${n}`), ...(m.skillNotes ?? []), m.regeneration?.text ?? '', ...[...m.resist, ...m.vulnerable].filter(x => x.text || x.note).map(x => `${x.type}: ${x.text ?? ''} ${x.note ?? ''}`)].filter(Boolean).join('\n'),
       source: m.sources.map(s => `${s.book}${s.page ? ', ' + s.page : ''}`).join('; '),
     },
   }

@@ -2,7 +2,7 @@
 
 import { describe, expect, it } from 'vitest'
 import { MONSTER_TEMPLATES } from '../../../src/renderer/components/creature/monster-templates'
-import { parseMonsterHtml } from '../html-parser'
+import { auraRangeIf, parseMonsterHtml } from '../html-parser'
 import { parseTrapHtml } from '../trap-parser'
 import { Notes, damageModifier, parseSources, splitRangePrefix, type ConvertContext } from './common'
 import { checkFrom, enduranceFrom } from './disease'
@@ -32,6 +32,7 @@ describe('shared v2 pieces', () => {
     expect(damageModifier('fire', 10)).toEqual({ type: 'fire', value: 10 })
     expect(damageModifier('radiant', undefined, 'see text')).toEqual({ type: 'radiant', note: 'see text' })
     expect(damageModifier('insubstantial')).toEqual({ type: 'special', text: 'insubstantial' })
+    expect(damageModifier('against close and area attacks', 10)).toEqual({ type: 'special', value: 10, text: 'against close and area attacks' })
     expect(damageModifier('half damage from melee and ranged attacks')).toEqual({ type: 'special', text: 'half damage from melee and ranged attacks' })
     expect(damageModifier('20/variable', undefined, '3/encounter')).toEqual({ type: 'variable', value: 20, note: '3/encounter' })
   })
@@ -215,6 +216,21 @@ describe('schema v4 fields', () => {
     expect(m.skillNotes).toEqual(['Bluff +23 while the mimic is duplicating a creature'])
   })
 
+  it('keeps conditional saving throw bonuses as notes, not as the bonus (v8)', () => {
+    const html = "<h1 class=monster>Knight<br><span class=type>Medium natural humanoid</span><br><span class=level>Level 5 Soldier<span class=xp> XP 200</span></span></h1><table class=bodytable><tr><td><b>HP</b> 50; <b>Bloodied</b> 25<td class=rightalign><b>Initiative</b> +8<tr><td><b>AC</b> 19, <b>Fortitude</b> 17, <b>Reflex</b> 16, <b>Will</b> 16<td class=rightalign><b>Perception</b>+4<tr><td><b>Speed</b> 5<td class=rightalign><tr><td><b>Saving Throws</b> +5 against fear effects</table>"
+    const m = convertMonster('monster1', parseMonsterHtml(html, [], { printed: true }), { provenance: { origin: 'parser', at: '2026-11-12' } })
+    expect(m.savingThrowBonus).toBe(0)
+    expect(m.savingThrowNotes).toEqual(['+5 against fear effects'])
+  })
+
+  it('keeps printed conditional defenses in defensesIf with the base in defenses (v9)', () => {
+    const html = "<h1 class=monster>Guard<br><span class=type>Medium natural humanoid</span><br><span class=level>Level 5 Soldier<span class=xp> XP 200</span></span></h1><table class=bodytable><tr><td><b>HP</b> 50; <b>Bloodied</b> 25<td class=rightalign><b>Initiative</b> +8<tr><td><b>AC</b> 21 (23 with phalanx soldier); <b>Fortitude</b> 21 (see also mirage), <b>Reflex</b> 16, <b>Will</b> 18<td class=rightalign><b>Perception</b>+4<tr><td><b>Speed</b> 5<td class=rightalign></table>"
+    const m = convertMonster('monster1', parseMonsterHtml(html, [], { printed: true }), { provenance: { origin: 'parser', at: '2026-11-12' } })
+    expect(m.defenses).toEqual({ ac: 21, fortitude: 21, reflex: 16, will: 18 })
+    expect(m.defensesIf).toEqual([{ defense: 'ac', value: 23, if: 'with phalanx soldier' }])
+    expect(m.provenance.notes).toContainEqual('defense note "fortitude 21 (see also mirage)" has no field (not a conditional value)')
+  })
+
   it('records a sustain printed only inside a line', () => {
     const p = convertPower({
       name: 'Breath', actionType: 'standard', usage: 'encounter', keywords: ['zone'], damage: [],
@@ -247,5 +263,49 @@ describe('schema v5', () => {
     }, notes)
     expect(p.attacks[0].vs).toBe('unknown')
     expect(notes.list[0]).toMatch(/not a kit Defense/)
+  })
+})
+
+describe('schema v7', () => {
+  it('reads printed alternative aura sizes into rangeIf', () => {
+    const html = "<h1 class=monster>Balor<br><span class=type>Huge elemental humanoid (demon)</span><br><span class=level>Level 27 Elite Brute<br>XP 22,000</span></h1><table class=bodytable><tr><td><b>HP</b> 620<td class=rightalign><b>Initiative</b> +18<tr><td><b>AC</b> 41, <b>Fortitude</b> 41, <b>Reflex</b> 37, <b>Will</b> 37<td class=rightalign><b>Perception</b> +18<tr><td><b>Speed</b> 8, fly 12<td class=rightalign>Truesight 6</table><h2>Traits</h2><p class='flavor alt'>☼ <b>Flaming Body</b> (fire) ✦ <b>Aura</b> 2, or 3 while the balor is bloodied</p><p class=flavorIndent>Any enemy that starts its turn in the aura takes 10 fire damage.</p><p class=flavor><b>Str</b> 32 (+24) <b>Dex</b> 21 (+18) <b>Wis</b> 21 (+18)<br><b>Con</b> 26 (+21) <b>Int</b> 12 (+14) <b>Cha</b> 12 (+14)</p><p class=flavor><b>Alignment</b> Chaotic evil <b>Languages</b> Abyssal</p><p class=publishedIn>Published in Monster Manual, page(s) 53.</p>"
+    const m = convertMonster('monster32', parseMonsterHtml(html, [], { printed: true }), ctx)
+    expect(m.auras[0]).toMatchObject({ name: 'Flaming Body', range: 2, rangeIf: [{ value: 3, if: 'while the balor is bloodied' }] })
+    expect(auraRangeIf('Aura 1 (aura 3 while bloodied)')).toEqual([{ value: 3, if: 'while bloodied' }])
+    expect(auraRangeIf('Aura 1 (3 while the Voidharrow is bloodied)')).toEqual([{ value: 3, if: 'while the Voidharrow is bloodied' }])
+    expect(auraRangeIf('Aura 5')).toBeUndefined()
+  })
+})
+
+describe('schema v11', () => {
+  const head = "<h1 class=monster>Drow Priest<br><span class=type>Medium fey humanoid</span><br><span class=level>Level 15 Controller<span class=xp> XP 1,200</span></span></h1>"
+  const stats = (auras: string) => `<p class=flavor><b>Initiative</b> +10 <b>Senses</b> Perception +12; darkvision<br>${auras}<br><b>HP</b> 140; <b>Bloodied</b> 70<br><b>AC</b> 29; <b>Fortitude</b> 26, <b>Reflex</b> 27, <b>Will</b> 28<br><b>Speed</b> 6</p>`
+  const tail = "<p class=flavor><b>Str</b> 12 (+8) <b>Dex</b> 15 (+9) <b>Wis</b> 19 (+11)<br><b>Con</b> 14 (+9) <b>Int</b> 13 (+8) <b>Cha</b> 16 (+10)</p><p class=publishedIn>Published in Monster Manual, page(s) 94.</p>"
+
+  it('reads stat-block auras with keywords, a printed condition or a size that is not a number', () => {
+    const html = head + stats("<b>Stench</b> (Poison) aura 2; enemies within the aura take a –2 penalty to attack rolls.<br><b>Billowing Winds</b> (while bloodied) aura 3; enemies in the aura are slowed.<br><b>Lolth's Authority</b> aura sight; drow allies gain a +1 bonus to attack rolls.") + tail
+    const m = convertMonster('monster1', parseMonsterHtml(html, [], { printed: true }), ctx)
+    expect(m.auras.map(a => [a.name, a.keywords, a.range, a.rangeText])).toEqual([
+      ['Stench', ['poison'], 2, undefined],
+      ['Billowing Winds (while bloodied)', [], 3, undefined],
+      ["Lolth's Authority", [], undefined, 'sight'],
+    ])
+  })
+
+  it('reads a recharge whose usage parenthesis is cut off after the die', () => {
+    const html = head + stats('') + "<p class='flavor alt'>➶ <b>Dominating Gaze</b> (minor, recharge ⚅</p><p class=flavorIndent>Ranged 5; +18 vs Will; the target is dominated (save ends, with a -2 penalty to the saving throw).</p>" + tail
+    const m = convertMonster('monster1', parseMonsterHtml(html, [], { printed: true }), ctx)
+    const gaze = m.powers.find(p => p.name === 'Dominating Gaze')!
+    expect([gaze.action, gaze.usage, gaze.recharge]).toEqual(['minor', 'recharge', { kind: 'roll', min: 6 }])
+    expect(gaze.attacks[0].hit?.clauses).toMatchObject([{ kind: 'condition', condition: 'dominated', saveModifier: -2 }])
+  })
+
+  it('does not read "requires a free hand" or "sustain minor" as the action', () => {
+    const html = head + stats('') + "<p class='flavor alt'>⚔ <b>Claw</b> (standard; requires a free hand, at-will)</p><p class=flavorIndent>+18 vs AC; 2d6+5 damage.</p><p class='flavor alt'>➶ <b>Grasping Tendrils</b> (standard; sustain minor, encounter)</p><p class=flavorIndent>Ranged 10; +16 vs Reflex; the target is restrained (save ends).</p>" + tail
+    const m = convertMonster('monster1', parseMonsterHtml(html, [], { printed: true }), ctx)
+    expect(m.powers.map(p => [p.name, p.action, p.usage, p.sustain?.action])).toEqual([
+      ['Claw', 'standard', 'at-will', undefined],
+      ['Grasping Tendrils', 'standard', 'encounter', 'minor'],
+    ])
   })
 })

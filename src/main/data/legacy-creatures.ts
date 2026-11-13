@@ -40,16 +40,22 @@ export function statBlockToMonster(c: Creature): Monster {
 export function creatureToMonster(c: Creature): Monster {
   if (!c.authoredContent) return statBlockToMonster(c)
   const kit = { ...structuredClone(c.authoredContent), id: c.id }
-  const projected = monsterToCreature(kit, c.id)
-  const same = JSON.stringify(projected.statBlock) === JSON.stringify(c.statBlock) && projected.name === c.name && projected.hp === (c.maxHp || c.hp)
-  if (same) return kit
-  // The edited stat block, tagged with the kit entries' positions, in the editor's conventions.
+  // Edits are found by diffing editor models, so unchanged fields make no changes, even where an older
+  // projection wrote them differently. The stored stat block is tagged with the kit entries' positions.
   const d = draftOf(kit)
   const edited = structuredClone({ ...c, hp: c.maxHp || c.hp })
   ;(edited.statBlock as any).actions ??= []
   withDraftNodes(edited, d)
-  const description = (c.statBlock as any).description === projected.statBlock.description ? kit.description : undefined
+  // The projection joins notes into the description; an unedited one stays the kit's own.
+  const stored = (c.statBlock as any).description
+  const description = stored === monsterToCreature(kit, c.id).statBlock.description || stored === savedDescription(kit) ? kit.description : undefined
   return monsterFromEditor(kit, monsterToEditor(kit), editorModel(edited, description))
+}
+
+/** The description a Workshop save wrote before the projection showed conditional defenses and save notes. */
+function savedDescription(m: Monster): string {
+  const notes = m.speed.notes
+  return [m.description, notes ? `Movement: ${notes}` : '', ...(m.skillNotes ?? []), m.regeneration?.text ?? '', ...[...m.resist, ...m.vulnerable].filter(x => x.text || x.note).map(x => `${x.type}: ${x.text ?? ''} ${x.note ?? ''}`)].filter(Boolean).join('\n')
 }
 
 /** A legacy creature as a kit monster record. */

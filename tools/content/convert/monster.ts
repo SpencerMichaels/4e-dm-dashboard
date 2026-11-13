@@ -76,7 +76,9 @@ export function convertMonster(id: string, parsed: any, ctx: ConvertContext): Mo
     senses: parseSenses(sb.senses ?? '', notes),
     speed: convertSpeed(sb),
     defenses: { ac: sb.ac, fortitude: sb.defenses?.fortitude, reflex: sb.defenses?.reflex, will: sb.defenses?.will },
+    defensesIf: sb.defensesIf?.length ? sb.defensesIf : undefined,
     savingThrowBonus: sb.savingThrowBonus ?? 0,
+    savingThrowNotes: sb.savingThrowNotes?.length ? sb.savingThrowNotes : undefined,
     actionPoints: sb.actionPoints ?? 0,
     immune: (sb.immunities ?? []).map((i: any) => ({ type: String(i.type).toLowerCase() })),
     resist: (sb.resistances ?? []).map((r: any) => damageModifier(r.type, r.value, r.note)),
@@ -99,6 +101,7 @@ export function convertMonster(id: string, parsed: any, ctx: ConvertContext): Mo
     sources: parseSources(sb.source ?? '', notes),
     provenance: undefined as never,
   }
+  for (const d of sb.defenseNotes ?? []) notes.add(`defense note "${d}" has no field (not a conditional value)`)
   if (rank === 'minion' && parsed.hp !== 1) notes.add(`minion printed HP ${parsed.hp}`)
   monster.provenance = provenanceFor(ctx, notes)
   return compact(monster)
@@ -143,7 +146,7 @@ function convertTrait(a: any): Trait {
 }
 
 function convertAura(a: any): Aura {
-  return { name: a.name, keywords: lowerKeywords(a.keywords), text: line(a.printed?.text ?? a.effect ?? ''), range: a.auraRange ?? 1 }
+  return { name: a.name, keywords: lowerKeywords(a.keywords), text: line(a.printed?.text ?? a.effect ?? ''), ...(a.auraRangeText ? { rangeText: a.auraRangeText } : { range: a.auraRange ?? 1 }), ...(a.auraRangeIf ? { rangeIf: a.auraRangeIf } : {}) }
 }
 
 export function convertPower(a: any, notes: Notes): Power {

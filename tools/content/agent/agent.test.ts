@@ -4,11 +4,14 @@ import { join } from 'path'
 import { describe, expect, it } from 'vitest'
 import type { Disease } from '@kit'
 import { applyAll } from './apply-all'
-import { applyFile, applyResponse, describePath, parseResponse } from './apply'
-import { batchFile, briefDirs, chunk, defaultResponsesDir } from './briefs'
-import { buildBatchBrief, buildBrief, checkCommand, compactJson, htmlToText, schemaExcerpt } from './prompt'
+import { applyFile, applyResponse, describePath, diseaseKey, fillDiseaseIds, parseResponse } from './apply'
+import { batchFile, briefDirs, chunkIds, defaultResponsesDir, packBatches, parseChunk } from './briefs'
+import { buildBatchBrief, buildBrief, buildRulesFile, checkCommand, compactJson, htmlToText, rulesFile, schemaExcerpt } from './prompt'
 import { atToQuote, resolveQuotes } from './quotes'
+import { patchEntry } from './patch-defenses-if'
 import { mulberry32, pick, sampleIds, tieredSample } from './sample'
+import { Checker, clause } from '../validate/shape'
+import { checkLineSpans } from '../validate/spans'
 
 const disease: Disease = {
   id: 'disease11', name: 'Test Rot', level: 4,
@@ -97,6 +100,31 @@ describe('quotes', () => {
     resolveQuotes(quoted)
     expect(quoted).toEqual(entry)
   })
+
+  it('resolves choice option quotes inside the choice quote, and back again', () => {
+    const text = 'The target is knocked prone, then slides 4 squares or is knocked prone.'
+    const entry = { effect: { text, clauses: [
+      { quote: 'knocked prone', kind: 'condition', condition: 'prone', who: 'target', duration: { kind: 'indefinite' } },
+      { quote: 'slides 4 squares or is knocked prone', kind: 'choice', options: [
+        [{ quote: 'slides 4 squares', kind: 'forced-move', move: 'slide', squares: 4, who: 'target' }],
+        [{ text: 'knocked prone' }],
+      ] },
+    ] } }
+    expect(resolveQuotes(entry)).toEqual([])
+    const choice = entry.effect.clauses[1] as any
+    expect(choice.at).toEqual([34, 70])
+    expect(choice.options[0][0].at).toEqual([34, 50])
+    // The option's "knocked prone" is the one inside the choice, not the earlier one.
+    expect(choice.options[1][0]).toEqual({ at: [57, 70], kind: 'unparsed', text: 'knocked prone' })
+    const quoted = atToQuote(entry) as any
+    expect(quoted.effect.clauses[1].options[1][0]).toEqual({ text: 'knocked prone' })
+    expect(quoted.effect.clauses[1].options[0][0].quote).toBe('slides 4 squares')
+    resolveQuotes(quoted)
+    expect(quoted).toEqual(entry)
+
+    const outside = { effect: { text, clauses: [{ quote: 'slides 4 squares or is knocked prone', kind: 'choice', options: [[{ quote: 'The target', kind: 'unparsed' }]] }] } }
+    expect(resolveQuotes(outside)).toEqual([{ path: '$.effect.clauses[0].options[0][0]', message: 'option quote "The target" is not inside its choice\'s quote "slides 4 squares or is knocked prone"' }])
+  })
 })
 
 describe('brief', () => {
@@ -146,16 +174,25 @@ describe('brief', () => {
     expect(briefDirs([], '/c')).toBeUndefined()
   })
 
-  it('writes the shared text once and each entry with its reply and check command in a batch brief', () => {
+  it('writes the shared text once in the rules file and each entry with its reply and check command in a batch brief', () => {
     const repo = repoWithDisease()
     writeFileSync(join(repo, 'diseases', 'disease20.json'), JSON.stringify({ ...disease, id: 'disease20' }))
     const reply = (id: string) => join(repo, 'responses', 'diseases', `${id}.json`)
-    const brief = buildBatchBrief('diseases', [{ id: 'disease11', reply: reply('disease11') }, { id: 'disease20', reply: reply('disease20') }], { repo, app: '/a' }, 'batch 1')
+    const rulesPath = join(repo, 'briefs', rulesFile('diseases'))
+    expect(rulesPath).toMatch(/\/diseases-rules\.md$/)
+    const rules = buildRulesFile('diseases')
+    expect(rules).not.toMatch(/\{\{[#/]?\w+\}\}/)
+    expect(rules).not.toContain('<!--')
+    expect(rules).toContain('# Rules for cleaning disease entries (diseases)')
+    for (const s of ['## Steps', '## Rules', '## Schema', 'interface Disease', '**Quote rules**', '"unless"']) expect(rules).toContain(s)
+    for (const s of ['## Entry', 'Source text', 'Read the rules file', '"not: ']) expect(rules).not.toContain(s)
+    const brief = buildBatchBrief('diseases', [{ id: 'disease11', reply: reply('disease11') }, { id: 'disease20', reply: reply('disease20') }], { repo, app: '/a' }, 'batch 1', rulesPath)
     expect(brief).not.toMatch(/\{\{[#/]?\w+\}\}/)
     expect(brief).not.toContain('<!--')
-    expect(brief).toContain('# Clean 2 disease entries (diseases, batch 1)')
-    for (const s of ['## Rules', '## Schema', 'interface Disease', '**Quote rules**']) expect(brief.split(s).length - 1).toBe(1)
-    expect(brief.indexOf('## Schema')).toBeLessThan(brief.indexOf('## Entry 1 of 2: `disease11`'))
+    expect(brief.startsWith('# Clean 2 disease entries (diseases, batch 1)\n')).toBe(true)
+    expect(brief).toContain(`First read the rules file \`${rulesPath}\` in full with the Read tool`)
+    expect(brief).toContain('this order: disease11, disease20.')
+    for (const s of ['## Rules', '## Schema', 'interface Disease', '**Quote rules**']) expect(brief).not.toContain(s)
     expect(brief.indexOf('## Entry 1 of 2: `disease11`')).toBeLessThan(brief.indexOf('## Entry 2 of 2: `disease20`'))
     expect(brief.split('### Source text').length - 1).toBe(2)
     for (const id of ['disease11', 'disease20']) {
@@ -167,8 +204,22 @@ describe('brief', () => {
     const single = buildBrief('diseases', 'disease11', { repo, reply: reply('disease11'), app: '/a' })
     expect(single).not.toContain('## Entry')
     expect(single.indexOf('## Source text')).toBeLessThan(single.indexOf('## Schema'))
-    expect(chunk([1, 2, 3, 4, 5, 6, 7], 5)).toEqual([[1, 2, 3, 4, 5], [6, 7]])
+    expect(packBatches([1, 2, 3, 4, 5, 6, 7], () => 1, 5, 100)).toEqual([[1, 2, 3, 4, 5], [6, 7]])
+    // Size-capped: 30 + 30 fit in 70, 30 more would not; 90 alone is over the cap but still a batch.
+    expect(packBatches([30, 30, 30, 90, 10], n => n, 5, 70)).toEqual([[30, 30], [30], [90], [10]])
     expect(batchFile('monsters', 2)).toBe('monsters-batch2.md')
+  })
+
+  it('slices all entries of a kind by id for a chunk, skipping agent and human edits', () => {
+    const repo = repoWithDisease()
+    for (const [n, origin] of [[2, 'parser'], [10, 'agent'], [3, 'human'], [1, 'parser'], [25, 'parser']] as const) {
+      writeFileSync(join(repo, 'diseases', `disease${n}.json`), JSON.stringify({ ...disease, id: `disease${n}`, provenance: { ...disease.provenance, origin } }))
+    }
+    // Sorted: disease1, 2, 3, 10, 11, 25.
+    expect(chunkIds(repo, 'diseases', 0, 4)).toEqual({ ids: ['disease1', 'disease2'], skipped: ['disease3', 'disease10'], total: 6 })
+    expect(chunkIds(repo, 'diseases', 4, 250)).toEqual({ ids: ['disease11', 'disease25'], skipped: [], total: 6 })
+    expect(parseChunk('250:250')).toEqual({ start: 250, count: 250 })
+    for (const bad of [undefined, '250', '1:0', 'a:5', '-1:5']) expect(parseChunk(bad)).toBeUndefined()
   })
 })
 
@@ -215,6 +266,18 @@ describe('apply', () => {
     expect(applyResponse('diseases', 'disease11', { entry: { ...disease } }, human, opts).result.reason).toMatch(/human/)
   })
 
+  it('fills diseaseId by exact printed name', () => {
+    const index = new Map([[diseaseKey('Mummy Rot'), 'disease30'], [diseaseKey('Spider Queen’s Curse'), 'disease60']])
+    const entry = { hit: { text: 'x', clauses: [
+      { kind: 'disease', disease: 'mummy  rot', who: 'target' },
+      { kind: 'disease', disease: "Spider Queen's curse", who: 'target' },
+      { kind: 'disease', disease: 'level 6 mummy rot', who: 'target' },
+      { kind: 'disease', disease: 'mummy rot', diseaseId: 'disease1', who: 'target' },
+    ] } }
+    fillDiseaseIds(entry, index)
+    expect(entry.hit.clauses.map((c: any) => c.diseaseId)).toEqual(['disease30', 'disease60', undefined, 'disease1'])
+  })
+
   it('names powers and clause kinds in error locations', () => {
     const entry = { powers: [{ name: 'Bite', attacks: [{ hit: { text: 'x', clauses: [{ kind: 'damage' }] } }] }] }
     expect(describePath(entry, '$.powers[0].attacks[0].hit.clauses[0].dice')).toBe('powers[0] "Bite" > attacks[0].hit.clauses[0] (damage) > dice')
@@ -238,5 +301,53 @@ describe('apply', () => {
     expect(results.map(r => r.ok)).toEqual([true, false])
     expect(JSON.parse(readFileSync(join(repo, 'diseases', 'disease11.json'), 'utf-8')).name).toBe('Fixed Rot')
     expect(existsSync(join(repo, 'diseases', 'disease99.json'))).toBe(false)
+  })
+})
+
+describe('brief examples', () => {
+  it('every worked example with printed words passes the quote, span and shape checks', () => {
+    const rules = buildRulesFile('monsters')
+    let checked = 0
+    for (const ln of rules.split('\n')) {
+      const open = ln.indexOf('("'), sep = ln.indexOf('): `')
+      if (!ln.startsWith('- ') || open < 0 || sep < 0) continue
+      const text = ln.slice(open + 2, ln.indexOf('"', open + 2))
+      let clauses: any[]
+      try { clauses = JSON.parse(`[${ln.slice(sep + 4, ln.indexOf('`', sep + 4))}]`) } catch { continue }
+      if (!clauses.every(c => typeof c.quote === 'string')) continue
+      const entry = { line: { text, clauses } }
+      expect(resolveQuotes(entry), ln).toEqual([])
+      expect(checkLineSpans(entry.line as any, '$'), ln).toEqual([])
+      const c = new Checker()
+      entry.line.clauses.forEach((cl, i) => clause(c, cl, `$[${i}]`))
+      expect(c.issues, ln).toEqual([])
+      checked++
+    }
+    expect(checked).toBeGreaterThanOrEqual(10)
+  })
+})
+
+describe('patch-defenses-if', () => {
+  const html = "<h1 class=monster>Guard<br><span class=type>Medium natural humanoid</span><br><span class=level>Level 5 Soldier<span class=xp> XP 200</span></span></h1><table class=bodytable><tr><td><b>HP</b> 50; <b>Bloodied</b> 25<td class=rightalign><b>Initiative</b> +8<tr><td><b>AC</b> 21 (23 with phalanx soldier); <b>Fortitude</b> 21, <b>Reflex</b> 16, <b>Will</b> 18<td class=rightalign><b>Perception</b>+4<tr><td><b>Speed</b> 5<td class=rightalign></table>"
+  const entry = (over: Record<string, unknown> = {}) => ({
+    id: 'monster1', name: 'Guard', defenses: { ac: 21, fortitude: 21, reflex: 16, will: 18 }, savingThrowBonus: 0,
+    provenance: { origin: 'agent', at: '2026-11-13', notes: ['kept'] }, ...over,
+  })
+
+  it('adds the parser defensesIf after defenses to agent entries and changes nothing else', () => {
+    const { entry: out, result } = patchEntry(entry(), html)
+    expect(result?.status).toBe('patched')
+    expect(Object.keys(out!)).toEqual(['id', 'name', 'defenses', 'defensesIf', 'savingThrowBonus', 'provenance'])
+    expect(out!.defensesIf).toEqual([{ defense: 'ac', value: 23, if: 'with phalanx soldier' }])
+    const { defensesIf, ...rest } = out!
+    expect(rest).toEqual(entry())
+  })
+
+  it('skips parser entries, entries that have the field, and different base defenses', () => {
+    expect(patchEntry(entry({ provenance: { origin: 'parser', at: '2026-11-13' } }), html)).toEqual({})
+    expect(patchEntry(entry({ defensesIf: [] }), html)).toEqual({})
+    const differs = patchEntry(entry({ defenses: { ac: 22, fortitude: 21, reflex: 16, will: 18 } }), html)
+    expect(differs.entry).toBeUndefined()
+    expect(differs.result?.status).toBe('base differs')
   })
 })

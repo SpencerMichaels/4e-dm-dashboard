@@ -61,7 +61,7 @@ export class Checker {
 
 function duration(c: Checker, d: unknown, path: string): void {
   if (!c.obj(d, path)) return
-  const kinds = ['save-ends', 'turn-end', 'turn-start', 'encounter', 'sustain', 'instant', 'indefinite', 'while-in-aura', 'permanent', 'until']
+  const kinds = ['save-ends', 'turn-end', 'turn-start', 'encounter', 'sustain', 'instant', 'indefinite', 'while-in-aura', 'this-power', 'permanent', 'until']
   c.oneOf(kinds, d.kind, `${path}.kind`)
   c.keys(d, d.kind === 'turn-end' || d.kind === 'turn-start' ? ['kind', 'whose', 'next'] : d.kind === 'sustain' ? ['kind', 'action'] : d.kind === 'until' ? ['kind', 'text'] : ['kind'], path)
   if (d.kind === 'until') c.str(d.text, `${path}.text`, { nonEmpty: true })
@@ -72,21 +72,24 @@ function duration(c: Checker, d: unknown, path: string): void {
   if (d.kind === 'sustain') c.oneOf(ACTION_TYPES, d.action, `${path}.action`)
 }
 
-const WHO = ['target', 'self', 'each-target', 'ally', 'enemies-in-area', 'creatures-in-area', 'allies-in-area', 'other']
-const MOD_STATS = ['attack', 'ac', 'fortitude', 'reflex', 'will', 'defenses', 'speed', 'saving-throws', 'damage']
+const WHO = ['target', 'self', 'each-target', 'ally', 'enemies-in-area', 'creatures-in-area', 'allies-in-area', 'rider', 'mount', 'other']
+const MOD_STATS = [
+  'attack', 'ac', 'fortitude', 'reflex', 'will', 'defenses', 'speed', 'saving-throws', 'damage', 'initiative',
+  ...SKILLS.map(s => `skill:${s}`), 'skill-checks', ...ABILITIES.map(a => `ability:${a}`), 'ability-checks',
+]
 
 function damageTypes(c: Checker, v: unknown, path: string): void {
   if (!c.arr(v, path)) return
   v.forEach((t, i) => c.oneOf(DAMAGE_TYPES, t, `${path}[${i}]`))
 }
 
-/** Fields each clause kind may have besides `at`, `if` and `kind`. */
+/** Fields each clause kind may have besides `at`, `if`, `unless`, `optional` and `kind`. */
 const CLAUSE_FIELDS: Record<string, string[]> = {
   'damage': ['dice', 'types', 'typeChoice', 'who', 'extra', 'critical'],
   'damage-formula': ['text', 'types'],
   'half-damage': [],
-  'ongoing-damage': ['amount', 'types', 'typeChoice', 'who', 'duration', 'saveGroup'],
-  'condition': ['condition', 'who', 'duration', 'saveGroup'],
+  'ongoing-damage': ['amount', 'types', 'typeChoice', 'who', 'duration', 'saveGroup', 'saveModifier'],
+  'condition': ['condition', 'who', 'duration', 'saveGroup', 'escapeDc', 'saveModifier'],
   'grants-ca': ['to', 'who', 'duration', 'saveGroup'],
   'forced-move': ['move', 'squares', 'who'],
   'move': ['move', 'squares', 'who'],
@@ -109,10 +112,20 @@ const CLAUSE_FIELDS: Record<string, string[]> = {
   'power-restriction': ['what', 'who', 'duration', 'saveGroup'],
   'status': ['status', 'who', 'duration', 'saveGroup'],
   'opportunity-reach': ['who'],
+  'difficult-terrain': ['who', 'duration'],
+  'charge': ['who'],
+  'disease': ['disease', 'diseaseId', 'stage', 'who'],
+  'reroll': ['what', 'keep', 'who'],
+  'action-point': ['amount', 'who'],
+  'sense': ['sense', 'range', 'who', 'duration'],
+  'speed': ['mode', 'value', 'change', 'hover', 'who', 'duration'],
+  'choice': ['options', 'chooser'],
   'unparsed': ['text'],
 }
 
 const RESTRICTIONS = ['encounter', 'daily', 'attack', 'all']
+const REROLL_WHAT = ['attack', 'save', 'damage', 'check']
+const SPEED_MODES = ['walk', 'fly', 'climb', 'swim', 'burrow', 'teleport', 'overland-flight']
 
 /** typeChoice: two or more damage types, with `types` empty (or resistance type 'choice'). */
 function typeChoice(c: Checker, cl: Record<string, unknown>, path: string): void {
@@ -124,17 +137,35 @@ function typeChoice(c: Checker, cl: Record<string, unknown>, path: string): void
   if (Array.isArray(cl.types) && cl.types.length > 0) c.fail(`${path}.types`, 'expected [] with typeChoice')
 }
 
-export function clause(c: Checker, cl: unknown, path: string): void {
+export function clause(c: Checker, cl: unknown, path: string, inChoice = false): void {
   if (!c.obj(cl, path)) return
+  if (inChoice && cl.kind === 'choice') { c.fail(`${path}.kind`, 'a choice option cannot hold another choice'); return }
   if (!Array.isArray(cl.at) || cl.at.length !== 2 || !cl.at.every(n => Number.isInteger(n))) c.fail(`${path}.at`, 'expected [start, end] integers')
-  c.optional(cl, 'if', path, (v, p) => c.str(v, p))
+  // if / unless: one printed fragment or a non-empty list of them (spans.ts checks the words).
+  const fragments = (v: unknown, p: string) => {
+    if (!Array.isArray(v)) { c.str(v, p, { nonEmpty: true }); return }
+    if (v.length === 0) c.fail(p, 'expected at least one fragment')
+    v.forEach((f, i) => c.str(f, `${p}[${i}]`, { nonEmpty: true }))
+  }
+  c.optional(cl, 'if', path, fragments)
+  c.optional(cl, 'unless', path, fragments)
+  if (cl.optional !== undefined && cl.optional !== true) c.fail(`${path}.optional`, 'expected true or absent')
   const fields = CLAUSE_FIELDS[String(cl.kind)]
   if (!fields) { c.fail(`${path}.kind`, `unknown clause kind "${String(cl.kind)}"`); return }
-  c.keys(cl, ['at', 'if', 'kind', ...fields], path)
-  const who = () => c.oneOf(WHO, cl.who, `${path}.who`)
+  c.keys(cl, ['at', 'if', 'unless', 'optional', 'kind', ...fields], path)
+  // who: one Who, or a non-empty list of distinct ones (one effect on several subjects).
+  const who = () => {
+    const p = `${path}.who`
+    if (!Array.isArray(cl.who)) { c.oneOf(WHO, cl.who, p); return }
+    if (cl.who.length === 0) c.fail(p, 'expected at least one Who')
+    if (new Set(cl.who).size !== cl.who.length) c.fail(p, 'expected distinct values')
+    cl.who.forEach((w, i) => c.oneOf(WHO, w, `${p}[${i}]`))
+  }
   const dur = () => duration(c, cl.duration, `${path}.duration`)
   const flag = (k: string) => { if (cl[k] !== undefined && cl[k] !== true) c.fail(`${path}.${k}`, 'expected true or absent') }
   c.optional(cl, 'saveGroup', path, (v, p) => c.str(v, p, { nonEmpty: true }))
+  // saveModifier: the printed modifier to the saving throw against it ("-2 penalty to the saving throw": -2).
+  c.optional(cl, 'saveModifier', path, (v, p) => { if (c.int(v, p) && v === 0) c.fail(p, 'expected a non-zero modifier') })
   switch (cl.kind) {
     case 'damage':
       c.str(cl.dice, `${path}.dice`, { nonEmpty: true }); damageTypes(c, cl.types, `${path}.types`); typeChoice(c, cl, path); who(); flag('extra'); flag('critical'); break
@@ -142,10 +173,14 @@ export function clause(c: Checker, cl: unknown, path: string): void {
     case 'half-damage': break
     case 'ongoing-damage':
       c.int(cl.amount, `${path}.amount`, { min: 1 }); damageTypes(c, cl.types, `${path}.types`); typeChoice(c, cl, path); who(); dur(); break
-    case 'condition': c.oneOf(CONDITION_IDS, cl.condition, `${path}.condition`); who(); dur(); break
-    case 'grants-ca': c.oneOf(['all', 'source', 'source-allies'], cl.to, `${path}.to`); who(); dur(); break
+    case 'condition':
+      c.oneOf(CONDITION_IDS, cl.condition, `${path}.condition`); who(); dur()
+      c.optional(cl, 'escapeDc', path, (v, p) => c.int(v, p, { min: 1 }))
+      if (cl.escapeDc !== undefined && cl.condition !== 'grabbed') c.fail(`${path}.escapeDc`, 'escapeDc only on a grabbed condition')
+      break
+    case 'grants-ca': c.oneOf(['all', 'source', 'source-allies', 'rider', 'mount', 'ally'], cl.to, `${path}.to`); who(); dur(); break
     case 'forced-move': c.oneOf(['push', 'pull', 'slide'], cl.move, `${path}.move`); c.int(cl.squares, `${path}.squares`, { min: 0 }); who(); break
-    case 'move': c.oneOf(['shift', 'teleport', 'swap'], cl.move, `${path}.move`); c.optional(cl, 'squares', path, (v, p) => c.int(v, p, { min: 0 })); who(); break
+    case 'move': c.oneOf(['shift', 'teleport', 'swap', 'fly', 'move'], cl.move, `${path}.move`); c.optional(cl, 'squares', path, (v, p) => c.int(v, p, { min: 0 })); who(); break
     case 'modifier':
       if (Array.isArray(cl.stat)) {
         if (cl.stat.length === 0) c.fail(`${path}.stat`, 'expected at least one stat')
@@ -182,6 +217,46 @@ export function clause(c: Checker, cl: unknown, path: string): void {
       who(); dur(); break
     case 'status': c.oneOf(STATUS_IDS, cl.status, `${path}.status`); who(); dur(); break
     case 'opportunity-reach': who(); break
+    case 'difficult-terrain': if (cl.who !== undefined) who(); dur(); break
+    case 'charge': who(); break
+    case 'disease':
+      c.str(cl.disease, `${path}.disease`, { nonEmpty: true }); who()
+      c.optional(cl, 'diseaseId', path, (v, p) => c.str(v, p, { nonEmpty: true }))
+      c.optional(cl, 'stage', path, (v, p) => c.int(v, p, { min: 0 }))
+      break
+    case 'reroll':
+      if (Array.isArray(cl.what)) {
+        if (cl.what.length === 0) c.fail(`${path}.what`, 'expected at least one value')
+        cl.what.forEach((s, i) => c.oneOf(REROLL_WHAT, s, `${path}.what[${i}]`))
+      } else c.oneOf(REROLL_WHAT, cl.what, `${path}.what`)
+      who()
+      c.optional(cl, 'keep', path, (v, p) => c.oneOf(['new', 'higher', 'lower'], v, p))
+      break
+    case 'action-point': c.int(cl.amount, `${path}.amount`, { min: 1 }); who(); break
+    case 'sense':
+      c.oneOf([...SENSE_KINDS, 'see-invisible'], cl.sense, `${path}.sense`); who(); dur()
+      c.optional(cl, 'range', path, (v, p) => c.int(v, p, { min: 1 }))
+      break
+    case 'speed':
+      // A mode gained or set (value), or changed (change); neither when the print gives no number.
+      c.oneOf(SPEED_MODES, cl.mode, `${path}.mode`); who(); dur(); flag('hover')
+      c.optional(cl, 'value', path, (v, p) => c.int(v, p, { min: 0 }))
+      c.optional(cl, 'change', path, (v, p) => { if (c.int(v, p) && v === 0) c.fail(p, 'expected a non-zero change') })
+      if (cl.value !== undefined && cl.change !== undefined) c.fail(`${path}.change`, 'expected value or change, not both')
+      break
+    case 'choice': {
+      // Two or more options, each a non-empty list of clauses (never another choice).
+      c.optional(cl, 'chooser', path, (v, p) => c.oneOf(['self', 'target'], v, p))
+      const p = `${path}.options`
+      if (!c.arr(cl.options, p)) break
+      if (cl.options.length < 2) c.fail(p, 'expected two or more options')
+      cl.options.forEach((opt, i) => {
+        if (!c.arr(opt, `${p}[${i}]`)) return
+        if (opt.length === 0) c.fail(`${p}[${i}]`, 'expected at least one clause')
+        opt.forEach((x, j) => clause(c, x, `${p}[${i}][${j}]`, true))
+      })
+      break
+    }
     case 'unparsed': c.str(cl.text, `${path}.text`, { nonEmpty: true }); break
   }
 }
@@ -313,11 +388,29 @@ function levelSteps(c: Checker, v: unknown, path: string): void {
 
 function trait(c: Checker, t: unknown, path: string, aura = false): void {
   if (!c.obj(t, path)) return
-  c.keys(t, aura ? ['name', 'keywords', 'text', 'range'] : ['name', 'keywords', 'text'], path)
+  c.keys(t, aura ? ['name', 'keywords', 'text', 'range', 'rangeText', 'rangeIf'] : ['name', 'keywords', 'text'], path)
   c.str(t.name, `${path}.name`, { nonEmpty: true })
   if (c.arr(t.keywords, `${path}.keywords`)) t.keywords.forEach((k, i) => c.str(k, `${path}.keywords[${i}]`))
   lineShape(c, t.text, `${path}.text`)
-  if (aura) c.int(t.range, `${path}.range`, { min: 0 })
+  if (!aura) return
+  // range: the printed size; rangeText when it is not a number ("aura sight").
+  if (t.range === undefined) {
+    if (t.rangeText === undefined) c.fail(`${path}.range`, 'expected range, or rangeText for a size that is not a number')
+    else c.str(t.rangeText, `${path}.rangeText`, { nonEmpty: true })
+  } else {
+    c.int(t.range, `${path}.range`, { min: 0 })
+    c.optional(t, 'rangeText', path, () => c.fail(`${path}.rangeText`, 'rangeText only when the size is not a number'))
+  }
+  // rangeIf: printed alternative sizes ("aura 2, or 3 while bloodied"), `if` as printed words.
+  c.optional(t, 'rangeIf', path, (v, q) => list(c, v, q, (x, p) => {
+    if (!c.obj(x, p)) return
+    c.keys(x, ['value', 'if'], p)
+    c.int(x.value, `${p}.value`, { min: 0 })
+    if (Array.isArray(x.if)) {
+      if (x.if.length === 0) c.fail(`${p}.if`, 'expected at least one fragment')
+      x.if.forEach((f, i) => c.str(f, `${p}.if[${i}]`, { nonEmpty: true }))
+    } else c.str(x.if, `${p}.if`, { nonEmpty: true })
+  }))
 }
 
 function list<T>(c: Checker, v: unknown, path: string, each: (item: unknown, p: string) => T): void {
@@ -350,7 +443,7 @@ export function monsterShape(c: Checker, m: unknown): void {
   const path = '$'
   if (!c.obj(m, path)) return
   c.keys(m, ['id', 'name', 'level', 'role', 'rank', 'leader', 'size', 'origin', 'type', 'keywords', 'xp', 'hp', 'initiative',
-    'perception', 'senses', 'speed', 'defenses', 'savingThrowBonus', 'actionPoints', 'immune', 'resist', 'vulnerable',
+    'perception', 'senses', 'speed', 'defenses', 'defensesIf', 'savingThrowBonus', 'savingThrowNotes', 'actionPoints', 'immune', 'resist', 'vulnerable',
     'regeneration', 'abilities', 'skills', 'skillNotes', 'alignment', 'languages', 'equipment', 'traits', 'auras', 'powers', 'description',
     'sources', 'provenance'], path)
   c.str(m.id, '$.id', { nonEmpty: true })
@@ -374,7 +467,19 @@ export function monsterShape(c: Checker, m: unknown): void {
   })
   speed(c, m.speed, '$.speed')
   if (c.obj(m.defenses, '$.defenses')) for (const d of DEFENSES) c.int(m.defenses[d], `$.defenses.${d}`, { min: 0 })
+  // defensesIf: printed conditional values ("Fortitude 23 (25 while bloodied)"); `if` is the printed words.
+  c.optional(m, 'defensesIf', '$', (v, q) => list(c, v, q, (x, p) => {
+    if (!c.obj(x, p)) return
+    c.keys(x, ['defense', 'value', 'if'], p)
+    c.oneOf(DEFENSES, x.defense, `${p}.defense`)
+    c.int(x.value, `${p}.value`, { min: 0 })
+    if (Array.isArray(x.if)) {
+      if (x.if.length === 0) c.fail(`${p}.if`, 'expected at least one fragment')
+      x.if.forEach((f, i) => c.str(f, `${p}.if[${i}]`, { nonEmpty: true }))
+    } else c.str(x.if, `${p}.if`, { nonEmpty: true })
+  }))
   c.int(m.savingThrowBonus, '$.savingThrowBonus', { min: 0 })
+  c.optional(m, 'savingThrowNotes', '$', (v, p) => list(c, v, p, (n, q) => c.str(n, q, { nonEmpty: true })))
   c.int(m.actionPoints, '$.actionPoints', { min: 0 })
   list(c, m.immune, '$.immune', (x, p) => { if (c.obj(x, p)) c.str(x.type, `${p}.type`, { nonEmpty: true }) })
   damageModifiers(c, m.resist, '$.resist')

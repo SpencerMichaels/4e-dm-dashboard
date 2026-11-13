@@ -30,7 +30,7 @@ export function mulberry32(seed: number): () => number {
   }
 }
 
-const byId = (a: string, b: string) => a.localeCompare(b, 'en', { numeric: true })
+export const byId = (a: string, b: string) => a.localeCompare(b, 'en', { numeric: true })
 
 /** Pick n distinct ids (partial Fisher-Yates over the sorted list), in pick order. */
 export function pickOrdered(ids: string[], n: number, rand: () => number): string[] {

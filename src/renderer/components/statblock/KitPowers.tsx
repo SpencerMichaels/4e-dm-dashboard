@@ -5,7 +5,7 @@
 import { useEffect, useId } from 'react'
 import type { Aura, Power, Trait } from '@kit'
 import type { CreatureBuilderConfig } from '@common/types'
-import { powerToLegacy } from '@common/authoring/legacy'
+import { auraSize, powerToLegacy } from '@common/authoring/legacy'
 import { entryToPower, powerToEntry } from '@common/authoring/power-adapter'
 import { PowerCardView, type PowerCardEntry } from '../creature/PowerCardView'
 import { PowerEntryEditor } from '../creature/PowerEntryEditor'
@@ -54,7 +54,10 @@ export function KitTraits({ traits, auras, onTraits, onAuras }: {
       {ops.set ? <div style={{ padding: '4px 8px', fontSize: 'var(--font-size-xs)' }}>
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 4, flexWrap: 'wrap' }}>
           <Text value={x.name} placeholder={kind === 'aura' ? 'Aura name' : 'Trait name'} style={{ fontWeight: 700, fontSize: 'var(--font-size-sm)' }} onChange={name => ops.set!(i, { ...x, name })} />
-          {kind === 'aura' && <span>aura <Num value={(x as unknown as Aura).range} min={1} label="Aura size" onChange={range => ops.set!(i, { ...x, range: range ?? 1 } as unknown as T)} /></span>}
+          {kind === 'aura' && <span>aura {(x as unknown as Aura).range === undefined && (x as unknown as Aura).rangeText && !ops.set
+            // A printed size that isn't a number ("aura sight") shows as printed; editing sets a number.
+            ? auraSize(x as unknown as Aura)
+            : <Num value={(x as unknown as Aura).range} min={1} label="Aura size" onChange={range => ops.set!(i, { ...x, range: range ?? 1 } as unknown as T)} />}</span>}
           <Tags values={x.keywords} placeholder="keywords" onChange={keywords => ops.set!(i, { ...x, keywords })} />
           <span style={{ marginLeft: 'auto' }}><Remove label={`Remove ${x.name || kind}`} onClick={() => ops.remove!(i)} /></span>
         </div>

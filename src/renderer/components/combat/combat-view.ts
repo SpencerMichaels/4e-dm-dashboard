@@ -5,7 +5,7 @@
 import type { Monster, Trap } from '@kit'
 import type { CombatantState } from '@common/types'
 import { combatEntries } from '@common/combat/facts'
-import { powerToLegacy } from '@common/authoring/legacy'
+import { auraSize, powerToLegacy } from '@common/authoring/legacy'
 import { kitStatBlock } from '../creature/kit-view'
 
 const cache = new WeakMap<object, Record<string, any>>()
@@ -41,7 +41,7 @@ export function trapStatBlock(t: Trap): Record<string, any> {
     ac: t.defenses?.ac, defenses: t.defenses ?? {}, immunities: t.immune, resistances: t.resist, weaknesses: [],
     actions: [
       ...t.traits.map(x => ({ name: x.name, entryType: 'trait', keywords: x.keywords, effect: x.text.text })),
-      ...t.auras.map(x => ({ name: x.name, entryType: 'aura', keywords: x.keywords, auraRange: x.range, effect: x.text.text })),
+      ...t.auras.map(x => ({ name: x.name, entryType: 'aura', keywords: x.keywords, auraRange: x.range, auraSize: auraSize(x), effect: x.text.text })),
       ...t.powers.map(powerToLegacy),
       ...(t.trigger ? [text('Trigger', t.trigger.text)] : []),
       ...(t.detect.length ? [text('Detect', t.detect.map(d => `${cap(d.skill)}${d.dc === null ? '' : ` DC ${d.dc}`}: ${d.text}`).join('\n'))] : []),

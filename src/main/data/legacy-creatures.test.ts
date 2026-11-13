@@ -76,3 +76,16 @@ describe('legacy creature migration', () => {
     expect(await migrateLegacyCreatures(dir)).toBe(0)
   })
 })
+
+describe('Workshop creatures saved by an older projection', () => {
+  it('convert unchanged even though the projection now adds conditional defenses and save notes', () => {
+    const kit = workshopMonster()
+    kit.defensesIf = [{ defense: 'fortitude', value: 22, if: 'while bloodied' }]
+    kit.savingThrowNotes = ['+5 against fear effects']
+    kit.speed.notes = 'hover'
+    const c: Creature = { ...monsterToCreature(kit, 'w2'), authoredContent: kit }
+    // What the save wrote then: the description without the new lines.
+    ;(c.statBlock as any).description = 'Movement: hover'
+    expect(creatureToMonster(c)).toEqual({ ...kit, id: 'w2' })
+  })
+})

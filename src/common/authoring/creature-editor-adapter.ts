@@ -139,7 +139,8 @@ export function creatureEditorChanges(d: Draft, before: Creature, after: Creatur
       else {
         value = { ...clone(original ?? {}), name: e.name ?? '', keywords: e.keywords ?? [] }
         if (!equal(previous?.effect, e.effect) || !original) value.text = textLine(e.effect ?? '', (original as any)?.text)
-        if (group === 'auras') value.range = Number(e.auraRange ?? 1)
+        // A text-sized aura ("aura sight") has no number to write back; only a changed size is written.
+        if (group === 'auras' && (!previous || !equal(previous.auraRange, e.auraRange))) value.range = Number(e.auraRange ?? 1) || 1
       }
       if (!id) changes.push({ path: `/append/${group}/${index}`, value })
       else {

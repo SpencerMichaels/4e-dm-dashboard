@@ -81,12 +81,10 @@ function _parseMonsterHtml(html: string, warnings: string[], options: ParseOptio
   }
   const senses = foundSenses.join(', ')
   const hp = parseInt(statsText.match(/HP\s+(\d+)/)?.[1] ?? '1')
-  const defMatch = statsText.match(/AC\s+(\d+)[;,]\s*Fortitude\s+(\d+)[;,]\s*Reflex\s+(\d+)[;,]\s*Will\s+(\d+)/)
-  const ac = parseInt(defMatch?.[1] ?? '10')
-  const fort = parseInt(defMatch?.[2] ?? '10')
-  const ref = parseInt(defMatch?.[3] ?? '10')
-  const will = parseInt(defMatch?.[4] ?? '10')
-  const savingThrowBonus = parseInt(statsText.match(/Saving Throws\s+\+(\d+)/)?.[1] ?? '0')
+  // Defenses, with printed conditional values ("AC 24 (28 against opportunity attacks)") in defensesIf.
+  const parsedDefenses = parseDefenses(statsText)
+  const { ac, fortitude: fort, reflex: ref, will } = parsedDefenses?.defenses ?? { ac: 10, fortitude: 10, reflex: 10, will: 10 }
+  const { bonus: savingThrowBonus, notes: savingThrowNotes } = parseSavingThrows(statsHtml.match(/Saving Throws?\s*<\/b>\s*([^<]*)/)?.[1] ?? '')
   const actionPoints = parseInt(statsText.match(/Action Points?\s+(\d+)/)?.[1] ?? '0')
 
   // Speed — capture all speed entries including notes like (hover)
@@ -222,7 +220,8 @@ function _parseMonsterHtml(html: string, warnings: string[], options: ParseOptio
       origin, creatureType: type, subtypes: filteredKeywords,
       immunities, resistances, weaknesses,
       skills, skillNotes: skillNotes.length > 0 ? skillNotes : undefined, alignment, languages, equipment,
-      xp, savingThrowBonus, actionPoints,
+      defensesIf: parsedDefenses?.defensesIf, defenseNotes: parsedDefenses?.unplaced,
+      xp, savingThrowBonus, savingThrowNotes, actionPoints,
       description, source,
       actions,
       regeneration,
@@ -431,8 +430,10 @@ function parseOneAbility(headerHtml: string, bodyBlocks: string[], sectionDefaul
   const headerKw = cleanHeaderKeywords(hasStarKeywords ? bolds.slice(1) : [])
   const keywords = headerKw.keywords
 
-  // Parse action paren
+  // Parse action paren. Some prints cut it off after the recharge die
+  // ("(minor, recharge ⚅" with no closing paren): read it to the end.
   const parenMatch = afterIcon.match(/\(([^)]+)\)/)
+    ?? afterIcon.match(/\(([^()]*\b(?:standard|minor|move|free|immediate|encounter|at-will|recharge|daily)\b[^()]*)$/i)
   const actionParen = parenMatch?.[1] ?? ''
   const parsed = parseActionParen(actionParen)
   let { actionType, usage: finalUsage, trigger, requirement, sustain, rechargeCondition, parenKeywords, unrecognized } = parsed
@@ -499,7 +500,7 @@ function parseOneAbility(headerHtml: string, bodyBlocks: string[], sectionDefaul
   }
 
   // Use section header for action type if paren didn't specify
-  const parenHasAction = /\b(standard|minor|move|free|immediate|encounter|at-will|recharge|daily)\b/i.test(actionParen)
+  const parenHasAction = /\b(standard|minor|move|free|immediate|encounter|at-will|recharge|daily)\b/i.test(actionWords(actionParen))
   if (actionType === 'standard' && !parenHasAction && sectionDefault !== 'standard') {
     if (sectionDefault === 'triggered') {
       if (actionType === 'standard') actionType = 'free'
@@ -545,6 +546,7 @@ function parseOneAbility(headerHtml: string, bodyBlocks: string[], sectionDefaul
   const allBodyText = unlabeledText + ' ' + Object.values(fields).join(' ')
   if (icon === '☼' || allBodyText.toLowerCase().startsWith('aura') || afterIcon.toLowerCase().includes('aura')) {
     const auraRange = parseInt((afterIcon + ' ' + allBodyText).match(/[Aa]ura\s+(\d+)/)?.[1] ?? '1')
+    const rangeIf = auraRangeIf(afterIcon)
     const text = allBodyText.replace(/^Aura\s+\d+\s*/i, '')
     return {
       name, entryType: 'aura', actionType: '', usage: '',
@@ -553,6 +555,7 @@ function parseOneAbility(headerHtml: string, bodyBlocks: string[], sectionDefaul
       hit: '', miss: '',
       effect: text.substring(0, 500),
       trigger: '', requirement: '', sustain: '', auraRange,
+      ...(rangeIf ? { auraRangeIf: rangeIf } : {}),
       ...(options.printed ? { printed: { text: text.trim() } } : {}),
     }
   }
@@ -740,21 +743,91 @@ function parseOneAbility(headerHtml: string, bodyBlocks: string[], sectionDefaul
   }
 }
 
+/**
+ * Printed alternative aura sizes: "Aura 2, or 3 while the balor is bloodied",
+ * "Aura 1 (aura 3 while bloodied)", "Aura 1 (3 while the Voidharrow is bloodied)".
+ */
+export function auraRangeIf(text: string): { value: number; if: string }[] | undefined {
+  const m = text.match(/\baura\s+\d+\s*(?:,\s*or\s+|\(\s*(?:aura\s+)?)(\d+)\s+(while\b[^;.()]*?)\s*(?:\)|[;.]|$)/i)
+  return m ? [{ value: parseInt(m[1]), if: m[2].trim() }] : undefined
+}
+
+export type DefenseName = 'ac' | 'fortitude' | 'reflex' | 'will'
+
+/**
+ * The stat line's defenses, with printed conditional values: "AC 24 (28 against
+ * opportunity attacks); Fortitude 23 (25 while bloodied), ..." is ac 24 and
+ * fortitude 23 plus defensesIf entries with the printed condition as `if`. A
+ * signed value ("+2 while flying", "-2 when bloodied") is added to the base;
+ * "AC 25 against ..." drops the repeated name. Parentheses with no condition
+ * ("(44)", "(see also mirage)", "(+1 to all defenses ...)") are returned in
+ * `unplaced`. Undefined when the line does not match.
+ */
+export function parseDefenses(text: string): {
+  defenses: Record<DefenseName, number>
+  defensesIf?: { defense: DefenseName; value: number; if: string }[]
+  unplaced?: string[]
+} | undefined {
+  const paren = String.raw`(?:\s*\(([^)]*)\)?)?`
+  const m = text.match(new RegExp(String.raw`(?<![A-Za-z])AC\s+(\d+)${paren}[;,]\s*Fortitude\s+(\d+)${paren}[;,]\s*Reflex\s+(\d+)${paren}[;,]\s*Will\s+(\d+)${paren}`))
+  if (!m) return undefined
+  const names: DefenseName[] = ['ac', 'fortitude', 'reflex', 'will']
+  const defenses = {} as Record<DefenseName, number>
+  const defensesIf: { defense: DefenseName; value: number; if: string }[] = []
+  const unplaced: string[] = []
+  names.forEach((defense, i) => {
+    const base = parseInt(m[1 + i * 2])
+    defenses[defense] = base
+    const p = m[2 + i * 2]?.replace(/\s+/g, ' ').trim()
+    if (!p) return
+    const c = p.match(/^(?:(?:AC|Fortitude|Reflex|Will)\s+)?([-+−]?)(\d+)\s+((?:against|vs\.?|while|when|with|if)\b.*?)\.?$/i)
+    if (c && !/\bto all\b/i.test(c[3])) {
+      const n = parseInt(c[2])
+      const value = c[1] === '+' ? base + n : c[1] ? base - n : n
+      defensesIf.push({ defense, value, if: c[3] })
+    } else unplaced.push(`${defense} ${base} (${p})`)
+  })
+  return { defenses, ...(defensesIf.length ? { defensesIf } : {}), ...(unplaced.length ? { unplaced } : {}) }
+}
+
+/**
+ * The stat line's "Saving Throws" text: the unconditional bonus, and the rest
+ * as printed notes. "+2 (+4 against charm effects)" and "+2; +4 against charm
+ * effects" are bonus 2 with note "+4 against charm effects"; "+5 against fear
+ * effects" alone is bonus 0 with that note.
+ */
+export function parseSavingThrows(text: string): { bonus: number; notes?: string[] } {
+  const s = text.replace(/\s+/g, ' ').replace(/[\s;,.]+$/, '').trim()
+  const lead = s.match(/^\+?(\d+)(?!\d)(?!\s*(?:against|vs)\b)/i)
+  const bonus = lead ? parseInt(lead[1]) : 0
+  let rest = (lead ? s.slice(lead[0].length) : s).replace(/^[\s;,]+/, '').trim()
+  if (/^\([^()]*\)$/.test(rest)) rest = rest.slice(1, -1).trim()
+  return rest ? { bonus, notes: [rest] } : { bonus }
+}
+
 // ─── Parse auras from the stats <p class=flavor> HTML ───
+// "<b>Stench</b> (Poison) aura 2; ...": the parenthesis holds keywords, or a
+// condition that stays in the name ("Billowing Winds (while bloodied)"). A size
+// that is not a number ("aura sight") is auraRangeText.
 function parseAurasFromStatsHtml(statsHtml: string, printed = false): any[] {
   const results: any[] = []
-  const auraRegex = /<b>([^<]+)<\/b>\s*aura\s+(\d+)\s*;\s*(.+?)(?=<br|<\/p|$)/gi
+  const auraRegex = /<b>([^<]+)<\/b>\s*(?:\(([^)<]*)\)\s*)?aura\s+(\d+|[a-z]+)\s*;\s*(.+?)(?=<br|<\/p|$)/gi
   let m
   while ((m = auraRegex.exec(statsHtml)) !== null) {
-    const name = m[1].trim()
+    let name = m[1].trim()
     if (['HP', 'AC', 'Initiative', 'Perception', 'Speed', 'Immune', 'Resist'].includes(name)) continue
+    const paren = (m[2] ?? '').trim()
+    const condition = /\b(while|when|only|until|unless|bloodied)\b/i.test(paren)
+    if (paren && condition) name = `${name} (${paren})`
+    const keywords = paren && !condition ? paren.split(/\s*,\s*/).filter(Boolean) : []
+    const size = /^\d+$/.test(m[3]) ? { auraRange: parseInt(m[3]) } : { auraRangeText: m[3] }
     results.push({
       name, entryType: 'aura', actionType: '', usage: '',
-      keywords: [], rangeType: '', rangeValue: '', target: '',
+      keywords, rangeType: '', rangeValue: '', target: '',
       attackBonus: null, attackNotes: '', defense: '', damage: [],
-      hit: '', miss: '', effect: stripHtml(m[3]).substring(0, 250),
-      trigger: '', requirement: '', sustain: '', auraRange: parseInt(m[2]),
-      ...(printed ? { printed: { text: stripHtml(m[3]) } } : {}),
+      hit: '', miss: '', effect: stripHtml(m[4]).substring(0, 250),
+      trigger: '', requirement: '', sustain: '', ...size,
+      ...(printed ? { printed: { text: stripHtml(m[4]) } } : {}),
     })
   }
   return results
@@ -1051,15 +1124,21 @@ interface ParsedParen {
   unrecognized: string[]
 }
 
+/** The paren without words that name an action but are not the power's action: "sustain minor", "requires a free hand". */
+function actionWords(paren: string): string {
+  return paren.toLowerCase().replace(/\bsustain\s+\w+/g, '').replace(/\bfree hands?\b/g, '')
+}
+
 function parseActionParen(str: string): ParsedParen {
   const lower = str.toLowerCase()
-  const hasActionKeyword = /\b(standard|minor|move|free|immediate interrupt|immediate reaction|no action)\b/i.test(lower)
+  const action = actionWords(str)
+  const hasActionKeyword = /\b(standard|minor|move|free|immediate interrupt|immediate reaction|no action)\b/i.test(action)
   let actionType = 'standard'
-  if (lower.match(/\bminor\b/)) actionType = 'minor'
-  else if (lower.match(/\bmove\b/)) actionType = 'move'
-  else if (lower.match(/\bfree\b/)) actionType = 'free'
-  else if (lower.includes('immediate interrupt')) actionType = 'immediate-interrupt'
-  else if (lower.includes('immediate reaction')) actionType = 'immediate-reaction'
+  if (action.match(/\bminor\b/)) actionType = 'minor'
+  else if (action.match(/\bmove\b/)) actionType = 'move'
+  else if (action.match(/\bfree\b/)) actionType = 'free'
+  else if (action.includes('immediate interrupt')) actionType = 'immediate-interrupt'
+  else if (action.includes('immediate reaction')) actionType = 'immediate-reaction'
   // If paren has a trigger but no explicit action type, it's a triggered free action
   else if (!hasActionKeyword && /\bwhen\b/i.test(lower)) actionType = 'free'
 

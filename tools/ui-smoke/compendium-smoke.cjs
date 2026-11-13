@@ -118,8 +118,8 @@ app.whenReady().then(async () => {
     // One character at a time, as a person types: the spaces must survive.
     await js(() => { const el = document.querySelector('.compendium-preview input[placeholder="Any melee"]'); el.focus(); el.select() })
     for (const ch of 'Any heavy blade') await wc.insertText(ch)
-    await sleep(900)
-    const searing = (await records('item')).find(r => r.content.name === 'Searing Weapon')
+    let searing
+    for (let i = 0; i < 30 && !(searing = (await records('item')).find(r => r.content.name === 'Searing Weapon' && r.content.itemType === 'Any heavy blade')); i++) await sleep(100)
     const flaming = await js(id => window.api.compendium.kitGet('item', id), (searing?.basedOn ?? '').split('/').pop())
     if (!searing || JSON.stringify(searing.content.powers) !== JSON.stringify(flaming.powers) || JSON.stringify(searing.content.critical) !== JSON.stringify(flaming.critical)) throw new Error('Item clone was not saved losslessly: ' + JSON.stringify(searing?.content.name))
     const typedType = await js(() => [...document.querySelectorAll('.compendium-preview input')].find(i => i.placeholder === 'Any melee')?.value)

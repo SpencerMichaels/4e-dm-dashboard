@@ -334,3 +334,354 @@ describe('schema v5', () => {
     for (const p of ['value', 'if', 'vs', 'extra']) expect(paths).toContain(`$.powers[0].attacks[0].altBonus[0].${p}`)
   })
 })
+
+describe('schema v6: if / unless / optional', () => {
+  const text = 'At the start of an encounter, the wolf deals 2d6 + 3 extra damage against any enemy that has not yet acted during the encounter. The target is slowed (save ends). If the target is already slowed, it is instead immobilized. The wolf can shift 4 squares.'
+  const at = (s: string): [number, number] => [text.indexOf(s), text.indexOf(s) + s.length]
+  function withClauses(clauses: any[]) {
+    const m = monster()
+    m.powers[0].effect = { text, clauses }
+    return validateEntry('monsters', m).errors
+  }
+  const damage = { at: at('2d6 + 3 extra damage'), kind: 'damage', dice: '2d6+3', types: [], who: 'target', extra: true }
+  const slowed = { at: at('slowed (save ends)'), kind: 'condition', condition: 'slowed', who: 'target', duration: { kind: 'save-ends' } }
+  const shift = { at: at('can shift 4 squares'), kind: 'move', move: 'shift', squares: 4, who: 'self', optional: true }
+
+  it('accepts split fragments, unless and optional', () => {
+    expect(withClauses([
+      { ...damage, if: ['At the start of an encounter', 'against any enemy that has not yet acted during the encounter'] },
+      { ...slowed, unless: 'If the target is already slowed' },
+      shift,
+    ])).toEqual([])
+  })
+
+  it('matches fragments ignoring case, dashes and dice spacing', () => {
+    expect(withClauses([{ ...slowed, if: 'AT THE START OF AN ENCOUNTER' }])).toEqual([])
+    expect(withClauses([{ ...slowed, if: 'deals 2d6+3' }])).toEqual([])
+  })
+
+  it('rejects joins, "not:" prefixes, missing words, empty fragments and overlap with the own quote', () => {
+    const messages = (cl: any) => withClauses([cl]).map(e => e.message).join('\n')
+    expect(messages({ ...damage, if: 'At the start of an encounter ... against any enemy' })).toMatch(/do not join fragments/)
+    expect(messages({ ...damage, if: 'At the start of an encounter … against any enemy' })).toMatch(/do not join fragments/)
+    expect(messages({ ...slowed, if: 'not: If the target is already slowed' })).toMatch(/"not:" prefix.*unless/)
+    expect(messages({ ...slowed, unless: 'if the target is bloodied' })).toMatch(/not in the line text/)
+    expect(messages({ ...shift, if: 'can shift' })).toMatch(/overlaps the clause's own quote.*optional/)
+    expect(withClauses([{ ...slowed, if: '' }]).map(e => e.path)).toEqual(['$.powers[0].effect.clauses[0].if'])
+    expect(withClauses([{ ...slowed, unless: [] }]).map(e => e.path)).toEqual(['$.powers[0].effect.clauses[0].unless'])
+    expect(withClauses([{ ...slowed, optional: false }]).map(e => e.path)).toEqual(['$.powers[0].effect.clauses[0].optional'])
+  })
+
+  it('accepts a fragment that also occurs outside the own quote', () => {
+    const t = 'The target is slowed. If the target is slowed, it takes 5 damage.'
+    const m = monster()
+    m.powers[0].effect = { text: t, clauses: [{ at: [t.indexOf('it takes'), t.length - 1], kind: 'damage', dice: '5', types: [], who: 'target', if: 'the target is slowed' }] }
+    expect(validateEntry('monsters', m).errors).toEqual([])
+  })
+})
+
+describe('schema v7', () => {
+  /** A hit line with clauses given as [quote, fields]; spans are found in order. */
+  function hit(text: string, clauses: [string, any][]) {
+    let from = 0
+    const m = monster()
+    m.powers[0].attacks[0].hit = { text, clauses: clauses.map(([q, cl]) => {
+      const start = text.indexOf(q, from)
+      from = start + q.length
+      return { at: [start, start + q.length], ...cl }
+    }) }
+    return validateEntry('monsters', m).errors
+  }
+  const dmg = (dice: string, types: string[] = []) => ({ kind: 'damage', dice, types, who: 'target' })
+  const ongoing = (amount: number, types: string[]) => ({ kind: 'ongoing-damage', amount, types, who: 'target', duration: { kind: 'save-ends' } })
+
+  it('structures multi-part damage: a damage quote needs the dice, not the word "damage"', () => {
+    expect(hit('2d8+10 plus 2d6 lightning damage, and the target is pushed 3 squares.', [
+      ['2d8+10', dmg('2d8+10')], ['2d6 lightning damage', dmg('2d6', ['lightning'])],
+      ['pushed 3 squares', { kind: 'forced-move', move: 'push', squares: 3, who: 'target' }],
+    ])).toEqual([])
+    expect(hit('1d10+6 and ongoing 5 poison damage (save ends).', [
+      ['1d10+6', dmg('1d10+6')], ['ongoing 5 poison damage (save ends)', ongoing(5, ['poison'])],
+    ])).toEqual([])
+    expect(hit('1d8+5 plus 1d10 cold damage.', [['1d8+5', dmg('1d8+5')], ['1d10 cold damage', dmg('1d10', ['cold'])]])).toEqual([])
+    expect(hit('3d6 + 7 damage, or 5d6 + 7 against a prone target.', [
+      ['3d6 + 7 damage', { ...dmg('3d6+7'), unless: 'against a prone target' }],
+      ['5d6 + 7', { ...dmg('5d6+7'), if: 'against a prone target' }],
+    ])).toEqual([])
+  })
+
+  it('takes a damage type from the clause or the words after it, and matches whole dice', () => {
+    expect(hit('2d6 + 5 or 3d6 + 5 fire damage.', [['2d6 + 5', dmg('2d6+5', ['fire'])], ['3d6 + 5 fire damage', dmg('3d6+5', ['fire'])]])).toEqual([])
+    expect(hit('5 fire damage plus 2d6 damage.', [['5 fire damage', dmg('5', ['fire'])], ['2d6 damage', dmg('2d6', ['fire'])]])
+      .map(e => e.message)).toEqual([expect.stringMatching(/type "fire" not in span or the words after it/)])
+    expect(spanProblem(dmg('10') as any, '2d8+10')).toMatch(/dice "10" not in span/)
+    expect(spanProblem(dmg('1d10') as any, '1d10+6')).toMatch(/not in span/)
+    expect(spanProblem(dmg('2d8+1') as any, '2d8+10')).toMatch(/not in span/)
+    expect(spanProblem(dmg('5', ['cold']) as any, 'deals +5 cold damage')).toBeUndefined()
+    expect(spanProblem(dmg('10', ['fire']) as any, 'takes 10 fire damage')).toBeUndefined()
+    expect(spanProblem({ ...dmg('2d12+18'), critical: true } as any, '(crit 2d12 + 18)')).toBeUndefined()
+    expect(spanProblem({ ...dmg('2d12+18'), critical: true } as any, '2d12 + 18')).toMatch(/crit/)
+  })
+
+  it('accepts difficult-terrain, fly/move, no-provoke, who lists and escapeDc', () => {
+    const turn = { kind: 'turn-end', whose: 'source', next: true }
+    expect(spanProblem({ kind: 'difficult-terrain', who: 'enemies-in-area', duration: { kind: 'permanent' } } as any, 'is difficult terrain for enemies')).toBeUndefined()
+    expect(spanProblem({ kind: 'difficult-terrain', duration: { kind: 'permanent' } } as any, 'is hindering terrain')).toMatch(/difficult terrain/)
+    expect(spanProblem({ kind: 'move', move: 'fly', squares: 12, who: 'self' } as any, 'flies up to 12 squares')).toBeUndefined()
+    expect(spanProblem({ kind: 'move', move: 'move', who: 'self' } as any, 'moves its speed')).toBeUndefined()
+    expect(spanProblem({ kind: 'move', move: 'move', squares: 5, who: 'self' } as any, 'jumps 5 squares')).toBeUndefined()
+    expect(spanProblem({ kind: 'move', move: 'fly', who: 'self' } as any, 'shifts 2 squares')).toMatch(/no "fly"/)
+    expect(spanProblem({ kind: 'status', status: 'no-provoke', who: 'self', duration: { kind: 'instant' } } as any, 'without provoking opportunity attacks')).toBeUndefined()
+    expect(spanProblem({ kind: 'condition', condition: 'grabbed', who: 'target', duration: { kind: 'indefinite' }, escapeDc: 19 } as any, 'the target is grabbed (escape DC 19)')).toBeUndefined()
+    expect(spanProblem({ kind: 'condition', condition: 'grabbed', who: 'target', duration: { kind: 'indefinite' }, escapeDc: 20 } as any, 'the target is grabbed (escape DC 19)')).toMatch(/escape DC 20/)
+
+    const m = monster()
+    const t = 'The overseer and one ally turn invisible until the end of the overseer\'s next turn. The ground in the aura is difficult terrain for enemies.'
+    m.powers[0].effect = { text: t, clauses: [
+      { at: [t.indexOf('turn invisible'), t.indexOf('turn invisible') + 14], kind: 'condition', condition: 'invisible', who: ['self', 'ally'], duration: turn } as any,
+      { at: [t.indexOf('is difficult'), t.length - 1], kind: 'difficult-terrain', who: 'enemies-in-area', duration: { kind: 'permanent' } } as any,
+    ] }
+    m.auras = [{ name: 'Flaming Body', keywords: ['fire'], range: 2, rangeIf: [{ value: 3, if: 'while the balor is bloodied' }], text: { text: 'Fire.', clauses: [] } }]
+    expect(validateEntry('monsters', m).errors).toEqual([])
+  })
+
+  it('rejects malformed v7 values', () => {
+    const m = monster()
+    const cl = (over: any) => ({ at: [0, 14], kind: 'condition', condition: 'dazed', who: 'target', duration: { kind: 'save-ends' }, ...over })
+    m.powers[0].attacks[0].hit = { text: '2d8 + 4 damage.', clauses: [cl({ who: [] }), cl({ who: ['self', 'self'] }), cl({ who: ['self', 'foe'] }), cl({ escapeDc: 12 })] }
+    m.auras = [{ name: 'A', keywords: [], range: 2, rangeIf: [{ value: 3 }, { value: 3, if: [] }], text: { text: '', clauses: [] } } as any]
+    const paths = validateEntry('monsters', m).errors.map(e => e.path)
+    for (const p of ['clauses[0].who', 'clauses[1].who', 'clauses[2].who[1]', 'clauses[3].escapeDc']) expect(paths).toContain(`$.powers[0].attacks[0].hit.${p}`)
+    expect(paths).toEqual(expect.arrayContaining(['$.auras[0].rangeIf[0].if', '$.auras[0].rangeIf[1].if']))
+  })
+})
+
+describe('schema v8', () => {
+  const p = (cl: any, span: string, after = '') => spanProblem(cl, span, after)
+
+  it('checks the keywords of charge, disease, reroll and action-point', () => {
+    expect(p({ kind: 'charge', who: 'self' }, 'charges and makes the following attack')).toBeUndefined()
+    expect(p({ kind: 'charge', who: 'self' }, 'shifts and makes the following attack')).toMatch(/charge/)
+    const rot = { kind: 'disease', disease: 'mummy rot', who: 'target' }
+    expect(p(rot, 'the target contracts level 6 mummy rot')).toBeUndefined()
+    expect(p({ ...rot, disease: 'Mummy  Rot' }, 'contracts mummy rot')).toBeUndefined()
+    expect(p(rot, 'contracts filth fever')).toMatch(/disease "mummy rot" not in span/)
+    expect(p({ ...rot, disease: 'werewolf moon frenzy', stage: 1 }, 'contracts werewolf moon frenzy (stage 1)')).toBeUndefined()
+    expect(p({ ...rot, stage: 2 }, 'contracts mummy rot (stage 1)')).toMatch(/stage 2/)
+    expect(p({ kind: 'reroll', what: 'attack', who: 'other' }, 'forces the attacker to reroll the attack')).toBeUndefined()
+    expect(p({ kind: 'reroll', what: 'save', who: 'self', keep: 'higher' }, 'rolls again and uses the higher result')).toBeUndefined()
+    expect(p({ kind: 'reroll', what: 'attack', who: 'other' }, 'the attack misses')).toMatch(/reroll/)
+    expect(p({ kind: 'action-point', amount: 1, who: 'self' }, 'gains 1 action point')).toBeUndefined()
+    expect(p({ kind: 'action-point', amount: 1, who: 'self' }, 'gains an action point')).toBeUndefined()
+    expect(p({ kind: 'action-point', amount: 2, who: 'self' }, 'gains an action point')).toMatch(/amount 2/)
+    expect(p({ kind: 'action-point', amount: 1, who: 'self' }, 'gains 1 extra action')).toMatch(/action point/)
+  })
+
+  it('finds an escape DC later in the grab sentence, not in the next one', () => {
+    const grab = { kind: 'condition', condition: 'grabbed', who: 'target', duration: { kind: 'indefinite' }, escapeDc: 21 }
+    expect(p(grab, 'the target is grabbed', ' and takes ongoing 10 fire damage until it escapes (DC 21).')).toBeUndefined()
+    expect(p(grab, 'the target is restrained (until it escapes (DC 21))'.replace('restrained', 'grabbed'))).toBeUndefined()
+    expect(p(grab, 'the target is grabbed', '. The dragon can escape DC 21.')).toMatch(/escape DC 21/)
+  })
+
+  it('accepts the v8 fields, Who values, this-power duration and savingThrowNotes', () => {
+    const m = monster()
+    const t = 'The hippogriff charges and makes the following attack, and its rider gains 1 action point. Each attack is at a -2 penalty, and the target contracts mummy rot (stage 1). The attacker must reroll the attack and use the second result.'
+    const at = (q: string) => { const i = t.indexOf(q); return [i, i + q.length] }
+    m.powers[0].effect = { text: t, clauses: [
+      { at: at('charges'), kind: 'charge', who: 'self', optional: true },
+      { at: at('gains 1 action point'), kind: 'action-point', amount: 1, who: 'rider' },
+      { at: at('-2 penalty'), kind: 'modifier', stat: 'attack', value: -2, who: 'self', duration: { kind: 'this-power' } },
+      { at: at('contracts mummy rot (stage 1)'), kind: 'disease', disease: 'mummy rot', diseaseId: 'disease30', stage: 1, who: 'target' },
+      { at: at('must reroll the attack'), kind: 'reroll', what: 'attack', keep: 'new', who: ['other', 'mount'] },
+    ] } as any
+    ;(m as any).savingThrowNotes = ['+5 against fear effects']
+    expect(validateEntry('monsters', m).errors).toEqual([])
+  })
+
+  it('rejects malformed v8 values', () => {
+    const m = monster()
+    const t = '2d8 + 4 damage.'
+    m.powers[0].attacks[0].hit = { text: t, clauses: [
+      { at: [0, 3], kind: 'disease', disease: '', stage: -1, who: 'target' },
+      { at: [0, 3], kind: 'reroll', what: 'initiative', keep: 'best', who: 'self' },
+      { at: [0, 3], kind: 'action-point', amount: 0, who: 'driver' },
+      { at: [0, 3], kind: 'charge' },
+    ] } as any
+    ;(m as any).savingThrowNotes = ['']
+    const paths = validateEntry('monsters', m).errors.map(e => e.path)
+    for (const q of ['clauses[0].disease', 'clauses[0].stage', 'clauses[1].what', 'clauses[1].keep', 'clauses[2].amount', 'clauses[2].who', 'clauses[3].who']) {
+      expect(paths).toContain(`$.powers[0].attacks[0].hit.${q}`)
+    }
+    expect(paths).toContain('$.savingThrowNotes[0]')
+  })
+})
+
+describe('schema v9', () => {
+  const p = (cl: any, span: string, after = '') => spanProblem(cl, span, after)
+
+  it('checks the sense keyword and range, "halved" and "roll ... again"', () => {
+    const sense = { kind: 'sense', sense: 'tremorsense', range: 10, who: 'self', duration: { kind: 'permanent' } }
+    expect(p(sense, 'gains tremorsense 10')).toBeUndefined()
+    expect(p(sense, 'gains tremorsense 5')).toMatch(/range 10/)
+    expect(p({ ...sense, sense: 'truesight' }, 'gains tremorsense 10')).toMatch(/truesight/)
+    expect(p({ ...sense, sense: 'low-light-vision', range: undefined }, 'has low-light vision')).toBeUndefined()
+    const invisible = { kind: 'sense', sense: 'see-invisible', who: 'self', duration: { kind: 'permanent' } }
+    expect(p(invisible, 'can see invisible creatures and objects')).toBeUndefined()
+    expect(p(invisible, 'sees through illusions')).toMatch(/see invisible/)
+    expect(p({ kind: 'half-damage' }, 'the damage is halved')).toBeUndefined()
+    expect(p({ kind: 'half-damage' }, 'takes half as much damage')).toBeUndefined()
+    expect(p({ kind: 'half-damage' }, 'takes no damage')).toMatch(/half/)
+    expect(p({ kind: 'reroll', what: 'attack', who: 'self' }, 'can roll the attack again')).toBeUndefined()
+    expect(p({ kind: 'reroll', what: 'attack', who: 'self' }, 'can roll the attack. It attacks again')).toMatch(/reroll/)
+  })
+
+  it('accepts sense clauses and defensesIf, and rejects malformed ones', () => {
+    const m = monster()
+    const t = 'The wraith gains tremorsense 10 and can see invisible creatures.'
+    const at = (q: string) => { const i = t.indexOf(q); return [i, i + q.length] }
+    m.powers[0].effect = { text: t, clauses: [
+      { at: at('gains tremorsense 10'), kind: 'sense', sense: 'tremorsense', range: 10, who: 'self', duration: { kind: 'permanent' } },
+      { at: at('can see invisible creatures'), kind: 'sense', sense: 'see-invisible', who: 'self', duration: { kind: 'permanent' } },
+    ] } as any
+    ;(m as any).defensesIf = [{ defense: 'ac', value: 28, if: 'against opportunity attacks' }, { defense: 'fortitude', value: 25, if: ['while bloodied'] }]
+    expect(validateEntry('monsters', m).errors).toEqual([])
+
+    m.powers[0].effect = { text: t, clauses: [{ at: [0, 3], kind: 'sense', sense: 'x-ray', range: 0, who: 'self' }] } as any
+    ;(m as any).defensesIf = [{ defense: 'armor', value: -1, if: '' }, { defense: 'ac', value: 20, if: [], note: 'x' }]
+    const paths = validateEntry('monsters', m).errors.map(e => e.path)
+    for (const q of ['clauses[0].sense', 'clauses[0].range', 'clauses[0].duration']) expect(paths).toContain(`$.powers[0].effect.${q}`)
+    for (const q of ['[0].defense', '[0].value', '[0].if', '[1].if', '[1].note']) expect(paths).toContain(`$.defensesIf${q}`)
+  })
+})
+
+describe('schema v10', () => {
+  const p = (cl: unknown, span: string, after = '') => spanProblem(cl as any, span, after)
+  const t = 'The target slides 4 squares or is knocked prone.'
+  const at = (q: string, text = t) => { const i = text.indexOf(q); return [i, i + q.length] }
+  const choice = (options: unknown[][], q = 'slides 4 squares or is knocked prone') => ({ at: at(q), kind: 'choice', options })
+  const slide = { at: at('slides 4 squares'), kind: 'forced-move', move: 'slide', squares: 4, who: 'target' }
+  const prone = { at: at('knocked prone'), kind: 'condition', condition: 'prone', who: 'target', duration: { kind: 'indefinite' } }
+  const errors = (clauses: unknown[], text = t) => {
+    const m = monster()
+    m.powers[0].effect = { text, clauses } as any
+    return validateEntry('monsters', m).errors
+  }
+
+  it('accepts a choice whose options lie inside its span', () => {
+    expect(errors([choice([[slide], [prone]])])).toEqual([])
+    expect(errors([{ ...choice([[slide], [{ at: at('knocked prone'), kind: 'unparsed', text: 'knocked prone' }]]), chooser: 'target' }])).toEqual([])
+  })
+
+  it('rejects options outside the span, overlapping options, nesting, one option and no "or"', () => {
+    const short = errors([choice([[slide], [prone]], 'slides 4 squares or is knocked')])
+    expect(short.map(e => e.message).join('\n')).toMatch(/outside its choice's span/)
+    const overlap = errors([choice([[slide], [{ ...prone, at: at('squares or is knocked prone') }]])])
+    expect(overlap.map(e => e.message).join('\n')).toMatch(/overlaps another option/)
+    const nested = errors([choice([[slide], [choice([[prone], [prone]])]])])
+    expect(nested.map(e => e.message).join('\n')).toMatch(/cannot hold another choice/)
+    expect(errors([choice([[slide]])]).map(e => e.message).join('\n')).toMatch(/two or more options/)
+    expect(errors([{ ...choice([[slide], [prone]]), chooser: 'dm' }]).map(e => e.path)).toContain('$.powers[0].effect.clauses[0].chooser')
+    expect(p({ kind: 'choice', options: [] }, 'slides 4 squares and is knocked prone')).toMatch(/"or"/)
+    expect(p({ kind: 'choice', options: [] }, 'either slides 4 squares')).toBeUndefined()
+  })
+
+  it('accepts third-party grants-ca, check stats and reroll lists', () => {
+    const text = "The dire wolf's rider gains combat advantage against the target, a +2 bonus to Athletics checks and Strength checks, and can reroll an attack roll or save."
+    expect(errors([
+      { at: at('gains combat advantage', text), kind: 'grants-ca', to: 'rider', who: 'target', duration: { kind: 'permanent' } },
+      { at: at('+2 bonus to Athletics checks and Strength checks', text), kind: 'modifier', stat: ['skill:athletics', 'ability:str'], value: 2, who: 'rider', duration: { kind: 'permanent' } },
+      { at: at('can reroll an attack roll or save', text), kind: 'reroll', what: ['attack', 'save'], who: 'rider', optional: true },
+    ], text)).toEqual([])
+    const bad = errors([{ at: at('gains combat advantage', text), kind: 'modifier', stat: ['skill:flying', 'ability:luck'], value: 2, who: 'rider', duration: { kind: 'permanent' } }], text)
+    expect(bad.map(e => e.path)).toEqual(expect.arrayContaining(['$.powers[0].effect.clauses[0].stat[0]', '$.powers[0].effect.clauses[0].stat[1]']))
+  })
+
+  it('needs the skill or ability name for a check stat, and reads "asleep" as unconscious', () => {
+    const mod = { kind: 'modifier', stat: 'skill:stealth', value: 5, who: 'self', duration: { kind: 'permanent' } }
+    expect(p(mod, '+5 bonus to Stealth checks')).toBeUndefined()
+    expect(p(mod, '+5 bonus', ' to Stealth checks.')).toBeUndefined()
+    expect(p(mod, '+5 bonus to Perception checks')).toMatch(/stealth/)
+    expect(p({ ...mod, stat: 'ability:str' }, '+5 bonus to Strength checks')).toBeUndefined()
+    expect(p({ ...mod, stat: 'skill-checks' }, '+5 bonus to all skill checks')).toBeUndefined()
+    const asleep = { kind: 'condition', condition: 'unconscious', who: 'target', duration: { kind: 'until', text: 'until woken' } }
+    expect(p(asleep, 'falls asleep until woken')).toBeUndefined()
+    expect(p(asleep, 'falls down')).toMatch(/unconscious/)
+  })
+})
+
+describe('schema v11', () => {
+  const p = (cl: unknown, span: string, after = '', before = '') => spanProblem(cl as any, span, after, before)
+  const at = (q: string, text: string) => { const i = text.indexOf(q); return [i, i + q.length] }
+  const errors = (clauses: unknown[], text: string) => {
+    const m = monster()
+    m.powers[0].effect = { text, clauses } as any
+    return validateEntry('monsters', m).errors
+  }
+
+  it('accepts speed clauses and checks the mode word, number and hover', () => {
+    const fly = { kind: 'speed', mode: 'fly', value: 12, who: 'self', duration: { kind: 'encounter' } }
+    expect(p(fly, 'gains a fly speed of 12')).toBeUndefined()
+    expect(p({ ...fly, value: 8, hover: true }, 'gains fly 8 (hover)')).toBeUndefined()
+    expect(p({ ...fly, hover: true }, 'gains a fly speed of 12')).toMatch(/hover/)
+    expect(p({ ...fly, mode: 'climb', value: undefined }, 'gains a climb speed equal to its speed')).toBeUndefined()
+    expect(p({ ...fly, mode: 'swim' }, 'gains a fly speed of 12')).toMatch(/no "swim"/)
+    expect(p({ ...fly, value: 10 }, 'gains a fly speed of 12')).toMatch(/10 not in span/)
+    const text = 'The dragon gains a fly speed of 12 until the end of the encounter.'
+    expect(errors([{ at: at('gains a fly speed of 12 until the end of the encounter', text), ...fly }], text)).toEqual([])
+    const bad = errors([{ at: at('gains a fly speed of 12', text), ...fly, mode: 'jump', change: 2 }], text).map(e => e.message).join('\n')
+    expect(bad).toMatch(/"jump" is not one of/)
+    expect(bad).toMatch(/value or change, not both/)
+  })
+
+  it('accepts no-concealment, initiative and saveModifier', () => {
+    const status = { kind: 'status', status: 'no-concealment', who: 'target', duration: { kind: 'save-ends' } }
+    expect(p(status, 'cannot benefit from invisibility or concealment')).toBeUndefined()
+    expect(p(status, 'is blinded')).toMatch(/no-concealment/)
+    const init = { kind: 'modifier', stat: 'initiative', value: 2, who: 'allies-in-area', duration: { kind: 'permanent' } }
+    expect(p(init, '+2 power bonus to initiative')).toBeUndefined()
+    expect(p(init, '+2 power bonus to attack rolls')).toMatch(/initiative/)
+    const dominated = { kind: 'condition', condition: 'dominated', who: 'target', duration: { kind: 'save-ends' }, saveModifier: -2 }
+    expect(p(dominated, 'dominated (save ends, with a -2 penalty to the saving throw)')).toBeUndefined()
+    expect(p(dominated, 'dominated (save ends', '; the target takes a -2 penalty to the saving throw). Next.')).toBeUndefined()
+    expect(p(dominated, 'dominated (save ends)')).toMatch(/saveModifier/)
+    expect(p({ ...dominated, saveModifier: -4 }, 'dominated (save ends, with a -2 penalty to the saving throw)')).toMatch(/4 penalty/)
+    const text = 'The target is dominated (save ends, with a -2 penalty to the saving throw).'
+    expect(errors([{ at: at('dominated (save ends, with a -2 penalty to the saving throw)', text), ...dominated, saveModifier: 0 }], text)
+      .map(e => e.message)).toContain('expected a non-zero modifier')
+  })
+
+  it('accepts area words for zones and comma-listed resistances', () => {
+    const zone = { kind: 'zone', duration: { kind: 'turn-end', whose: 'source', next: true } }
+    for (const q of ['creates an area of swirling sand', 'a field of grasping vines', 'the cloud', 'a wall of fire']) expect(p(zone, q), q).toBeUndefined()
+    expect(p(zone, 'creates swirling sand')).toMatch(/no "zone"/)
+    const res = { kind: 'resistance', type: 'fire', value: 10, who: 'self', duration: { kind: 'permanent' } }
+    expect(p(res, '10 fire', ', 10 acid.', 'The golem gains resist 10 necrotic, ')).toBeUndefined()
+    expect(p(res, '10 fire', '.', 'The golem gains resist 10 necrotic, 10 cold, and ')).toBeUndefined()
+    expect(p(res, '10 fire', '.', 'The golem gains resist 10 necrotic. It takes ')).toMatch(/resist/)
+    expect(p({ ...res, kind: 'vulnerability' }, '5 cold', '.', 'It gains vulnerable 5 fire, ')).toBeUndefined()
+    const text = 'The golem gains resist 10 necrotic, 10 fire, 10 acid until the end of its next turn.'
+    const dur = { kind: 'turn-end', whose: 'source', next: true }
+    expect(errors(['resist 10 necrotic', '10 fire', '10 acid'].map((q, i) =>
+      ({ at: at(q, text), kind: 'resistance', type: ['necrotic', 'fire', 'acid'][i], value: 10, who: 'self', duration: dur })), text)).toEqual([])
+  })
+
+  it('accepts "recharging", burrowing moves and if fragments from the trait or aura name', () => {
+    expect(p({ kind: 'recharge-power', power: 'breath weapon' }, 'recharging its breath weapon')).toBeUndefined()
+    expect(p({ kind: 'move', move: 'move', squares: 6, who: 'self' }, 'burrows 6 squares')).toBeUndefined()
+    const text = 'Enemies in the aura take a -2 penalty to attack rolls against the necrosphinx.'
+    const mod = { at: at('-2 penalty to attack rolls', text), kind: 'modifier', stat: 'attack', value: -2, who: 'enemies-in-area', duration: { kind: 'while-in-aura' } }
+    const aura = (name: string, clauses: unknown[]) => monster({ auras: [{ name, keywords: [], range: 3, text: { text, clauses } }] as any })
+    const ok = aura('Billowing Winds (while bloodied)', [{ ...mod, if: ['while bloodied', 'against the necrosphinx'] }])
+    expect(validateEntry('monsters', ok).errors).toEqual([])
+    const missing = aura('Billowing Winds', [{ ...mod, if: 'while bloodied' }])
+    expect(validateEntry('monsters', missing).errors.map(e => e.message).join('\n')).toMatch(/not in the line text/)
+  })
+
+  it('accepts an aura size that is not a number as rangeText', () => {
+    const aura = (over: Record<string, unknown>) => monster({ auras: [{ name: 'Lolth\'s Authority', keywords: [], text: { text: 'Allies gain a bonus.', clauses: [] }, ...over }] as any })
+    expect(validateEntry('monsters', aura({ rangeText: 'sight' })).errors).toEqual([])
+    expect(validateEntry('monsters', aura({})).errors.map(e => e.message)).toEqual(['expected range, or rangeText for a size that is not a number'])
+    expect(validateEntry('monsters', aura({ range: 5, rangeText: 'sight' })).errors.map(e => e.message)).toEqual(['rangeText only when the size is not a number'])
+  })
+})

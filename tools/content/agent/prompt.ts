@@ -117,8 +117,12 @@ function oneLine(decl: string): string {
 const AGENT_CLAUSE_BASE = `interface ClauseBase {
   /** Exact words from the owning Line.text (see the quote rules). Every kind except unparsed. */
   quote: string
-  /** The printed condition words, verbatim, whenever the print makes the clause conditional. */
-  if?: string
+  /** The printed condition: exact fragment(s) of the Line.text, never the clause's own quote; a split condition is a list. */
+  if?: string | string[]
+  /** Exact printed fragment(s) of the condition under which the clause does NOT apply. */
+  unless?: string | string[]
+  /** The print makes the effect optional ("can shift 4 squares"). */
+  optional?: true
 }`
 
 /** Agents write an unparsed clause as just { text }: no kind, no quote. */
@@ -158,13 +162,19 @@ function keepBlocks(template: string, keep: string[]): string {
 }
 
 const ENTRY_PART = /<!-- entry -->\n([\s\S]*?)<!-- \/entry -->\n/
+const HEAD_PART = /<!-- batch-head -->\n([\s\S]*?)<!-- \/batch-head -->\n/
 
-/** The template for this kind and mode, split into the shared text and the per-entry part (marked `<!-- entry -->`). */
-function templateParts(kind: AgentKind, mode: 'single' | 'batch'): { shared: string; entry: string } {
+/**
+ * The template for this kind and mode, split into the shared text (with the
+ * per-entry part still marked `<!-- entry -->`), the per-entry part, and the
+ * batch brief's head (`<!-- batch-head -->`, dropped from the shared text).
+ */
+function templateParts(kind: AgentKind, mode: 'single' | 'batch'): { shared: string; entry: string; head: string } {
   const template = keepBlocks(readFileSync(join(__dirname, 'prompt.md'), 'utf-8'), [kind, mode]).replace(/^<!--[\s\S]*?-->\n+/, '')
   const m = template.match(ENTRY_PART)
-  if (!m) throw new Error('prompt.md has no <!-- entry --> part')
-  return { shared: template, entry: m[1] }
+  const h = template.match(HEAD_PART)
+  if (!m || !h) throw new Error('prompt.md needs an <!-- entry --> and a <!-- batch-head --> part')
+  return { shared: template.replace(HEAD_PART, ''), entry: m[1], head: h[1] }
 }
 
 function fill(text: string, values: Record<string, string>): string {
@@ -211,16 +221,32 @@ export function buildBrief(kind: AgentKind, id: string, p: BriefPaths): string {
   return fill(shared.replace(ENTRY_PART, () => entry), values)
 }
 
+/** File name of a kind's rules file in a brief dir: "monsters-rules.md". */
+export function rulesFile(kind: AgentKind): string {
+  return `${kind}-rules.md`
+}
+
 /**
- * Several entries of one kind in one brief: the steps, rules, examples and
- * schema once, then per entry its reply path, check command, source text and
- * current JSON (headings one level down). `name` labels the batch ("batch 1").
+ * A kind's rules file for batch briefs: the steps, rules, examples and schema
+ * that apply to every entry, written once per brief dir.
  */
-export function buildBatchBrief(kind: AgentKind, entries: { id: string; reply: string }[], p: Omit<BriefPaths, 'reply'>, name: string): string {
-  const { shared, entry } = templateParts(kind, 'batch')
-  const common = { ...kindValues(kind), COUNT: String(entries.length), BATCH: name, IDS: entries.map(e => e.id).join(', ') }
+export function buildRulesFile(kind: AgentKind): string {
+  const { shared } = templateParts(kind, 'batch')
+  return fill(shared.replace(ENTRY_PART, ''), kindValues(kind)).replace(/\n+$/, '\n')
+}
+
+/**
+ * Several entries of one kind in one brief: a pointer to the kind's rules file
+ * (`rules`, its path as the agent sees it), then per entry its reply path,
+ * check command, source text and current JSON (headings one level down).
+ * `name` labels the batch ("batch 1").
+ */
+export function buildBatchBrief(kind: AgentKind, entries: { id: string; reply: string }[], p: Omit<BriefPaths, 'reply'>, name: string, rules: string): string {
+  const { entry, head } = templateParts(kind, 'batch')
+  const [label] = KIND_LABEL[kind]
+  const common = { KIND: kind, KIND_LABEL: label, COUNT: String(entries.length), BATCH: name, IDS: entries.map(e => e.id).join(', '), RULES_PATH: rules }
   const parts = entries.map((e, i) => fill(entry.replace(/^(#+) /gm, '#$1 '), { ...common, N: String(i + 1), ...entryValues(kind, e.id, { ...p, reply: e.reply }) }))
-  return fill(shared, common).replace(ENTRY_PART, () => parts.join('\n'))
+  return fill(head, common) + parts.join('\n')
 }
 
 /** @deprecated name kept for older callers; the brief needs reply and app paths. */

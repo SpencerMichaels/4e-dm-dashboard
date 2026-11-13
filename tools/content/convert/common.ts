@@ -87,6 +87,8 @@ export function parseSources(source: string, notes: Notes): SourceRef[] {
 export function damageModifier(rawType: string, value?: number, note?: string): DamageModifier {
   const type = normText(rawType).toLowerCase()
   const n = note ? normText(note) : undefined
+  // "Vulnerable 10 against close and area attacks": a numbered qualifier, not a damage type.
+  if (typeof value === 'number' && /^(against|to|vs\.?)\s/.test(type)) return compact({ type: 'special', value, text: normText(rawType), note: n })
   if (typeof value === 'number') return compact({ type, value, note: n })
   const variable = type.match(/^(\d+)\/variable$/)
   if (variable) return compact({ type: 'variable', value: parseInt(variable[1]), note: n })
@@ -268,7 +270,10 @@ export interface DamagePartIn { expr: string; type: string; ongoing: boolean; sa
 
 /**
  * Damage clauses for an attack's own (non-ongoing) damage parts: each part's
- * dice must appear in the line text as "<dice> [<type>[ and <type>]] damage".
+ * dice must appear in the line text as "<dice> [<type>[ and <type>]] damage",
+ * or, for an untyped part, as bare dice that another part follows ("2d8+10
+ * plus 2d6 lightning damage", "1d10+6 and ongoing 5 poison damage"): the quote
+ * is then the dice alone and the trailing type is not the part's.
  */
 export function damageClauses(text: string, parts: DamagePartIn[]): Clause[] {
   const clauses: Clause[] = []
@@ -278,7 +283,16 @@ export function damageClauses(text: string, parts: DamagePartIn[]): Clause[] {
     const re = new RegExp(`(?<![\\w+])${exprPattern(part.expr)}\\s+(?:((?:${TYPE_ALT})(?:(?:,\\s*|\\s+(?:and|or)\\s+)(?:${TYPE_ALT}))*)\\s+)?damage\\b`, 'gi')
     re.lastIndex = from
     const m = re.exec(text)
-    if (!m) continue
+    if (!m) {
+      if (part.type) continue
+      const bare = new RegExp(`(?<![\\w+])${exprPattern(part.expr)}(?=,?\\s+(?:plus|and)\\s+(?:ongoing\\s+)?\\d)`, 'gi')
+      bare.lastIndex = from
+      const b = bare.exec(text)
+      if (!b) continue
+      clauses.push({ at: [b.index, b.index + b[0].length], kind: 'damage', dice: part.expr, types: [], who: 'target' })
+      from = b.index + b[0].length
+      continue
+    }
     const types = typesOf(m[1] ?? '')
     if (!types) continue
     // "cold or fire damage" is a choice, not both types: leave it for agents.
@@ -289,26 +303,34 @@ export function damageClauses(text: string, parts: DamagePartIn[]): Clause[] {
   return clauses
 }
 
+/** "(save ends)", or with a saving throw penalty: "(save ends, with a -2 penalty to the saving throw)" (group 1: "-2"). */
+const SAVE_ENDS = String.raw`\(save ends(?:[,;]? (?:with a |the target takes a )?([-–−]\d+) penalty (?:to|on) (?:the|this) saving throw)?\)`
+
+/** The saveModifier field for a SAVE_ENDS match's penalty group. */
+function saveModifier(penalty: string | undefined): { saveModifier?: number } {
+  return penalty ? { saveModifier: -parseInt(penalty.replace(/^[-–−]/, '')) } : {}
+}
+
 /**
- * Exact "(save ends)" patterns about the target:
- *   "ongoing 5 fire damage (save ends)" after the attack's damage or "the target takes"
+ * Exact "(save ends)" patterns about the target (with a printed saving throw penalty as saveModifier):
+ *   "ongoing 5 fire damage (save ends)" after the attack's damage or dice ("1d10+6 and ongoing 5 ...") or "the target takes"
  *   "the target is dazed (save ends)"
  */
 export function saveEndsClauses(text: string): Clause[] {
   const clauses: Clause[] = []
-  const ongoing = new RegExp(`(?:^|damage,?\\s+(?:and|plus)\\s+|the target takes\\s+)(ongoing (\\d+) (?:(${TYPE_ALT}) )?damage \\(save ends\\))`, 'gi')
+  const ongoing = new RegExp(`(?:^|(?:damage|\\dd\\d+(?:\\s*[+-]\\s*\\d+)?),?\\s+(?:and|plus)\\s+|the target takes\\s+)(ongoing (\\d+) (?:(${TYPE_ALT}) )?damage ${SAVE_ENDS})`, 'gi')
   for (const m of text.matchAll(ongoing)) {
     const start = m.index! + m[0].length - m[1].length
     clauses.push({
       at: [start, start + m[1].length], kind: 'ongoing-damage', amount: parseInt(m[2]),
-      types: m[3] ? [m[3].toLowerCase() as DamageType] : [], who: 'target', duration: { kind: 'save-ends' },
+      types: m[3] ? [m[3].toLowerCase() as DamageType] : [], who: 'target', duration: { kind: 'save-ends' }, ...saveModifier(m[4]),
     })
   }
-  const cond = new RegExp(`\\bthe target is (${CONDITION_ALT}) \\(save ends\\)`, 'gi')
+  const cond = new RegExp(`\\bthe target is (${CONDITION_ALT}) ${SAVE_ENDS}`, 'gi')
   for (const m of text.matchAll(cond)) {
     const condition = m[1].toLowerCase()
     if (!isOneOf(CONDITION_IDS, condition)) continue
-    clauses.push({ at: [m.index!, m.index! + m[0].length], kind: 'condition', condition, who: 'target', duration: { kind: 'save-ends' } })
+    clauses.push({ at: [m.index!, m.index! + m[0].length], kind: 'condition', condition, who: 'target', duration: { kind: 'save-ends' }, ...saveModifier(m[2]) })
   }
   return clauses.sort((a, b) => a.at[0] - b.at[0])
 }

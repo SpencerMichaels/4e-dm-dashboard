@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { existsSync, readFileSync } from 'fs'
 import { join } from 'path'
 import type { Creature } from '@common/types'
+import { DAMAGE_TYPES } from '@kit'
 import * as facts from '@common/combat/facts'
 import { creatureToMonster } from '../data/legacy-creatures'
 import { publishedMonster } from './published-monsters'
@@ -10,6 +11,8 @@ const root = join(__dirname, '../../../content')
 const parsedFile = join(root, 'parsed/monsters.json')
 const hasContent = existsSync(parsedFile)
 
+/** A damage type (or "all") the engine applies modifiers for. */
+const typed = (type: string) => type.toLowerCase() === 'all' || (DAMAGE_TYPES as readonly string[]).includes(type.toLowerCase())
 /** The facts combat read from a legacy stat block before it moved to kit content. */
 function legacyFacts(c: Creature) {
   const sb = c.statBlock as Record<string, any>
@@ -18,9 +21,9 @@ function legacyFacts(c: Creature) {
     save: sb.savingThrowBonus ?? 0, minion: !!sb.isMinion,
     defenses: { ac: sb.ac, fortitude: sb.defenses?.fortitude, reflex: sb.defenses?.reflex, will: sb.defenses?.will },
     initiative: sb.initiative,
-    resist: (sb.resistances ?? []).filter((r: any) => r.value !== undefined && !/variable/i.test(r.type)).map((r: any) => `${r.type.toLowerCase()} ${r.value}`),
+    resist: (sb.resistances ?? []).filter((r: any) => r.value !== undefined && typed(r.type)).map((r: any) => `${r.type.toLowerCase()} ${r.value}`),
     immune: (sb.immunities ?? []).map((i: any) => i.type.toLowerCase()),
-    vulnerable: (sb.weaknesses ?? []).filter((r: any) => r.value !== undefined).map((r: any) => `${r.type.toLowerCase()} ${r.value}`),
+    vulnerable: (sb.weaknesses ?? []).filter((r: any) => r.value !== undefined && typed(r.type)).map((r: any) => `${r.type.toLowerCase()} ${r.value}`),
     regeneration: sb.regeneration?.value, revival: sb.revival?.hp,
     powers: powers.map((a: any) => [a.name, a.usage === 'recharge' ? parseInt(a.rechargeCondition) || 6 : 0, (a.triggerEvents ?? []).join('+'), a.selfTurnOnly ? 'self' : ''].join('|')),
   }
@@ -30,9 +33,10 @@ function kitFacts(c: facts.WithContent) {
   const mods = facts.damageModifiers(c)
   return {
     save: facts.saveBonus(c), minion: facts.isMinion(c), defenses: facts.defenses(c), initiative: facts.initiativeBonus(c),
-    // Accepted: the kit parses "20/variable" as a variable resistance (no damage type, so no change in play).
-    resist: mods.resist.filter(r => r.value !== undefined && !/variable/i.test(r.type)).map(r => `${r.type} ${r.value}`), immune: mods.immune.map(i => i.type),
-    vulnerable: mods.vulnerable.filter(r => r.value !== undefined).map(r => `${r.type} ${r.value}`),
+    // Only modifiers with a damage type matter in play. The kit types qualified ones ("20/variable",
+    // "10 against close and area attacks") as variable or special, which match no damage either way.
+    resist: mods.resist.filter(r => r.value !== undefined && typed(r.type)).map(r => `${r.type} ${r.value}`), immune: mods.immune.map(i => i.type),
+    vulnerable: mods.vulnerable.filter(r => r.value !== undefined && typed(r.type)).map(r => `${r.type} ${r.value}`),
     regeneration: facts.regeneration(c)?.value, revival: facts.revival(c)?.hp,
     powers: facts.combatEntries(c).filter(e => e.group === 'powers').map(e => [e.name, e.rechargeMin ?? 0, (e.hints.triggerEvents ?? []).join('+'), e.hints.selfTurnOnly ? 'self' : ''].join('|')),
   }

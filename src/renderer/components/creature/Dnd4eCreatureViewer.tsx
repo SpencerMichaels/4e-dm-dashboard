@@ -374,7 +374,7 @@ export function Dnd4eCreatureViewer({ creature, tooltip: tip, compendiumId: comp
         <div style={{ paddingTop: 2 }}>
           {auraEntries.map((a, i) => {
             const gi = traitEntries.length + i
-            const auraEntry = { ...a, rangeType: 'aura', rangeValue: String((a as any).auraRange ?? 1) }
+            const auraEntry = { ...a, rangeType: 'aura', rangeValue: String((a as any).auraSize ?? (a as any).auraRange ?? 1) }
             const sc = sourceColor(a)
             return (
               <div key={i} style={{ ...(sc ? { borderLeft: `3px solid ${sc}` } : {}), marginBottom: 2, position: 'relative', cursor: 'context-menu' }}
