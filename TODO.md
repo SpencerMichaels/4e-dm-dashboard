@@ -42,8 +42,10 @@ Decided 2026-11-12: used powers collapse to their header row; keywords stay in t
 - [ ] Live pinned cards (not snapshots) and reaction tiles rendered by the same card, collapsed
 - [ ] Card pass 2 (after the switch to the kit `Monster` type, section 5): damage folded into Hit, structured secondary attacks, level-tier selection, click-to-apply driven by effect clauses including "save ends both" groups
 
-### 4ecb follow-up
-- [ ] Try muted card tones in 4ecb's builder (not print, which keeps the vivid set). Measured 2026-11-12 in OKLCH: 4ecb's power tones have chroma 0.15–0.19, about twice its own UI accents (0.07–0.10); the book tones sit at 0.05–0.07. 4ecb also needs muted utility, feature and item tones the book set lacks. Check white-text contrast ≥ 4.5:1 and OK ΔE ≥ 0.08 between usages, including under a color-blindness simulation.
+### Color-blind-friendly palette option (both apps)
+Decided 2026-11-12: each app keeps its current power colors by default (4ecb: the vivid set that matches the old Character Builder; this app: the book tones) and gains a Settings option for a color-blind-friendly palette, defined once in 4e-kit tokens (e.g. `:root[data-palette="cvd"]`) and selectable per app.
+- [ ] Measured 2026-11-12 (OKLab ΔE, Machado 2009 simulation): the worst-case separation between usage colors across normal vision, deuteranopia, protanopia and tritanopia is 0.025 for 4ecb's current set (at-will vs encounter merge under deuteranopia) and 0.067 for this app's book tones. Okabe–Ito does not fix it (0.017–0.020, daily gray vs feature). An optimized candidate reaches 0.164 with readable text on every color: at-will #b0c6a6 (black text), encounter #791a14, daily #6a6e73, utility #6098de (black), feature #4a3079, item #bb871e (black). Refine it with a visual review, then add it to the kit as an alternate palette.
+- [ ] Settings toggle in this app and in 4ecb; usage stays readable as text either way (the usage chip in the monster card plan).
 
 ## 5. Agent-cleaned content (one-time)
 Covers monsters (5,326; 24,950 actions, of which 9,305 have their mechanics in prose only), items (4,095), traps (776), diseases (69), and the glossary (450). Player powers and feats are out of scope; they arrive through character import.
