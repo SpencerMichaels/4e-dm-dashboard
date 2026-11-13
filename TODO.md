@@ -39,7 +39,7 @@ Decided 2026-11-12: used powers collapse to their header row; keywords stay in t
 - [x] Cleanup (2026-11-13): one `toPowerCardEntry` (`creature/power-card-entry.ts`), a typed `_levelAdjust` (`LevelAdjust`), card styles in `statblock.css` (`.power-card`)
 - [ ] Kit helpers: `ACTION_TYPE_ICON`/`RANGE_KIND_ICON` names, `usageChipLabel`, `rechargeLabel`, `abbreviateDefense`, `POWER_LINE_ORDER` and line grouping, `textAtLevel`. Written 2026-11-13 in `src/common/rules/power-card.ts` (with tests); move them to 4e-kit when the content run is not committing there
 - [x] Card pass 1 (2026-11-13): `PowerCardView` has Lucide action and range icons (`shared/Icon.tsx`), a usage chip that says USED / 1/2 Enc / Rch 5+ · USED, the attack line (range · target · **bonus vs Def**), line groups in book order, "Sustain Minor", Special/failed-save/extra lines, a Basic marker, the pin in the header, focusable cards, use/restore on the card (a spent power collapses to its header and expands on click), and traits and auras on the same card in both combat panels
-- [ ] Live pinned cards (not snapshots); reaction tiles already use the same card, collapsed (2026-11-13)
+- [x] Live pinned cards (2026-11-13): a pin redraws from the combatant's current state (uses, recharge, click-to-apply, use/restore from the pin; `combat/card-actions.ts`); grouped-panel pins stay snapshots. Reaction tiles use the same card, collapsed. A recharge power shows a dice icon in its chip while its roll is pending
 - [ ] Card pass 2 (after the switch to the kit `Monster` type, section 5): damage folded into Hit, structured secondary attacks, level-tier selection, click-to-apply driven by effect clauses including "save ends both" groups
 
 ### Color-blind-friendly palette option (both apps)

@@ -4,7 +4,8 @@ import type { PluginCombatPanelProps } from './panel-types'
 import type { PowerEntry } from '../creature/PowerEntryEditor'
 import { PowerCardView, type PowerCardEntry } from '../creature/PowerCardView'
 import { USAGE_COLORS, sign } from '../creature/dnd4e-utils'
-import { detectConditions, detectDiseases, type DetectedCondition } from './condition-detection'
+import type { DetectedCondition } from './condition-detection'
+import { applyDetection, cardFor, detectIn, maxUses, rechargeQueued } from './card-actions'
 import { useDiseaseNames } from '../disease/disease-refs'
 import { ConditionPill, buildConditionLabel } from './ConditionPill'
 import { capitalize } from '@common/utils/format'
@@ -13,21 +14,6 @@ import { normalizeStringArray } from '@common/utils/arrays'
 import { hpPercentage, hpColor, formatConditionName } from '@renderer/utils/combat-utils'
 import '../creature/statblock.css'
 
-/** Extract max uses for a power: 1 for normal encounter, N for "N/Encounter" in keywords, Infinity for at-will */
-function getMaxUses(p: PowerEntry): number {
-  const uses = (p as any).encounterUses
-  if (typeof uses === 'number' && uses > 0) return uses
-  const kw = Array.isArray(p.keywords) ? p.keywords : []
-  for (const k of kw) {
-    const m = String(k).match(/^(\d+)\/encounter$/i)
-    if (m) return parseInt(m[1])
-    const m2 = String(k).match(/^at-will\s*\((\d+)\/\w+\)$/i)
-    if (m2) return parseInt(m2[1])
-  }
-  if (p.usage === 'encounter') return 1
-  if (p.usage === 'recharge') return 1
-  return Infinity  // at-will
-}
 
 
 export function Dnd4eCombatPanel({
@@ -41,30 +27,8 @@ export function Dnd4eCombatPanel({
   const isTrap = c.kind === 'trap'
   const actions = Array.isArray(sb.actions) ? sb.actions as PowerEntry[] : []
   const diseaseNames = useDiseaseNames()
-  /** Condition keywords and disease names in a power's text; both highlight and apply to targets. */
-  const detect = (pow: PowerEntry): DetectedCondition[] => {
-    const conditions = detectConditions({ hit: pow.hit, effect: pow.effect, miss: pow.miss, target: pow.target })
-    return [...conditions, ...detectDiseases(pow, diseaseNames, conditions)]
-  }
-  /** A highlighted condition or disease clicked in a card: pick targets to apply it to. */
-  const applyDetection = (det: DetectedCondition, multi: boolean) => {
-    if (det.disease) { onApplyDiseaseToTargets?.(det.disease, det.conditionName, multi); return }
-    const condData: any = { conditionId: det.conditionId, value: det.value, customDescription: det.damageType, sourceId: c.id, duration: det.duration }
-    // Marked: "by <source>".
-    if (det.conditionId === 'marked') condData.customDescription = `by ${c.name}`
-    // Regenerating lasts the encounter and has no damage type.
-    if (det.conditionId === 'regenerating') {
-      condData.duration = det.duration ?? { type: 'encounter' }
-      condData.customDescription = undefined
-    }
-    // Grants combat advantage: the recipient and its label suffix; the source is the power's owner.
-    if (det.conditionId === 'combat-advantage') {
-      const recipient = det.grantsCATo ?? 'all'
-      condData.grantsCATo = recipient
-      condData.customDescription = recipient === 'source' ? `to ${c.name}` : recipient === 'source-allies' ? `to ${c.name}'s allies` : undefined
-    }
-    onApplyConditionToTargets(condData, multi)
-  }
+  const detect = (p: PowerEntry) => detectIn(p, diseaseNames)
+  const apply = (det: DetectedCondition, multi: boolean) => applyDetection(c, det, multi, { onApplyConditionToTargets, onApplyDiseaseToTargets })
   const hpPct = hpPercentage(c.hp, c.maxHp)
   const usedPowers = c.usedPowers ?? {}
 
@@ -264,8 +228,8 @@ export function Dnd4eCombatPanel({
           {[...traitEntries, ...auraEntries].map(t => {
             const idx = actions.indexOf(t)
             const key = `${c.id}:${t.entryType}:${idx}`
-            const entry = toPowerCardEntry(t.entryType === 'aura' ? { ...t, rangeType: 'aura', rangeValue: String((t as any).auraSize ?? (t as any).auraRange ?? t.rangeValue ?? 1) } : t)
-            return <PowerCardView key={key} entry={entry} detectedConditions={detect(t)} onConditionClick={applyDetection}
+            const entry = cardFor(t)
+            return <PowerCardView key={key} entry={entry} detectedConditions={detect(t)} onConditionClick={apply}
               pinned={pinnedKeys.has(key)} onPin={() => onPinCard({ combatantName: c.name, title: t.name, content: entry, key })} />
           })}
         </div>
@@ -277,12 +241,12 @@ export function Dnd4eCombatPanel({
           {powerEntries.map(pow => {
             const globalIdx = actions.indexOf(pow)
             const timesUsed = usedPowers[globalIdx] ?? 0
-            const maxUses = getMaxUses(pow)
+            const max = maxUses(pow)
             const entry = toPowerCardEntry(pow)
             const key = `${c.id}:power:${globalIdx}`
-            return <PowerCardView key={globalIdx} entry={entry} detectedConditions={detect(pow)} onConditionClick={applyDetection}
-              uses={{ used: timesUsed, max: maxUses }}
-              onUse={maxUses !== Infinity ? () => onUsePower(globalIdx) : undefined}
+            return <PowerCardView key={globalIdx} entry={entry} detectedConditions={detect(pow)} onConditionClick={apply}
+              uses={{ used: timesUsed, max }} rechargeQueued={rechargeQueued(combat, c.id, globalIdx)}
+              onUse={max !== Infinity ? () => onUsePower(globalIdx) : undefined}
               onRestore={timesUsed > 0 ? () => onUnusePower(globalIdx) : undefined}
               pinned={pinnedKeys.has(key)} onPin={() => onPinCard({ combatantName: c.name, title: pow.name, content: entry, key })} />
           })}

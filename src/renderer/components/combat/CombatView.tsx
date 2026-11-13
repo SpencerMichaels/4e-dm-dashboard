@@ -832,7 +832,8 @@ export function CombatView() {
       )}
 
       {/* Floating pinned cards */}
-      <PinnedCardsPanel cards={pinnedCards} onUnpin={(key) => setPinnedCards(prev => prev.filter(p => p.key !== key))} />
+      <PinnedCardsPanel cards={pinnedCards} onUnpin={(key) => setPinnedCards(prev => prev.filter(p => p.key !== key))}
+        combat={combat} handlers={{ onApplyConditionToTargets: handleApplyConditionToTargets, onApplyDiseaseToTargets: handleApplyDiseaseToTargets }} />
 
       {/* Combat log */}
       {showLog && <CombatLogPanel events={combatEvents} onClose={() => setShowLog(false)} />}

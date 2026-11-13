@@ -6,7 +6,7 @@ Run in the devcontainer: `npm test`, `npm run typecheck:node`, `npm run build`, 
 
 ## Power cards (2026-11-13)
 
-In combat and the Creatures page: each power, trait, and aura is one card with an action icon, dim keywords, a Basic marker on basic attacks, a usage chip, and a pin in the header; attacks have their own line (range · target · bold bonus vs short defense). Click a limited power to use it: the card collapses, its name is struck through, and the chip says USED (or 1/2 Enc, Rch 5+ · USED); click again to show it, right-click to restore. Tab focuses cards; Enter uses. Click-to-apply conditions and diseases still work. Reaction tiles are the same card, header only. Check light and dark themes.
+In combat and the Creatures page: each power, trait, and aura is one card with an action icon, dim keywords, a Basic marker on basic attacks, a usage chip, and a pin in the header; attacks have their own line (range · target · bold bonus vs short defense). Click a limited power to use it: the card collapses, its name is struck through, and the chip says USED (or 1/2 Enc, Rch 5+ · USED); click again to show it, right-click to restore. Tab focuses cards; Enter uses. Click-to-apply conditions and diseases still work. Reaction tiles are the same card, header only. Pin a limited power, then use it: the pinned card shows it used and can restore it; at the start of its turn a recharge power's chip shows a dice icon until the roll is resolved. Check light and dark themes.
 
 ## Creature records (2026-11-13)
 

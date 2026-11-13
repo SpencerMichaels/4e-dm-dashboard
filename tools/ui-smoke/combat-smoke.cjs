@@ -152,6 +152,9 @@ app.whenReady().then(async () => {
     const panel = await js(() => document.body.innerText)
     // The template's traits appear with the creature's own powers.
     for (const text of ['Longsword', 'Sweeping Cut', 'Battle Lord Tactics']) if (!panel.includes(text)) throw new Error(`Combat panel is missing "${text}"`)
+    // Pin Sweeping Cut before using it: the pinned card is live, so it shows the power as used.
+    await js(() => [...document.querySelectorAll('.power-card')].find(c => c.querySelector('.pc-name')?.textContent === 'Sweeping Cut').querySelector('.pc-pin').click())
+    await until(() => document.querySelector('.pinned-cards')?.innerText.includes('Sweeping Cut'), 'the pinned card')
 
     // The rat's turn: the disease named in its Bite applies like a condition: click the name, then the PC.
     await js(() => window.api.combat.endTurn())
@@ -167,6 +170,7 @@ app.whenReady().then(async () => {
     // A used recharge power prompts a roll at the start of the captain's next turn (combat entry order).
     const sweepIndex = cap.content.traits.length + cap.content.auras.length + cap.content.powers.findIndex(p => p.name === 'Sweeping Cut')
     await js((id, i) => window.api.combat.usePower(id, i), cap.id, sweepIndex)
+    await until(() => document.querySelector('.pinned-cards')?.innerText.includes('Rch 5+ · USED'), 'the live pinned card showing the use')
     const current = () => js(() => window.api.combat.setInitiativeFocus(null))
     let recharge
     for (let step = 0; step < 12 && !recharge; step++) {
@@ -207,7 +211,7 @@ app.whenReady().then(async () => {
 
     const confirms = await js(() => window.__confirms)
     clearTimeout(timeout)
-    console.log('COMBAT_SMOKE_OK: legacy creature converted on open, encounter row preview (template, level adjustment), combat start in main with kit combatants (elite captain, troll regeneration, grouped minions), combat panel, recharge prompt, location trap stat blocks and search, location traps joining the encounter, encounter diseases, disease name in a power applied to a PC like a condition, PC disease stages, trap rows with XP and preview, hidden trap with initiative, triggered trap (Trigger, Disable); confirms: ' + confirms.length + '; screenshots out/combat-encounter-preview.png, out/combat-panel.png, out/combat-trap.png, out/location-traps.png, out/combat-disease.png, out/pc-diseases.png')
+    console.log('COMBAT_SMOKE_OK: legacy creature converted on open, encounter row preview (template, level adjustment), combat start in main with kit combatants (elite captain, troll regeneration, grouped minions), combat panel, recharge prompt, live pinned card, location trap stat blocks and search, location traps joining the encounter, encounter diseases, disease name in a power applied to a PC like a condition, PC disease stages, trap rows with XP and preview, hidden trap with initiative, triggered trap (Trigger, Disable); confirms: ' + confirms.length + '; screenshots out/combat-encounter-preview.png, out/combat-panel.png, out/combat-trap.png, out/location-traps.png, out/combat-disease.png, out/pc-diseases.png')
     finish(0)
   } catch (err) {
     console.error(err)

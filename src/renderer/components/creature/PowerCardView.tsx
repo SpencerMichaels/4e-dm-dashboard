@@ -69,9 +69,11 @@ interface Props {
   collapsed?: boolean
   /** Shown after the action icon (a reaction tile's "triggered" mark). */
   marker?: React.ReactNode
+  /** The engine is waiting on this power's recharge roll: a dice icon in the chip. */
+  rechargeQueued?: boolean
 }
 
-export function PowerCardView({ entry: e, selectedLevel, detectedConditions, onConditionClick, uses, onUse, onRestore, pinned, onPin, collapsed, marker }: Props) {
+export function PowerCardView({ entry: e, selectedLevel, detectedConditions, onConditionClick, uses, onUse, onRestore, pinned, onPin, collapsed, marker, rechargeQueued }: Props) {
   const hideActionTypeText = useSystemSetting<boolean>('dnd-4e', 'hideActionTypeText', false)
   const [expanded, setExpanded] = useState(false)
   const kind = e.usage === 'trait' || e.usage === 'aura' ? e.usage : 'power'
@@ -143,7 +145,7 @@ export function PowerCardView({ entry: e, selectedLevel, detectedConditions, onC
           {!hideActionTypeText && !collapsed && actionLabel && kind === 'power' && <span className="pc-dim"> · {actionLabel}</span>}
         </span>
         {basic && <span className="pc-basic" title={`Basic ${basic} attack`}>Basic</span>}
-        {chip && <span className="pc-chip">{chip}</span>}
+        {chip && <span className="pc-chip" title={rechargeQueued ? 'Recharge roll pending this turn' : undefined}>{rechargeQueued && <Icon name="dices" label="Recharge roll pending" />}{rechargeQueued ? ' ' : ''}{chip}</span>}
         {onPin && <button type="button" className="pc-pin" onClick={ev => { ev.stopPropagation(); onPin() }}
           title={pinned ? 'Unpin' : 'Pin to the overlay'} aria-pressed={pinned}><Icon name={pinned ? 'pin-off' : 'pin'} /></button>}
       </div>
