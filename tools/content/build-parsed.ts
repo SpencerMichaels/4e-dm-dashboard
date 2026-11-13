@@ -1,6 +1,6 @@
 #!/usr/bin/env npx tsx
 // Pre-parses raw 4e HTML monster data into structured JSON.
-// Run: npx tsx tools/content/build-parsed.ts
+// Run: npm run content:build (rebuilds all content/parsed files)
 //
 // Input:  content/raw/monsters.json  (HTML strings keyed by monster ID)
 // Output: content/parsed/monsters.json (structured creature statblocks)

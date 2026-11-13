@@ -1,6 +1,6 @@
 #!/usr/bin/env npx tsx
 // Pre-parses raw 4e item HTML data into structured JSON.
-// Run: npx tsx tools/content/build-items.ts
+// Run: npm run content:build (rebuilds all content/parsed files)
 
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'fs'
 import { join } from 'path'
