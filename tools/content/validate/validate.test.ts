@@ -334,3 +334,48 @@ describe('schema v5', () => {
     for (const p of ['value', 'if', 'vs', 'extra']) expect(paths).toContain(`$.powers[0].attacks[0].altBonus[0].${p}`)
   })
 })
+
+describe('schema v6: if / unless / optional', () => {
+  const text = 'At the start of an encounter, the wolf deals 2d6 + 3 extra damage against any enemy that has not yet acted during the encounter. The target is slowed (save ends). If the target is already slowed, it is instead immobilized. The wolf can shift 4 squares.'
+  const at = (s: string): [number, number] => [text.indexOf(s), text.indexOf(s) + s.length]
+  function withClauses(clauses: any[]) {
+    const m = monster()
+    m.powers[0].effect = { text, clauses }
+    return validateEntry('monsters', m).errors
+  }
+  const damage = { at: at('2d6 + 3 extra damage'), kind: 'damage', dice: '2d6+3', types: [], who: 'target', extra: true }
+  const slowed = { at: at('slowed (save ends)'), kind: 'condition', condition: 'slowed', who: 'target', duration: { kind: 'save-ends' } }
+  const shift = { at: at('can shift 4 squares'), kind: 'move', move: 'shift', squares: 4, who: 'self', optional: true }
+
+  it('accepts split fragments, unless and optional', () => {
+    expect(withClauses([
+      { ...damage, if: ['At the start of an encounter', 'against any enemy that has not yet acted during the encounter'] },
+      { ...slowed, unless: 'If the target is already slowed' },
+      shift,
+    ])).toEqual([])
+  })
+
+  it('matches fragments ignoring case, dashes and dice spacing', () => {
+    expect(withClauses([{ ...slowed, if: 'AT THE START OF AN ENCOUNTER' }])).toEqual([])
+    expect(withClauses([{ ...slowed, if: 'deals 2d6+3' }])).toEqual([])
+  })
+
+  it('rejects joins, "not:" prefixes, missing words, empty fragments and overlap with the own quote', () => {
+    const messages = (cl: any) => withClauses([cl]).map(e => e.message).join('\n')
+    expect(messages({ ...damage, if: 'At the start of an encounter ... against any enemy' })).toMatch(/do not join fragments/)
+    expect(messages({ ...damage, if: 'At the start of an encounter … against any enemy' })).toMatch(/do not join fragments/)
+    expect(messages({ ...slowed, if: 'not: If the target is already slowed' })).toMatch(/"not:" prefix.*unless/)
+    expect(messages({ ...slowed, unless: 'if the target is bloodied' })).toMatch(/not in the line text/)
+    expect(messages({ ...shift, if: 'can shift' })).toMatch(/overlaps the clause's own quote.*optional/)
+    expect(withClauses([{ ...slowed, if: '' }]).map(e => e.path)).toEqual(['$.powers[0].effect.clauses[0].if'])
+    expect(withClauses([{ ...slowed, unless: [] }]).map(e => e.path)).toEqual(['$.powers[0].effect.clauses[0].unless'])
+    expect(withClauses([{ ...slowed, optional: false }]).map(e => e.path)).toEqual(['$.powers[0].effect.clauses[0].optional'])
+  })
+
+  it('accepts a fragment that also occurs outside the own quote', () => {
+    const t = 'The target is slowed. If the target is slowed, it takes 5 damage.'
+    const m = monster()
+    m.powers[0].effect = { text: t, clauses: [{ at: [t.indexOf('it takes'), t.length - 1], kind: 'damage', dice: '5', types: [], who: 'target', if: 'the target is slowed' }] }
+    expect(validateEntry('monsters', m).errors).toEqual([])
+  })
+})

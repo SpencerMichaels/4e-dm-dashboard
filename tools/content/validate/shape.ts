@@ -80,7 +80,7 @@ function damageTypes(c: Checker, v: unknown, path: string): void {
   v.forEach((t, i) => c.oneOf(DAMAGE_TYPES, t, `${path}[${i}]`))
 }
 
-/** Fields each clause kind may have besides `at`, `if` and `kind`. */
+/** Fields each clause kind may have besides `at`, `if`, `unless`, `optional` and `kind`. */
 const CLAUSE_FIELDS: Record<string, string[]> = {
   'damage': ['dice', 'types', 'typeChoice', 'who', 'extra', 'critical'],
   'damage-formula': ['text', 'types'],
@@ -127,10 +127,18 @@ function typeChoice(c: Checker, cl: Record<string, unknown>, path: string): void
 export function clause(c: Checker, cl: unknown, path: string): void {
   if (!c.obj(cl, path)) return
   if (!Array.isArray(cl.at) || cl.at.length !== 2 || !cl.at.every(n => Number.isInteger(n))) c.fail(`${path}.at`, 'expected [start, end] integers')
-  c.optional(cl, 'if', path, (v, p) => c.str(v, p))
+  // if / unless: one printed fragment or a non-empty list of them (spans.ts checks the words).
+  const fragments = (v: unknown, p: string) => {
+    if (!Array.isArray(v)) { c.str(v, p, { nonEmpty: true }); return }
+    if (v.length === 0) c.fail(p, 'expected at least one fragment')
+    v.forEach((f, i) => c.str(f, `${p}[${i}]`, { nonEmpty: true }))
+  }
+  c.optional(cl, 'if', path, fragments)
+  c.optional(cl, 'unless', path, fragments)
+  if (cl.optional !== undefined && cl.optional !== true) c.fail(`${path}.optional`, 'expected true or absent')
   const fields = CLAUSE_FIELDS[String(cl.kind)]
   if (!fields) { c.fail(`${path}.kind`, `unknown clause kind "${String(cl.kind)}"`); return }
-  c.keys(cl, ['at', 'if', 'kind', ...fields], path)
+  c.keys(cl, ['at', 'if', 'unless', 'optional', 'kind', ...fields], path)
   const who = () => c.oneOf(WHO, cl.who, `${path}.who`)
   const dur = () => duration(c, cl.duration, `${path}.duration`)
   const flag = (k: string) => { if (cl[k] !== undefined && cl[k] !== true) c.fail(`${path}.${k}`, 'expected true or absent') }

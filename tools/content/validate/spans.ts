@@ -2,8 +2,10 @@
 // spanned text plausibly states the clause (its keyword or number is there).
 // This is a plausibility check, not a parser: each kind needs one of its
 // usual words in any inflection ("grabs", "is grabbed"; "pushes", "pushed").
-// The brief's quote rules (tools/content/agent/prompt.md) describe these
-// checks for agents; keep the two in step.
+// It also checks clause `if` / `unless` fragments (exact printed words of the
+// line, outside the clause's own span). The brief's quote rules
+// (tools/content/agent/prompt.md) describe these checks for agents; keep the
+// two in step.
 
 import type { Clause, Line } from '@kit'
 import type { Issue } from './shape'
@@ -120,6 +122,61 @@ export function spanProblem(clause: Clause, span: string): string | undefined {
   }
 }
 
+/** Length-preserving fold for matching (as in agent/quotes.ts): case, curly quotes, dashes. */
+function fold(s: string): string {
+  return s.toLowerCase().replace(/[‘’]/g, "'").replace(/[“”]/g, '"').replace(/[−–—]/g, '-')
+}
+
+/**
+ * Every occurrence [start, end) of a printed fragment in the line text. Matching
+ * ignores case, quote-mark and dash kinds, and spacing around + and - (dice:
+ * "2d6+5" or "2d6 + 5"), as for clause quotes.
+ */
+export function findFragment(text: string, fragment: string): [number, number][] {
+  const f = fold(fragment).trim()
+  if (!f) return []
+  const escape = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/\s+/g, '\\s+')
+  const source = f.split(/\s*([+-])\s*/).map((part, i) => i % 2 ? `\\s*\\${part}\\s*` : escape(part)).join('')
+  const out: [number, number][] = []
+  for (const m of fold(text).matchAll(new RegExp(source, 'g'))) if (m[0].length > 0) out.push([m.index!, m.index! + m[0].length])
+  return out
+}
+
+const ELLIPSIS = /…|\.\.\./
+
+/**
+ * Problems with the clause's `if` and `unless` fragments: each must be an exact
+ * printed fragment of the line, outside the clause's own span [a, b). A split
+ * condition is a list of fragments, never one string joined with " ... "; an
+ * inverted condition is `unless`, never a "not:" prefix.
+ */
+export function fragmentProblems(cl: Clause, text: string, a: number, b: number): string[] {
+  const out: string[] = []
+  for (const key of ['if', 'unless'] as const) {
+    const value = (cl as unknown as Record<string, unknown>)[key]
+    if (value === undefined) continue
+    for (const f of Array.isArray(value) ? value : [value]) {
+      if (typeof f !== 'string' || !f.trim()) continue // the shape check reports it
+      if (/^\s*not\s*:/i.test(f)) {
+        out.push(`${key} "${f}": no "not:" prefix; put the printed condition under which the clause does not apply in "unless"`)
+        continue
+      }
+      const found = findFragment(text, f)
+      if (found.length === 0) {
+        out.push(ELLIPSIS.test(f)
+          ? `${key} "${f}": do not join fragments with " ... "; give a list of exact printed fragments, ${key}: ["...", "..."]`
+          : `${key} "${f}" is not in the line text (copy the printed words exactly)`)
+        continue
+      }
+      if (found.every(([s, e]) => s < b && e > a)) {
+        const hint = key === 'if' && /\bcan\b/i.test(f) ? ' (an option is "optional": true, never if)' : ''
+        out.push(`${key} "${f}" overlaps the clause's own quote "${text.substring(a, b)}": the quote holds the effect, the condition goes only in ${key}${hint}`)
+      }
+    }
+  }
+  return out
+}
+
 export function checkLineSpans(l: Line, path: string): Issue[] {
   const issues: Issue[] = []
   if (!l || typeof l.text !== 'string' || !Array.isArray(l.clauses)) return issues
@@ -132,6 +189,7 @@ export function checkLineSpans(l: Line, path: string): Issue[] {
     }
     const problem = spanProblem(cl, l.text.substring(a, b))
     if (problem) issues.push({ path: p, message: `${cl.kind}: ${problem} ("${l.text.substring(a, b)}")` })
+    for (const message of fragmentProblems(cl, l.text, a, b)) issues.push({ path: p, message })
   })
   return issues
 }
