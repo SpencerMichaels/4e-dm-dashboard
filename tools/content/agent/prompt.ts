@@ -52,7 +52,7 @@ export function schemaExcerpt(kind: AgentKind): string {
   const parts = schema.split(/^(?=\/\/ ── )/m)
   const sections = parts.filter(p => SCHEMA_SECTIONS[kind].some(name => p.startsWith(`// ── ${name} ──`)))
   const vocab = readFileSync(join(KIT, 'vocab.ts'), 'utf-8')
-    .replace(/^export const \w+_(?:LABELS|SYMBOLS)[\s\S]*?^}\n/gm, '')
+    .replace(/^(?:\/\*\*.*\*\/\n)?export const \w+_(?:LABELS|SYMBOLS)[\s\S]*?^}\n/gm, '')
     .replace(/^\/\*\* (?:Experience|Rank multipliers|XP for)[\s\S]*$/m, '')
     .replace(/\n{3,}/g, '\n\n')
     .trim()

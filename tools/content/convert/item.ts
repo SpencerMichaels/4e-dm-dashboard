@@ -3,7 +3,7 @@
 import type { Attack, DescriptionPart, Item, ItemSlot, Power } from '@kit'
 import type { DescriptionPart as ParsedDescriptionPart, ItemPower, ParsedItem } from '../item-parser'
 import {
-  Notes, compact, line, normText, optLine, parseAttackLine, parseSource, provenanceFor,
+  Notes, compact, hitLine, line, normText, optLine, parseAttackLine, parseSource, provenanceFor,
   toActionType, toUsage, type ConvertContext,
 } from './common'
 
@@ -124,7 +124,7 @@ function convertItemPower(p: ItemPower, notes: Notes): Power {
     if (a) {
       attacks.push(compact({
         label: 'primary', ...a, target: a.target || p.target || '',
-        hit: optLine(p.hit), miss: optLine(p.miss),
+        hit: p.hit ? hitLine(p.hit, []) : undefined, miss: optLine(p.miss),
       } as Attack))
     } else {
       notes.add(`power "${name}": attack line not parsed: ${normText(p.attack)}`)

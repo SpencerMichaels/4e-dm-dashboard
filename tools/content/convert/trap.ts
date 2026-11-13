@@ -3,7 +3,7 @@
 import type { Attack, Power, Trap } from '@kit'
 import type { ParsedTrap, TrapAction } from '../trap-parser'
 import {
-  Notes, compact, line, normText, optLine, parseAttackLine, parseSource, provenanceFor,
+  Notes, compact, hitLine, line, normText, optLine, parseAttackLine, parseSource, provenanceFor,
   toActionType, toRecharge, toUsage, type ConvertContext,
 } from './common'
 
@@ -95,7 +95,7 @@ function convertTrapAction(a: TrapAction, notes: Notes): Power {
   const attacks: Attack[] = []
   if (a.attack) {
     const parsed = parseAttackLine(a.attack)
-    if (parsed) attacks.push(compact({ label: 'primary', ...parsed, hit: optLine(a.hit), miss: optLine(a.miss) } as Attack))
+    if (parsed) attacks.push(compact({ label: 'primary', ...parsed, hit: a.hit ? hitLine(a.hit, []) : undefined, miss: optLine(a.miss) } as Attack))
     else notes.add(`power "${name}": attack line not parsed: ${normText(a.attack)}`)
   }
   const unplacedHit = attacks.length === 0 && (a.hit || a.miss)
