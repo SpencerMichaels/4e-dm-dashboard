@@ -5,8 +5,8 @@ import { describe, expect, it } from 'vitest'
 import type { Disease } from '@kit'
 import { applyAll } from './apply-all'
 import { applyFile, applyResponse, describePath, parseResponse } from './apply'
-import { batchFile, briefDirs, chunk, defaultResponsesDir } from './briefs'
-import { buildBatchBrief, buildBrief, checkCommand, compactJson, htmlToText, schemaExcerpt } from './prompt'
+import { batchFile, briefDirs, chunkIds, defaultResponsesDir, packBatches, parseChunk } from './briefs'
+import { buildBatchBrief, buildBrief, buildRulesFile, checkCommand, compactJson, htmlToText, rulesFile, schemaExcerpt } from './prompt'
 import { atToQuote, resolveQuotes } from './quotes'
 import { mulberry32, pick, sampleIds, tieredSample } from './sample'
 
@@ -146,16 +146,25 @@ describe('brief', () => {
     expect(briefDirs([], '/c')).toBeUndefined()
   })
 
-  it('writes the shared text once and each entry with its reply and check command in a batch brief', () => {
+  it('writes the shared text once in the rules file and each entry with its reply and check command in a batch brief', () => {
     const repo = repoWithDisease()
     writeFileSync(join(repo, 'diseases', 'disease20.json'), JSON.stringify({ ...disease, id: 'disease20' }))
     const reply = (id: string) => join(repo, 'responses', 'diseases', `${id}.json`)
-    const brief = buildBatchBrief('diseases', [{ id: 'disease11', reply: reply('disease11') }, { id: 'disease20', reply: reply('disease20') }], { repo, app: '/a' }, 'batch 1')
+    const rulesPath = join(repo, 'briefs', rulesFile('diseases'))
+    expect(rulesPath).toMatch(/\/diseases-rules\.md$/)
+    const rules = buildRulesFile('diseases')
+    expect(rules).not.toMatch(/\{\{[#/]?\w+\}\}/)
+    expect(rules).not.toContain('<!--')
+    expect(rules).toContain('# Rules for cleaning disease entries (diseases)')
+    for (const s of ['## Steps', '## Rules', '## Schema', 'interface Disease', '**Quote rules**', '"unless"']) expect(rules).toContain(s)
+    for (const s of ['## Entry', 'Source text', 'Read the rules file', '"not: ']) expect(rules).not.toContain(s)
+    const brief = buildBatchBrief('diseases', [{ id: 'disease11', reply: reply('disease11') }, { id: 'disease20', reply: reply('disease20') }], { repo, app: '/a' }, 'batch 1', rulesPath)
     expect(brief).not.toMatch(/\{\{[#/]?\w+\}\}/)
     expect(brief).not.toContain('<!--')
-    expect(brief).toContain('# Clean 2 disease entries (diseases, batch 1)')
-    for (const s of ['## Rules', '## Schema', 'interface Disease', '**Quote rules**']) expect(brief.split(s).length - 1).toBe(1)
-    expect(brief.indexOf('## Schema')).toBeLessThan(brief.indexOf('## Entry 1 of 2: `disease11`'))
+    expect(brief.startsWith('# Clean 2 disease entries (diseases, batch 1)\n')).toBe(true)
+    expect(brief).toContain(`First Read the rules file \`${rulesPath}\``)
+    expect(brief).toContain('this order: disease11, disease20.')
+    for (const s of ['## Rules', '## Schema', 'interface Disease', '**Quote rules**']) expect(brief).not.toContain(s)
     expect(brief.indexOf('## Entry 1 of 2: `disease11`')).toBeLessThan(brief.indexOf('## Entry 2 of 2: `disease20`'))
     expect(brief.split('### Source text').length - 1).toBe(2)
     for (const id of ['disease11', 'disease20']) {
@@ -167,8 +176,22 @@ describe('brief', () => {
     const single = buildBrief('diseases', 'disease11', { repo, reply: reply('disease11'), app: '/a' })
     expect(single).not.toContain('## Entry')
     expect(single.indexOf('## Source text')).toBeLessThan(single.indexOf('## Schema'))
-    expect(chunk([1, 2, 3, 4, 5, 6, 7], 5)).toEqual([[1, 2, 3, 4, 5], [6, 7]])
+    expect(packBatches([1, 2, 3, 4, 5, 6, 7], () => 1, 5, 100)).toEqual([[1, 2, 3, 4, 5], [6, 7]])
+    // Size-capped: 30 + 30 fit in 70, 30 more would not; 90 alone is over the cap but still a batch.
+    expect(packBatches([30, 30, 30, 90, 10], n => n, 5, 70)).toEqual([[30, 30], [30], [90], [10]])
     expect(batchFile('monsters', 2)).toBe('monsters-batch2.md')
+  })
+
+  it('slices all entries of a kind by id for a chunk, skipping agent and human edits', () => {
+    const repo = repoWithDisease()
+    for (const [n, origin] of [[2, 'parser'], [10, 'agent'], [3, 'human'], [1, 'parser'], [25, 'parser']] as const) {
+      writeFileSync(join(repo, 'diseases', `disease${n}.json`), JSON.stringify({ ...disease, id: `disease${n}`, provenance: { ...disease.provenance, origin } }))
+    }
+    // Sorted: disease1, 2, 3, 10, 11, 25.
+    expect(chunkIds(repo, 'diseases', 0, 4)).toEqual({ ids: ['disease1', 'disease2'], skipped: ['disease3', 'disease10'], total: 6 })
+    expect(chunkIds(repo, 'diseases', 4, 250)).toEqual({ ids: ['disease11', 'disease25'], skipped: [], total: 6 })
+    expect(parseChunk('250:250')).toEqual({ start: 250, count: 250 })
+    for (const bad of [undefined, '250', '1:0', 'a:5', '-1:5']) expect(parseChunk(bad)).toBeUndefined()
   })
 })
 

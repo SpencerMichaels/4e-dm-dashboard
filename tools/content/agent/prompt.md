@@ -1,4 +1,4 @@
-<!-- Agent brief template. tools/content/agent/prompt.ts fills the {{NAME}} values and keeps a {{#name}}...{{/name}} block only for that kind or mode (single: one entry per brief; batch: several). The part between the entry markers is repeated per entry in a batch brief, with its headings one level down (so its "# Entry" heading becomes "## Entry"). The quote rules mirror tools/content/validate/spans.ts; keep them in step. This comment is dropped from briefs. -->
+<!-- Agent brief template. tools/content/agent/prompt.ts fills the {{NAME}} values and keeps a {{#name}}...{{/name}} block only for that kind or mode (single: one entry per brief; batch: a rules file per kind plus batch briefs). In batch mode everything outside the batch-head and entry markers is the kind's rules file (<kind>-rules.md); a batch brief is the batch-head part followed by the entry part once per entry, with the entry headings one level down (so its "# Entry" heading becomes "## Entry"). The quote and if/unless rules mirror tools/content/validate/spans.ts; keep them in step. This comment is dropped from briefs. -->
 {{#single}}
 # Clean {{KIND_LABEL}} `{{ID}}` ({{KIND}})
 
@@ -25,18 +25,19 @@ read other entries, other agents' replies or the tool source.
    most 3 times in all; if it still fails, stop and say what is left.
 {{/single}}
 {{#batch}}
-# Clean {{COUNT}} {{KIND_LABEL}} entries ({{KIND}}, {{BATCH}})
+# Rules for cleaning {{KIND_LABEL}} entries ({{KIND}})
 
-A parser converted these D&D 4e {{KIND_LABEL}} entries from their published
-stat blocks. For each, fix what the parser got wrong, and turn the mechanics in
-every printed line into effect clauses. The rules, examples and schema below
-apply to every entry; the entries follow them. Everything you need is in this
-brief: do not read other entries, other agents' replies or the tool source.
+A parser converted D&D 4e {{KIND_LABEL}} entries from their published stat
+blocks. For each entry in your batch brief, fix what the parser got wrong, and
+turn the mechanics in every printed line into effect clauses. The steps, rules,
+examples and schema in this file apply to every entry; your batch brief lists
+the entries. This file and your batch brief are all you need: do not read other
+entries, other batch briefs, other agents' replies or the tool source.
 
 ## Steps
 
-Do the entries one at a time, in the order listed ({{IDS}}). Finish one
-(reply written and checked) before you start the next:
+Do the entries in your batch brief one at a time, in the order listed. Finish
+one (reply written and checked) before you start the next:
 
 1. Read the entry's source text and current JSON.
 2. Write its reply with the **Write tool** to the entry's reply path. Never use
@@ -155,31 +156,43 @@ never write `at`. An unparsed clause is just `{"text": "<exact printed words>"}`
   `squares` when the distance is not a printed number ("shifts up to its
   speed"); a forced move with no printed distance ("pulls the target with it")
   is unparsed.
-- **`if`**: whenever the printed words make a clause conditional ("if the target
-  is bloodied", "against a prone target", "while darkened", "an enemy that
-  starts its turn in the aura", "a target that has one or more allies adjacent
-  to it"), the clause MUST carry `if` with those printed words copied verbatim,
-  never paraphrased and never shortened. `if` is shown to the DM, never
-  auto-applied; leaving it out makes the effect look unconditional.
+- **Conditions and options: `if`, `unless`, `optional`.** They are shown to
+  the DM, never auto-applied. `if` and `unless` hold printed words only: each
+  is one exact fragment of the clause's own `Line.text`, or a list of them,
+  matched like quotes (the check enforces it).
+  - `if`: whenever printed words make a clause conditional ("if the target is
+    bloodied", "against a prone target", "while darkened", "an enemy that
+    starts its turn in the aura", "a target that has one or more allies
+    adjacent to it"), the clause MUST carry `if` with those words, verbatim,
+    never paraphrased or shortened. Leaving it out makes the effect look
+    unconditional.
   - `if` includes every conditional phrase, including a leading one ("At the
-    start of an encounter,"). When the pieces are not next to each other, copy
-    each verbatim and join them with " ... ": `"if": "At the start of an
-    encounter ... against any enemy that has not yet acted during the encounter"`.
+    start of an encounter"). A condition printed in pieces is a list of the
+    pieces in printed order, each copied exactly: `"if": ["At the start of an
+    encounter", "against any enemy that has not yet acted during the
+    encounter"]`. Never join pieces with " ... " and never add words.
+  - Never put the clause's own words in `if`: a fragment must not overlap the
+    clause's quote. Quote the effect ("gains combat advantage") and put the
+    condition in `if` ("against a target that has one or more of the wolf's
+    allies adjacent to it").
   - `if` says when the clause applies, never who it applies to ("to the first
     target of the attack" is not a condition).
-  - `if` must not read backwards. When the print states the condition only as
-    its opposite ("must answer the question truthfully or else take 3d8 + 11
-    psychic damage"; "If the target is already slowed, it is instead
-    immobilized" for the slow), write `"not: "` and then the verbatim words:
-    `"if": "not: the target must answer the question truthfully"`,
-    `"if": "not: If the target is already slowed"`. This prefix is the only
-    word you may add.
-  - A printed option ("can shift 4 squares", "the target can be grabbed",
-    "can make a saving throw") is a choice, not automatic: the clause carries
-    `if` with the option words through the verb ("can shift", "can be grabbed"),
-    joined to any other condition with " ... ".
-  - The words of the branch after "On a save," / "On a failure," (or the
-    check that allows it) are the `if` of each clause in that branch.
+  - `unless`: when the print states the condition as the case in which the
+    clause does NOT apply, copy those words into `unless` (never a "not:"
+    prefix). "...slowed (save ends). If the target is already slowed, it is
+    instead immobilized": the slowed clause has `"unless": "If the target is
+    already slowed"`; the immobilized clause has `"if": "If the target is
+    already slowed"`. "or else": "the target must answer the question
+    truthfully or else take 3d8 + 11 psychic damage": the damage clause quotes
+    "take 3d8 + 11 psychic damage" with `"unless": "the target must answer the
+    question truthfully"`.
+  - `optional: true`: the print makes the effect a choice ("can shift 4
+    squares", "the target can be grabbed", "can make a melee basic attack",
+    "can make a saving throw"). The quote keeps the "can" words. Never express
+    an option through `if`; a condition on the option still goes in `if`
+    ("After the first or second attack").
+  - The words that open a branch ("On a save", "On a failure", or the check
+    that allows it) are the `if` of each clause in that branch.
 - `who`: `target` is the attack's target, `self` the {{KIND_LABEL}}.
 - grants-ca `to`: `source` is the clause's source only; `source-allies` is the
   source and its allies (use it for "the dragon and its allies" and for "the
@@ -201,7 +214,8 @@ never write `at`. An unparsed clause is just `{"text": "<exact printed words>"}`
   ("2d12+6" or "2d12 + 6").
 - List a line's clauses in printed order; each quote is looked up after the
   previous clause's words, so a repeated phrase needs no extra context.
-- Quotes must not overlap, except that `if` words may also lie in another quote.
+- Quotes must not overlap. `if` and `unless` fragments may lie inside another
+  clause's quote, never inside the clause's own.
 - The quote must contain its kind's words (any inflection: "grabs" or "is
   grabbed", "pushes" or "pushed"). If the words are not there, the phrase does
   not state that clause: make it unparsed.
@@ -229,11 +243,14 @@ never write `at`. An unparsed clause is just `{"text": "<exact printed words>"}`
 | damage-formula | "damage" |
 
 **Examples** (one clause or field each):
-- Conditional trait: `{"quote": "gains combat advantage against a target that has one or more of the wolf's allies adjacent to it", "kind": "grants-ca", "to": "source", "who": "target", "duration": {"kind": "permanent"}, "if": "a target that has one or more of the wolf's allies adjacent to it"}`
+- Conditional trait: `{"quote": "gains combat advantage", "kind": "grants-ca", "to": "source", "who": "target", "duration": {"kind": "permanent"}, "if": "against a target that has one or more of the wolf's allies adjacent to it"}`
+- Split condition ("At the start of an encounter, the assassin deals 2d6 extra damage against any enemy that has not yet acted during the encounter"): `{"quote": "2d6 extra damage", "kind": "damage", "dice": "2d6", "types": [], "who": "target", "extra": true, "if": ["At the start of an encounter", "against any enemy that has not yet acted during the encounter"]}`
+- Inverted condition ("The target is slowed (save ends). If the target is already slowed, it is instead immobilized (save ends)"): `{"quote": "slowed (save ends)", "kind": "condition", "condition": "slowed", "who": "target", "duration": {"kind": "save-ends"}, "unless": "If the target is already slowed"}, {"quote": "it is instead immobilized (save ends)", "kind": "condition", "condition": "immobilized", "who": "target", "duration": {"kind": "save-ends"}, "if": "If the target is already slowed"}`
+- Or else ("the target must answer the question truthfully or else take 3d8 + 11 psychic damage"): `{"quote": "take 3d8 + 11 psychic damage", "kind": "damage", "dice": "3d8+11", "types": ["psychic"], "who": "target", "unless": "the target must answer the question truthfully"}`
 - Save ends both: `{"quote": "dazed", "kind": "condition", "condition": "dazed", "who": "target", "duration": {"kind": "save-ends"}, "saveGroup": "a"}, {"quote": "slowed (save ends both)", "kind": "condition", "condition": "slowed", "who": "target", "duration": {"kind": "save-ends"}, "saveGroup": "a"}`
 - Several stats: `{"quote": "+2 bonus to attack rolls and damage rolls until the end of its next turn", "kind": "modifier", "stat": ["attack", "damage"], "value": 2, "who": "self", "duration": {"kind": "turn-end", "whose": "source", "next": true}}`
 - Extra damage: `{"quote": "2d10 extra damage", "kind": "damage", "dice": "2d10", "types": [], "who": "target", "extra": true, "if": "with melee attacks against a prone target"}`
-- Option: `{"quote": "the dire winter wolf can shift 4 squares", "kind": "move", "move": "shift", "squares": 4, "who": "self", "if": "After the first or second attack ... can shift"}` (in `effect`)
+- Option ("After the first or second attack, the dire winter wolf can shift 4 squares", in `effect`): `{"quote": "the dire winter wolf can shift 4 squares", "kind": "move", "move": "shift", "squares": 4, "who": "self", "optional": true, "if": "After the first or second attack"}`; "the target can be grabbed" is a grabbed condition clause with `"optional": true`.
 - Type choice: `{"quote": "4d10 + 6 damage of one of the following types: acid, cold, or fire", "kind": "damage", "dice": "4d10+6", "types": [], "typeChoice": ["acid", "cold", "fire"], "who": "target"}`
 - Zone: `{"quote": "The blast creates a zone that lasts until the end of the dragon's next turn (sustain minor)", "kind": "zone", "duration": {"kind": "sustain", "action": "minor"}}, {"quote": "takes 10 fire damage", "kind": "damage", "dice": "10", "types": ["fire"], "who": "creatures-in-area", "if": "Any creature that enters or starts its turn in the zone"}`, and the power gets `"sustain": {"action": "minor"}`.
 - Trigger: `"trigger": {"text": "An enemy hits the guard.", "clauses": []}`; its interrupt: `{"quote": "The triggering attack targets the guard instead", "kind": "redirect-attack", "who": "self"}`
@@ -256,6 +273,15 @@ If a common mechanic needs a new clause kind, name it in `notes`.
 ```
 {{/batch}}
 
+<!-- batch-head -->
+# Clean {{COUNT}} {{KIND_LABEL}} entries ({{KIND}}, {{BATCH}})
+
+First Read the rules file `{{RULES_PATH}}` in full: its steps, rules, examples
+and schema apply to every entry below. Then do the entries one at a time, in
+this order: {{IDS}}. Each has its own reply path and check command. At the
+end, list each id with PASS or FAIL.
+
+<!-- /batch-head -->
 <!-- entry -->
 {{#batch}}
 # Entry {{N}} of {{COUNT}}: `{{ID}}`
