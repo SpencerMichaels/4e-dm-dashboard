@@ -38,14 +38,33 @@ effect clauses. You work on this one entry only.
 - Correct any field the parser got wrong against the source (level, role, rank,
   defenses, HP, speeds, senses, skills, resistances, action types, usage, recharge,
   range, target, attack bonus, defense targeted, keywords).
-- Keep `id` unchanged. Keep `source` and `description` unless they are wrong.
+- Keep `id` unchanged. Keep `sources` (every publication, primary first) and
+  `description` unless they are wrong.
 - Omit optional fields that do not apply; never add fields the schema does not have.
 - Lists of closed values (`ActionType`, `DamageType`, `ConditionId`, ...) must use the
   ids from the schema exactly (lowercase, kebab-case).
-- Lines the schema has no field for (for example "Second Failed Saving Throw:"):
-  put the whole printed line as an `unparsed` clause in the closest Line it modifies
-  (usually the attack's `firstFailedSave` or `hit`), appending its text to that
-  Line's `text`, and mention it in `notes`.
+- "vs. Any" / "vs. any defense" is `vs: "any"`.
+- "First/Second/Third/Each Failed Saving Throw:" lines go in the attack's
+  `failedSaves` (`n` is 1, 2, 3, ... or `"each"`), in printed order, on the attack
+  they follow.
+- A power with no attack roll that prints a range ("Close burst 5 (allies in the
+  burst)") has it in `range` (the targets in `range.note`); the effect keeps the rest.
+- Other labeled lines with no field of their own (form lines like "Ooze Form:",
+  numbered eye rays, "Secondary Attack:" text that is not a parseable attack) go in
+  the power's `extraLines` as `{ label, line }`, label as printed.
+- Resistances and vulnerabilities (`DamageModifier`): `{ type, value }` when numeric;
+  a damage type with no number keeps `type` and omits `value`; anything else is
+  text-only, `{ type: "special", text: "<printed wording>" }`. Never store 0 for an
+  unknown value.
+- Items: `price` is in gp (`null` when the price is not a number, with the printed
+  text in `priceText`); `tier` for tier-only items; `subtype` for the kind of item
+  ("Consumable", "Divine Boon"); `armor` for armor and shield stats; artifact and set
+  powers inside the description are `{ type: "power", power }` parts.
+- Traps: traits go in `traits`; a detect line that needs no check ("automatic") has
+  `dc: null`; non-numeric hit points keep the printed text in `hpText`.
+- Diseases: a DC that is not a plain number ("15 + two-thirds mummy's level",
+  "Moderate DC") is `{ text }`; a check that is not a plain Endurance check goes in
+  `check`.
 
 ### Lines
 - `Line.text` is the printed wording of that line, whitespace-normalized. Copy it
@@ -94,6 +113,8 @@ structured clause or part of an `unparsed` clause. Flavor-free connective words
 
 ### Provenance
 Do not edit `provenance`; the apply step rewrites it from your `notes` and `confidence`.
+The parser's `provenance.notes` in the current JSON list what it could not place;
+resolve each one, or say in `notes` why it stays.
 
 ## Output
 

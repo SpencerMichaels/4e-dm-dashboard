@@ -50,7 +50,9 @@ export function rawHtml(kind: AgentKind, id: string): string {
 export function schemaExcerpt(kind: AgentKind): string {
   const schema = readFileSync(join(KIT, 'schema.ts'), 'utf-8')
   const parts = schema.split(/^(?=\/\/ ── )/m)
-  const sections = parts.filter(p => SCHEMA_SECTIONS[kind].some(name => p.startsWith(`// ── ${name} ──`)))
+  // Declarations before the first section (DamageModifier), without the file header and imports.
+  const preamble = parts[0].replace(/^[\s\S]*?\} from '\.\/vocab'\n/, '').replace(/^\/\*\*[^]*?\*\/\nexport const SCHEMA_VERSION.*\n/m, '').trim()
+  const sections = [preamble + '\n\n', ...parts.filter(p => SCHEMA_SECTIONS[kind].some(name => p.startsWith(`// ── ${name} ──`)))]
   const vocab = readFileSync(join(KIT, 'vocab.ts'), 'utf-8')
     .replace(/^(?:\/\*\*.*\*\/\n)?export const \w+_(?:LABELS|SYMBOLS)[\s\S]*?^}\n/gm, '')
     .replace(/^\/\*\* (?:Experience|Rank multipliers|XP for)[\s\S]*$/m, '')

@@ -33,6 +33,11 @@ describe('prompt', () => {
     expect(s).toContain('CONDITION_IDS')
     expect(s).not.toContain('export interface Item')
     expect(s).not.toContain('XP_BY_LEVEL')
+    // v2: the shared DamageModifier is declared before the first section.
+    expect(s).toContain('export interface DamageModifier')
+    expect(s).toContain('failedSaves?:')
+    expect(s).not.toContain('SCHEMA_VERSION')
+    expect(s).not.toContain("from './vocab'")
   })
 
   it('fills every placeholder', () => {
