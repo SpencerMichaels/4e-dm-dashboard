@@ -57,6 +57,11 @@ export function convertMonster(id: string, parsed: any, ctx: ConvertContext): Mo
   const regen = sb.regeneration
   const regenTrait = (sb.actions ?? []).find((a: any) => a.entryType === 'trait' && /^regeneration/i.test(a.name))
   const regenText = sb.printed?.regeneration ?? regenTrait?.printed?.text ?? ''
+  const suppressedBy = (regen?.inhibitDamageTypes ?? []).filter((t: string) => isOneOf(DAMAGE_TYPES, t)) as DamageType[]
+  // A printed suppressor that is not a damage type (schema v12): "damage from a silvered weapon", "exposed to direct sunlight".
+  const suppressedText = suppressedBy.length === 0 && /does(?:n't| not) function|negates/i.test(regenText)
+    ? normText(regenText).match(/damage from (?:a )?silver(?:ed)? weapons?|exposed to (?:direct )?sunlight/i)?.[0]
+    : undefined
 
   const monster: Monster = {
     id,
@@ -85,7 +90,8 @@ export function convertMonster(id: string, parsed: any, ctx: ConvertContext): Mo
     vulnerable: (sb.weaknesses ?? []).map((r: any) => damageModifier(r.type, r.value, r.note)),
     regeneration: regen ? {
       value: regen.value,
-      suppressedBy: (regen.inhibitDamageTypes ?? []).filter((t: string) => isOneOf(DAMAGE_TYPES, t)) as DamageType[],
+      suppressedBy,
+      suppressedText,
       text: normText(regenText),
     } : undefined,
     abilities,

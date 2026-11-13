@@ -324,4 +324,12 @@ describe('schema v11', () => {
       ['Grasping Tendrils', 'standard', 'encounter', 'minor'],
     ])
   })
+
+  it('records a regeneration suppressor that is not a damage type as suppressedText (v12)', () => {
+    const regen = (text: string) => convertMonster('monster1', parseMonsterHtml(head + stats('').replace('<br><b>AC</b>', `<br><b>Regeneration</b> ${text}<br><b>AC</b>`) + tail, [], { printed: true }), ctx).regeneration
+    expect(regen("10 (if the wererat takes damage from a silvered weapon, its regeneration doesn't function on its next turn)"))
+      .toMatchObject({ value: 10, suppressedBy: [], suppressedText: 'damage from a silvered weapon' })
+    expect(regen('10 (regeneration does not function while the vampire lord is exposed to direct sunlight)')?.suppressedText).toBe('exposed to direct sunlight')
+    expect(regen("10 (regeneration functions even while Manshoon is exposed to direct sunlight)")?.suppressedText).toBeUndefined()
+  })
 })
