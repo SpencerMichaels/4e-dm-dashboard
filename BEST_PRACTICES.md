@@ -35,6 +35,14 @@ If a regex keeps causing over-capture across multiple fixes, the regex approach 
 
 ## UI
 
+### Colors come from tokens, never hex
+Write colors as CSS custom properties, in both CSS files and inline styles. Use the 4e-kit tokens (`vendor/4e-kit/styles/tokens.css`: `--background`, `--surface`, `--surface-raised`, `--text`, `--muted`, `--border`, `--accent`, `--focus`, `--danger`, `--warning`, `--success`, `--notify`, `--power-*` and their `-soft`/`-contrast` partners) or the app tokens derived from them in `src/renderer/styles/theme.css` (`--hp-*`, `--damage`, `--heal`, `--readied`, `--action-point`, `--cond-*`, `--sb-*`, `--player-*`, `--on-fill`, `--hover`, `--active`).
+- **No hex or rgba literals in components.** A new color is a new token in `theme.css`, derived from the kit tokens with `color-mix()`, so it works in both themes without a dark-mode override. Change shared colors in the kit (then 4ecb), not here.
+- **The `--color-*` names are legacy aliases** of the tokens above, kept so old inline styles work. Don't add new uses; convert old ones when you touch them.
+- **Check both themes.** Light-theme semantic colors are deep and dark-theme ones are light (`--accent`, `--danger`, `--success` flip). Text on a filled semantic color uses `var(--on-fill)`; text on a deep fill that stays the same in both themes (power tones, overlays on images) uses `var(--color-text-on-dark)` or the tone's `-contrast` token.
+- **Tints go through `withAlpha()`/`tint()`** (`src/renderer/utils/color.ts`), which build `color-mix()`. Never append hex alpha digits (`color + '40'`): it breaks as soon as the color is a token.
+- **Display text uses `var(--font-display)`** (EB Garamond: h1–h3, page and note titles, Player titles), UI text `var(--font-ui)`, 4e cards and stat blocks `var(--font-card)`.
+
 ### Stat blocks and info displays should be dense and inline
 Follow the formatting conventions of official 4e sources (e.g. the 4e stat block format on iws.mx). Key principles:
 - **Labels inline with values**, not on separate lines. `Initiative +10  Perception +11; low-light vision` — not three separate labeled rows.
@@ -45,7 +53,7 @@ Follow the formatting conventions of official 4e sources (e.g. the 4e stat block
 - **Two-column responsive layout**: stats on the left, powers/abilities on the right. Use `flex-wrap` so columns stack on narrow windows.
 - **No max-width constraints** — let the layout fill available space and respond to window size.
 - **Semicolons between same-line items**: `Initiative 5; Senses Perception 11; darkvision` — not just whitespace.
-- **Readability is paramount**: text must have high contrast on its background. In dark mode, bump `--color-text-secondary` and `--color-text-muted` high enough to be easily legible.
+- **Readability is paramount**: text must have high contrast on its background. Check both themes; `--muted` is the dimmest text color to use for content.
 - The goal is to fit as much information as possible on screen without scrolling, matching the density a DM expects from a printed stat block.
 
 ### Inputs should be ghost-styled and content-sized
@@ -54,13 +62,13 @@ Use CSS class `ghost` for inline editable fields — transparent background and 
 ### Use chips for list-valued fields
 Skills, languages, speeds, immunities, resistances, and subtypes should all use the chip pattern: colored background pills with a `×` (Unicode multiplication sign, not ASCII "x") to remove, and a `<select>` dropdown or compact TagInput `+` button to add. Chips should:
 - Have consistent gap (3-4px between chips)
-- Use `var(--color-bg-hover)` background
+- Use `var(--hover)` background
 - Inherit font size from parent (don't hardcode `9px`)
 - For typed values (resist fire 10), show the number input inline in the chip with a bottom-border underline
-- When inside dark-background headers, override CSS custom properties (`--color-bg-hover`, `--color-text-muted`, etc.) so chips remain visible
+- When inside dark-background headers, override CSS custom properties (`--color-bg-hover`, `--color-text-muted`, etc., derived from the header text color with `withAlpha()`) so chips remain visible
 
 ### Dropdowns should be native selects, not button stacks
-Use `<select>` with `appearance: none` and dotted underline for inline dropdowns (alignment, origin, creature type, role). This is more compact than a row of toggle buttons and handles long option lists. Set `option { background: var(--color-bg-primary) }` to fix dark mode dropdown backgrounds. Use `field-sizing: content` so selects auto-size to the selected option.
+Use `<select>` with `appearance: none` and dotted underline for inline dropdowns (alignment, origin, creature type, role). This is more compact than a row of toggle buttons and handles long option lists. Set `option { background: var(--surface) }` to fix dark mode dropdown backgrounds. Use `field-sizing: content` so selects auto-size to the selected option.
 
 ### Derive values that can be computed
 XP is derived from level + modifier. Bloodied = HP/2. Don't make derived values editable — display them as plain text computed from the source fields. If a value mostly follows a formula but has exceptions (e.g. resistances), keep it editable.
@@ -68,8 +76,8 @@ XP is derived from level + modifier. Bloodied = HP/2. Don't make derived values 
 ### Compact TagInput behavior
 In compact mode (`compact` prop), TagInput should: use `display: inline` on the outer wrapper so it flows with surrounding text, hide the text input when values exist and not focused (show a `+` button instead), and use tiny chip sizes (`font-size-xs`, minimal padding). This prevents the input from taking space and breaking inline layouts like `magical beast (dragon, aquatic)`.
 
-### Match the official rulebook styling
-Match the official 4e source material's visual language: fonts, colors, layout order, and density. For 4e, the DMG stat block uses a dark warm-brown header bar, serif body font (Mentor), and very dense inline layout. Extract fonts from PDFs if needed (even subsets work for testing). Use CSS custom properties scoped to the stat block class (`.stat-block-4e { --sb-header-bg: ... }`) so the theme doesn't leak.
+### Match the official layout, in 4ecb's card style
+Follow the official 4e source material's layout order and density, drawn in 4ecb's printed-card style: `var(--font-card)` (Arial), the neutral card tone (`--sb-header-bg`) for stat block headers, and the power tones (`usageTone()` in `dnd4e-utils.ts`) for power card headers. Don't bundle fonts extracted from the rulebooks; they are proprietary (Mentor and DnDVecna were removed in 2026-11). The `--sb-*` stat block tokens live in `theme.css` so they also work outside `.stat-block-4e`.
 
 ### Freeform text fields should be textareas, not inputs
 Any field that might contain more than ~40 characters of text (effect descriptions, trigger text, ability descriptions) should use `<textarea>` so the content wraps visually. Use CSS `field-sizing: content` for auto-expansion.

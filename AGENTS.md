@@ -36,7 +36,8 @@ Electron app for a DM running physical tabletop RPGs. Two windows (DM + Player),
 - **State flow**: `DM Renderer → invoke(command) → Main Process → mutate → broadcast to both renderers`
 - **4e rules module**: `src/common/rules/` (conditions, HP descriptors, creature-builder benchmarks, settings, class marks, known values) is shared by main and renderer. The compendium lives in `src/main/compendium/`, and 4e UI components live in ordinary feature folders under `src/renderer/components/` (`combat/`, `creature/`, `compendium/`, `campaign/`). There is no plugin registry, user plugin loading, or turn-hook API. The combat engine builds saves, recharges, ongoing damage, and regeneration items itself. The app was multi-system (PF2e, Delta Green) before 2026-11.
 - **Effects vs Conditions**: Conditions = 4e conditions defined in `src/common/rules/dnd4e.ts`, automated by the combat engine. Effects = DM-created ad-hoc during combat that can apply/remove Conditions.
-- Theming (fonts, colors) uses CSS custom properties.
+- **Theming**: CSS custom properties in three layers. (1) `vendor/4e-kit/styles/tokens.css`: the tokens shared with 4ecb (`--background`, `--surface`, `--text`, `--muted`, `--border`, `--accent`, `--danger`, `--power-*`, `--font-ui`/`--font-display`/`--font-card`, `--radius`), a light set plus a dark set selected by `<html data-theme="dark">` (with no attribute, the OS decides). (2) `src/renderer/styles/theme.css`: app tokens derived from the kit ones (`--hp-*`, `--cond-*`, `--player-*`, `--sb-*`, `--on-fill`, ...) and the legacy `--color-*` aliases. (3) `global.css`: element defaults, EB Garamond (`@fontsource/eb-garamond`), TipTap content. Both windows import `global.css`.
+- **Theme preference** (system / light / dark, default system): main owns it in `<userData>/app-settings.json` (`src/main/data/app-settings-store.ts`, atomic write), sets Electron's `nativeTheme.themeSource` to it, and broadcasts `SYNC.APP_SETTINGS` to both windows on change (`CMD.SETTINGS_SET_THEME`). Each window runs `initThemeSync` (`src/renderer/theme.ts`), which resolves the preference with the kit's `resolveTheme` and sets `data-theme`. The Player window follows the DM's choice. Not in localStorage.
 - No router — ContentArea switches on Zustand store state.
 
 ## Implementation Status
@@ -49,7 +50,8 @@ The application is functional across its main workflows:
 - The player window supports combat and story displays while receiving player-safe state.
 - The app is D&D 4e only: the 4e rules module and UI components are imported directly (PF2e, Delta Green, user plugins, the system picker, and URL import were removed in 2026-11).
 - Renamed from "Tabletop Dashboard" to "4e DM Dashboard" (2026-11-12). On first launch, `src/main/data/migrate-user-data.ts` moves the old `~/.config/tabletop-dashboard` userData dir to the new location.
-- `npm test` (Vitest combat-engine suite), `npm run build`, and `npm run typecheck:node` pass in the devcontainer as of 2026-11-12.
+- Restyled toward 4ecb (2026-11-12, first half of TODO section 4): 4e-kit color tokens in light and dark themes with a stored system/light/dark preference, 2px corners, 4ecb's focus ring and button hover, EB Garamond headings, Arial stat blocks and power cards (the proprietary Mentor/DnDVecna fonts are gone), power-tone card headers, palette-derived condition pills, the Player window on tokens, and styled TipTap notes. Icons, the dialog/button/table components, and the remaining hardcoded colors (listed in `TODO.md`) are still to do.
+- `npm test` (Vitest: combat engine, app settings, color helpers), `npm run build`, and `npm run typecheck:node` pass in the devcontainer as of 2026-11-12.
 
 Current planned implementation work is maintained in `TODO.md`. Historical completed batches are recorded in `CLEANUP.md`, `issues.txt`, `tasks.md`, and `feedback.md`.
 
@@ -65,7 +67,10 @@ Current planned implementation work is maintained in `TODO.md`. Historical compl
 | `src/main/windows.ts` | BrowserWindow creation + broadcast helpers |
 | `src/renderer/stores/ui-store.ts` | ViewMode type drives all navigation |
 | `src/renderer/components/layout/AppShell.tsx` | Top-level DM layout |
-| `vendor/4e-kit/src/` | Shared 4e vocabulary, content schema (`schema.ts`), character snapshot (submodule, alias `@kit`) |
+| `vendor/4e-kit/src/` | Shared 4e vocabulary, content schema (`schema.ts`), character snapshot, theme preference (`theme.ts`) (submodule, alias `@kit`) |
+| `vendor/4e-kit/styles/tokens.css` | Shared design tokens (4ecb colors for both themes, fonts, shape) |
+| `src/renderer/styles/theme.css` | App tokens derived from the kit tokens, plus the legacy `--color-*` aliases |
+| `src/renderer/theme.ts` | `initThemeSync`: applies the stored theme preference to a window (DM and Player) |
 | `src/common/rules/dnd4e.ts` | 4e rules module (conditions, HP descriptors, builder benchmarks, settings) |
 | `src/main/compendium/compendium.ts` | Loads the parsed compendium JSON from `content/parsed/` |
 | `tools/content/` | Parsers and build scripts that turn `content/raw/` into `content/parsed/` |
