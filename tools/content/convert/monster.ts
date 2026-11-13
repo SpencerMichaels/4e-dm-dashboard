@@ -6,7 +6,7 @@ import {
   type Sense, type Skill, type Speed, type Trait,
 } from '@kit'
 import {
-  Notes, compact, damageModifier, failedSaveN, hitLine, labelText, line, normText, optLine, parseAttackLine, parseSources,
+  Notes, compact, damageModifier, extractAltBonus, failedSaveN, hitLine, labelText, line, normText, optLine, parseAttackLine, parseSources,
   provenanceFor, sortedRecord, splitRangePrefix, toActionType, toDefense, toRange, toRecharge, toUsage, type ConvertContext,
 } from './common'
 
@@ -163,12 +163,12 @@ export function convertPower(a: any, notes: Notes): Power {
       range: toRange(a.rangeType, a.rangeValue, a.attackNotes || undefined),
       target: a.target ?? '',
       bonus: { kind: 'fixed', value: a.attackBonus },
-      vs: vs ?? ('' as never),
+      vs: vs ?? 'unknown',
       hit: hitText ? hitLine(hitText, a.damage ?? []) : undefined,
       miss: optLine(p.miss),
       aftereffect: optLine(p.aftereffect),
     } as Attack)
-    attacks.push(primary)
+    attacks.push(extractAltBonus(primary))
   }
   let secondary: Attack | undefined
   if (p.secondary) {

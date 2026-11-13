@@ -158,7 +158,7 @@ function convertTemplatePower(p: TemplatePower, notes: Notes): { power?: Power; 
       range: toRange(p.rangeType ?? 'melee', p.rangeValue ?? ''),
       target: p.target ?? '',
       bonus: lvl ? { kind: 'level', plus: parseInt(lvl[1]) } : { kind: 'formula', text: p.attackBonus },
-      vs: vs ?? ('' as never),
+      vs: vs ?? 'unknown',
       hit: hit ? { text: hit.text, clauses: hit.clauses } : undefined,
       miss: optLine(p.miss),
       critical: optLine(p.critical),

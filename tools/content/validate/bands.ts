@@ -7,7 +7,7 @@ import { monsterXp, type Monster } from '@kit'
 import * as bench from '../../../src/common/rules/benchmarks'
 
 export interface Flag {
-  rule: 'xp' | 'hp' | 'ac' | 'defense' | 'attack' | 'damage'
+  rule: 'xp' | 'hp' | 'ac' | 'defense' | 'attack' | 'damage' | 'unknown'
   path: string
   message: string
 }
@@ -70,7 +70,7 @@ export function checkMonsterBands(m: Monster): Flag[] {
   const high = diceAverage(limited.high)! * TOLERANCE.damageMax
   m.powers.forEach((p, pi) => p.attacks.forEach((a, ai) => {
     const path = `$.powers[${pi}].attacks[${ai}]`
-    if (a.bonus.kind === 'fixed' && m.role) {
+    if (a.bonus.kind === 'fixed' && m.role && a.vs !== 'unknown') {
       const expected = a.vs === 'ac' ? bench.attackVsAC[level][m.role] : bench.attackVsOther[level][m.role]
       if (Math.abs(a.bonus.value - expected) > TOLERANCE.attack) {
         flags.push({ rule: 'attack', path: `${path}.bonus`, message: `${p.name}: +${a.bonus.value} vs ${a.vs}, benchmark +${expected} (±${TOLERANCE.attack})` })
@@ -86,5 +86,23 @@ export function checkMonsterBands(m: Monster): Flag[] {
       flags.push({ rule: 'damage', path: `${path}.hit`, message: `${p.name}: ${dmg.dice} (avg ${avg}) outside ${low.toFixed(1)}-${high.toFixed(1)} for level ${level}` })
     }
   }))
+  return flags
+}
+
+/**
+ * Fields set to 'unknown' because the print gives no value (Attack.vs,
+ * Power.usage), in any entry kind: flagged so they land in review.
+ */
+export function checkUnknowns(entry: unknown): Flag[] {
+  const flags: Flag[] = []
+  const walk = (v: unknown, path: string) => {
+    if (Array.isArray(v)) { v.forEach((x, i) => walk(x, `${path}[${i}]`)); return }
+    if (typeof v !== 'object' || v === null) return
+    const o = v as Record<string, unknown>
+    if (o.vs === 'unknown' && 'bonus' in o) flags.push({ rule: 'unknown', path: `${path}.vs`, message: 'attack defense not printed (vs "unknown")' })
+    if (o.usage === 'unknown' && Array.isArray(o.attacks)) flags.push({ rule: 'unknown', path: `${path}.usage`, message: `${String(o.name)}: usage not printed ("unknown")` })
+    for (const [k, x] of Object.entries(o)) if (k !== 'provenance') walk(x, `${path}.${k}`)
+  }
+  walk(entry, '$')
   return flags
 }

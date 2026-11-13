@@ -172,7 +172,7 @@ function convertItemPower(p: ItemPower, notes: Notes): Power {
   const usage = toUsage(p.usage)
   const name = normText(p.name.replace(/^[⚔➶ᗕ✻☼]\s*/, ''))
   if (!action && p.action) notes.add(`power "${name}": action "${p.action}" unknown, using standard`)
-  if (!usage) notes.add(`power "${name}": usage "${p.usage}" unknown, using at-will`)
+  if (!usage) notes.add(`power "${name}": usage "${p.usage}" not read; usage is unknown`)
   if (/;/.test(p.action)) notes.add(`power "${name}": action "${p.action}"`)
 
   const attacks: Attack[] = []
@@ -197,7 +197,7 @@ function convertItemPower(p: ItemPower, notes: Notes): Power {
   return compact({
     name,
     action: action ?? 'standard',
-    usage: usage ?? 'at-will',
+    usage: usage ?? 'unknown',
     keywords: (p.keywords ?? []).map(k => k.toLowerCase()),
     trigger: optLine(p.trigger),
     requirement: optLine(p.requirement),

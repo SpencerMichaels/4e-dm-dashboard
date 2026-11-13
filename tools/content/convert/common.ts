@@ -130,6 +130,29 @@ export function toDefense(raw: string | undefined): Defense | 'any' | undefined 
   return isOneOf(DEFENSES, d) ? d : undefined
 }
 
+/**
+ * Printed conditional attack bonuses the parser leaves in the range note
+ * ("+37 while bloodied", "or +20 vs. Reflex if the target is bloodied") move to
+ * Attack.altBonus; other note parts stay. Mutates and returns the attack.
+ */
+export function extractAltBonus(attack: Attack): Attack {
+  const note = attack.range.note
+  if (!note) return attack
+  const rest: string[] = []
+  const alt: NonNullable<Attack['altBonus']> = []
+  for (const part of note.split(/;\s*/)) {
+    const m = part.trim().match(/^\(?(?:or )?\+(\d+)(?: vs\.? (AC|Fortitude|Reflex|Will))?(?: to hit)? ((?:while|when|against|if) [^()]+?)\.?\)?$/i)
+    if (!m) { rest.push(part); continue }
+    const vs = m[2] ? toDefense(m[2]) : undefined
+    alt.push(compact({ value: parseInt(m[1]), if: m[3].trim(), vs: vs === 'any' ? undefined : vs }) as { value: number; if: string; vs?: Defense })
+  }
+  if (alt.length === 0) return attack
+  attack.altBonus = alt
+  if (rest.length > 0) attack.range.note = rest.join('; ')
+  else delete attack.range.note
+  return attack
+}
+
 /** "Second Failed Saving Throw" -> 2, "Each Failed Saving Throw" -> 'each'; undefined for other labels. */
 export function failedSaveN(label: string): number | 'each' | undefined {
   const m = label.toLowerCase().trim().match(/^(first|second|third|fourth|fifth|sixth|each) failed saving throw$/)

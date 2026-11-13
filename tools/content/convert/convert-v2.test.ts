@@ -223,3 +223,29 @@ describe('schema v4 fields', () => {
     expect(p.sustain).toEqual({ action: 'minor' })
   })
 })
+
+describe('schema v5', () => {
+  it('moves printed conditional attack bonuses from the range note to altBonus', () => {
+    const power = (attackNotes: string) => convertPower({
+      name: 'Greatsword', actionType: 'standard', usage: 'at-will', attackBonus: 35, defense: 'AC',
+      rangeType: 'melee', rangeValue: '2', attackNotes, target: 'one creature', damage: [], printed: {},
+    }, new Notes()).attacks[0]
+    const a = power('the annihilator attacks the triggering enemy; +37 while bloodied')
+    expect(a.altBonus).toEqual([{ value: 37, if: 'while bloodied' }])
+    expect(a.range.note).toBe('the annihilator attacks the triggering enemy')
+    const b = power('or +20 vs. Reflex if the target is bloodied')
+    expect(b.altBonus).toEqual([{ value: 20, if: 'if the target is bloodied', vs: 'reflex' }])
+    expect(b.range.note).toBeUndefined()
+    expect(power('The vanguard has a +2 bonus to hit while bloodied.').altBonus).toBeUndefined()
+  })
+
+  it("records an unprinted defense as 'unknown'", () => {
+    const notes = new Notes()
+    const p = convertPower({
+      name: 'Wrath', actionType: 'standard', usage: 'at-will', attackBonus: 34, defense: '', rangeType: 'melee', rangeValue: '1',
+      target: 'one creature', damage: [], printed: {},
+    }, notes)
+    expect(p.attacks[0].vs).toBe('unknown')
+    expect(notes.list[0]).toMatch(/not a kit Defense/)
+  })
+})

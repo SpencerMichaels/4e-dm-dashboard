@@ -230,7 +230,7 @@ function range(c: Checker, r: unknown, path: string): void {
 
 function attack(c: Checker, a: unknown, path: string): void {
   if (!c.obj(a, path)) return
-  c.keys(a, ['label', 'after', 'range', 'target', 'bonus', 'vs', 'hit', 'miss', 'critical', 'aftereffect', 'failedSaves'], path)
+  c.keys(a, ['label', 'after', 'range', 'target', 'bonus', 'vs', 'altBonus', 'hit', 'miss', 'critical', 'aftereffect', 'failedSaves'], path)
   c.oneOf(['primary', 'secondary', 'tertiary'], a.label, `${path}.label`)
   c.optional(a, 'after', path, (v, p) => c.oneOf(['hit', 'miss', 'always'], v, p))
   range(c, a.range, `${path}.range`)
@@ -242,7 +242,14 @@ function attack(c: Checker, a: unknown, path: string): void {
     else if (b.kind === 'formula') c.str(b.text, `${path}.bonus.text`, { nonEmpty: true })
     else c.fail(`${path}.bonus.kind`, `unknown bonus kind "${String(b.kind)}"`)
   }
-  c.oneOf([...DEFENSES, 'any'], a.vs, `${path}.vs`)
+  c.oneOf([...DEFENSES, 'any', 'unknown'], a.vs, `${path}.vs`)
+  c.optional(a, 'altBonus', path, (v, q) => list(c, v, q, (x, p) => {
+    if (!c.obj(x, p)) return
+    c.keys(x, ['value', 'if', 'vs'], p)
+    c.int(x.value, `${p}.value`)
+    c.str(x.if, `${p}.if`, { nonEmpty: true })
+    c.optional(x, 'vs', p, (d, r) => c.oneOf(DEFENSES, d, r))
+  }))
   for (const k of ['hit', 'miss', 'critical', 'aftereffect']) optLine(c, a, k, path)
   c.optional(a, 'failedSaves', path, (v, q) => list(c, v, q, (f, p) => {
     if (!c.obj(f, p)) return
@@ -260,7 +267,7 @@ export function power(c: Checker, p: unknown, path: string, extraKeys: string[] 
   c.keys(p, [...POWER_KEYS, ...extraKeys], path)
   c.str(p.name, `${path}.name`, { nonEmpty: true })
   c.oneOf(ACTION_TYPES, p.action, `${path}.action`)
-  c.oneOf(USAGES, p.usage, `${path}.usage`)
+  c.oneOf([...USAGES, 'unknown'], p.usage, `${path}.usage`)
   if (p.usage === 'recharge') {
     if (c.obj(p.recharge, `${path}.recharge`)) {
       const r = p.recharge

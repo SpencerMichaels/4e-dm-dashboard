@@ -1,6 +1,6 @@
 // Validate the content repo: (a) shape, (b) clause spans, (c) DMG math bands.
 // Shape and span problems are errors (the apply step rejects them); band
-// outliers are flags for review.
+// outliers and 'unknown' (unprinted) fields are flags for review.
 //
 // Run: npm run content:validate -- /path/to/4e-content [--json report.json]
 //   (default report: <repo>/reports/validation.json)
@@ -8,7 +8,7 @@
 import { mkdirSync, readFileSync, readdirSync, writeFileSync } from 'fs'
 import { dirname, join } from 'path'
 import type { Monster } from '@kit'
-import { checkMonsterBands, type Flag } from './bands'
+import { checkMonsterBands, checkUnknowns, type Flag } from './bands'
 import {
   Checker, diseaseShape, itemShape, monsterShape, templateShape, themeShape, trapShape, type Issue,
 } from './shape'
@@ -29,8 +29,9 @@ export function validateEntry(kind: ContentKind, entry: unknown): EntryResult {
   const c = new Checker()
   SHAPES[kind](c, entry)
   const errors = [...c.issues, ...checkSpans(entry)]
-  // Bands need a well-formed monster.
-  const flags = kind === 'monsters' && c.issues.length === 0 ? checkMonsterBands(entry as Monster) : []
+  // Bands need a well-formed entry.
+  const ok = c.issues.length === 0
+  const flags = [...(kind === 'monsters' && ok ? checkMonsterBands(entry as Monster) : []), ...(ok ? checkUnknowns(entry) : [])]
   return { errors, flags }
 }
 

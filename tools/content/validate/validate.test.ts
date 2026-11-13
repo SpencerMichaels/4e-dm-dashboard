@@ -313,3 +313,24 @@ describe('schema v4', () => {
     expect(validateEntry('traps', { ...trap, speed: { fly: 4 } }).errors.map(e => e.path)).toEqual(['$.speed.walk'])
   })
 })
+
+describe('schema v5', () => {
+  it("accepts altBonus and 'unknown' vs/usage, and flags 'unknown' for review", () => {
+    const m = monster()
+    m.powers[0].usage = 'unknown'
+    m.powers[0].attacks[0].vs = 'unknown'
+    m.powers[0].attacks[0].altBonus = [{ value: 10, if: 'while bloodied' }, { value: 9, if: 'if the target is bloodied', vs: 'reflex' }]
+    const { errors, flags } = validateEntry('monsters', m)
+    expect(errors).toEqual([])
+    expect(flags.filter(f => f.rule === 'unknown').map(f => f.path)).toEqual(['$.powers[0].usage', '$.powers[0].attacks[0].vs'])
+    // No attack band for an unknown defense.
+    expect(flags.filter(f => f.rule === 'attack')).toEqual([])
+  })
+
+  it('rejects malformed altBonus entries', () => {
+    const m = monster()
+    m.powers[0].attacks[0].altBonus = [{ value: 'x', if: '', vs: 'any', extra: 1 } as any]
+    const paths = validateEntry('monsters', m).errors.map(e => e.path)
+    for (const p of ['value', 'if', 'vs', 'extra']) expect(paths).toContain(`$.powers[0].attacks[0].altBonus[0].${p}`)
+  })
+})
