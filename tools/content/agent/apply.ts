@@ -9,14 +9,15 @@
 // the errors are printed (exit code 1). --check validates and writes nothing.
 // Band outliers are printed but do not block. Provenance becomes origin
 // 'agent' with the model id, date, confidence and notes. A human-edited entry
-// is only replaced with --force.
+// is only replaced with --force. A disease clause gets the diseaseId of the
+// content repo's disease whose name matches its printed name exactly.
 
-import { readFileSync, writeFileSync } from 'fs'
+import { readFileSync, readdirSync, writeFileSync } from 'fs'
 import { join } from 'path'
 import { toJson } from '../convert/index'
 import { validateEntry, type ContentKind, type EntryResult } from '../validate/index'
 import { contentRepo } from './prompt'
-import { resolveQuotes } from './quotes'
+import { forEachLine, resolveQuotes } from './quotes'
 
 export interface AgentResponse {
   entry: Record<string, unknown>
@@ -52,7 +53,7 @@ export function parseResponse(text: string): AgentResponse {
 
 export function applyResponse(
   kind: ContentKind, id: string, response: AgentResponse, existing: Record<string, any>,
-  opts: { model: string; date: string; force?: boolean },
+  opts: { model: string; date: string; force?: boolean; diseases?: Map<string, string> },
 ): { result: ApplyResult; entry?: Record<string, unknown> } {
   const entry = JSON.parse(JSON.stringify(response.entry)) as Record<string, unknown>
   if (entry.id !== id) return { result: { written: false, reason: `entry id "${String(entry.id)}" does not match ${id}`, errors: [], flags: [] } }
@@ -60,6 +61,7 @@ export function applyResponse(
     return { result: { written: false, reason: 'entry was edited by a human (use --force)', errors: [], flags: [] } }
   }
   const quoteErrors = resolveQuotes(entry)
+  if (opts.diseases) fillDiseaseIds(entry, opts.diseases)
   const confidence = response.confidence === 'low' ? 'low' : response.confidence === 'high' ? 'high' : undefined
   const notes = Array.isArray(response.notes) ? response.notes.filter(n => typeof n === 'string' && n.trim()) : []
   // Provenance always goes last so the key order stays stable.
@@ -75,6 +77,38 @@ export function applyResponse(
   const errors = [...quoteErrors, ...result.errors.filter(e => ![...quotePaths].some(p => e.path === p || e.path.startsWith(`${p}.`)))]
   if (errors.length > 0) return { result: { errors, flags: result.flags, written: false, reason: 'validation failed' } }
   return { result: { ...result, written: true }, entry }
+}
+
+/** Disease name as matched: case, spacing and quote marks folded. */
+export function diseaseKey(name: string): string {
+  return name.replace(/\s+/g, ' ').replace(/[‘’]/g, "'").trim().toLowerCase()
+}
+
+/** diseaseKey(name) -> id for every disease in the content repo (cached per repo). */
+const diseaseIndexes = new Map<string, Map<string, string>>()
+export function diseaseIndex(repo: string): Map<string, string> {
+  let index = diseaseIndexes.get(repo)
+  if (index) return index
+  index = new Map()
+  let files: string[] = []
+  try { files = readdirSync(join(repo, 'diseases')).filter(f => f.endsWith('.json')) } catch { /* no diseases */ }
+  for (const f of files) {
+    const d = JSON.parse(readFileSync(join(repo, 'diseases', f), 'utf-8'))
+    if (typeof d?.name === 'string' && typeof d?.id === 'string') index.set(diseaseKey(d.name), d.id)
+  }
+  diseaseIndexes.set(repo, index)
+  return index
+}
+
+/** Set diseaseId on disease clauses whose printed name matches a disease exactly (agents give only the name). */
+export function fillDiseaseIds(entry: unknown, index: Map<string, string>): void {
+  forEachLine(entry, line => {
+    for (const cl of line.clauses as unknown as Record<string, unknown>[]) {
+      if (cl?.kind !== 'disease' || typeof cl.disease !== 'string' || cl.diseaseId !== undefined) continue
+      const id = index.get(diseaseKey(cl.disease))
+      if (id) cl.diseaseId = id
+    }
+  })
 }
 
 /**
@@ -154,7 +188,7 @@ export function applyFile(
     return { ok: false, summary: `${label}: ${e.code === 'ENOENT' ? `reply file ${replyPath} does not exist` : e.message}`, details: [] }
   }
   const { result, entry } = applyResponse(kind, id, response, existing, {
-    model: opts.model ?? 'check', date: opts.date ?? new Date().toISOString().slice(0, 10), force: opts.force,
+    model: opts.model ?? 'check', date: opts.date ?? new Date().toISOString().slice(0, 10), force: opts.force, diseases: diseaseIndex(repo),
   })
   const details = [
     ...formatIssues(response.entry, result.errors),

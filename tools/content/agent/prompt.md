@@ -92,7 +92,12 @@ lower confidence.
   lead-in with no mechanics ("The dragon uses its tail to attack the target")
   stays in `range.note`.
 - A secondary attack with no printed range copies the primary's `range`; say so
-  in `notes`.
+  in `notes`. An attack with no printed target has `target: ""`. "makes a
+  secondary attack against the same target" in a hit line stays an unparsed
+  clause (the attack itself is the next entry in `attacks`).
+- A targeting lead-in on the attack line ("makes a separate attack against 3
+  different targets", "it can make this attack against it twice") stays in
+  `range.note`.
 - Failed saving throw lines go in the attack's `failedSaves`, in printed order.
 - A printed conditional attack bonus ("(+37 while bloodied)", "or +20 vs.
   Reflex if the target is bloodied") is the attack's `altBonus`:
@@ -106,7 +111,8 @@ lower confidence.
   `effect`, even when the print runs it into the hit text. Words stay verbatim;
   say in `notes` what moved.
 - Labeled lines with no field of their own (form lines, numbered eye rays, an
-  unparseable "Secondary Attack:") go in `extraLines` as `{label, line}`.
+  unparseable "Secondary Attack:") go in `extraLines` as `{label, line}`. An eye
+  ray's "Ranged 10; +24 vs. Reflex" words are one unparsed clause.
 - "1/round" and "1/turn" are `usesPerRound: 1`; "2/Encounter" is
   `usesPerEncounter: 2`. "requires greatsword" / "requires combat advantage" is
   the power's `requirement` line.
@@ -114,7 +120,9 @@ lower confidence.
   inline ("(sustain minor)"), it is `{"action": "minor"}` with no `line`.
 - Resistances and vulnerabilities: `{type, value}`; a damage type with no number
   omits `value`; anything else is `{type: "special", text: "<printed wording>"}`.
-  Never store 0 for an unknown value.
+  Never store 0 for an unknown value. "Resist 15 variable (2/encounter)" keeps
+  the parser's `{type: "variable", value: 15, note: "2/encounter"}`; the
+  Variable Resistance trait's clause may take its `typeChoice` from the trigger line.
 - An aura size that changes ("Aura 2, or 3 while the balor is bloodied") is
   `range: 2, rangeIf: [{"value": 3, "if": "while the balor is bloodied"}]`.
 {{#monsters}}
@@ -122,9 +130,18 @@ lower confidence.
   move them to `traits` or `auras` (`range` is the aura size). A triggered
   action stored as a trait goes back to `powers`.
 - Conditional skill bonuses ("(+5 to Stealth checks when in ice or snow)") go in
-  `skillNotes`, verbatim. "phasing" or "(hover)" on the speed line stays in
-  `speed.notes`: every note in printed order, separated by "; ", with the mode
-  first when it belongs to one ("fly: hover; phasing").
+  `skillNotes`, verbatim. Conditional saving throw bonuses go in
+  `savingThrowNotes`, verbatim, never in `savingThrowBonus`: "Saving Throws +5
+  against fear effects" is `0` and `["+5 against fear effects"]`; "+2 (+4
+  against charm effects)" is `2` and `["+4 against charm effects"]`.
+- "phasing" or "(hover)" on the speed line stays in `speed.notes`: every note
+  in printed order, separated by "; ", with the mode first when it belongs to
+  one ("fly: hover; phasing"). A walk-speed note has no mode: "ice walk", not
+  the parser's "land: ice walk".
+- `equipment` is the printed list, normalized: "heavy shield, longsword" (no
+  space before commas, no trailing period). Fill it from the print when the
+  parser left it empty.
+- An aura's `keywords` are its printed keywords; drop the parser's "aura".
 {{/monsters}}
 {{#items}}
 - `price` is in gp. `armor` holds armor and shield stats; artifact and set powers
@@ -220,7 +237,19 @@ never write `at`. An unparsed clause is just `{"text": "<exact printed words>"}`
     ("After the first or second attack").
   - The words that open a branch ("On a save", "On a failure", or the check
     that allows it) are the `if` of each clause in that branch.
-- `who`: `target` is the attack's target, `self` the {{KIND_LABEL}}.
+- `who`: `target` is the attack's target, `self` the {{KIND_LABEL}}; `rider` the
+  creature riding it, `mount` its mount; `other` any subject no value names
+  (creatures attacking it, creatures adjacent to it with no area). A narrower
+  group ("undead in the burst", "Fey allies") takes the nearest value and keeps
+  the narrowing words in the quote, never in `if`.
+- `charge`: "charges" and "can charge" (`optional: true`); the attack it makes
+  is the power's own attack.
+- `disease`: `disease` is the name as printed, without "level 6" ("contracts
+  level 6 mummy rot": "mummy rot"); `stage` when printed. Tools fill `diseaseId`.
+- `reroll`: `what` is rerolled; `keep` only when the print says which roll
+  counts ("use the second result": `new`; "the higher result": `higher`).
+- Threatening Reach ("can make opportunity attacks against all enemies within
+  its reach") is `opportunity-reach` with `optional: true`.
 - grants-ca `to`: `source` is the clause's source only; `source-allies` is the
   source and its allies (use it for "the dragon and its allies" and for "the
   Imperator and an ally"); `all` is every creature.
@@ -231,6 +260,11 @@ never write `at`. An unparsed clause is just `{"text": "<exact printed words>"}`
   `indefinite` for prone or a grab with no printed end; `until` with the printed
   words for other endings, including another creature's turn
   (`{"kind":"until","text":"until the end of the triggering enemy's next turn"}`).
+  `until.text` is the printed words wherever they exist, never a paraphrase; a
+  duration printed as its own sentence ("The effect lasts until ...") goes in
+  the clause's `until` and the sentence stays uncovered. `this-power`: only the
+  attacks the same power makes ("each at a -2 penalty"). A grab "(until
+  escape)" is `indefinite`.
 - `typeChoice`: "damage of one of the following types: acid, cold or fire" is
   chosen when used: `types: []` and `typeChoice` lists them (resistance: `type: "choice"`).
 
@@ -251,7 +285,7 @@ never write `at`. An unparsed clause is just `{"text": "<exact printed words>"}`
 |---|---|
 | damage | the dice or flat number ("2d6 + 5" for `2d6+5`), not "damage"; "crit" if `critical`; each type in `types`, in the quote or the words after it |
 | ongoing-damage | "ongoing" and the amount |
-| condition | the condition word in any form ("dazes", "knocks prone", "removed from play"); with `escapeDc`, "escape DC" and the number |
+| condition | the condition word in any form ("dazes", "knocks prone", "removed from play"); with `escapeDc`, "escape" and the number ("escape DC 21", "escapes (DC 21)"), in the quote or later in its sentence |
 | forced-move, move | push / pull / slide / shift / teleport / swap (or switch) / fly / move (or walk, jump, climb) in any form; forced-move also the squares unless 1 |
 | modifier, revive | the number (digits or a word) |
 | grants-ca | "combat advantage" |
@@ -268,6 +302,10 @@ never write `at`. An unparsed clause is just `{"text": "<exact printed words>"}`
 | status | "insubstantial", "phasing", or "provok" (no-provoke) |
 | opportunity-reach | "opportunity" |
 | difficult-terrain | "difficult terrain" |
+| charge | "charge" in any form |
+| disease | the `disease` name (and "stage" and the number if `stage`) |
+| reroll | "reroll" or "roll again" |
+| action-point | "action point" and the amount ("an action point" for 1) |
 | damage-formula | "damage" |
 
 **Examples** (one clause or field each):
@@ -289,6 +327,11 @@ never write `at`. An unparsed clause is just `{"text": "<exact printed words>"}`
 - Fly and no-provoke ("The dragon flies up to 12 squares without provoking opportunity attacks"): `{"quote": "flies up to 12 squares", "kind": "move", "move": "fly", "squares": 12, "who": "self"}, {"quote": "without provoking opportunity attacks", "kind": "status", "status": "no-provoke", "who": "self", "duration": {"kind": "instant"}}`
 - Several subjects ("The overseer and one ally turn invisible until the end of the overseer's next turn"): `{"quote": "turn invisible until the end of the overseer's next turn", "kind": "condition", "condition": "invisible", "who": ["self", "ally"], "duration": {"kind": "turn-end", "whose": "source", "next": true}}`
 - Grab ("the choker grabs the target (escape DC 21)"): `{"quote": "grabs the target (escape DC 21)", "kind": "condition", "condition": "grabbed", "who": "target", "duration": {"kind": "indefinite"}, "escapeDc": 21}`
+- Charge ("The hippogriff can charge and make the following attack"): `{"quote": "can charge", "kind": "charge", "who": "self", "optional": true}`
+- Disease ("the target contracts werewolf moon frenzy (stage 1)"): `{"quote": "contracts werewolf moon frenzy (stage 1)", "kind": "disease", "disease": "werewolf moon frenzy", "stage": 1, "who": "target"}`
+- Reroll ("forces the attacker to reroll the attack and use the second result"): `{"quote": "forces the attacker to reroll the attack and use the second result", "kind": "reroll", "what": "attack", "keep": "new", "who": "other"}`
+- Action point and rider ("its rider gains 1 action point"): `{"quote": "gains 1 action point", "kind": "action-point", "amount": 1, "who": "rider"}`
+- This power only ("The dragon makes two claw attacks, each at a -2 penalty"): `{"quote": "makes two claw attacks", "kind": "use-power", "power": "claw", "times": 2, "who": "self"}, {"quote": "-2 penalty", "kind": "modifier", "stat": "attack", "value": -2, "who": "self", "duration": {"kind": "this-power"}}`
 {{#items}}
 - Weapon critical: `"critical": {"text": "+1d6 damage per plus", "clauses": [{"quote": "+1d6 damage per plus", "kind": "damage-formula", "text": "+1d6 damage per plus", "types": []}]}`
 - An entry with nothing to structure (a ritual is often only description) needs
@@ -311,8 +354,9 @@ If a common mechanic needs a new clause kind, name it in `notes`.
 <!-- batch-head -->
 # Clean {{COUNT}} {{KIND_LABEL}} entries ({{KIND}}, {{BATCH}})
 
-First Read the rules file `{{RULES_PATH}}` in full: its steps, rules, examples
-and schema apply to every entry below. Then do the entries one at a time, in
+First read the rules file `{{RULES_PATH}}` in full with the Read tool (not
+`cat`: it is over the Bash output limit): its steps, rules, examples and
+schema apply to every entry below. Then do the entries one at a time, in
 this order: {{IDS}}. Each has its own reply path and check command. At the
 end, list each id with PASS or FAIL.
 

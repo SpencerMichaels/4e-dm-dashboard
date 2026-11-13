@@ -4,7 +4,7 @@ import { join } from 'path'
 import { describe, expect, it } from 'vitest'
 import type { Disease } from '@kit'
 import { applyAll } from './apply-all'
-import { applyFile, applyResponse, describePath, parseResponse } from './apply'
+import { applyFile, applyResponse, describePath, diseaseKey, fillDiseaseIds, parseResponse } from './apply'
 import { batchFile, briefDirs, chunkIds, defaultResponsesDir, packBatches, parseChunk } from './briefs'
 import { buildBatchBrief, buildBrief, buildRulesFile, checkCommand, compactJson, htmlToText, rulesFile, schemaExcerpt } from './prompt'
 import { atToQuote, resolveQuotes } from './quotes'
@@ -164,7 +164,7 @@ describe('brief', () => {
     expect(brief).not.toMatch(/\{\{[#/]?\w+\}\}/)
     expect(brief).not.toContain('<!--')
     expect(brief.startsWith('# Clean 2 disease entries (diseases, batch 1)\n')).toBe(true)
-    expect(brief).toContain(`First Read the rules file \`${rulesPath}\``)
+    expect(brief).toContain(`First read the rules file \`${rulesPath}\` in full with the Read tool`)
     expect(brief).toContain('this order: disease11, disease20.')
     for (const s of ['## Rules', '## Schema', 'interface Disease', '**Quote rules**']) expect(brief).not.toContain(s)
     expect(brief.indexOf('## Entry 1 of 2: `disease11`')).toBeLessThan(brief.indexOf('## Entry 2 of 2: `disease20`'))
@@ -238,6 +238,18 @@ describe('apply', () => {
     expect(m.errors).toEqual([{ path: '$.stages[0].line.clauses[0]', message: 'quote "stunned" is not in the line text "Dazed."' }])
     const human = { ...disease, provenance: { origin: 'human', at: '2026-11-12' } }
     expect(applyResponse('diseases', 'disease11', { entry: { ...disease } }, human, opts).result.reason).toMatch(/human/)
+  })
+
+  it('fills diseaseId by exact printed name', () => {
+    const index = new Map([[diseaseKey('Mummy Rot'), 'disease30'], [diseaseKey('Spider Queen’s Curse'), 'disease60']])
+    const entry = { hit: { text: 'x', clauses: [
+      { kind: 'disease', disease: 'mummy  rot', who: 'target' },
+      { kind: 'disease', disease: "Spider Queen's curse", who: 'target' },
+      { kind: 'disease', disease: 'level 6 mummy rot', who: 'target' },
+      { kind: 'disease', disease: 'mummy rot', diseaseId: 'disease1', who: 'target' },
+    ] } }
+    fillDiseaseIds(entry, index)
+    expect(entry.hit.clauses.map((c: any) => c.diseaseId)).toEqual(['disease30', 'disease60', undefined, 'disease1'])
   })
 
   it('names powers and clause kinds in error locations', () => {
