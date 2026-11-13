@@ -12,7 +12,8 @@ export default defineConfig({
     },
     resolve: {
       alias: {
-        '@common': resolve('src/common')
+        '@common': resolve('src/common'),
+        '@kit': resolve('vendor/4e-kit/src')
       }
     }
   },
@@ -20,7 +21,8 @@ export default defineConfig({
     plugins: [externalizeDepsPlugin()],
     resolve: {
       alias: {
-        '@common': resolve('src/common')
+        '@common': resolve('src/common'),
+        '@kit': resolve('vendor/4e-kit/src')
       }
     },
     build: {
@@ -37,6 +39,7 @@ export default defineConfig({
     resolve: {
       alias: {
         '@common': resolve('src/common'),
+        '@kit': resolve('vendor/4e-kit/src'),
         '@renderer': resolve('src/renderer'),
         '@player': resolve('src/player')
       }

@@ -15,11 +15,11 @@ Roadmap decided 2026-11-12. The reasoning is in the "Feasibility Study: 4e-Only 
 - [x] Move the 4e plugin folders into normal feature folders (rules in `src/common/rules/`, compendium in `src/main/compendium/`, parsers and build scripts in `tools/content/`, data in `content/`, UI in `src/renderer/components/{combat,creature,compendium,campaign}/`)
 
 ## 3. Shared `4e-kit` repo (GPL-3.0) and the 4e schema
-- [ ] Repo skeleton: builds to ESM + `.d.ts` + CSS; React as a peer dependency; both apps pin it by git tag
-- [ ] 4e vocabulary: action/range/usage types, damage types, conditions, roles, XP table
-- [ ] Schema: typed `StatBlock`, `Power`, `Item`, `Trap`, `Disease`, and structured effect clauses (damage, ongoing damage, condition plus duration, forced movement, mark, aftereffect, unstructured text fallback). Each clause keeps its source text. Start from 4ecb's power-text IR (`packages/content-domain/src/power-text.ts`). Needs user review before section 5.
-- [ ] Adopt the typed `StatBlock` in this app (replaces the `statBlock as any` casts)
-- [ ] Character snapshot type for import
+- [x] Repo skeleton at `~/Projects/4e-kit`. Changed from the plan: no build step. Both apps include it as a git submodule (`vendor/4e-kit`) and import its TypeScript source through an `@kit` alias; the submodule commit is the pin. It type-checks under 4ecb's strict flags.
+- [x] 4e vocabulary: action/range/usage types, damage types, conditions, roles, XP table (this app now takes damage types and the XP table from the kit)
+- [x] Schema: typed `StatBlock`, `Power`, `Item`, `Trap`, `Disease`, and structured effect clauses (damage, ongoing damage, condition plus duration, forced movement, mark, aftereffect, unstructured text fallback). Each clause keeps its source text. Start from 4ecb's power-text IR (`packages/content-domain/src/power-text.ts`). Needs user review before section 5.
+- [ ] Adopt the kit's `Monster` type in this app (replaces the `statBlock as any` casts). Deferred to section 5: it changes the stored shape, so campaign creature files get converted once, together with the switch to the cleaned content pack.
+- [x] Character snapshot type for import
 
 ## 4. Restyle (see the style unification proposal)
 - [ ] Style kit in `4e-kit`: 4ecb tokens and themes, `Icon`, `ActionTypeIcon`
@@ -88,6 +88,7 @@ Must be done before the repo gets a public remote. Steps 8.1–8.3 are ordinary 
 - [ ] Commit hashes change: update hash references in `CLEANUP.md`, `tasks.md`, etc. if any matter
 
 ## 9. Packaging and publishing
+- [ ] Publish `4e-kit` too, and switch the submodule URL in `.gitmodules` from the local path to its remote (same for 4ecb)
 - [ ] Rebase or rework `codex/cross-platform-packaging` (electron-builder, CI workflow, Nix flake, `BUILDING.md`) onto the renamed, 4e-only, pack-loading app
 - [ ] Add the public remote and push
 

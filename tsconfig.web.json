@@ -16,12 +16,15 @@
     "declaration": true,
     "declarationMap": true,
     "paths": {
-      "@common/*": ["./src/common/*"]
+      "@common/*": ["./src/common/*"],
+      "@kit": ["./vendor/4e-kit/src/index.ts"],
+      "@kit/*": ["./vendor/4e-kit/src/*"]
     }
   },
   "include": [
     "src/renderer/**/*",
     "src/player/**/*",
-    "src/common/**/*"
+    "src/common/**/*",
+    "vendor/4e-kit/src/**/*"
   ]
 }

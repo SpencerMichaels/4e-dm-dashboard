@@ -1,5 +1,7 @@
 /** Shared constants and utilities for the D&D 4e plugin */
 
+import { XP_BY_LEVEL } from '@kit'
+
 export const USAGE_COLORS: Record<string, string> = {
   'at-will': '#4a7a5a', 'At-Will': '#4a7a5a',
   'encounter': '#7a4a4a', 'Encounter': '#7a4a4a',
@@ -15,12 +17,8 @@ export const DND4E_ACTION_TYPES: Record<string, string> = {
   'immediate-reaction': 'immediate reaction', 'no-action': 'no action',
 }
 
-// XP by level (DMG p.56)
-export const XP_BY_LEVEL: Record<number, number> = {
-  1:100,2:125,3:150,4:175,5:200,6:250,7:300,8:350,9:400,10:500,
-  11:600,12:700,13:800,14:1000,15:1200,16:1400,17:1600,18:2000,19:2400,20:2800,
-  21:3200,22:4150,23:5100,24:6050,25:7000,26:9000,27:11000,28:13000,29:15000,30:19000,
-}
+// XP by level (DMG p.56), from the shared 4e-kit vocabulary
+export { XP_BY_LEVEL }
 const XP_MULT: Record<string, number> = { elite: 2, solo: 5 }
 export function xpForCreature(level: number, modifier?: string): number {
   const base = XP_BY_LEVEL[level] ?? XP_BY_LEVEL[30]

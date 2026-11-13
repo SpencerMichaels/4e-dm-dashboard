@@ -15,13 +15,16 @@
     "declaration": true,
     "declarationMap": true,
     "paths": {
-      "@common/*": ["./src/common/*"]
+      "@common/*": ["./src/common/*"],
+      "@kit": ["./vendor/4e-kit/src/index.ts"],
+      "@kit/*": ["./vendor/4e-kit/src/*"]
     }
   },
   "include": [
     "src/main/**/*",
     "src/preload/**/*",
     "src/common/**/*",
+    "vendor/4e-kit/src/**/*",
     "electron.vite.config.ts",
     "vitest.config.ts",
     "tools/**/*",

@@ -25,6 +25,7 @@ Electron app for a DM running physical tabletop RPGs. Two windows (DM + Player),
 - Run package installation, builds, and tests inside the devcontainer, not directly on the host.
 - When changing behavior, update the relevant project documentation and add or update tests when practical.
 - Keep the implementation-status section below current when completing a documented task.
+- Shared 4e code (vocabulary, content schema, character snapshot, later the style kit) lives in the `4e-kit` repo, included as the git submodule `vendor/4e-kit` and imported as `@kit`. Clone with `--recurse-submodules`. Change shared code in the kit repo first, commit there, then bump the submodule here; 4ecb consumes the same repo.
 
 ## Architecture
 
@@ -64,6 +65,7 @@ Current planned implementation work is maintained in `TODO.md`. Historical compl
 | `src/main/windows.ts` | BrowserWindow creation + broadcast helpers |
 | `src/renderer/stores/ui-store.ts` | ViewMode type drives all navigation |
 | `src/renderer/components/layout/AppShell.tsx` | Top-level DM layout |
+| `vendor/4e-kit/src/` | Shared 4e vocabulary, content schema (`schema.ts`), character snapshot (submodule, alias `@kit`) |
 | `src/common/rules/dnd4e.ts` | 4e rules module (conditions, HP descriptors, builder benchmarks, settings) |
 | `src/main/compendium/compendium.ts` | Loads the parsed compendium JSON from `content/parsed/` |
 | `tools/content/` | Parsers and build scripts that turn `content/raw/` into `content/parsed/` |

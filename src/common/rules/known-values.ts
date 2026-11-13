@@ -1,10 +1,9 @@
 // Known D&D 4e values for autocomplete fields
 
-// 4e damage types (PHB)
-export const damageTypes = [
-  'acid', 'cold', 'fire', 'force', 'lightning',
-  'necrotic', 'poison', 'psychic', 'radiant', 'thunder',
-] as const
+import { DAMAGE_TYPES } from '@kit'
+
+// 4e damage types (PHB), from the shared 4e-kit vocabulary
+export const damageTypes = DAMAGE_TYPES
 
 export const allDamageTypes: string[] = [...damageTypes]
 

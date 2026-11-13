@@ -13,6 +13,7 @@ pkgs.buildNpmPackage rec {
       let baseName = builtins.baseNameOf path; in
       # Exclude large non-source directories and stray files from the build
       !(baseName == "4eBooks" ||
+        path == toString ./vendor/4e-kit/node_modules ||
         baseName == "combat-debug.log" ||
         baseName == "result" ||
         (type == "regular" && builtins.match ".*\\.(webp|png|jpg)$" baseName != null &&
