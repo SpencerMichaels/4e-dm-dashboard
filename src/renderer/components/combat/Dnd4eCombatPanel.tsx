@@ -46,6 +46,25 @@ export function Dnd4eCombatPanel({
     const conditions = detectConditions({ hit: pow.hit, effect: pow.effect, miss: pow.miss, target: pow.target })
     return [...conditions, ...detectDiseases(pow, diseaseNames, conditions)]
   }
+  /** A highlighted condition or disease clicked in a card: pick targets to apply it to. */
+  const applyDetection = (det: DetectedCondition, multi: boolean) => {
+    if (det.disease) { onApplyDiseaseToTargets?.(det.disease, det.conditionName, multi); return }
+    const condData: any = { conditionId: det.conditionId, value: det.value, customDescription: det.damageType, sourceId: c.id, duration: det.duration }
+    // Marked: "by <source>".
+    if (det.conditionId === 'marked') condData.customDescription = `by ${c.name}`
+    // Regenerating lasts the encounter and has no damage type.
+    if (det.conditionId === 'regenerating') {
+      condData.duration = det.duration ?? { type: 'encounter' }
+      condData.customDescription = undefined
+    }
+    // Grants combat advantage: the recipient and its label suffix; the source is the power's owner.
+    if (det.conditionId === 'combat-advantage') {
+      const recipient = det.grantsCATo ?? 'all'
+      condData.grantsCATo = recipient
+      condData.customDescription = recipient === 'source' ? `to ${c.name}` : recipient === 'source-allies' ? `to ${c.name}'s allies` : undefined
+    }
+    onApplyConditionToTargets(condData, multi)
+  }
   const hpPct = hpPercentage(c.hp, c.maxHp)
   const usedPowers = c.usedPowers ?? {}
 
@@ -77,23 +96,6 @@ export function Dnd4eCombatPanel({
   const totalAP = (sb.actionPoints as number) ?? 0
   const usedAP = c.usedActionPoints ?? 0
   const remainingAP = Math.max(0, totalAP - usedAP)
-
-  const pinBtn = (key: string, title: string, content: any) => {
-    const isPinned = pinnedKeys.has(key)
-    return (
-      <button
-        onClick={() => onPinCard({ combatantName: c.name, title, content, key })}
-        title={isPinned ? 'Unpin' : 'Pin to overlay'}
-        style={{
-          background: 'none', border: 'none', cursor: 'pointer', padding: '0 2px',
-          fontSize: 10, color: isPinned ? 'var(--color-action-point)' : 'var(--color-text-muted)',
-          opacity: isPinned ? 1 : 0.5,
-        }}
-      >
-        📌
-      </button>
-    )
-  }
 
   const btnStyle = {
     padding: '3px 10px', borderRadius: 'var(--radius-sm)',
@@ -256,137 +258,33 @@ export function Dnd4eCombatPanel({
         </div>
       )}
 
-      {/* Traits */}
-      {traitEntries.length > 0 && (
+      {/* Traits and auras: the same card as powers, pinned from its header */}
+      {(traitEntries.length > 0 || auraEntries.length > 0) && (
         <div style={{ borderTop: '1px solid var(--sb-separator)', paddingTop: 2 }}>
-          {traitEntries.map((t, i) => {
-            const key = `${c.id}:trait:${i}`
-            const body = t.effect || t.text || (t as any).description || ''
-            return (
-              <div key={i} style={{ marginTop: 2, display: 'flex', alignItems: 'flex-start' }}>
-                <div style={{ flex: 1, fontSize: 'var(--font-size-xs)', lineHeight: 1.5, marginBottom: 1 }}>
-                  <div style={{ padding: '2px 8px', background: '#7a6f5e', color: '#fff' }}>
-                    <b>{t.name}</b>
-                  </div>
-                  {body && <div style={{ padding: '1px 8px 2px 16px' }}>{body}</div>}
-                </div>
-                <div style={{ paddingTop: 2 }}>{pinBtn(key, t.name, body)}</div>
-              </div>
-            )
+          {[...traitEntries, ...auraEntries].map(t => {
+            const idx = actions.indexOf(t)
+            const key = `${c.id}:${t.entryType}:${idx}`
+            const entry = toPowerCardEntry(t.entryType === 'aura' ? { ...t, rangeType: 'aura', rangeValue: String((t as any).auraSize ?? (t as any).auraRange ?? t.rangeValue ?? 1) } : t)
+            return <PowerCardView key={key} entry={entry} detectedConditions={detect(t)} onConditionClick={applyDetection}
+              pinned={pinnedKeys.has(key)} onPin={() => onPinCard({ combatantName: c.name, title: t.name, content: entry, key })} />
           })}
         </div>
       )}
 
-      {/* Auras */}
-      {auraEntries.length > 0 && (
-        <div style={{ paddingTop: 2 }}>
-          {auraEntries.map((a, i) => {
-            const key = `${c.id}:aura:${i}`
-            const auraRange = (a as any).auraRange ?? a.rangeValue ?? 1
-            const body = a.effect || a.text || (a as any).description || ''
-            return (
-              <div key={i} style={{ marginTop: 2, display: 'flex', alignItems: 'flex-start' }}>
-                <div style={{ flex: 1, fontSize: 'var(--font-size-xs)', lineHeight: 1.5, marginBottom: 1 }}>
-                  <div style={{ padding: '2px 8px', background: '#7a6f5e', color: '#fff' }}>
-                    <b>{a.name}</b>
-                    <span style={{ color: 'rgba(255,255,255,0.8)' }}> (aura {auraRange})</span>
-                  </div>
-                  {body && <div style={{ padding: '1px 8px 2px 16px' }}>{body}</div>}
-                </div>
-                <div style={{ paddingTop: 2 }}>{pinBtn(key, a.name, `aura ${auraRange}; ${body}`)}</div>
-              </div>
-            )
-          })}
-        </div>
-      )}
-
-      {/* Powers — interactive */}
+      {/* Powers: click to use, right-click to restore; a spent power collapses and says so in its chip */}
       {powerEntries.length > 0 && (
         <div style={{ borderTop: '1px solid var(--sb-separator)', paddingTop: 2 }}>
-          {powerEntries.map((pow, i) => {
+          {powerEntries.map(pow => {
             const globalIdx = actions.indexOf(pow)
             const timesUsed = usedPowers[globalIdx] ?? 0
             const maxUses = getMaxUses(pow)
-            const isFullyUsed = maxUses !== Infinity && timesUsed >= maxUses
-            const canToggleUsed = maxUses !== Infinity
             const entry = toPowerCardEntry(pow)
-            const pinKey = `${c.id}:power:${globalIdx}`
-
-            return (
-              <div key={globalIdx} style={{
-                marginTop: 2, position: 'relative',
-                opacity: isFullyUsed ? 0.4 : 1,
-                transition: 'opacity 0.15s',
-              }}>
-                <div style={{ display: 'flex', alignItems: 'flex-start' }}>
-                  <div
-                    onClick={canToggleUsed ? () => {
-                      if (isFullyUsed) onUnusePower(globalIdx)
-                      else onUsePower(globalIdx)
-                    } : undefined}
-                    onContextMenu={canToggleUsed ? (e) => {
-                      e.preventDefault()
-                      if (timesUsed > 0) onUnusePower(globalIdx)
-                    } : undefined}
-                    style={{ cursor: canToggleUsed ? 'pointer' : 'default', flex: 1, position: 'relative' }}
-                    title={canToggleUsed ? 'Left click: use · Right click: restore' : undefined}
-                  >
-                    <PowerCardView entry={entry}
-                      detectedConditions={detect(pow)}
-                      onConditionClick={(det, multi) => {
-                        if (det.disease) { onApplyDiseaseToTargets?.(det.disease, det.conditionName, multi); return }
-                        const condData: any = {
-                          conditionId: det.conditionId,
-                          value: det.value,
-                          customDescription: det.damageType,
-                          sourceId: c.id,
-                          duration: det.duration,
-                        }
-                        // For marked conditions from power cards, add the "by" description
-                        if (det.conditionId === 'marked') {
-                          condData.customDescription = `by ${c.name}`
-                        }
-                        // For Regenerating, set encounter duration and clear damageType description
-                        if (det.conditionId === 'regenerating') {
-                          condData.duration = det.duration ?? { type: 'encounter' }
-                          condData.customDescription = undefined
-                        }
-                        // For Grants CA, set the recipient enum + preformatted label suffix.
-                        // Source name resolves to the power's owner (`c.name`).
-                        if (det.conditionId === 'combat-advantage') {
-                          const recipient = det.grantsCATo ?? 'all'
-                          condData.grantsCATo = recipient
-                          if (recipient === 'source') condData.customDescription = `to ${c.name}`
-                          else if (recipient === 'source-allies') condData.customDescription = `to ${c.name}'s allies`
-                          else condData.customDescription = undefined  // 'all' has no suffix
-                        }
-                        onApplyConditionToTargets(condData, multi)
-                      }}
-                    />
-                    {/* Usage counter overlaid on header — only for multi-use powers */}
-                    {maxUses > 1 && maxUses !== Infinity && (
-                      <div style={{
-                        position: 'absolute', top: 2, right: 8,
-                        fontSize: 10, fontWeight: 700, color: 'rgba(255,255,255,0.9)',
-                      }}>
-                        {timesUsed}/{maxUses}
-                      </div>
-                    )}
-                  </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 2, paddingTop: 2 }}>
-                    {pinBtn(pinKey, pow.name, entry)}
-                  </div>
-                </div>
-                {isFullyUsed && (
-                  <div style={{
-                    position: 'absolute', top: 0, left: 8, right: 8, height: '1.5em',
-                    display: 'flex', alignItems: 'center', pointerEvents: 'none',
-                  }}>
-                    <div style={{ width: '100%', height: 1, background: 'rgba(255,255,255,0.5)' }} />
-                  </div>
-                )}
-              </div>
-            )
+            const key = `${c.id}:power:${globalIdx}`
+            return <PowerCardView key={globalIdx} entry={entry} detectedConditions={detect(pow)} onConditionClick={applyDetection}
+              uses={{ used: timesUsed, max: maxUses }}
+              onUse={maxUses !== Infinity ? () => onUsePower(globalIdx) : undefined}
+              onRestore={timesUsed > 0 ? () => onUnusePower(globalIdx) : undefined}
+              pinned={pinnedKeys.has(key)} onPin={() => onPinCard({ combatantName: c.name, title: pow.name, content: entry, key })} />
           })}
         </div>
       )}

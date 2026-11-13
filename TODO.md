@@ -26,7 +26,7 @@ Roadmap decided 2026-11-12. The reasoning is in the "Feasibility Study: 4e-Only 
 - [ ] Style kit in `4e-kit`, icons part: `Icon`, `ActionTypeIcon`
 - [x] Tokens and themes: system / light / dark, default follows the OS. Main stores it in `<userData>/app-settings.json` and broadcasts it; the Player window follows the DM theme. Solarized is retired; the old `--color-*` names are legacy aliases of the kit tokens.
 - [x] EB Garamond for display text, `system-ui` for the UI, Arial for cards; remove the Mentor/DnDVecna fonts
-- [ ] Lucide icons replacing the emoji and glyphs
+- [ ] Lucide icons replacing the emoji and glyphs (power cards done 2026-11-13 with `lucide-react`; sidebar, combat, and other UI glyphs remain)
 - [x] Player window on tokens
 - [x] Power card headers, reaction tiles and the power editor use the muted book tones (`--card-*`), and stat block headers the book brown/beige (`--sb-*`), by user preference over 4ecb's navy and brighter power tones; condition pills use palette tones
 - [x] TipTap note content (display-face headings, lists, blockquote, code, links, placeholder)
@@ -36,10 +36,10 @@ Roadmap decided 2026-11-12. The reasoning is in the "Feasibility Study: 4e-Only 
 
 ### Monster power cards (see the "Monster Power Cards: Proposal" doc)
 Decided 2026-11-12: used powers collapse to their header row; keywords stay in the header (Monster Manual style); keyboard bindings for focused cards come later; 4ecb's `CreatureCard` stays separate from this card.
-- [ ] Cleanup: card styles moved from inline into `statblock.css`, a typed `_levelAdjust` (done 2026-11-13: one `toPowerCardEntry` in `creature/power-card-entry.ts`, used by the viewer, combat panels, and reaction tiles)
-- [ ] Kit helpers: `ACTION_TYPE_ICON`/`RANGE_KIND_ICON` names, `usageChipLabel`, `rechargeLabel`, `abbreviateDefense`, `POWER_LINE_ORDER` and line grouping, `textAtLevel`
-- [ ] Card pass 1 (today's parser data): Lucide icons, usage chip in the header (text, not color alone), attack line of its own, line groups in book order with spacing, "Sustain Minor", Special/failed-save/extra lines and the basic-attack marker, pin in the header, focusable cards, traits and auras on the same card
-- [ ] Live pinned cards (not snapshots) and reaction tiles rendered by the same card, collapsed
+- [x] Cleanup (2026-11-13): one `toPowerCardEntry` (`creature/power-card-entry.ts`), a typed `_levelAdjust` (`LevelAdjust`), card styles in `statblock.css` (`.power-card`)
+- [ ] Kit helpers: `ACTION_TYPE_ICON`/`RANGE_KIND_ICON` names, `usageChipLabel`, `rechargeLabel`, `abbreviateDefense`, `POWER_LINE_ORDER` and line grouping, `textAtLevel`. Written 2026-11-13 in `src/common/rules/power-card.ts` (with tests); move them to 4e-kit when the content run is not committing there
+- [x] Card pass 1 (2026-11-13): `PowerCardView` has Lucide action and range icons (`shared/Icon.tsx`), a usage chip that says USED / 1/2 Enc / Rch 5+ · USED, the attack line (range · target · **bonus vs Def**), line groups in book order, "Sustain Minor", Special/failed-save/extra lines, a Basic marker, the pin in the header, focusable cards, use/restore on the card (a spent power collapses to its header and expands on click), and traits and auras on the same card in both combat panels
+- [ ] Live pinned cards (not snapshots); reaction tiles already use the same card, collapsed (2026-11-13)
 - [ ] Card pass 2 (after the switch to the kit `Monster` type, section 5): damage folded into Hit, structured secondary attacks, level-tier selection, click-to-apply driven by effect clauses including "save ends both" groups
 
 ### Color-blind-friendly palette option (both apps)

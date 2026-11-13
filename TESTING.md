@@ -4,6 +4,10 @@
 
 Run in the devcontainer: `npm test`, `npm run typecheck:node`, `npm run build`, then `npm run test:authoring:ui` and `npm run test:compendium:ui` (compendium editing for traps, diseases, templates, and themes: clone on first edit, autosave, Custom listing, delete, new entries). The UI smoke test uses temporary appData/userData and hidden, unthrottled Electron windows (`FOUR_E_HIDDEN_WINDOWS=1`, nothing appears on the desktop), verifies all four native previews, editing through the native compendium creature editor (HP, damage, hit prose; applied without an Apply step), merging with a concurrent agent change and the same-field Keep mine prompt, the version history list, a comment anchored to a power, DM-edit tracking, review, and campaign save, and writes `out/authoring-smoke.png` plus `out/authoring-edit-smoke.png`. It does not use real campaigns. `typecheck:web` retains pre-existing project-boundary/alias/component errors; check for new authoring-module errors separately.
 
+## Power cards (2026-11-13)
+
+In combat and the Creatures page: each power, trait, and aura is one card with an action icon, dim keywords, a Basic marker on basic attacks, a usage chip, and a pin in the header; attacks have their own line (range · target · bold bonus vs short defense). Click a limited power to use it: the card collapses, its name is struck through, and the chip says USED (or 1/2 Enc, Rch 5+ · USED); click again to show it, right-click to restore. Tab focuses cards; Enter uses. Click-to-apply conditions and diseases still work. Reaction tiles are the same card, header only. Check light and dark themes.
+
 ## Creature records (2026-11-13)
 
 Run `npm run test:compendium:ui` and `npm run test:combat:ui` (hidden windows). Manual checks:

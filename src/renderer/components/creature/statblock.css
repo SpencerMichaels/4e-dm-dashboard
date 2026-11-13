@@ -180,3 +180,28 @@
 .record-compendium .record-empty { display: flex; align-items: center; justify-content: center; height: 100%; color: var(--color-text-muted); font-size: var(--font-size-sm); }
 .record-menu { position: fixed; z-index: 1000; background: var(--color-bg-primary, var(--background)); border: 1px solid var(--color-border); border-radius: var(--radius-sm); box-shadow: 0 4px 12px rgba(0,0,0,0.3); padding: var(--space-1) 0; min-width: 140px; }
 .record-menu button { display: block; width: 100%; text-align: left; padding: 4px 12px; background: none; border: 0; color: var(--color-danger, var(--danger)); cursor: pointer; }
+
+/* Power cards (PowerCardView): header in the usage tone, a lighter attack line, then the printed
+   lines in book order, grouped by spacing rather than rules. */
+.power-card { font-size: var(--font-size-xs); line-height: 1.5; margin-bottom: 2px; border-radius: var(--radius); }
+.power-card.interactive { cursor: pointer; }
+.power-card:focus-visible { outline: 3px solid var(--focus); outline-offset: 1px; }
+.power-card .pc-header { display: flex; align-items: center; gap: 6px; padding: 2px 8px; background: var(--pc-fill); color: var(--pc-text); }
+.power-card .pc-header > svg { flex-shrink: 0; }
+.power-card .pc-title { flex: 1; min-width: 0; }
+.power-card .pc-dim { opacity: 0.75; }
+.power-card .pc-chip { flex-shrink: 0; padding: 0 6px; border-radius: 999px; font-size: 10px; font-weight: 700; letter-spacing: 0.02em; white-space: nowrap;
+  background: color-mix(in srgb, var(--pc-text) 22%, transparent); }
+.power-card .pc-basic { flex-shrink: 0; padding: 0 5px; border: 1px solid color-mix(in srgb, var(--pc-text) 55%, transparent); border-radius: 999px; font-size: 10px; }
+.power-card .pc-pin { flex-shrink: 0; display: inline-flex; padding: 0 2px; background: none; border: 0; color: inherit; opacity: 0.6; cursor: pointer; }
+.power-card .pc-pin:hover, .power-card .pc-pin[aria-pressed="true"] { opacity: 1; }
+.power-card .pc-attack { display: flex; flex-wrap: wrap; gap: 2px 10px; padding: 1px 8px; background: var(--pc-sub); color: var(--pc-text); }
+.power-card .pc-attack > span { display: inline-flex; align-items: center; gap: 4px; }
+.power-card .pc-body { padding: 1px 8px 3px 16px; }
+.power-card .pc-group + .pc-group { margin-top: 4px; }
+.power-card .pc-line b { color: var(--color-text-secondary); }
+.power-card .pc-levels { color: var(--color-text-secondary); font-size: 11px; }
+.power-card .pc-apply { text-decoration: underline dotted; cursor: pointer; color: var(--color-action-point); font-weight: 600; user-select: none; }
+.power-card .pc-adjusted { color: var(--notify); text-decoration: underline dotted; text-underline-offset: 2px; }
+/* A spent power keeps full contrast; the chip says USED and the name is struck through. */
+.power-card.spent .pc-name { text-decoration: line-through; text-decoration-thickness: 1px; }

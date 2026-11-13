@@ -8,7 +8,8 @@ import { getConditionStyle } from './condition-styles'
 import { ConditionPill, buildConditionLabel } from './ConditionPill'
 import { usageTone } from '../creature/dnd4e-utils'
 import { withAlpha } from '../../utils/color'
-import { PowerCardView, ACTION_ICONS } from '../creature/PowerCardView'
+import { PowerCardView } from '../creature/PowerCardView'
+import { Icon } from '../shared/Icon'
 import { getCreatureReactions, triggerMatchesNotification, toggleReaction, type CreatureReaction } from './reaction-utils'
 import { hpColor, hpPercentage, formatConditionName } from '../../utils/combat-utils'
 
@@ -521,11 +522,9 @@ function CreatureReactions({ combatantId, combatant, isCurrent, notifications, t
         const key = `${r.power.name}-${idx}`
         const triggered = triggerMatchesNotification(r.parsedTrigger, notifications, combatantId)
         const isExpanded = expandedKey === key
-        const { fill: usageColor, text: usageText } = usageTone(r.card.usage)
+        const { text: usageText } = usageTone(r.card.usage)
         return (
           <div key={key} style={{
-            opacity: r.used ? 0.4 : 1,
-            transition: 'opacity 0.15s',
             borderLeft: triggered ? '3px solid var(--color-action-point)' : '3px solid transparent',
             paddingLeft: 1,
             animation: triggered ? 'reaction-pulse 1.5s ease-in-out 2' : 'none',
@@ -537,30 +536,11 @@ function CreatureReactions({ combatantId, combatant, isCurrent, notifications, t
                 <PowerCardView entry={r.card} />
               </div>
             ) : (
-              // Collapsed: a tile that mimics the PowerCardView header line exactly
-              <div
-                onClick={() => toggleReaction(combatantId, r)}
-                title={r.used ? 'Click to undo reaction' : 'Click to use reaction'}
-                style={{
-                  padding: '2px 32px 2px 8px',
-                  fontSize: 'var(--font-size-xs)', lineHeight: 1.5,
-                  background: usageColor, color: usageText,
-                  cursor: 'pointer',
-                  overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-                  textDecoration: r.used ? 'line-through' : 'none',
-                }}
-              >
-                {r.power.actionType && ACTION_ICONS[r.power.actionType] && (
-                  <span title={r.power.actionType.replace(/-/g, ' ')}
-                    style={{ marginRight: 6, display: 'inline-block', minWidth: '1em', textAlign: 'center' }}>
-                    {ACTION_ICONS[r.power.actionType]}
-                  </span>
-                )}
-                {triggered && <span title="Triggered" style={{ marginRight: 4, color: 'var(--color-turn-active)' }}>⚡</span>}
-                <b>{r.card.name}</b>
-                {r.card.keywords && r.card.keywords.length > 0 && (
-                  <span style={{ color: withAlpha(usageText, 0.7) }}> ({r.card.keywords.join(', ')})</span>
-                )}
+              // Collapsed: the same card, header only; clicking uses (or undoes) the reaction.
+              <div className="reaction-tile" style={{ paddingRight: 30 }}>
+                <PowerCardView entry={r.card} collapsed uses={{ used: r.used ? 1 : 0, max: 1 }}
+                  onUse={() => toggleReaction(combatantId, r)}
+                  marker={triggered ? <span title="Triggered" style={{ color: 'var(--color-turn-active)', display: 'inline-flex' }}><Icon name="zap" label="Triggered" /></span> : undefined} />
               </div>
             )}
             {/* Toggle button — absolutely positioned so it sits in the same spot in both states */}
