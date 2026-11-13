@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useMemo } from 'react'
+import { THEME_PREFERENCES, THEME_PREFERENCE_LABELS } from '@kit/theme'
 import { useUiStore } from '../../stores/ui-store'
 import { useCampaignStore } from '../../stores/campaign-store'
 import { useCampaignActions } from '../../hooks/use-campaign'
@@ -16,7 +17,7 @@ export function CommandPalette() {
   const [query, setQuery] = useState('')
   const [selectedIndex, setSelectedIndex] = useState(0)
   const inputRef = useRef<HTMLInputElement>(null)
-  const { setView, setCommandPaletteOpen, toggleTheme, toggleSidebar } = useUiStore()
+  const { setView, setCommandPaletteOpen, toggleTheme, setThemePreference, toggleSidebar } = useUiStore()
   const { notes, creatures, encounters, locations, items, playerCharacters } = useCampaignStore()
   const { createNote, createCreature, createEncounter, createLocation, createItem } = useCampaignActions()
 
@@ -38,7 +39,8 @@ export function CommandPalette() {
       { id: 'new-item', icon: '🎒', label: 'New Item', hint: 'Create', action: async () => { const i = await createItem('New Item'); nav({ type: 'item', itemId: i.id }) } },
 
       // Settings
-      { id: 'toggle-theme', icon: '◐', label: 'Toggle Theme', hint: 'Setting', action: toggleTheme },
+      { id: 'toggle-theme', icon: '◐', label: 'Cycle Theme (system / light / dark)', hint: 'Setting', action: toggleTheme },
+      ...THEME_PREFERENCES.map(p => ({ id: `theme-${p}`, icon: '◐', label: `Theme: ${THEME_PREFERENCE_LABELS[p]}`, hint: 'Setting', action: () => setThemePreference(p) })),
       { id: 'toggle-sidebar', icon: '☰', label: 'Toggle Sidebar', hint: 'Ctrl+B', action: toggleSidebar },
 
       // Entity jump-to

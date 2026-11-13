@@ -22,12 +22,17 @@ Roadmap decided 2026-11-12. The reasoning is in the "Feasibility Study: 4e-Only 
 - [x] Character snapshot type for import
 
 ## 4. Restyle (see the style unification proposal)
-- [ ] Style kit in `4e-kit`: 4ecb tokens and themes, `Icon`, `ActionTypeIcon`
-- [ ] Tokens and themes (follow the OS; the Player window follows the DM theme)
-- [ ] EB Garamond for display text, `system-ui` for the UI, Arial for cards; remove the Mentor/DnDVecna fonts
+- [x] Style kit in `4e-kit`, tokens part: `styles/tokens.css` (4ecb's light and dark colors verbatim, power tones plus their contrast colors, fonts, 2px radius, floating shadow) and `src/theme.ts` (`ThemePreference`, `resolveTheme`)
+- [ ] Style kit in `4e-kit`, icons part: `Icon`, `ActionTypeIcon`
+- [x] Tokens and themes: system / light / dark, default follows the OS. Main stores it in `<userData>/app-settings.json` and broadcasts it; the Player window follows the DM theme. Solarized is retired; the old `--color-*` names are legacy aliases of the kit tokens.
+- [x] EB Garamond for display text, `system-ui` for the UI, Arial for cards; remove the Mentor/DnDVecna fonts
 - [ ] Lucide icons replacing the emoji and glyphs
-- [ ] Player window on tokens
-- [ ] Components: dialog, buttons, tables, power tones, TipTap content
+- [x] Player window on tokens
+- [x] Power tones (power card headers, reaction tiles, power editor) and condition pill tones from the palette
+- [x] TipTap note content (display-face headings, lists, blockquote, code, links, placeholder)
+- [ ] Components: dialog, buttons, tables
+- [ ] Remaining hardcoded colors (convert to tokens): `Dnd4eEncounterEditor.tsx` (theme/template teal `#0d9488`, difficulty colors from `dnd4e-utils.ts` `DIFFICULTY_TIERS`/`difficultyThresholds`), `QuickConditionMenu.tsx` (selection blues, gray hovers), `InitiativeEntry.tsx`, `InitiativeList.tsx` (rgba highlights), `PCListView.tsx`, `Dnd4eCreatureViewer.tsx` (`TEMPLATE_COLORS`, `THEME_COLOR`), `Dnd4eCombatPanel.tsx`, `Dnd4eGroupedCombatPanel.tsx`, `Dnd4eItemEditor.tsx`, `CombatView.tsx`, `MapEditor.tsx`, `CombatToken.tsx` (ring grays), the compendium browsers' list highlights, small shared widgets (`TokenCropOverlay`, `MultiSelectDropdown`, `FloatingPanel`, `CreatureImageEditor`, `PinnedCardsPanel`, `ConditionPill`), modal/palette backdrops. Data colors that stay hex for now: damage-type pastels (`damage-types.ts`), class-mark defaults (`class-marks.ts`), creature-builder tier/role colors (`dnd4e.ts`), `resolveHpDescriptor` fallbacks (`src/common/utils/hp.ts`), token name colors.
+- [ ] Move call sites off the legacy `--color-*` aliases onto the kit tokens, then delete the aliases
 
 ## 5. Agent-cleaned content (one-time)
 Covers monsters (5,326; 24,950 actions, of which 9,305 have their mechanics in prose only), items (4,095), traps (776), diseases (69), and the glossary (450). Player powers and feats are out of scope; they arrive through character import.

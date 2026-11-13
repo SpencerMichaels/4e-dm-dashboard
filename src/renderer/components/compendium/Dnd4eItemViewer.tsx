@@ -242,7 +242,7 @@ export function Dnd4eItemViewer({ item, tooltip: tip, onSelectItem }: { item: Pa
               return isTier ? (
                 <div key={i} style={{
                   padding: '2px 8px', marginTop: 4,
-                  background: 'var(--sb-subheader-bg, #7a6f5e)', color: 'var(--sb-header-text, #f0e8d0)',
+                  background: 'var(--sb-subheader-bg)', color: 'var(--sb-header-text)',
                   fontWeight: 700, fontSize: 12,
                 }}>{part.text}</div>
               ) : (
@@ -319,7 +319,7 @@ function DescriptionTable({ headers, rows, links, onNavigate }: {
       )}
       <tbody>
         {rows.map((row, ri) => (
-          <tr key={ri} style={{ borderBottom: '1px solid var(--sb-separator, rgba(128,128,128,0.15))' }}>
+          <tr key={ri} style={{ borderBottom: '1px solid var(--sb-separator)' }}>
             {row.map((cell, ci) => {
               const linkId = links?.[`${ri},${ci}`]
               return (

@@ -1,3 +1,4 @@
+import { THEME_PREFERENCE_LABELS } from '@kit/theme'
 import { useUiStore, type ViewMode } from '../../stores/ui-store'
 import { useCampaignStore } from '../../stores/campaign-store'
 import { useCombatStore } from '../../stores/combat-store'
@@ -40,7 +41,7 @@ interface SidebarProps {
 }
 
 export function Sidebar({ onShowHotkeys, onShowSettings }: SidebarProps) {
-  const { view, setView, toggleTheme, setCommandPaletteOpen } = useUiStore()
+  const { view, setView, toggleTheme, themePreference, setCommandPaletteOpen } = useUiStore()
   const combat = useCombatStore((s) => s.combat)
   const noteTree = useCampaignStore((s) => s.noteTree)
   const notes = useCampaignStore((s) => s.notes)
@@ -76,7 +77,7 @@ export function Sidebar({ onShowHotkeys, onShowSettings }: SidebarProps) {
 
   return (
     <div className={styles.sidebar}>
-      <div className={styles.logo}>TD</div>
+      <div className={styles.logo}>4e DM</div>
 
       {navSections.map((section) => (
         <div key={section.title} className={styles.section}>
@@ -128,7 +129,7 @@ export function Sidebar({ onShowHotkeys, onShowSettings }: SidebarProps) {
       <div className={styles.actionRow} style={{ marginTop: 'auto' }}>
         <button className={styles.iconBtn} onClick={() => window.api.playerWindow.show()} title="Show player window">👁</button>
         <button className={styles.iconBtn} onClick={() => setCommandPaletteOpen(true)} title="Command palette (Ctrl+K)">/</button>
-        <button className={styles.iconBtn} onClick={toggleTheme} title="Toggle theme">◐</button>
+        <button className={styles.iconBtn} onClick={toggleTheme} title={`Theme: ${THEME_PREFERENCE_LABELS[themePreference]} (click to cycle)`}>◐</button>
         <button className={styles.iconBtn} onClick={onShowSettings} title="Settings">⚙</button>
         <button className={styles.iconBtn} onClick={onShowHotkeys} title="Keyboard shortcuts (?)">?</button>
       </div>

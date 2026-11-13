@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import type { EntityType } from '@common/types'
+import { DEFAULT_THEME_PREFERENCE, nextThemePreference, type ResolvedTheme, type ThemePreference } from '@kit/theme'
 
 export type ViewMode =
   | { type: 'home' }
@@ -18,12 +19,18 @@ export type ViewMode =
 
 export interface UiState {
   view: ViewMode
-  theme: 'dark' | 'light'
+  /** Stored theme preference (mirrored from main via initThemeSync) */
+  themePreference: ThemePreference
+  /** Theme currently shown (<html data-theme>) */
+  resolvedTheme: ResolvedTheme
   sidebarCollapsed: boolean
   commandPaletteOpen: boolean
   systemPlugin: any | null  // Serialized plugin data from main
 
   setView: (view: ViewMode) => void
+  /** Ask main to store a theme preference; it broadcasts the result to both windows. */
+  setThemePreference: (preference: ThemePreference) => void
+  /** Cycle system → light → dark */
   toggleTheme: () => void
   toggleSidebar: () => void
   setCommandPaletteOpen: (open: boolean) => void
@@ -34,19 +41,21 @@ export interface UiState {
   setReorderMode: (on: boolean) => void
 }
 
-export const useUiStore = create<UiState>()((set) => ({
+export const useUiStore = create<UiState>()((set, get) => ({
   view: { type: 'home' },
-  theme: 'dark',
+  themePreference: DEFAULT_THEME_PREFERENCE,
+  resolvedTheme: 'light',
   sidebarCollapsed: false,
   commandPaletteOpen: false,
   systemPlugin: null,
   skipAutoOpen: false,
   setView: (view) => set({ view }),
-  toggleTheme: () => set((s) => {
-    const next = s.theme === 'dark' ? 'light' : 'dark'
-    document.documentElement.setAttribute('data-theme', next)
-    return { theme: next }
-  }),
+  setThemePreference: (preference) => {
+    window.api.settings.setTheme(preference)
+  },
+  toggleTheme: () => {
+    window.api.settings.setTheme(nextThemePreference(get().themePreference))
+  },
   toggleSidebar: () => set((s) => ({ sidebarCollapsed: !s.sidebarCollapsed })),
   setCommandPaletteOpen: (open) => set({ commandPaletteOpen: open }),
   setSystemPlugin: (plugin) => set({ systemPlugin: plugin }),

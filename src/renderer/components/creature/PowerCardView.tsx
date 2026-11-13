@@ -1,4 +1,5 @@
-import { USAGE_COLORS, DND4E_ACTION_TYPES, sign, normalizeDamage, type DamagePart } from './dnd4e-utils'
+import { usageTone, DND4E_ACTION_TYPES, sign, normalizeDamage, type DamagePart } from './dnd4e-utils'
+import { tint, withAlpha } from '../../utils/color'
 import type { DetectedCondition } from '../combat/condition-detection'
 import { splitTextWithHighlights } from '../combat/condition-detection'
 import { useSystemSetting } from '../../stores/settings-store'
@@ -66,7 +67,7 @@ export function PowerCardView({ entry: e, selectedLevel, detectedConditions, onC
   const rechargeValue = e.rechargeValue ?? (e.rechargeCondition ? (parseInt(e.rechargeCondition) || undefined) : undefined)
   const rechargeCondition = rechargeValue ? undefined : e.rechargeCondition  // don't show condition if numeric
   const usageKey = (e.usage?.startsWith('recharge') || rechargeValue) ? 'recharge' : e.usage
-  const usageColor = USAGE_COLORS[usageKey] ?? (e.usage ? '#6a6a72' : '#7a6f5e')
+  const { fill: usageColor, text: usageText } = usageTone(usageKey)
   const actionLabel = e.actionType ? (DND4E_ACTION_TYPES[e.actionType] ?? e.actionType) : (e.action ?? '')
   /** Render a text field with detected condition keywords highlighted */
   const renderHighlighted = (text: string, field: 'hit' | 'effect' | 'miss') => {
@@ -94,7 +95,7 @@ export function PowerCardView({ entry: e, selectedLevel, detectedConditions, onC
   return (
     <div style={{ fontSize: 'var(--font-size-xs)', lineHeight: 1.5, marginBottom: 1 }}>
       {/* Header */}
-      <div style={{ padding: '2px 8px', background: usageColor, color: '#fff' }}>
+      <div style={{ padding: '2px 8px', background: usageColor, color: usageText }}>
         {e.actionType && ACTION_ICONS[e.actionType] && (
           <span title={DND4E_ACTION_TYPES[e.actionType] ?? e.actionType}
             style={{ marginRight: 6, display: 'inline-block', minWidth: '1em', textAlign: 'center' }}>
@@ -103,10 +104,10 @@ export function PowerCardView({ entry: e, selectedLevel, detectedConditions, onC
         )}
         <b>{e.name}</b>
         {e.keywords && e.keywords.length > 0 && (
-          <span style={{ color: 'rgba(255,255,255,0.7)' }}> ({e.keywords.join(', ')})</span>
+          <span style={{ color: withAlpha(usageText, 0.7) }}> ({e.keywords.join(', ')})</span>
         )}
         {!hideActionTypeText && (actionLabel || e.usage) && (
-          <span style={{ color: 'rgba(255,255,255,0.8)' }}> ({[
+          <span style={{ color: withAlpha(usageText, 0.8) }}> ({[
             actionLabel,
             rechargeValue ? `recharge ${rechargeValue}${rechargeValue < 6 ? '+' : ''}`
               : rechargeCondition ? `recharge ${rechargeCondition}`
@@ -114,7 +115,7 @@ export function PowerCardView({ entry: e, selectedLevel, detectedConditions, onC
           ].filter(Boolean).join('; ')})</span>
         )}
         {hideActionTypeText && (rechargeValue || rechargeCondition) && (
-          <span style={{ color: 'rgba(255,255,255,0.8)' }}> ({
+          <span style={{ color: withAlpha(usageText, 0.8) }}> ({
             rechargeValue ? `recharge ${rechargeValue}${rechargeValue < 6 ? '+' : ''}`
               : `recharge ${rechargeCondition}`
           })</span>
@@ -123,7 +124,7 @@ export function PowerCardView({ entry: e, selectedLevel, detectedConditions, onC
       {/* Attack / range subheader — shown for attacks AND for non-attack entries that have a range (auras, blasts).
          Traits never get a subheader — they may carry range data from import but shouldn't display it. */}
       {(hasAttack || (e.rangeType && e.rangeValue)) && e.usage !== 'trait' && (
-        <div style={{ padding: '1px 8px', background: usageColor + '88', color: '#fff' }}>
+        <div style={{ padding: '1px 8px', background: tint(usageColor, 0.85), color: usageText }}>
           {e.rangeType && RANGE_ICONS[e.rangeType] && (
             <span title={e.rangeType.replace(/-/g, ' ')}
               style={{ marginRight: 6, display: 'inline-block', minWidth: '1em', textAlign: 'center' }}>
@@ -137,7 +138,7 @@ export function PowerCardView({ entry: e, selectedLevel, detectedConditions, onC
             ; {e.attackNotes && /level/i.test(e.attackNotes) ? e.attackNotes : (
               (e as any)._levelAdjust?.attackDelta
                 ? <span title={`${(e as any)._levelAdjust.source}: ${(e as any)._levelAdjust.attackDelta > 0 ? '+' : ''}${(e as any)._levelAdjust.attackDelta} to attack`}
-                    style={{ color: '#c47a1a', textDecoration: 'underline dotted', textUnderlineOffset: 2 }}>{sign(e.attackBonus!)}</span>
+                    style={{ color: 'var(--notify)', textDecoration: 'underline dotted', textUnderlineOffset: 2 }}>{sign(e.attackBonus!)}</span>
                 : sign(e.attackBonus!)
             )} vs {e.defense}
           </>}
@@ -153,7 +154,7 @@ export function PowerCardView({ entry: e, selectedLevel, detectedConditions, onC
             <b style={labelStyle}>Damage</b>{' '}
             {(e as any)._levelAdjust?.damageDelta ? (
               <span title={`${(e as any)._levelAdjust.source}: ${(e as any)._levelAdjust.damageDelta > 0 ? '+' : ''}${(e as any)._levelAdjust.damageDelta} damage`}
-                style={{ color: '#c47a1a', textDecoration: 'underline dotted', textUnderlineOffset: 2 }}>
+                style={{ color: 'var(--notify)', textDecoration: 'underline dotted', textUnderlineOffset: 2 }}>
                 {damage.map((p, i) => (
                   <span key={i}>{i > 0 && ' plus '}{p.ongoing && 'ongoing '}{p.expr}{p.type && ` ${p.type}`}</span>
                 ))}

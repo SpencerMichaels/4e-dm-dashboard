@@ -37,7 +37,7 @@
 
 .btnDanger {
   background: var(--color-damage);
-  color: var(--color-text-on-dark);
+  color: var(--on-fill);
   padding: var(--space-1) var(--space-4);
   border-radius: var(--radius-sm);
   border: 1px solid transparent;
@@ -52,7 +52,7 @@
 
 .btnSuccess {
   background: var(--color-heal);
-  color: var(--color-text-on-dark);
+  color: var(--on-fill);
   padding: var(--space-1) var(--space-4);
   border-radius: var(--radius-sm);
   border: 1px solid transparent;
@@ -67,7 +67,7 @@
 
 .btnInfo {
   background: var(--color-readied);
-  color: var(--color-text-on-dark);
+  color: var(--on-fill);
   padding: var(--space-1) var(--space-4);
   border-radius: var(--radius-sm);
   border: 1px solid transparent;

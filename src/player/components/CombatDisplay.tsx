@@ -6,6 +6,7 @@ import { getDamageTypeStyle } from '@renderer/components/combat/damage-types'
 import { CombatToken } from '@renderer/components/combat/CombatToken'
 import { useImage } from '@renderer/hooks/use-image'
 import { tokenColorFromName } from '@common/utils/token-color'
+import { withAlpha } from '../../renderer/utils/color'
 
 interface Props {
   combat: PlayerCombatState
@@ -18,10 +19,10 @@ function getRingColor(c: PlayerCombatantState): string {
   if (c.isPC) {
     if (c.color) return c.color
     const bloodied = c.conditions.some(cond => cond.conditionId === 'bloodied')
-    return bloodied ? '#e03131' : '#2f9e44'
+    return bloodied ? 'var(--hp-low)' : 'var(--hp-full)'
   }
   if (c.color) return c.color
-  return c.hpColor ?? '#888'
+  return c.hpColor ?? 'var(--muted)'
 }
 
 export function CombatDisplay({ combat: incomingCombat, backgroundImageId }: Props) {
@@ -61,7 +62,7 @@ export function CombatDisplay({ combat: incomingCombat, backgroundImageId }: Pro
     return (
       <div style={{
         height: '100vh', display: 'flex',
-        background: '#111', color: '#eee',
+        background: 'var(--background)', color: 'var(--text)',
         position: 'relative', overflow: 'hidden',
       }}>
         {backgroundUrl && <div style={{
@@ -76,11 +77,11 @@ export function CombatDisplay({ combat: incomingCombat, backgroundImageId }: Pro
           display: 'flex', flexDirection: 'column',
           padding: '1.5rem 1rem',
           position: 'relative', zIndex: 1,
-          background: 'rgba(0,0,0,0.4)',
-          borderRight: '1px solid rgba(255,255,255,0.1)',
+          background: 'var(--player-panel)',
+          borderRight: '1px solid var(--player-divider)',
         }}>
           <div style={{
-            fontSize: '1.1rem', color: '#888', fontWeight: 600,
+            fontSize: '1.1rem', color: 'var(--muted)', fontWeight: 600,
             textTransform: 'uppercase', letterSpacing: '0.1em',
             marginBottom: '1rem',
           }}>
@@ -99,7 +100,7 @@ export function CombatDisplay({ combat: incomingCombat, backgroundImageId }: Pro
           {focusedCombatant ? (
             <CreatureSpotlight combatant={focusedCombatant} />
           ) : (
-            <div style={{ fontSize: '2rem', fontWeight: 700, color: '#555' }}>
+            <div style={{ fontFamily: 'var(--font-display)', fontSize: '2.5rem', fontWeight: 700, color: 'var(--muted)' }}>
               Roll Initiative!
             </div>
           )}
@@ -132,7 +133,7 @@ export function CombatDisplay({ combat: incomingCombat, backgroundImageId }: Pro
   return (
     <div style={{
       height: '100vh', display: 'flex',
-      background: '#111', color: '#eee',
+      background: 'var(--background)', color: 'var(--text)',
       position: 'relative', overflow: 'hidden',
     }}>
       {/* Background image */}
@@ -147,11 +148,11 @@ export function CombatDisplay({ combat: incomingCombat, backgroundImageId }: Pro
         display: 'flex', flexDirection: 'column',
         padding: '1.5rem 1rem',
         position: 'relative', zIndex: 1,
-        background: 'rgba(0,0,0,0.4)',
-        borderRight: '1px solid rgba(255,255,255,0.1)',
+        background: 'var(--player-panel)',
+        borderRight: '1px solid var(--player-divider)',
       }}>
         <div style={{
-          fontSize: '1.1rem', color: '#888', fontWeight: 600,
+          fontSize: '1.1rem', color: 'var(--muted)', fontWeight: 600,
           textTransform: 'uppercase', letterSpacing: '0.1em',
           marginBottom: '1rem',
         }}>
@@ -259,8 +260,8 @@ function InitiativeEntryList({ sortedIds, combatants, focusedId }: {
             display: 'flex', alignItems: 'center', gap: '0.75rem',
             padding: '0 1rem 0 0',
             minHeight: 67,
-            background: isFocused ? 'rgba(255,255,255,0.2)' : 'rgba(255,255,255,0.08)',
-            border: isFocused ? '2px solid rgba(255,255,255,0.25)' : '1px solid rgba(255,255,255,0.2)',
+            background: isFocused ? 'var(--player-card-current)' : 'var(--player-card)',
+            border: isFocused ? '2px solid var(--player-card-border-current)' : '1px solid var(--player-card-border)',
             borderRadius: '34px 10px 10px 34px',
             opacity: !hasInit && !isFocused ? 0.4 : 1,
           }}>
@@ -269,7 +270,7 @@ function InitiativeEntryList({ sortedIds, combatants, focusedId }: {
             </div>
             <span style={{
               flex: 1, minWidth: 0,
-              fontFamily: "'MentorSans', 'Mentor', sans-serif",
+              fontFamily: 'var(--font-card)',
               fontSize: isFocused ? '1.5rem' : '1.3rem',
               fontWeight: 700,
               overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
@@ -278,7 +279,7 @@ function InitiativeEntryList({ sortedIds, combatants, focusedId }: {
             </span>
             <span style={{
               fontSize: '1.1rem', fontWeight: 600, minWidth: 32, textAlign: 'center',
-              color: hasInit ? '#eee' : '#555',
+              color: hasInit ? 'var(--text)' : 'var(--muted)',
             }}>
               {hasInit ? c.initiative : '—'}
             </span>
@@ -300,7 +301,7 @@ function CreatureSpotlight({ combatant: c }: { combatant: PlayerCombatantState }
   }, [c.name])
 
   const hpPct = c.hpPct ?? 100
-  const hpColor = c.hpColor ?? '#0a0'
+  const hpColor = c.hpColor ?? 'var(--hp-full)'
 
   return (
     <div style={{
@@ -326,9 +327,9 @@ function CreatureSpotlight({ combatant: c }: { combatant: PlayerCombatantState }
       )}
 
       <div style={{
-        fontFamily: "'MentorSans', 'Mentor', sans-serif",
+        fontFamily: 'var(--font-card)',
         fontSize: '2.5rem', fontWeight: 700,
-        textAlign: 'center', textShadow: '0 2px 8px rgba(0,0,0,0.5)',
+        textAlign: 'center', textShadow: '0 2px 8px var(--player-text-shadow)',
       }}>
         {c.name}
       </div>
@@ -418,10 +419,10 @@ function AnimatedList({ waiting, delayed, readied, acted, combatants, currentId,
 
       {acted.length > 0 && (
         <div data-flip-key="__next_round__" style={{
-          fontSize: '0.9rem', color: '#555', fontWeight: 600,
+          fontSize: '0.9rem', color: 'var(--muted)', fontWeight: 600,
           textTransform: 'uppercase', letterSpacing: '0.1em',
           marginTop: '1rem', marginBottom: '0.25rem',
-          borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: '0.75rem',
+          borderTop: '1px solid var(--player-divider)', paddingTop: '0.75rem',
         }}>
           {round === 0 ? 'Round 1' : `Round ${round + 1}`}
         </div>
@@ -438,7 +439,7 @@ function AnimatedList({ waiting, delayed, readied, acted, combatants, currentId,
 
 function PlayerCard({ combatant: c, isCurrent, isDelayed, isReadied }: { combatant: PlayerCombatantState; isCurrent: boolean; isDelayed?: boolean; isReadied?: boolean }) {
   const hpPct = c.hpPct ?? 100
-  const hpColor = c.hpColor ?? '#0a0'
+  const hpColor = c.hpColor ?? 'var(--hp-full)'
   const isDead = c.dead === true || (!c.isPC && hpPct === 0)
   const isDying = c.isPC && (c.conditions.some(co => co.conditionId === 'dying') || (c.deathSaveFailures != null && c.deathSaveFailures > 0))
 
@@ -447,8 +448,8 @@ function PlayerCard({ combatant: c, isCurrent, isDelayed, isReadied }: { combata
       display: 'flex', alignItems: 'center', gap: '0.75rem',
       padding: '6px 1rem 6px 0',
       minHeight: 67,
-      background: isCurrent ? 'rgba(255,255,255,0.2)' : 'rgba(255,255,255,0.08)',
-      border: isCurrent ? '2px solid rgba(255,255,255,0.25)' : '1px solid rgba(255,255,255,0.2)',
+      background: isCurrent ? 'var(--player-card-current)' : 'var(--player-card)',
+      border: isCurrent ? '2px solid var(--player-card-border-current)' : '1px solid var(--player-card-border)',
       borderRadius: '34px 10px 10px 34px',
       opacity: isDead || isDelayed || isReadied ? 0.5 : 1,
     }}>
@@ -460,7 +461,7 @@ function PlayerCard({ combatant: c, isCurrent, isDelayed, isReadied }: { combata
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{
           display: 'flex', alignItems: 'center', gap: 6,
-          fontFamily: "'MentorSans', 'Mentor', sans-serif",
+          fontFamily: 'var(--font-card)',
           fontSize: '1.3rem',
           fontWeight: 700,
           overflow: 'hidden', whiteSpace: 'nowrap',
@@ -476,7 +477,7 @@ function PlayerCard({ combatant: c, isCurrent, isDelayed, isReadied }: { combata
           )}
         </div>
         {isReadied && c.readiedAction && (
-          <div style={{ fontSize: '0.85rem', color: '#39c', marginTop: 3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          <div style={{ fontSize: '0.85rem', color: 'var(--readied)', marginTop: 3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
             Readied: {c.readiedAction}
           </div>
         )}
@@ -503,7 +504,7 @@ function PlayerCard({ combatant: c, isCurrent, isDelayed, isReadied }: { combata
 
       {/* HP descriptor (monsters) or player name (PCs) */}
       <div style={{
-        color: c.isPC ? '#ccc' : hpColor,
+        color: c.isPC ? 'var(--color-text-secondary)' : hpColor,
         fontWeight: 600,
         fontSize: '1rem', whiteSpace: 'nowrap',
       }}>
@@ -527,10 +528,10 @@ function TurnInfoSidebar({ combatant: c, turnItems, stepperIndex }: {
 
   const sectionHeader = (text: string) => (
     <div style={{
-      fontSize: '0.9rem', color: '#666', fontWeight: 600,
+      fontSize: '0.9rem', color: 'var(--muted)', fontWeight: 600,
       textTransform: 'uppercase', letterSpacing: '0.08em',
       padding: '8px 0 4px',
-      borderBottom: '1px solid rgba(255,255,255,0.08)',
+      borderBottom: '1px solid var(--player-divider)',
       marginBottom: 6,
     }}>{text}</div>
   )
@@ -540,8 +541,8 @@ function TurnInfoSidebar({ combatant: c, turnItems, stepperIndex }: {
       width: 360, flexShrink: 0,
       display: 'flex', flexDirection: 'column',
       padding: '1.5rem 1rem',
-      background: 'rgba(0,0,0,0.3)',
-      borderLeft: '1px solid rgba(255,255,255,0.1)',
+      background: 'var(--player-panel)',
+      borderLeft: '1px solid var(--player-divider)',
       overflow: 'auto',
     }}>
       {/* ── START OF TURN ── */}
@@ -608,7 +609,7 @@ function TurnItemRow({ item, isActive }: { item: PlayerTurnItem; isActive: boole
   // Get condition/damage styling
   const condStyle = item.conditionId ? getConditionStyle(item.conditionId, item.damageType) : null
   const dmgStyle = item.damageType ? getDamageTypeStyle(item.damageType.trim().split(/\s+and\s+/)[0]) : null
-  const itemColor = isDeathSave ? '#d9534f' : isRecharge ? '#5c9ee8' : (condStyle?.color ?? dmgStyle?.color ?? '#888')
+  const itemColor = isDeathSave ? 'var(--danger)' : isRecharge ? 'var(--accent)' : (condStyle?.color ?? dmgStyle?.color ?? 'var(--muted)')
   const itemIcon = isDeathSave ? '💀' : isRecharge ? '↻' : isDamage ? (dmgStyle?.icon ?? '🔄') : (condStyle?.icon ?? '')
 
   const isSaveOrRecharge = item.kind === 'save' || item.kind === 'recharge'
@@ -620,52 +621,59 @@ function TurnItemRow({ item, isActive }: { item: PlayerTurnItem; isActive: boole
   let bg: string, border: string, iconFilter: string, textColor: string
   let displayIcon = itemIcon
 
+  // Shared looks: success/fail results, a neutral (done/expired) card, and the
+  // item's own color when active (strong) or pending (faint)
+  const successBg = withAlpha('var(--success)', 0.2), successBorder = `1px solid ${withAlpha('var(--success)', 0.5)}`
+  const failBg = withAlpha('var(--danger)', 0.2), failBorder = `1px solid ${withAlpha('var(--danger)', 0.5)}`
+  const activeBg = withAlpha(itemColor, 0.25), activeBorder = `2px solid ${withAlpha(itemColor, 0.6)}`
+  const pendingBg = withAlpha(itemColor, 0.08), pendingBorder = `1px solid ${withAlpha(itemColor, 0.25)}`
+
   if (isDamage) {
     if (resolved) {
-      bg = 'rgba(255,255,255,0.05)'; border = '1px solid rgba(255,255,255,0.1)'
-      iconFilter = 'grayscale(1) opacity(0.5)'; textColor = '#666'
+      bg = withAlpha('var(--text)', 0.05); border = `1px solid ${withAlpha('var(--text)', 0.1)}`
+      iconFilter = 'grayscale(1) opacity(0.5)'; textColor = 'var(--muted)'
     } else if (isActive) {
-      bg = `${itemColor}25`; border = `2px solid ${itemColor}66`
-      iconFilter = 'none'; textColor = '#ddd'
+      bg = activeBg; border = activeBorder
+      iconFilter = 'none'; textColor = 'var(--text)'
     } else {
-      bg = `${itemColor}10`; border = `1px solid ${itemColor}22`
-      iconFilter = 'opacity(0.5)'; textColor = '#888'
+      bg = pendingBg; border = pendingBorder
+      iconFilter = 'opacity(0.5)'; textColor = 'var(--muted)'
     }
   } else if (isDeathSave) {
     if (isSuccess) {
-      bg = 'rgba(40,167,69,0.2)'; border = '1px solid rgba(40,167,69,0.5)'
-      iconFilter = 'none'; textColor = '#5cb85c'; displayIcon = '✓'
+      bg = successBg; border = successBorder
+      iconFilter = 'none'; textColor = 'var(--success)'; displayIcon = '✓'
     } else if (isFail) {
-      bg = 'rgba(220,53,69,0.2)'; border = '1px solid rgba(220,53,69,0.5)'
-      iconFilter = 'none'; textColor = '#d9534f'; displayIcon = '✗'
+      bg = failBg; border = failBorder
+      iconFilter = 'none'; textColor = 'var(--danger)'; displayIcon = '✗'
     } else if (isNone) {
-      bg = 'rgba(255,255,255,0.05)'; border = '1px solid rgba(255,255,255,0.15)'
-      iconFilter = 'grayscale(1) opacity(0.6)'; textColor = '#888'; displayIcon = '—'
+      bg = withAlpha('var(--text)', 0.05); border = `1px solid ${withAlpha('var(--text)', 0.15)}`
+      iconFilter = 'grayscale(1) opacity(0.6)'; textColor = 'var(--muted)'; displayIcon = '—'
     } else if (isActive) {
-      bg = `${itemColor}25`; border = `2px solid ${itemColor}66`
-      iconFilter = 'none'; textColor = '#ddd'
+      bg = activeBg; border = activeBorder
+      iconFilter = 'none'; textColor = 'var(--text)'
     } else {
-      bg = `${itemColor}10`; border = `1px solid ${itemColor}22`
-      iconFilter = 'opacity(0.5)'; textColor = '#888'
+      bg = pendingBg; border = pendingBorder
+      iconFilter = 'opacity(0.5)'; textColor = 'var(--muted)'
     }
   } else if (isSaveOrRecharge) {
     if (isSuccess) {
-      bg = 'rgba(40,167,69,0.2)'; border = '1px solid rgba(40,167,69,0.5)'
-      iconFilter = 'none'; textColor = '#5cb85c'; displayIcon = '✓'
+      bg = successBg; border = successBorder
+      iconFilter = 'none'; textColor = 'var(--success)'; displayIcon = '✓'
     } else if (isFail) {
-      bg = 'rgba(220,53,69,0.2)'; border = '1px solid rgba(220,53,69,0.5)'
-      iconFilter = 'none'; textColor = '#d9534f'; displayIcon = '✗'
+      bg = failBg; border = failBorder
+      iconFilter = 'none'; textColor = 'var(--danger)'; displayIcon = '✗'
     } else if (isActive) {
-      bg = `${itemColor}25`; border = `2px solid ${itemColor}66`
-      iconFilter = 'none'; textColor = '#ddd'
+      bg = activeBg; border = activeBorder
+      iconFilter = 'none'; textColor = 'var(--text)'
     } else {
-      bg = `${itemColor}10`; border = `1px solid ${itemColor}22`
-      iconFilter = 'opacity(0.5)'; textColor = '#888'
+      bg = pendingBg; border = pendingBorder
+      iconFilter = 'opacity(0.5)'; textColor = 'var(--muted)'
     }
   } else {
     // Expire items
-    bg = 'rgba(255,255,255,0.04)'; border = '1px solid rgba(255,255,255,0.1)'
-    iconFilter = 'none'; textColor = '#888'
+    bg = withAlpha('var(--text)', 0.04); border = `1px solid ${withAlpha('var(--text)', 0.1)}`
+    iconFilter = 'none'; textColor = 'var(--muted)'
   }
 
   return (
@@ -681,7 +689,7 @@ function TurnItemRow({ item, isActive }: { item: PlayerTurnItem; isActive: boole
         flexShrink: 0,
         filter: iconFilter,
         transition: 'filter 0.2s',
-        color: isSuccess ? '#5cb85c' : isFail ? '#d9534f' : undefined,
+        color: isSuccess ? 'var(--success)' : isFail ? 'var(--danger)' : undefined,
         fontWeight: resolved && (isSaveOrRecharge || isDeathSave) ? 700 : undefined,
       }}>
         {displayIcon}
@@ -725,8 +733,8 @@ function ConditionCard({ condition: cond, carrierName, hideExpiresLine }: {
     <div style={{
       display: 'flex', alignItems: 'flex-start', gap: '0.6rem',
       padding: '0.5rem 0.6rem',
-      background: `linear-gradient(135deg, ${style.color}22, ${style.color}11)`,
-      border: `1px solid ${style.color}44`,
+      background: `linear-gradient(135deg, ${withAlpha(style.color, 0.35)}, ${withAlpha(style.color, 0.15)})`,
+      border: `1px solid ${withAlpha(style.color, 0.7)}`,
       borderRadius: 8,
     }}>
       <span style={{ fontSize: '1.3rem', flexShrink: 0 }}>
@@ -734,16 +742,16 @@ function ConditionCard({ condition: cond, carrierName, hideExpiresLine }: {
       </span>
 
       <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontSize: '1rem', fontWeight: 700, color: '#ddd', lineHeight: 1.2, marginBottom: 2 }}>
+        <div style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--text)', lineHeight: 1.2, marginBottom: 2 }}>
           {label}
         </div>
         {cond.description && (
-          <div style={{ fontSize: '0.8rem', color: '#bbb', lineHeight: 1.3 }}>
+          <div style={{ fontSize: '0.8rem', color: 'var(--color-text-secondary)', lineHeight: 1.3 }}>
             {cond.description}
           </div>
         )}
         {expiresLine && (
-          <div style={{ fontSize: '0.8rem', color: '#999', fontStyle: 'italic', lineHeight: 1.3, marginTop: 2 }}>
+          <div style={{ fontSize: '0.8rem', color: 'var(--muted)', fontStyle: 'italic', lineHeight: 1.3, marginTop: 2 }}>
             {expiresLine}
           </div>
         )}
@@ -1053,16 +1061,16 @@ function NotificationToasts({ notifications, combatants }: {
             // gradient (or solid) on border-box. Border is transparent so the
             // border-box layer shows through.
             background: borderGradient
-              ? `linear-gradient(rgba(0,0,0,0.85), rgba(0,0,0,0.85)) padding-box, ${borderGradient} border-box`
-              : 'rgba(0,0,0,0.85)',
+              ? `linear-gradient(var(--surface), var(--surface)) padding-box, ${borderGradient} border-box`
+              : 'var(--surface)',
             border: borderGradient
               ? '2px solid transparent'
               : `2px solid ${subjectColor}`,
             borderRadius: 36,
-            boxShadow: `0 4px 16px rgba(0,0,0,0.5), 0 0 24px ${glowColor}44`,
-            fontFamily: "'MentorSans', 'Mentor', sans-serif",
+            boxShadow: `var(--shadow-lg), 0 0 24px ${withAlpha(glowColor, 0.27)}`,
+            fontFamily: 'var(--font-card)',
             fontSize: '1.2rem',
-            color: '#eee',
+            color: 'var(--text)',
             opacity: t.exiting ? 0 : 1,
             transform: t.exiting ? 'translateY(-8px)' : 'translateY(0)',
             transition: `opacity ${TOAST_FADE_MS}ms ease-out, transform ${TOAST_FADE_MS}ms ease-out`,

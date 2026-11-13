@@ -1386,7 +1386,7 @@ export function toPlayerCombatState(state: CombatState): PlayerCombatState {
     if (c.isPC) {
       // PCs track their own HP — no descriptor shown
       label = ''
-      color = '#888'
+      color = 'var(--muted)'
       hpPct = 100
     } else {
       const r = resolveHpDescriptor(c.hp, c.maxHp, descriptors)

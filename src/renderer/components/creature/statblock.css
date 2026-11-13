@@ -1,45 +1,8 @@
-/* D&D 4e stat block fonts — extracted from the official DMG */
-@font-face {
-  font-family: 'Mentor';
-  src: url('../../fonts/MentorStd.ttf') format('truetype');
-  font-weight: 400;
-  font-style: normal;
-}
-@font-face {
-  font-family: 'Mentor';
-  src: url('../../fonts/MentorStd-Bold.cff');
-  font-weight: 700;
-  font-style: normal;
-}
-@font-face {
-  font-family: 'Mentor';
-  src: url('../../fonts/MentorStd-BoldItalic.cff');
-  font-weight: 700;
-  font-style: italic;
-}
-@font-face {
-  font-family: 'MentorSans';
-  src: url('../../fonts/MentorSansStd-Bold.cff');
-  font-weight: 700;
-  font-style: normal;
-}
-@font-face {
-  font-family: 'DnDVecna';
-  src: url('../../fonts/DnDVecnaSC-Regular.ttf') format('truetype');
-  font-weight: 400;
-  font-style: normal;
-}
-
-/* 4e stat block color scheme — matches the official DMG palette */
+/* 4e stat blocks in 4ecb's printed-card style: Arial, dense, with a
+   neutral-tone header bar. The --sb-* colors are defined in
+   src/renderer/styles/theme.css so they work outside .stat-block-4e too. */
 .stat-block-4e {
-  --sb-header-bg: #62584a;
-  --sb-header-text: #f0e8d0;
-  --sb-subheader-bg: #7a6f5e;
-  --sb-row-alt: rgba(178, 164, 120, 0.08);
-  --sb-separator: rgba(178, 164, 120, 0.25);
-  --sb-power-alt: rgba(140, 128, 100, 0.12);
-
-  font-family: 'Mentor', 'Cambria', 'Georgia', serif;
+  font-family: var(--font-card);
   font-size: 12px;
   line-height: 1.4;
 }
@@ -55,7 +18,6 @@
 }
 
 .stat-block-4e .sb-header .sb-name {
-  font-family: 'MentorSans', 'Mentor', sans-serif;
   font-weight: 700;
   font-size: 14px;
 }
@@ -74,9 +36,9 @@
 .stat-block-4e .sb-subheader {
   --color-text-primary: var(--sb-header-text);
   --color-text-secondary: var(--sb-header-text);
-  --color-text-muted: rgba(255, 255, 255, 0.6);
-  --color-bg-hover: rgba(255, 255, 255, 0.18);
-  --color-border: rgba(255, 255, 255, 0.3);
+  --color-text-muted: color-mix(in srgb, var(--sb-header-text) 65%, transparent);
+  --color-bg-hover: color-mix(in srgb, var(--sb-header-text) 18%, transparent);
+  --color-border: color-mix(in srgb, var(--sb-header-text) 30%, transparent);
   color: var(--sb-header-text);
 }
 .stat-block-4e .sb-subheader * {
@@ -187,5 +149,5 @@
 /* ─── Combat reaction highlight ─── */
 @keyframes reaction-pulse {
   0%, 100% { background: transparent; }
-  50% { background: rgba(232, 160, 32, 0.12); }
+  50% { background: color-mix(in srgb, var(--action-point) 12%, transparent); }
 }

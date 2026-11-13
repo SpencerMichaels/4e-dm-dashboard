@@ -841,13 +841,13 @@ export function CombatView() {
             <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
               {isOngoing ? (
                 <button onClick={() => handleResolveItem(true)} style={{
-                  padding: 'var(--space-2) var(--space-4)', background: 'var(--color-accent)', color: 'var(--color-text-on-dark)',
+                  padding: 'var(--space-2) var(--space-4)', background: 'var(--color-accent)', color: 'var(--on-fill)',
                   border: 'none', borderRadius: 'var(--radius-sm)', cursor: 'pointer', fontWeight: 600,
                 }}>Continue (Space)</button>
               ) : isDeathSave ? (
                 <>
                   <button onClick={() => handleResolveDeathSave('fail')} style={{
-                    padding: 'var(--space-2) var(--space-4)', background: 'var(--color-miss)', color: 'var(--color-text-on-dark)',
+                    padding: 'var(--space-2) var(--space-4)', background: 'var(--color-miss)', color: 'var(--on-fill)',
                     border: 'none', borderRadius: 'var(--radius-sm)', cursor: 'pointer', fontWeight: 600,
                   }}>Fail &lt;10 (F)</button>
                   <button onClick={() => handleResolveDeathSave('none')} style={{
@@ -855,18 +855,18 @@ export function CombatView() {
                     border: 'none', borderRadius: 'var(--radius-sm)', cursor: 'pointer', fontWeight: 600,
                   }}>10–19 (N)</button>
                   <button onClick={() => handleResolveDeathSave('success')} style={{
-                    padding: 'var(--space-2) var(--space-4)', background: 'var(--color-check)', color: 'var(--color-text-on-dark)',
+                    padding: 'var(--space-2) var(--space-4)', background: 'var(--color-check)', color: 'var(--on-fill)',
                     border: 'none', borderRadius: 'var(--radius-sm)', cursor: 'pointer', fontWeight: 600,
                   }}>20+ (S)</button>
                 </>
               ) : (
                 <>
                   <button onClick={() => handleResolveItem(true)} style={{
-                    padding: 'var(--space-2) var(--space-4)', background: 'var(--color-check)', color: 'var(--color-text-on-dark)',
+                    padding: 'var(--space-2) var(--space-4)', background: 'var(--color-check)', color: 'var(--on-fill)',
                     border: 'none', borderRadius: 'var(--radius-sm)', cursor: 'pointer', fontWeight: 600,
                   }}>{item.kind === 'save' ? 'Save (S)' : 'Success (S)'}</button>
                   <button onClick={() => handleResolveItem(false)} style={{
-                    padding: 'var(--space-2) var(--space-4)', background: 'var(--color-miss)', color: 'var(--color-text-on-dark)',
+                    padding: 'var(--space-2) var(--space-4)', background: 'var(--color-miss)', color: 'var(--on-fill)',
                     border: 'none', borderRadius: 'var(--radius-sm)', cursor: 'pointer', fontWeight: 600,
                   }}>Fail (F)</button>
                 </>

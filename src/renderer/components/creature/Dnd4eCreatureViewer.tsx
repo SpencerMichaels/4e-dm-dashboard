@@ -185,7 +185,7 @@ export function Dnd4eCreatureViewer({ creature, tooltip: tip, compendiumId: comp
                 fontSize: 10, fontWeight: 700,
                 cursor: onTemplateChipClick ? 'pointer' : 'default',
                 opacity: chip.preview ? 0.85 : 1,
-                fontFamily: "'MentorSans', 'Mentor', sans-serif",
+                fontFamily: 'var(--font-card)',
                 textTransform: 'uppercase', letterSpacing: '0.03em',
               }}
             >{chip.name}</button>
@@ -196,7 +196,7 @@ export function Dnd4eCreatureViewer({ creature, tooltip: tip, compendiumId: comp
               padding: '0 6px', borderRadius: 'var(--radius-sm)',
               background: THEME_COLOR, color: 'var(--color-text-on-dark)',
               fontSize: 10, fontWeight: 700,
-              fontFamily: "'MentorSans', 'Mentor', sans-serif",
+              fontFamily: 'var(--font-card)',
               textTransform: 'uppercase', letterSpacing: '0.03em',
             }}>
               {sb._monsterTheme as string}

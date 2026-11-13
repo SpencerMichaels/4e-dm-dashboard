@@ -72,8 +72,9 @@ export function NoteEditor({ noteId }: Props) {
         placeholder="Note title"
         style={{
           width: '100%',
+          fontFamily: 'var(--font-display)',
           fontSize: 'var(--font-size-2xl)',
-          fontWeight: 600,
+          fontWeight: 700,
           border: 'none',
           background: 'transparent',
           marginBottom: 'var(--space-4)',

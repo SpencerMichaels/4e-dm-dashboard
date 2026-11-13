@@ -1,116 +1,161 @@
-/* CSS custom properties — theming layer.
-   System plugins can override these (v2) via SystemTheme.cssVariables */
+/* App theme layer, on top of the shared 4e-kit tokens
+   (vendor/4e-kit/styles/tokens.css, imported first by global.css).
 
-/* D&D 4e display fonts (globally available so player display can use them) */
-@font-face {
-  font-family: 'Mentor';
-  src: url('../fonts/MentorStd.ttf') format('truetype');
-  font-weight: 400;
-  font-style: normal;
-}
-@font-face {
-  font-family: 'Mentor';
-  src: url('../fonts/MentorStd-Bold.cff');
-  font-weight: 700;
-  font-style: normal;
-}
-@font-face {
-  font-family: 'Mentor';
-  src: url('../fonts/MentorStd-BoldItalic.cff');
-  font-weight: 700;
-  font-style: italic;
-}
-@font-face {
-  font-family: 'MentorSans';
-  src: url('../fonts/MentorSansStd-Bold.cff');
-  font-weight: 700;
-  font-style: normal;
-}
-@font-face {
-  font-family: 'DnDVecna';
-  src: url('../fonts/DnDVecnaSC-Regular.ttf') format('truetype');
-  font-weight: 400;
-  font-style: normal;
-}
+   Write new code against the kit tokens (--background, --surface, --text,
+   --muted, --border, --accent, --danger, --power-*, ...) or the app tokens
+   below. The --color-* names are LEGACY aliases kept so the existing inline
+   styles keep working; don't add new uses of them.
+
+   Every value here is derived from kit tokens, so it follows the theme
+   (data-theme on <html>, set by src/renderer/theme.ts) without dark-mode
+   overrides of its own. Tokens marked "constant" stay the same in both
+   themes on purpose (they sit behind white text or over images). */
 
 :root {
-  /* Colors — Solarized Dark */
-  --color-bg-primary: #002b36;
-  --color-bg-secondary: #073642;
-  --color-bg-tertiary: #073642;
-  --color-bg-surface: #073642;
-  --color-bg-hover: #0a4050;
-  --color-bg-active: #0d4d5e;
+  /* ── App tokens ─────────────────────────────────────────────── */
 
-  --color-text-primary: #c5cacc;
-  --color-text-secondary: #93a1a1;
-  --color-text-muted: #6c7e86;
-  --color-text-inverse: #002b36;
+  /* Text on a filled accent/semantic color (accent, danger, success, readied
+     buttons). Light theme: white on the deep fill. Dark theme: the fills turn
+     light, so the text turns dark. */
+  --on-fill: var(--surface);
 
-  --color-border: #586e75;
-  --color-border-focus: #268bd2;
+  /* Row hover and active/selected backgrounds */
+  --hover: color-mix(in srgb, var(--accent) 10%, var(--surface));
+  --active: color-mix(in srgb, var(--accent) 22%, var(--surface));
 
-  --color-accent: #268bd2;
-  --color-accent-hover: #2aa198;
-  --color-accent-text: #fdf6e3;
+  /* Combat: HP bands (text and bar fills) */
+  --hp-full: var(--success);
+  --hp-high: color-mix(in srgb, var(--success) 60%, var(--warning));
+  --hp-mid: var(--warning);
+  --hp-low: var(--danger);
+  --hp-down: var(--muted);
 
-  --color-danger: #dc322f;
-  --color-danger-hover: #cb4b16;
-  --color-success: #859900;
-  --color-warning: #b58900;
+  /* Combat: turn state, actions */
+  --turn-active: var(--warning);
+  --turn-delayed: var(--muted);
+  --damage: var(--danger);
+  --heal: var(--success);
+  --temp-hp: var(--accent);
+  --readied: var(--focus);
+  --action-point: var(--notify);
 
-  /* Combat-specific — HP bar thresholds */
-  --color-hp-full: #2f9e44;
-  --color-hp-high: #74b816;
-  --color-hp-mid: #f08c00;
-  --color-hp-low: #e03131;
-  --color-hp-down: #868e96;
+  /* Combat notification toasts (constant: deep fills under white text) */
+  --notify-bloodied: var(--power-encounter);
+  --notify-death: color-mix(in srgb, var(--power-encounter) 55%, var(--brand-navy));
+  --notify-success: var(--power-at-will);
+  --notify-fail: color-mix(in srgb, var(--power-item) 55%, var(--brand-navy));
+  --notify-neutral: var(--tone-neutral);
 
-  --color-turn-active: #ffd43b;
-  --color-turn-delayed: #868e96;
+  /* Condition pills: the kit's soft tones, nudged toward a stronger tone so
+     they read as pills on --surface. Pastel in light, deep in dark; text is
+     --cond-text in both (contrast >= 6:1 in both themes). Where a flipping
+     semantic color exists (--danger, --success, ...) it is the nudge, which
+     lifts the pill off the dark surface. */
+  --cond-text: var(--text);
+  --cond-red: color-mix(in srgb, var(--power-encounter-soft) 80%, var(--danger));
+  --cond-orange: color-mix(in srgb, var(--power-item-soft) 80%, var(--power-item));
+  --cond-amber: color-mix(in srgb, var(--warning-soft) 80%, var(--warning));
+  --cond-green: color-mix(in srgb, var(--power-at-will-soft) 80%, var(--success));
+  --cond-blue: color-mix(in srgb, var(--accent-soft) 80%, var(--accent));
+  --cond-purple: color-mix(in srgb,
+    color-mix(in srgb, var(--power-feature-soft) 80%, var(--power-feature)) 88%, var(--text));
+  --cond-gray: color-mix(in srgb, var(--power-daily-soft) 80%, var(--power-daily));
+  /* Dead: constant deep fill under white text */
+  --cond-dead: color-mix(in srgb, var(--power-encounter) 35%, var(--brand-navy));
 
-  /* Semantic action colors */
-  --color-damage: #cc0000;
-  --color-heal: #00aa00;
-  --color-temp-hp: #0099ff;
-  --color-readied: #3399cc;
-  --color-readied-bg: rgba(51, 153, 204, 0.1);
-  --color-readied-border: rgba(51, 153, 204, 0.3);
-  --color-action-point: #e8a020;
+  /* Stat blocks and cards (statblock.css). Header bars use 4ecb's neutral
+     card tone in both themes, with white text. */
+  --sb-header-bg: var(--tone-neutral);
+  --sb-header-text: var(--tone-neutral-contrast);
+  --sb-subheader-bg: color-mix(in srgb, var(--tone-neutral) 75%, var(--brand-blue));
+  --sb-row-alt: color-mix(in srgb, var(--text) 4%, transparent);
+  --sb-separator: var(--border);
+  --sb-power-alt: color-mix(in srgb, var(--text) 6%, transparent);
 
-  /* Text on colored backgrounds (buttons, badges) */
-  --color-text-on-dark: #ffffff;
-  --color-text-on-warning: #000000;
+  /* Player window panels over the (optional) scene background image */
+  --player-panel: color-mix(in srgb, var(--surface) 72%, transparent);
+  --player-panel-strong: color-mix(in srgb, var(--surface) 88%, transparent);
+  --player-card: color-mix(in srgb, var(--text) 7%, transparent);
+  --player-card-current: color-mix(in srgb, var(--accent) 22%, transparent);
+  --player-card-border: color-mix(in srgb, var(--text) 18%, transparent);
+  --player-card-border-current: color-mix(in srgb, var(--accent) 55%, transparent);
+  --player-divider: color-mix(in srgb, var(--text) 12%, transparent);
+  /* A glow in the page color behind large text, so titles stay legible over
+     the scene image in either theme */
+  --player-text-shadow: color-mix(in srgb, var(--background) 85%, transparent);
 
-  /* Condition badge default */
-  --color-condition-default: #cc9900;
+  /* ── Legacy aliases (--color-*) ─────────────────────────────── */
+  --color-bg-primary: var(--background);
+  --color-bg-secondary: var(--surface);
+  --color-bg-tertiary: var(--surface-subtle);
+  --color-bg-surface: var(--surface-raised);
+  --color-bg-hover: var(--hover);
+  --color-bg-active: var(--active);
 
-  /* Notification toast colors */
-  --color-notify-bloodied: #cc0000;
-  --color-notify-death: #660000;
-  --color-notify-success: #22aa66;
-  --color-notify-fail: #aa6622;
-  --color-notify-neutral: #666666;
+  --color-text-primary: var(--text);
+  --color-text-secondary: color-mix(in srgb, var(--text) 45%, var(--muted));
+  --color-text-muted: var(--muted);
+  --color-text-inverse: var(--surface);
 
-  /* Check marks, hit/miss indicators */
-  --color-check: #22aa66;
-  --color-miss: #aa4444;
+  --color-border: var(--border);
+  --color-border-focus: var(--focus);
 
-  /* Token mini-badge */
-  --color-token-badge-bg: #222222;
-  --color-token-badge-border: #888888;
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-strong);
+  --color-accent-text: var(--on-fill);
 
-  /* Overlay buttons (on images) */
-  --color-overlay-bg: rgba(0, 0, 0, 0.6);
+  --color-danger: var(--danger);
+  --color-danger-hover: color-mix(in srgb, var(--danger) 80%, var(--text));
+  --color-success: var(--success);
+  --color-warning: var(--warning);
 
-  /* Import warning */
-  --color-import-warning: #f08c00;
-  --color-import-warning-bg: #f08c0020;
+  --color-hp-full: var(--hp-full);
+  --color-hp-high: var(--hp-high);
+  --color-hp-mid: var(--hp-mid);
+  --color-hp-low: var(--hp-low);
+  --color-hp-down: var(--hp-down);
 
-  /* Typography */
-  --font-body: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --color-turn-active: var(--turn-active);
+  --color-turn-delayed: var(--turn-delayed);
+
+  --color-damage: var(--damage);
+  --color-heal: var(--heal);
+  --color-temp-hp: var(--temp-hp);
+  --color-readied: var(--readied);
+  --color-readied-bg: color-mix(in srgb, var(--readied) 10%, transparent);
+  --color-readied-border: color-mix(in srgb, var(--readied) 30%, transparent);
+  --color-action-point: var(--action-point);
+
+  /* Constant: text on deep fills (power tones, token circles, image overlays) */
+  --color-text-on-dark: #fff;
+  /* Constant: text on mid-tone user colors (class-mark chips) */
+  --color-text-on-warning: #1e2933;
+
+  --color-condition-default: var(--warning);
+
+  --color-notify-bloodied: var(--notify-bloodied);
+  --color-notify-death: var(--notify-death);
+  --color-notify-success: var(--notify-success);
+  --color-notify-fail: var(--notify-fail);
+  --color-notify-neutral: var(--notify-neutral);
+
+  --color-check: var(--success);
+  --color-miss: var(--danger);
+
+  /* Constant: token mini-badge under white text */
+  --color-token-badge-bg: var(--brand-navy);
+  --color-token-badge-border: var(--border-strong);
+
+  /* Constant: buttons drawn over images */
+  --color-overlay-bg: rgb(0 0 0 / 60%);
+
+  --color-import-warning: var(--warning);
+  --color-import-warning-bg: var(--warning-soft);
+
+  /* ── Typography ─────────────────────────────────────────────── */
+  --font-body: var(--font-ui);
+  --font-heading: var(--font-display);
   --font-mono: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
-  --font-heading: var(--font-body);
 
   --font-size-xs: 0.75rem;
   --font-size-sm: 0.8125rem;
@@ -119,67 +164,28 @@
   --font-size-xl: 1.25rem;
   --font-size-2xl: 1.5rem;
 
-  /* Spacing */
+  /* ── Spacing ────────────────────────────────────────────────── */
   --space-1: 0.25rem;
   --space-2: 0.5rem;
   --space-3: 0.75rem;
   --space-4: 1rem;
+  --space-5: 1.25rem;
   --space-6: 1.5rem;
   --space-8: 2rem;
 
-  /* Layout */
+  /* ── Layout and shape (4ecb: near-square corners) ───────────── */
   --sidebar-width: 170px;
   --header-height: 0px;
-  --radius-sm: 4px;
-  --radius-md: 6px;
-  --radius-lg: 8px;
+  --radius-sm: var(--radius);
+  --radius-md: var(--radius);
+  --radius-lg: var(--radius);
 
-  /* Shadows */
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
-  --shadow-md: 0 4px 8px rgba(0, 0, 0, 0.3);
-  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.4);
+  /* Shadows: md is 4ecb's floating shadow */
+  --shadow-sm: 0 0.1rem 0.3rem rgb(0 0 0 / 14%);
+  --shadow-md: var(--shadow-floating);
+  --shadow-lg: 0 0.6rem 1.6rem rgb(0 0 0 / 28%);
 
-  /* Transitions */
+  /* ── Transitions ────────────────────────────────────────────── */
   --transition-fast: 100ms ease;
   --transition-normal: 200ms ease;
-}
-
-/* Light mode — Solarized Light */
-:root[data-theme='light'] {
-  --color-bg-primary: #fdf6e3;
-  --color-bg-secondary: #eee8d5;
-  --color-bg-tertiary: #eee8d5;
-  --color-bg-surface: #eee8d5;
-  --color-bg-hover: #e8e1cc;
-  --color-bg-active: #ddd6c1;
-
-  --color-text-primary: #657b83;
-  --color-text-secondary: #586e75;
-  --color-text-muted: #93a1a1;
-  --color-text-inverse: #fdf6e3;
-
-  --color-border: #93a1a1;
-  --color-border-focus: #268bd2;
-
-  --color-accent: #268bd2;
-  --color-accent-hover: #2aa198;
-
-  --color-danger: #dc322f;
-  --color-success: #859900;
-  --color-warning: #b58900;
-
-  --color-text-on-warning: #1a1a1a;
-
-  --color-token-badge-bg: #555555;
-  --color-token-badge-border: #999999;
-
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.06);
-  --shadow-md: 0 4px 8px rgba(0, 0, 0, 0.08);
-  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.1);
-}
-
-/* TipTap editor — fill its container so the entire area is clickable */
-.tiptap.ProseMirror {
-  min-height: 100%;
-  outline: none;
 }

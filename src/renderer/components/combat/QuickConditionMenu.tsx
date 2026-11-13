@@ -3,6 +3,7 @@ import type { CombatantState, CombatState } from '@common/types'
 import { useUiStore } from '../../stores/ui-store'
 import { useCombatStore } from '../../stores/combat-store'
 import { useCampaignStore } from '../../stores/campaign-store'
+import { withAlpha } from '../../utils/color'
 import { getConditionStyle } from './condition-styles'
 import { DAMAGE_TYPE_NAMES, getDamageTypeStyle } from './damage-types'
 import { ConditionPill, buildConditionLabel } from './ConditionPill'
@@ -403,14 +404,14 @@ export function QuickConditionMenu({ combatantId, combatant, position, onClose, 
               style={{
                 display: 'flex', alignItems: 'center', gap: 4,
                 padding: '3px 6px', cursor: readOnly ? 'default' : 'pointer', borderRadius: 'var(--radius-sm)',
-                background: inShiftSelection ? 'rgba(92,124,250,0.3)' : active ? style.color + '30' : 'transparent',
+                background: inShiftSelection ? 'rgba(92,124,250,0.3)' : active ? withAlpha(style.color, 0.19) : 'transparent',
                 opacity: readOnly ? 0.7 : 1,
                 border: inShiftSelection ? '1px dashed rgba(92,124,250,0.7)' : '1px solid transparent',
               }}>
               <span style={{
                 display: 'inline-flex', alignItems: 'center', gap: 3,
                 padding: '1px 6px', borderRadius: 8,
-                background: active ? style.color : ((markSourcePicker && c.id === 'marked') || (caRecipientPicker && c.id === 'combat-advantage')) ? style.color + '90' : style.color + '40',
+                background: active ? style.color : ((markSourcePicker && c.id === 'marked') || (caRecipientPicker && c.id === 'combat-advantage')) ? withAlpha(style.color, 0.56) : withAlpha(style.color, 0.25),
                 color: active || (markSourcePicker && c.id === 'marked') || (caRecipientPicker && c.id === 'combat-advantage') ? style.textColor : 'var(--color-text-primary)',
                 fontSize: 10, fontWeight: active || (markSourcePicker && c.id === 'marked') || (caRecipientPicker && c.id === 'combat-advantage') ? 600 : 400,
               }}>
@@ -434,12 +435,12 @@ export function QuickConditionMenu({ combatantId, combatant, position, onClose, 
               style={{
                 display: 'flex', alignItems: 'center', gap: 4,
                 padding: '3px 6px', cursor: 'pointer', borderRadius: 'var(--radius-sm)',
-                background: ongoingMode ? style.color + '30' : 'transparent',
+                background: ongoingMode ? withAlpha(style.color, 0.19) : 'transparent',
               }}>
               <span style={{
                 display: 'inline-flex', alignItems: 'center', gap: 3,
                 padding: '1px 6px', borderRadius: 8,
-                background: ongoingMode ? style.color : style.color + '40',
+                background: ongoingMode ? style.color : withAlpha(style.color, 0.25),
                 color: ongoingMode ? style.textColor : 'var(--color-text-primary)',
                 fontSize: 10, fontWeight: ongoingMode ? 600 : 400,
               }}>
@@ -721,7 +722,7 @@ export function QuickConditionMenu({ combatantId, combatant, position, onClose, 
                     display: 'inline-flex', alignItems: 'center', gap: 2,
                     padding: '1px 5px', borderRadius: 8,
                     background: isSelected ? dtStyle.color
-                      : hasValue ? dtStyle.color + 'cc' : dtStyle.color + '30',
+                      : hasValue ? withAlpha(dtStyle.color, 0.8) : withAlpha(dtStyle.color, 0.19),
                     color: isSelected || hasValue ? 'var(--color-text-on-dark)' : 'var(--color-text-muted)',
                     fontSize: 9, fontWeight: isSelected ? 700 : 500,
                     cursor: hasValue ? 'pointer' : 'default',

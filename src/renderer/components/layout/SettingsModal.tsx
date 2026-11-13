@@ -2,6 +2,7 @@ import { useUiStore } from '../../stores/ui-store'
 import { useSettingsStore } from '../../stores/settings-store'
 import { Modal } from '../shared/Modal'
 import type { SystemSettingDef } from '@common/types/system-plugin'
+import { THEME_PREFERENCES, THEME_PREFERENCE_LABELS, type ThemePreference } from '@kit/theme'
 
 // Rules settings stay under systems['dnd-4e'] in localStorage for compatibility.
 const RULES_SETTINGS_KEY = 'dnd-4e'
@@ -12,6 +13,8 @@ interface Props {
 
 export function SettingsModal({ onClose }: Props) {
   const systemPlugin = useUiStore((s) => s.systemPlugin)
+  const themePreference = useUiStore((s) => s.themePreference)
+  const setThemePreference = useUiStore((s) => s.setThemePreference)
   const settings = useSettingsStore()
 
   const systemDefs: SystemSettingDef[] = systemPlugin?.settings ?? []
@@ -36,9 +39,16 @@ export function SettingsModal({ onClose }: Props) {
       {/* Body */}
       <div>
         <SettingsSection title="General">
-          <div style={{ color: 'var(--color-text-muted)', fontSize: 'var(--font-size-sm)', fontStyle: 'italic' }}>
-            No general settings yet.
-          </div>
+          <label style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-1)', padding: '4px 0' }}>
+            <span style={{ fontSize: 'var(--font-size-sm)', fontWeight: 500 }}>Theme</span>
+            <span style={{ fontSize: 'var(--font-size-xs)', color: 'var(--muted)' }}>
+              Applies to both windows. Saved in app-settings.json.
+            </span>
+            <select value={themePreference}
+              onChange={(e) => setThemePreference(e.target.value as ThemePreference)}>
+              {THEME_PREFERENCES.map((p) => <option key={p} value={p}>{THEME_PREFERENCE_LABELS[p]}</option>)}
+            </select>
+          </label>
         </SettingsSection>
 
         {systemPlugin && (

@@ -149,7 +149,7 @@ function PCCard({ pc, onSave, onDelete }: PCCardProps) {
           placeholder="Character name"
           style={{
             ...headerInputStyle,
-            fontFamily: "'MentorSans', 'Mentor', sans-serif",
+            fontFamily: 'var(--font-card)',
             fontWeight: 700,
             fontSize: 16,
             flex: 1,
