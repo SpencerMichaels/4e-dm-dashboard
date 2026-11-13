@@ -42,9 +42,12 @@ Covers monsters (5,326; 24,950 actions, of which 9,305 have their mechanics in p
   - [x] schema validation (shape, closed vocabularies, clause spans)
   - [x] DMG math bands per level and role (attack, damage, HP, defenses, XP); outliers are flagged
   - [ ] round-trip render of structured data back to text, diffed against the source text
-- [ ] Pilot: 100 random monsters; measure cost, accuracy, and schema gaps; revise the schema. Harness ready, not run: `content:agent:sample` (seeded sample in `4e-content/pilot/sample.json`), `content:agent:prompt`, `content:agent:apply`
+- [x] Pilot 1: 100 monsters, 20 items, 20 traps (seed 4), one agent per entry; results on branch `pilot-1` of `4e-content` (`pilot/pilot-1-results.json`). Accuracy was good; ~60k tokens per entry, mostly wasted on writing files with python, fenced JSON, hand-counted clause spans and two container runs per entry
+- [x] Schema v3 from the pilot (new clause kinds use-power, recharge-power, lose-healing-surge, concealment, zone, saving-throw, summon; extra/critical damage; multi-stat modifiers; while-in-aura and permanent durations; area `who` values; `usesPerRound`), and the efficient agent flow: `content:agent:briefs` writes all briefs in one run; agents quote clause words instead of counting `at` spans, write plain-JSON replies with the Write tool, and run one `content:agent:apply -- ... --check`; `content:agent:apply-all` applies a directory of replies. Briefs are ~13% smaller (monsters ~5.8k tokens)
+- [ ] Pilot 2a: the `small` tier of `4e-content/pilot/sample-2.json` (seed 5, no pilot-1 ids: 14 monsters, 3 items, 3 traps; briefs in `pilot/briefs-2/`); measure tokens per entry and check failures
+- [ ] Pilot 2b: the `full` tier (100 + 20 + 20, a superset of `small`)
 - [x] Schema changes found while converting (vs "Any", text-only resistances, extra failed-save lines, item subtypes, trap traits, level-relative disease DCs, ...): 4e-kit schema v2; the converter, validators and agent prompt use it, and `4e-content` is reconverted (parser notes down from ~5,500 to ~1,600)
-- [ ] Remaining gaps the parser still notes: booklet page refs ("page(s) 2-77"), item weight / property scaling / special / requirement / alchemical formula cost, trap aura ranges, trap "Triggered Actions" with no action type
+- [x] Parser gaps closed in v3: booklet page refs ("page(s) 2-77"), item weight / property scaling / special / requirement / alchemical type and formula cost, trap aura ranges and terrain usage, trap "Triggered Actions" with no action type, Elite Dragon lowering the rank (`rankChange`); `4e-content` reconverted (parser notes ~1,600 -> ~560)
 - [ ] Full agent pass; a second agent verifies flagged entries; user reviews the flagged queue plus a random sample with a measured error rate
 - [ ] Drive combat automation from the effect clauses; delete the regex `condition-detection.ts`
 

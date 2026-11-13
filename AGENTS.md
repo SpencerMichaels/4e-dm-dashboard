@@ -51,7 +51,7 @@ The application is functional across its main workflows:
 - The app is D&D 4e only: the 4e rules module and UI components are imported directly (PF2e, Delta Green, user plugins, the system picker, and URL import were removed in 2026-11).
 - Renamed from "Tabletop Dashboard" to "4e DM Dashboard" (2026-11-12). On first launch, `src/main/data/migrate-user-data.ts` moves the old `~/.config/tabletop-dashboard` userData dir to the new location.
 - Restyled toward 4ecb (2026-11-12, first half of TODO section 4): 4e-kit color tokens in light and dark themes with a stored system/light/dark preference, 2px corners, 4ecb's focus ring and button hover, EB Garamond headings, Arial stat blocks and power cards (the proprietary Mentor/DnDVecna fonts are gone), power-tone card headers, palette-derived condition pills, the Player window on tokens, and styled TipTap notes. Icons, the dialog/button/table components, and the remaining hardcoded colors (listed in `TODO.md`) are still to do.
-- Content pipeline (TODO section 5): parser fixes, the kit-schema converter, validators and the agent pilot harness exist, on 4e-kit schema v2 (`sources[]`, `failedSaves`, `extraLines`, text-only resistances, item/trap/disease/template additions); the pilot has not been run. The converter re-parses monsters and traps from `content/raw`. The app still reads `content/parsed/`.
+- Content pipeline (TODO section 5): parser fixes, the kit-schema converter, validators and the agent harness exist, on 4e-kit schema v3 (v2 plus what pilot 1 asked for: clause kinds such as use-power, zone and summon, trap auras, item weight/special/alchemical fields, string booklet pages, template `rankChange`). Pilot 1 (140 entries) ran on branch `pilot-1` of the content repo. Agent flow for pilot 2: `content:agent:briefs` writes every brief in one run; each agent Reads its brief, writes the reply with the Write tool (clauses give `quote`, never `at`), and runs the one `--check` command printed in the brief; `content:agent:apply-all` applies all replies. The converter re-parses monsters and traps from `content/raw`. The app still reads `content/parsed/`.
 - `npm test` (Vitest: combat engine, app settings, color helpers, content parser, converter, validator and agent-harness suites), `npm run build`, and `npm run typecheck:node` pass in the devcontainer as of 2026-11-12.
 
 Current planned implementation work is maintained in `TODO.md`. Historical completed batches are recorded in `CLEANUP.md`, `issues.txt`, `tasks.md`, and `feedback.md`.
@@ -77,7 +77,7 @@ Current planned implementation work is maintained in `TODO.md`. Historical compl
 | `tools/content/` | Parsers and build scripts that turn `content/raw/` into `content/parsed/` (`npm run content:build`) |
 | `tools/content/convert/` | Parsed content -> kit schema, written to the private content repo (`npm run content:convert`) |
 | `tools/content/validate/` | Shape, clause-span and DMG math-band validators (`npm run content:validate`) |
-| `tools/content/agent/` | Agent cleaning harness: pilot sampler, prompt template and assembler, apply-after-validation |
+| `tools/content/agent/` | Agent cleaning harness: tiered sampler, brief template (`prompt.md`) and batch brief writer, quote-to-span resolution, apply / `--check` / apply-all |
 | `~/Projects/4e-content` | Private content repo (WotC-derived, never publish): one kit-schema JSON file per entry, with provenance |
 
 ## Known Issues / Next Steps

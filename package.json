@@ -16,7 +16,9 @@
     "content:validate": "tsx --tsconfig tsconfig.node.json tools/content/validate/index.ts",
     "content:agent:sample": "tsx --tsconfig tsconfig.node.json tools/content/agent/sample.ts",
     "content:agent:prompt": "tsx --tsconfig tsconfig.node.json tools/content/agent/prompt.ts",
-    "content:agent:apply": "tsx --tsconfig tsconfig.node.json tools/content/agent/apply.ts"
+    "content:agent:apply": "tsx --tsconfig tsconfig.node.json tools/content/agent/apply.ts",
+    "content:agent:briefs": "tsx --tsconfig tsconfig.node.json tools/content/agent/briefs.ts",
+    "content:agent:apply-all": "tsx --tsconfig tsconfig.node.json tools/content/agent/apply-all.ts"
   },
   "dependencies": {
     "@fontsource/eb-garamond": "^5.3.0",
