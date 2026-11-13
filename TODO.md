@@ -43,7 +43,8 @@ Covers monsters (5,326; 24,950 actions, of which 9,305 have their mechanics in p
   - [x] DMG math bands per level and role (attack, damage, HP, defenses, XP); outliers are flagged
   - [ ] round-trip render of structured data back to text, diffed against the source text
 - [ ] Pilot: 100 random monsters; measure cost, accuracy, and schema gaps; revise the schema. Harness ready, not run: `content:agent:sample` (seeded sample in `4e-content/pilot/sample.json`), `content:agent:prompt`, `content:agent:apply`
-- [ ] Schema changes found while converting (vs "Any", text-only resistances, extra failed-save lines, item subtypes, trap traits, level-relative disease DCs, ...); decide in the kit before the pilot
+- [x] Schema changes found while converting (vs "Any", text-only resistances, extra failed-save lines, item subtypes, trap traits, level-relative disease DCs, ...): 4e-kit schema v2; the converter, validators and agent prompt use it, and `4e-content` is reconverted (parser notes down from ~5,500 to ~1,600)
+- [ ] Remaining gaps the parser still notes: booklet page refs ("page(s) 2-77"), item weight / property scaling / special / requirement / alchemical formula cost, trap aura ranges, trap "Triggered Actions" with no action type
 - [ ] Full agent pass; a second agent verifies flagged entries; user reviews the flagged queue plus a random sample with a measured error rate
 - [ ] Drive combat automation from the effect clauses; delete the regex `condition-detection.ts`
 
