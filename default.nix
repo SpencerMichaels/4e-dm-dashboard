@@ -25,7 +25,7 @@ pkgs.buildNpmPackage rec {
   #   2. Run `nix-build`
   #   3. The build will fail and print the correct hash
   #   4. Replace the hash below with the printed one
-  npmDepsHash = "sha256-bdrWgZz0PlIpjQSQLifrwk5CXbk1FYfVLm+6UjdfcfU=";
+  npmDepsHash = "sha256-N+ELVSBpzYtpjjZvd+kHiWnRShmuoIBHFw8OVEScj7U=";
 
   # We use the system electron at runtime — skip downloading the npm binary
   env.ELECTRON_SKIP_BINARY_DOWNLOAD = "1";
