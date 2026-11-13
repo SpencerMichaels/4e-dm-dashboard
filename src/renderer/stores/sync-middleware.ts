@@ -1,5 +1,7 @@
 import { useCampaignStore } from './campaign-store'
 import { useCombatStore } from './combat-store'
+import { useUiStore } from './ui-store'
+import { initThemeSync } from '../theme'
 
 declare global {
   interface Window {
@@ -33,6 +35,14 @@ export function initSyncListeners(): () => void {
     window.api.on.annotations((annotations) => {
       useCampaignStore.getState().setCampaignState({ annotations })
     })
+  )
+
+  // Theme: main owns the preference; mirror it into the UI store
+  unsubscribers.push(
+    initThemeSync(
+      { get: window.api.settings.get, subscribe: window.api.on.appSettings },
+      (themePreference, resolvedTheme) => useUiStore.setState({ themePreference, resolvedTheme }),
+    )
   )
 
   // Load annotations on init

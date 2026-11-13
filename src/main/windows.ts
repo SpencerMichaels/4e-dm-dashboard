@@ -1,6 +1,12 @@
 import { BrowserWindow, shell, screen } from 'electron'
 import { join } from 'path'
+import { isDarkTheme } from './data/app-settings-store'
 const isDev = process.env.NODE_ENV !== 'production'
+
+// Shown before the page paints; matches --background in vendor/4e-kit/styles/tokens.css
+export function windowBackground(): string {
+  return isDarkTheme() ? '#111727' : '#eef2f6'
+}
 
 let dmWindow: BrowserWindow | null = null
 let playerWindow: BrowserWindow | null = null
@@ -18,6 +24,7 @@ export function createDmWindow(): BrowserWindow {
     width: 1400,
     height: 900,
     title: '4e DM Dashboard — DM',
+    backgroundColor: windowBackground(),
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
       sandbox: false,
@@ -55,6 +62,7 @@ export function createPlayerWindow(): BrowserWindow {
     height: 1080,
     ...bounds,
     title: '4e DM Dashboard — Player',
+    backgroundColor: windowBackground(),
     autoHideMenuBar: true,
     webPreferences: {
       preload: join(__dirname, '../preload/player.js'),

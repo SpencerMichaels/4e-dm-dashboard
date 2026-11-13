@@ -11,6 +11,8 @@ import type {
   NoteTreeNode,
   SceneState,
 } from '@common/types'
+import type { AppSettings } from '@common/app-settings'
+import type { ThemePreference } from '@kit/theme'
 
 // DM preload — full API: commands + sync
 
@@ -95,6 +97,12 @@ const api = {
     getRules: () => ipcRenderer.invoke(CMD.SYSTEM_GET_RULES),
   },
 
+  // App settings (stored by main in <userData>/app-settings.json)
+  settings: {
+    get: () => ipcRenderer.invoke(CMD.SETTINGS_GET) as Promise<AppSettings>,
+    setTheme: (theme: ThemePreference) => ipcRenderer.invoke(CMD.SETTINGS_SET_THEME, theme) as Promise<AppSettings>,
+  },
+
   // Links
   links: {
     get: () => ipcRenderer.invoke(CMD.LINKS_GET),
@@ -159,6 +167,11 @@ const api = {
       const handler = (_event: Electron.IpcRendererEvent, state: SceneState | null) => callback(state)
       ipcRenderer.on(SYNC.SCENE_STATE, handler)
       return () => ipcRenderer.removeListener(SYNC.SCENE_STATE, handler)
+    },
+    appSettings: (callback: (settings: AppSettings) => void) => {
+      const handler = (_event: Electron.IpcRendererEvent, settings: AppSettings) => callback(settings)
+      ipcRenderer.on(SYNC.APP_SETTINGS, handler)
+      return () => ipcRenderer.removeListener(SYNC.APP_SETTINGS, handler)
     },
     annotations: (callback: (annotations: Record<string, CompendiumAnnotation>) => void) => {
       const handler = (_event: Electron.IpcRendererEvent, annotations: Record<string, CompendiumAnnotation>) => callback(annotations)

@@ -1,6 +1,11 @@
 import { app } from 'electron'
 import { join } from 'path'
 
+/** App-wide preferences (theme), outside any campaign */
+export function getAppSettingsPath(): string {
+  return join(app.getPath('userData'), 'app-settings.json')
+}
+
 export function getCampaignsRoot(): string {
   return join(app.getPath('userData'), 'campaigns')
 }

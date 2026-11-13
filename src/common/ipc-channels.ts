@@ -52,6 +52,10 @@ export const CMD = {
   // System
   SYSTEM_GET_RULES: 'system:get-rules',
 
+  // App settings (<userData>/app-settings.json)
+  SETTINGS_GET: 'settings:get',
+  SETTINGS_SET_THEME: 'settings:set-theme',
+
   // Links
   LINKS_GET: 'links:get',
 
@@ -93,4 +97,5 @@ export const SYNC = {
   PLAYER_STATE: 'sync:player-state',
   SCENE_STATE: 'sync:scene-state',
   ANNOTATIONS: 'sync:annotations',
+  APP_SETTINGS: 'sync:app-settings',
 } as const
