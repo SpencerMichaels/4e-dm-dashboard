@@ -243,7 +243,7 @@ function _parseMonsterHtml(html: string, warnings: string[], options: ParseOptio
     hp,
     maxHp: hp,
     statBlock: {
-      size, level, role: cleanRole, monsterModifier: eliteSolo, isMinion: isMinion || undefined, ac,
+      size, level, role: cleanRole, monsterModifier: eliteSolo, isMinion: isMinion || undefined, leader: roleRaw.includes('leader') || undefined, ac,
       defenses: { fortitude: fort, reflex: ref, will },
       initiative, perception, senses,
       speed: land, speeds, speedNotes: speedNotes || undefined,
@@ -255,6 +255,7 @@ function _parseMonsterHtml(html: string, warnings: string[], options: ParseOptio
       description, source,
       actions,
       regeneration,
+      ...(options.printed && headerRegenMatch ? { printed: { regeneration: statsText.match(/Regeneration[^\n]*/i)?.[0]?.trim() } } : {}),
       revival,
     },
     createdAt: now,
@@ -753,6 +754,7 @@ function parseOneAbility(headerHtml: string, bodyBlocks: string[], sectionDefaul
 
   return {
     name, entryType: 'action', actionType, usage: finalUsage,
+    basicAttack: /^\s*\(\s*⚔\s*\)/.test(headerText) ? 'melee' : /^\s*\(\s*[➶✻]\s*\)/.test(headerText) ? 'ranged' : undefined,
     rechargeCondition: rechargeCondition || undefined,
     encounterUses,
     keywords, rangeType, rangeValue, target, attackBonus, attackNotes: notes.join('; '), defense,
@@ -1046,15 +1048,23 @@ function parseSpeeds(speedStr: string): { land: number; speeds: Record<string, n
   return { land, speeds, speedNotes: notes.join('; ') }
 }
 
-function parseResistValues(str: string): { type: string; value?: number }[] {
-  const results: { type: string; value?: number }[] = []
-  // Try numeric format: "10 fire, 5 cold"
-  for (const m of str.matchAll(/(\d+)\s+([\w\s]+?)(?=,\s*\d|\s*$)/g)) {
-    results.push({ type: m[2].trim(), value: parseInt(m[1]) })
-  }
-  // If nothing matched, store the raw text as a descriptive resistance
-  if (results.length === 0 && str.trim()) {
-    results.push({ type: str.replace(/[;.]+$/, '').trim() })
+/**
+ * "10 fire, 5 cold" / "10 necrotic;" / "5 fire (a magma runner that ...)" /
+ * "insubstantial". Each comma part is "N type (note)"; parts without a number
+ * are kept as descriptive entries.
+ */
+export function parseResistValues(str: string): { type: string; value?: number; note?: string }[] {
+  const results: { type: string; value?: number; note?: string }[] = []
+  // Split on commas and semicolons outside parentheses.
+  const parts = str.split(/[,;](?![^()]*\))/).map(s => s.replace(/[;.,\s]+$/, '').trim()).filter(Boolean)
+  for (const part of parts) {
+    const m = part.match(/^(?:(\d+)\s+)?([^()]+?)(?:\s+(\d+))?\s*(?:\(([^)]*)\))?$/)
+    if (!m) { results.push({ type: part }); continue }
+    const entry: { type: string; value?: number; note?: string } = { type: m[2].trim() }
+    // "10 fire", and the odd "fire 20"
+    if (m[1] || m[3]) entry.value = parseInt(m[1] ?? m[3])
+    if (m[4]) entry.note = m[4].trim()
+    results.push(entry)
   }
   return results
 }

@@ -1,6 +1,6 @@
 // Parser regression tests. Each power snippet is copied from content/raw/monsters.json.
 import { describe, expect, it } from 'vitest'
-import { cleanHeaderKeywords, parseMonsterHtml, parseRangePart, splitDamageFromHit } from './html-parser'
+import { cleanHeaderKeywords, parseMonsterHtml, parseRangePart, parseResistValues, splitDamageFromHit } from './html-parser'
 
 /** Minimal monster around real power HTML. */
 function parsePowers(powersHtml: string, section = 'Standard Actions', printed = false): any[] {
@@ -118,6 +118,14 @@ describe('parser helpers', () => {
     expect(parseRangePart('Targets the triggering enemy')).toEqual({ rangeType: 'melee', rangeValue: '', target: 'the triggering enemy', notes: [] })
     expect(parseRangePart('Range 5/10 (one creature)')).toEqual({ rangeType: 'ranged', rangeValue: '5/10', target: 'one creature', notes: [] })
     expect(parseRangePart('Melee 1 or Ranged 10')).toEqual({ rangeType: 'ranged', rangeValue: '1', target: '', notes: ['or Ranged 10'] })
+  })
+
+  it('parseResistValues handles trailing semicolons, notes, and text-only entries', () => {
+    expect(parseResistValues('10 necrotic;')).toEqual([{ type: 'necrotic', value: 10 }])
+    expect(parseResistValues('10 necrotic, insubstantial')).toEqual([{ type: 'necrotic', value: 10 }, { type: 'insubstantial' }])
+    expect(parseResistValues('5 fire (a magma runner that takes fire damage gains +2 speed until the end of its next turn)'))
+      .toEqual([{ type: 'fire', value: 5, note: 'a magma runner that takes fire damage gains +2 speed until the end of its next turn' }])
+    expect(parseResistValues('fire 20')).toEqual([{ type: 'fire', value: 20 }])
   })
 
   it('splitDamageFromHit keeps the hit text as printed', () => {

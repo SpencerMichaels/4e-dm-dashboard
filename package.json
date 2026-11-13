@@ -11,7 +11,8 @@
     "typecheck:web": "tsc --noEmit -p tsconfig.web.json",
     "typecheck": "npm run typecheck:node && npm run typecheck:web",
     "test": "vitest run",
-    "content:build": "for s in parsed items traps diseases glossary; do tsx --tsconfig tsconfig.node.json tools/content/build-$s.ts || exit 1; done"
+    "content:build": "for s in parsed items traps diseases glossary; do tsx --tsconfig tsconfig.node.json tools/content/build-$s.ts || exit 1; done",
+    "content:convert": "tsx --tsconfig tsconfig.node.json tools/content/convert/index.ts"
   },
   "dependencies": {
     "@tiptap/extension-link": "^2.11.0",
