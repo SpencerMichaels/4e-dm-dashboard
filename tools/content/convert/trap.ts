@@ -102,7 +102,7 @@ function convertTrapAction(a: TrapAction, notes: Notes): Power {
   if (unplacedHit) notes.add(`power "${name}": hit/miss without a parsed attack: ${normText([a.hit, a.miss].filter(Boolean).join(' | '))}`)
 
   return compact({
-    name,
+    name: name || 'Attack',
     action: action ?? 'standard',
     usage: usage ?? 'at-will',
     recharge: usage === 'recharge' ? toRecharge(usageRaw.replace(/^recharge\s*/i, '')) ?? { kind: 'text', text: '' } : undefined,

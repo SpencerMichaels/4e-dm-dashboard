@@ -1,7 +1,7 @@
 // Parsed item (item-parser output) -> kit Item.
 
 import type { Attack, DescriptionPart, Item, ItemSlot, Power } from '@kit'
-import type { ItemPower, ParsedItem } from '../item-parser'
+import type { DescriptionPart as ParsedDescriptionPart, ItemPower, ParsedItem } from '../item-parser'
 import {
   Notes, compact, line, normText, optLine, parseAttackLine, parseSource, provenanceFor,
   toActionType, toUsage, type ConvertContext,
@@ -84,13 +84,30 @@ export function convertItem(id: string, it: ParsedItem, ctx: ConvertContext): It
     } : undefined,
     itemSet: it.itemSet || undefined,
     flavor: it.flavor ?? '',
-    description: (it.descriptionParts as DescriptionPart[] | undefined) ?? (it.description ? [{ type: 'text', text: it.description }] : []),
+    description: it.descriptionParts ? it.descriptionParts.map(d => convertDescriptionPart(d, notes)) : (it.description ? [{ type: 'text', text: it.description }] : []),
     source: parseSource(it.source ?? '', notes),
     provenance: undefined as never,
   }
   if (it.weight && !isWeapon) notes.add(`weight: ${it.weight}`)
   item.provenance = provenanceFor(ctx, notes)
   return compact(item)
+}
+
+/**
+ * Description parts keep their shape. Artifact concordance powers
+ * ({ type: 'power' }) have no kit DescriptionPart yet: they are converted to a
+ * kit Power under the same type (proposed schema addition) and noted.
+ */
+function convertDescriptionPart(d: ParsedDescriptionPart, notes: Notes): DescriptionPart {
+  if (d.type === 'power') {
+    notes.add('description has a power part (no kit DescriptionPart for powers)')
+    return { type: 'power', power: convertItemPower(d.power, notes) } as unknown as DescriptionPart
+  }
+  if (d.type === 'table') {
+    if (d.links && Object.keys(d.links).length > 0) notes.add(`table links: ${JSON.stringify(d.links)}`)
+    return { type: 'table', headers: d.headers, rows: d.rows }
+  }
+  return d
 }
 
 function convertItemPower(p: ItemPower, notes: Notes): Power {
