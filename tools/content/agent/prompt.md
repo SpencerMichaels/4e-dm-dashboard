@@ -81,7 +81,18 @@ lower confidence.
 - Keep `basic` unless the source contradicts it: the basic-attack icon is the
   one printed in parentheses ("(⚔) Longsword"); a bare icon is not basic.
 - A power that prints a usage but no action type and acts on its own (a
-  passive "(encounter)" rider) is `action: "no-action"`.
+  passive "(encounter)" rider) is `action: "no-action"`. A triggered power that
+  prints neither ("( when reduced to 0 hit points, )") is `action: "no-action"`,
+  `usage: "unknown"`, with the printed words in `trigger`.
+- `trigger` keeps the printed wording ("when first bloodied"), not the parser's
+  rewrite ("First bloodied").
+- Errata or revision text that conflicts with the print: keep the print, note it.
+- Movement before an attack ("flies up to 12 squares and makes a claw attack"):
+  that sentence goes in `effect` with a `move` clause, not in `range.note`. A
+  lead-in with no mechanics ("The dragon uses its tail to attack the target")
+  stays in `range.note`.
+- A secondary attack with no printed range copies the primary's `range`; say so
+  in `notes`.
 - Failed saving throw lines go in the attack's `failedSaves`, in printed order.
 - A printed conditional attack bonus ("(+37 while bloodied)", "or +20 vs.
   Reflex if the target is bloodied") is the attack's `altBonus`:
@@ -104,6 +115,8 @@ lower confidence.
 - Resistances and vulnerabilities: `{type, value}`; a damage type with no number
   omits `value`; anything else is `{type: "special", text: "<printed wording>"}`.
   Never store 0 for an unknown value.
+- An aura size that changes ("Aura 2, or 3 while the balor is bloodied") is
+  `range: 2, rangeIf: [{"value": 3, "if": "while the balor is bloodied"}]`.
 {{#monsters}}
 - The parser stored some traits and auras as no-action powers (see its notes):
   move them to `traits` or `auras` (`range` is the aura size). A triggered
@@ -146,6 +159,17 @@ never write `at`. An unparsed clause is just `{"text": "<exact printed words>"}`
 - One clause per distinct mechanic. One condition per clause; "dazed and slowed
   (save ends both)" is two clauses with the same `saveGroup`. Damage types come
   from the clause's own words, not from a power keyword like "(poison)".
+- **Damage parts.** Each damage part is its own clause, and its quote needs
+  only the dice (or the flat number), not the word "damage". "2d8+10 plus 2d6
+  lightning damage" is two clauses: "2d8+10" (untyped: `types: []`) and "2d6
+  lightning damage". A shared trailing type word types an earlier part only when
+  the print clearly applies it to both ("2d6 + 5 or 3d6 + 5 fire damage"). An
+  alternative roll ("or 5d6 + 7 against a prone target") is a damage clause
+  quoting the dice, with `if`; the base roll gets the same words as `unless`.
+- One effect on several subjects ("The overseer and one ally turn invisible")
+  is one clause with a `who` list: `["self", "ally"]`.
+- A condition a zone imposes ("is blinded while within the zone") has the
+  zone's duration, with the "in the zone" words as `if`.
 - Words two clauses share (a duration, a subject) go in one quote only; the
   other clause still encodes them in its fields. When one sentence makes an
   area and says what it does ("The cloud provides concealment, and it remains
@@ -155,7 +179,10 @@ never write `at`. An unparsed clause is just `{"text": "<exact printed words>"}`
 - `move` and `forced-move` have no `duration` (they are instant). `move` omits
   `squares` when the distance is not a printed number ("shifts up to its
   speed"); a forced move with no printed distance ("pulls the target with it")
-  is unparsed.
+  is unparsed. `move: "fly"` is "flies"; `move: "move"` is any other movement
+  of its own ("moves its speed", "jumps 5 squares"). "without provoking
+  opportunity attacks" is a `status` clause `no-provoke` (duration `instant`
+  when it rides on one move).
 - **Conditions and options: `if`, `unless`, `optional`.** They are shown to
   the DM, never auto-applied. `if` and `unless` hold printed words only: each
   is one exact fragment of the clause's own `Line.text`, or a list of them,
@@ -222,10 +249,10 @@ never write `at`. An unparsed clause is just `{"text": "<exact printed words>"}`
 
 | kind | the quote must contain |
 |---|---|
-| damage | the dice ("2d6 + 5" for `2d6+5`), "damage" ("crit" if `critical`), each type in `types` |
+| damage | the dice or flat number ("2d6 + 5" for `2d6+5`), not "damage"; "crit" if `critical`; each type in `types`, in the quote or the words after it |
 | ongoing-damage | "ongoing" and the amount |
-| condition | the condition word in any form ("dazes", "knocks prone", "removed from play") |
-| forced-move, move | push / pull / slide / shift / teleport / swap (or switch) in any form; forced-move also the squares unless 1 |
+| condition | the condition word in any form ("dazes", "knocks prone", "removed from play"); with `escapeDc`, "escape DC" and the number |
+| forced-move, move | push / pull / slide / shift / teleport / swap (or switch) / fly / move (or walk, jump, climb) in any form; forced-move also the squares unless 1 |
 | modifier, revive | the number (digits or a word) |
 | grants-ca | "combat advantage" |
 | resistance, vulnerability | "resist", "vulnerable" |
@@ -238,8 +265,9 @@ never write `at`. An unparsed clause is just `{"text": "<exact printed words>"}`
 | crit-range | "crit" and `min` |
 | power-restriction | "can't"/"cannot" and each `what` ("encounter", "daily", "attack"; `all`: "power") |
 | redirect-attack | "instead", "redirect" or "becomes the target" |
-| status | "insubstantial" or "phasing" |
+| status | "insubstantial", "phasing", or "provok" (no-provoke) |
 | opportunity-reach | "opportunity" |
+| difficult-terrain | "difficult terrain" |
 | damage-formula | "damage" |
 
 **Examples** (one clause or field each):
@@ -254,6 +282,13 @@ never write `at`. An unparsed clause is just `{"text": "<exact printed words>"}`
 - Type choice: `{"quote": "4d10 + 6 damage of one of the following types: acid, cold, or fire", "kind": "damage", "dice": "4d10+6", "types": [], "typeChoice": ["acid", "cold", "fire"], "who": "target"}`
 - Zone: `{"quote": "The blast creates a zone that lasts until the end of the dragon's next turn (sustain minor)", "kind": "zone", "duration": {"kind": "sustain", "action": "minor"}}, {"quote": "takes 10 fire damage", "kind": "damage", "dice": "10", "types": ["fire"], "who": "creatures-in-area", "if": "Any creature that enters or starts its turn in the zone"}`, and the power gets `"sustain": {"action": "minor"}`.
 - Trigger: `"trigger": {"text": "An enemy hits the guard.", "clauses": []}`; its interrupt: `{"quote": "The triggering attack targets the guard instead", "kind": "redirect-attack", "who": "self"}`
+- Base plus typed part ("2d8+10 plus 2d6 lightning damage"): `{"quote": "2d8+10", "kind": "damage", "dice": "2d8+10", "types": [], "who": "target"}, {"quote": "2d6 lightning damage", "kind": "damage", "dice": "2d6", "types": ["lightning"], "who": "target"}`
+- Base plus a cold part ("1d8+5 plus 1d10 cold damage"): `{"quote": "1d8+5", "kind": "damage", "dice": "1d8+5", "types": [], "who": "target"}, {"quote": "1d10 cold damage", "kind": "damage", "dice": "1d10", "types": ["cold"], "who": "target"}` (cold is not the base's type)
+- Base plus ongoing ("1d10+6 and ongoing 5 poison damage (save ends)"): `{"quote": "1d10+6", "kind": "damage", "dice": "1d10+6", "types": [], "who": "target"}, {"quote": "ongoing 5 poison damage (save ends)", "kind": "ongoing-damage", "amount": 5, "types": ["poison"], "who": "target", "duration": {"kind": "save-ends"}}`
+- Difficult terrain ("The aura is difficult terrain for enemies"): `{"quote": "is difficult terrain", "kind": "difficult-terrain", "who": "enemies-in-area", "duration": {"kind": "permanent"}}`
+- Fly and no-provoke ("The dragon flies up to 12 squares without provoking opportunity attacks"): `{"quote": "flies up to 12 squares", "kind": "move", "move": "fly", "squares": 12, "who": "self"}, {"quote": "without provoking opportunity attacks", "kind": "status", "status": "no-provoke", "who": "self", "duration": {"kind": "instant"}}`
+- Several subjects ("The overseer and one ally turn invisible until the end of the overseer's next turn"): `{"quote": "turn invisible until the end of the overseer's next turn", "kind": "condition", "condition": "invisible", "who": ["self", "ally"], "duration": {"kind": "turn-end", "whose": "source", "next": true}}`
+- Grab ("the choker grabs the target (escape DC 21)"): `{"quote": "grabs the target (escape DC 21)", "kind": "condition", "condition": "grabbed", "who": "target", "duration": {"kind": "indefinite"}, "escapeDc": 21}`
 {{#items}}
 - Weapon critical: `"critical": {"text": "+1d6 damage per plus", "clauses": [{"quote": "+1d6 damage per plus", "kind": "damage-formula", "text": "+1d6 damage per plus", "types": []}]}`
 - An entry with nothing to structure (a ritual is often only description) needs

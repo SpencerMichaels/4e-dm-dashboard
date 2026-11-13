@@ -9,6 +9,8 @@ import { batchFile, briefDirs, chunkIds, defaultResponsesDir, packBatches, parse
 import { buildBatchBrief, buildBrief, buildRulesFile, checkCommand, compactJson, htmlToText, rulesFile, schemaExcerpt } from './prompt'
 import { atToQuote, resolveQuotes } from './quotes'
 import { mulberry32, pick, sampleIds, tieredSample } from './sample'
+import { Checker, clause } from '../validate/shape'
+import { checkLineSpans } from '../validate/spans'
 
 const disease: Disease = {
   id: 'disease11', name: 'Test Rot', level: 4,
@@ -261,5 +263,28 @@ describe('apply', () => {
     expect(results.map(r => r.ok)).toEqual([true, false])
     expect(JSON.parse(readFileSync(join(repo, 'diseases', 'disease11.json'), 'utf-8')).name).toBe('Fixed Rot')
     expect(existsSync(join(repo, 'diseases', 'disease99.json'))).toBe(false)
+  })
+})
+
+describe('brief examples', () => {
+  it('every worked example with printed words passes the quote, span and shape checks', () => {
+    const rules = buildRulesFile('monsters')
+    let checked = 0
+    for (const ln of rules.split('\n')) {
+      const open = ln.indexOf('("'), sep = ln.indexOf('): `')
+      if (!ln.startsWith('- ') || open < 0 || sep < 0) continue
+      const text = ln.slice(open + 2, ln.indexOf('"', open + 2))
+      let clauses: any[]
+      try { clauses = JSON.parse(`[${ln.slice(sep + 4, ln.indexOf('`', sep + 4))}]`) } catch { continue }
+      if (!clauses.every(c => typeof c.quote === 'string')) continue
+      const entry = { line: { text, clauses } }
+      expect(resolveQuotes(entry), ln).toEqual([])
+      expect(checkLineSpans(entry.line as any, '$'), ln).toEqual([])
+      const c = new Checker()
+      entry.line.clauses.forEach((cl, i) => clause(c, cl, `$[${i}]`))
+      expect(c.issues, ln).toEqual([])
+      checked++
+    }
+    expect(checked).toBeGreaterThanOrEqual(10)
   })
 })
