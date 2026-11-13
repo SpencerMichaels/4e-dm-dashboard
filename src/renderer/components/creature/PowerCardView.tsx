@@ -125,9 +125,11 @@ export function PowerCardView({ entry: e, selectedLevel, detectedConditions, onC
         )}
       </div>
       {/* Attack / range subheader — shown for attacks AND for non-attack entries that have a range (auras, blasts).
-         Traits never get a subheader — they may carry range data from import but shouldn't display it. */}
+         Traits never get a subheader — they may carry range data from import but shouldn't display it.
+         The subheader is lighter than the header in both themes (blended toward the white header
+         text, not the surface), matching the stat block's dark-then-light header rows. */}
       {(hasAttack || (e.rangeType && e.rangeValue)) && e.usage !== 'trait' && (
-        <div style={{ padding: '1px 8px', background: tint(usageColor, 0.85), color: usageText }}>
+        <div style={{ padding: '1px 8px', background: tint(usageColor, 0.85, 'var(--card-text)'), color: usageText }}>
           {e.rangeType && RANGE_ICONS[e.rangeType] && (
             <span title={e.rangeType.replace(/-/g, ' ')}
               style={{ marginRight: 6, display: 'inline-block', minWidth: '1em', textAlign: 'center' }}>

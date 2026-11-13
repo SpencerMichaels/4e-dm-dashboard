@@ -352,7 +352,7 @@ function FullPowerRow({ entry: e, idx, config, level, statBlock, atkBonusTables,
       {/* Header line 2: Attack — range, target, bonus vs defense */}
       {(e.attackBonus != null || e.target || e.rangeValue) && (
         <div style={{ display: 'flex', gap: 4, alignItems: 'center', flexWrap: 'wrap', padding: '1px 8px',
-          background: tint(usageColor, 0.85), color: usageText, ...hdrColors }}>
+          background: tint(usageColor, 0.85, 'var(--card-text)'), color: usageText, ...hdrColors }}>
           <select className="ghost" style={hdrSelect} value={e.rangeType} onChange={(ev) => onUpdate(idx, { rangeType: ev.target.value })}>
             {(config.rangeTypes ?? []).map((rt) => <option key={rt.value} value={rt.value}>{rt.label}</option>)}
           </select>
