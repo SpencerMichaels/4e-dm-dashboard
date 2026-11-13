@@ -13,7 +13,10 @@
     "test": "vitest run",
     "content:build": "for s in parsed items traps diseases glossary; do tsx --tsconfig tsconfig.node.json tools/content/build-$s.ts || exit 1; done",
     "content:convert": "tsx --tsconfig tsconfig.node.json tools/content/convert/index.ts",
-    "content:validate": "tsx --tsconfig tsconfig.node.json tools/content/validate/index.ts"
+    "content:validate": "tsx --tsconfig tsconfig.node.json tools/content/validate/index.ts",
+    "content:agent:sample": "tsx --tsconfig tsconfig.node.json tools/content/agent/sample.ts",
+    "content:agent:prompt": "tsx --tsconfig tsconfig.node.json tools/content/agent/prompt.ts",
+    "content:agent:apply": "tsx --tsconfig tsconfig.node.json tools/content/agent/apply.ts"
   },
   "dependencies": {
     "@tiptap/extension-link": "^2.11.0",
