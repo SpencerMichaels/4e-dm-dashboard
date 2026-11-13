@@ -418,7 +418,7 @@ export function InitiativeList({ combat, currentId, selectedIds, onSelect, onCon
             <div style={{ display: 'flex', gap: 2 }}>
               {onResolveReady && (
                 <button onClick={() => onResolveReady(id)} title="Resolve readied action"
-                  style={{ padding: '2px 8px', borderRadius: 'var(--radius-sm)', cursor: 'pointer', background: 'var(--color-readied)', border: '1px solid var(--color-readied-border)', color: 'var(--color-text-on-dark)', fontSize: 11, whiteSpace: 'nowrap' }}>
+                  style={{ padding: '2px 8px', borderRadius: 'var(--radius-sm)', cursor: 'pointer', background: 'var(--color-readied)', border: '1px solid var(--color-readied-border)', color: 'var(--on-fill)', fontSize: 11, whiteSpace: 'nowrap' }}>
                   ▶ Resolve
                 </button>
               )}

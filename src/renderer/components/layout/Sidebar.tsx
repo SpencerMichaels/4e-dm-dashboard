@@ -76,7 +76,7 @@ export function Sidebar({ onShowHotkeys, onShowSettings }: SidebarProps) {
 
   return (
     <div className={styles.sidebar}>
-      <div className={styles.logo}>TD</div>
+      <div className={styles.logo}>4e DM</div>
 
       {navSections.map((section) => (
         <div key={section.title} className={styles.section}>

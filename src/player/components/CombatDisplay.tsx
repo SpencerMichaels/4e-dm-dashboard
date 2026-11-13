@@ -269,7 +269,7 @@ function InitiativeEntryList({ sortedIds, combatants, focusedId }: {
             </div>
             <span style={{
               flex: 1, minWidth: 0,
-              fontFamily: "'MentorSans', 'Mentor', sans-serif",
+              fontFamily: 'var(--font-card)',
               fontSize: isFocused ? '1.5rem' : '1.3rem',
               fontWeight: 700,
               overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
@@ -326,7 +326,7 @@ function CreatureSpotlight({ combatant: c }: { combatant: PlayerCombatantState }
       )}
 
       <div style={{
-        fontFamily: "'MentorSans', 'Mentor', sans-serif",
+        fontFamily: 'var(--font-card)',
         fontSize: '2.5rem', fontWeight: 700,
         textAlign: 'center', textShadow: '0 2px 8px rgba(0,0,0,0.5)',
       }}>
@@ -460,7 +460,7 @@ function PlayerCard({ combatant: c, isCurrent, isDelayed, isReadied }: { combata
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{
           display: 'flex', alignItems: 'center', gap: 6,
-          fontFamily: "'MentorSans', 'Mentor', sans-serif",
+          fontFamily: 'var(--font-card)',
           fontSize: '1.3rem',
           fontWeight: 700,
           overflow: 'hidden', whiteSpace: 'nowrap',
@@ -1060,7 +1060,7 @@ function NotificationToasts({ notifications, combatants }: {
               : `2px solid ${subjectColor}`,
             borderRadius: 36,
             boxShadow: `0 4px 16px rgba(0,0,0,0.5), 0 0 24px ${glowColor}44`,
-            fontFamily: "'MentorSans', 'Mentor', sans-serif",
+            fontFamily: 'var(--font-card)',
             fontSize: '1.2rem',
             color: '#eee',
             opacity: t.exiting ? 0 : 1,

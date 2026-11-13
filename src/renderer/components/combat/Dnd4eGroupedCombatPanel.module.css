@@ -10,7 +10,7 @@
   align-items: center;
   gap: 6px;
   padding: 4px 8px;
-  border-bottom: 1px solid var(--sb-separator, rgba(178, 164, 120, 0.25));
+  border-bottom: 1px solid var(--sb-separator);
 }
 
 .stateRow:last-child {
@@ -26,7 +26,7 @@
   border-radius: var(--radius-sm, 4px);
   font-size: 10px;
   font-weight: 700;
-  color: #fff;
+  color: var(--color-text-on-dark);
   white-space: nowrap;
   flex-shrink: 0;
 }
@@ -129,6 +129,6 @@
 /* ─── Divider between individual state and shared stat block ─── */
 .divider {
   border: none;
-  border-top: 2px solid var(--sb-separator, rgba(178, 164, 120, 0.25));
+  border-top: 2px solid var(--sb-separator);
   margin: 4px 0 0 0;
 }
