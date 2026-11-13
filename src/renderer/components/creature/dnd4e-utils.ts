@@ -2,13 +2,36 @@
 
 import { XP_BY_LEVEL } from '@kit'
 
-export const USAGE_COLORS: Record<string, string> = {
-  'at-will': '#4a7a5a', 'At-Will': '#4a7a5a',
-  'encounter': '#7a4a4a', 'Encounter': '#7a4a4a',
-  'recharge': '#6a6a72', 'Recharge': '#6a6a72',
-  'daily': '#5a5a7a', 'Daily': '#5a5a7a',
-  'consumable': '#6a6a72', 'Consumable': '#6a6a72',
-  'trait': '#7a6f5e', 'aura': '#7a6f5e',
+// Power card header tones, from the kit's 4ecb power tones (tokens.css).
+// Recharge powers share the encounter tone; traits and auras use the feature
+// tone. Each fill has a matching text color (white on most, dark on the light
+// daily gray and item orange).
+type PowerTone = 'at-will' | 'encounter' | 'daily' | 'feature' | 'item'
+const USAGE_TONES: Record<string, PowerTone> = {
+  'at-will': 'at-will', 'At-Will': 'at-will',
+  'encounter': 'encounter', 'Encounter': 'encounter',
+  'recharge': 'encounter', 'Recharge': 'encounter',
+  'daily': 'daily', 'Daily': 'daily',
+  'consumable': 'item', 'Consumable': 'item',
+  'trait': 'feature', 'aura': 'feature',
+}
+
+/** Header fill for a power usage (a CSS color; a theme token). */
+export const USAGE_COLORS: Record<string, string> = Object.fromEntries(
+  Object.entries(USAGE_TONES).map(([usage, tone]) => [usage, `var(--power-${tone})`]),
+)
+
+/** Text color for a USAGE_COLORS fill. */
+export const USAGE_TEXT_COLORS: Record<string, string> = Object.fromEntries(
+  Object.entries(USAGE_TONES).map(([usage, tone]) => [usage, `var(--power-${tone}-contrast)`]),
+)
+
+/** Header fill and text color for a usage; unknown usages are daily-gray, none is the neutral card tone. */
+export function usageTone(usage: string | undefined): { fill: string; text: string } {
+  if (usage && USAGE_COLORS[usage]) return { fill: USAGE_COLORS[usage], text: USAGE_TEXT_COLORS[usage] }
+  return usage
+    ? { fill: 'var(--power-daily)', text: 'var(--power-daily-contrast)' }
+    : { fill: 'var(--tone-neutral)', text: 'var(--tone-neutral-contrast)' }
 }
 
 export const DND4E_ACTION_TYPES: Record<string, string> = {

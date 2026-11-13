@@ -5,7 +5,8 @@ import type { ConditionDef } from '@common/types/system-plugin'
 import type { AttackMode } from './CombatView'
 import { getConditionStyle } from './condition-styles'
 import { ConditionPill, buildConditionLabel } from './ConditionPill'
-import { USAGE_COLORS } from '../creature/dnd4e-utils'
+import { usageTone } from '../creature/dnd4e-utils'
+import { withAlpha } from '../../utils/color'
 import { PowerCardView, ACTION_ICONS } from '../creature/PowerCardView'
 import { getCreatureReactions, triggerMatchesNotification, toggleReaction, type CreatureReaction } from './reaction-utils'
 import { hpColor, hpPercentage, formatConditionName } from '../../utils/combat-utils'
@@ -519,7 +520,7 @@ function CreatureReactions({ combatantId, combatant, isCurrent, notifications, t
         const key = `${r.power.name}-${idx}`
         const triggered = triggerMatchesNotification(r.parsedTrigger, notifications, combatantId)
         const isExpanded = expandedKey === key
-        const usageColor = USAGE_COLORS[r.card.usage] ?? (r.card.usage ? '#6a6a72' : '#7a6f5e')
+        const { fill: usageColor, text: usageText } = usageTone(r.card.usage)
         return (
           <div key={key} style={{
             opacity: r.used ? 0.4 : 1,
@@ -542,7 +543,7 @@ function CreatureReactions({ combatantId, combatant, isCurrent, notifications, t
                 style={{
                   padding: '2px 32px 2px 8px',
                   fontSize: 'var(--font-size-xs)', lineHeight: 1.5,
-                  background: usageColor, color: 'var(--color-text-on-dark)',
+                  background: usageColor, color: usageText,
                   cursor: 'pointer',
                   overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
                   textDecoration: r.used ? 'line-through' : 'none',
@@ -557,7 +558,7 @@ function CreatureReactions({ combatantId, combatant, isCurrent, notifications, t
                 {triggered && <span title="Triggered" style={{ marginRight: 4, color: 'var(--color-turn-active)' }}>⚡</span>}
                 <b>{r.card.name}</b>
                 {r.card.keywords && r.card.keywords.length > 0 && (
-                  <span style={{ color: 'rgba(255,255,255,0.7)' }}> ({r.card.keywords.join(', ')})</span>
+                  <span style={{ color: withAlpha(usageText, 0.7) }}> ({r.card.keywords.join(', ')})</span>
                 )}
               </div>
             )}
@@ -568,7 +569,7 @@ function CreatureReactions({ combatantId, combatant, isCurrent, notifications, t
                 position: 'absolute', top: 0, right: 0, height: 22,
                 background: 'rgba(0,0,0,0.2)',
                 border: 'none',
-                color: 'rgba(255,255,255,0.9)',
+                color: withAlpha(usageText, 0.9),
                 cursor: 'pointer', fontSize: 11, lineHeight: 1, padding: '0 8px',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 zIndex: 1,

@@ -1,7 +1,8 @@
 import { useRef, useCallback, useState } from 'react'
 import type { CreatureBuilderConfig } from '@common/types'
 import { TagInput } from '@renderer/components/shared/TagInput'
-import { USAGE_COLORS, normalizeDamage, type DamagePart } from './dnd4e-utils'
+import { usageTone, normalizeDamage, type DamagePart } from './dnd4e-utils'
+import { tint, withAlpha } from '../../utils/color'
 
 export type { DamagePart } from './dnd4e-utils'
 
@@ -287,7 +288,7 @@ function FullPowerRow({ entry: e, idx, config, level, statBlock, atkBonusTables,
   const addField = (field: string, value: unknown) => { setFocusField(field); onUpdate(idx, { [field]: value }) }
 
   const hasUsage = config.usageTypes && config.usageTypes.length > 0
-  const usageColor = hasUsage ? (USAGE_COLORS[e.usage] ?? '#868e96') : 'var(--color-border)'
+  const { fill: usageColor, text: usageText } = hasUsage ? usageTone(e.usage) : { fill: 'var(--color-border)', text: 'var(--text)' }
   const isTriggered = (config.triggeredActionTypes ?? ['reaction']).includes(e.actionType)
 
   const xs = { fontSize: 'var(--font-size-xs)' }
@@ -300,8 +301,8 @@ function FullPowerRow({ entry: e, idx, config, level, statBlock, atkBonusTables,
   const usageLabel = config.usageTypes?.find(u => u.value === e.usage)?.label ?? e.usage
 
   const hdrColors = {
-    '--color-text-secondary': 'rgba(255,255,255,0.7)', '--color-text-muted': 'rgba(255,255,255,0.5)',
-    '--color-bg-hover': 'rgba(255,255,255,0.18)', '--color-border': 'rgba(255,255,255,0.3)',
+    '--color-text-secondary': withAlpha(usageText, 0.7), '--color-text-muted': withAlpha(usageText, 0.5),
+    '--color-bg-hover': withAlpha(usageText, 0.18), '--color-border': withAlpha(usageText, 0.3),
   } as React.CSSProperties
   const addBtn = { color: 'var(--color-text-muted)', border: '1px dashed var(--color-border)', borderRadius: 'var(--radius-sm)', padding: '0 4px', background: 'transparent', cursor: 'pointer' }
 
@@ -320,10 +321,10 @@ function FullPowerRow({ entry: e, idx, config, level, statBlock, atkBonusTables,
       <div style={{ flex: 1, minWidth: 0 }}>
       {/* Header line 1: Name (action; usage) ✦ Keywords */}
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 4, padding: '2px 8px',
-        background: usageColor, color: 'var(--color-text-on-dark)', ...hdrColors }}>
+        background: usageColor, color: usageText, ...hdrColors }}>
         <input className="ghost" value={e.name} onChange={(ev) => onUpdate(idx, { name: ev.target.value })}
           placeholder="Power name" style={{ fontWeight: 700, fontSize: 'var(--font-size-sm)', color: 'inherit' }} />
-        <span style={{ color: 'rgba(255,255,255,0.8)' }}>(
+        <span style={{ color: withAlpha(usageText, 0.8) }}>(
           <select className="ghost" style={hdrSelect} value={e.actionType} onChange={(ev) => onUpdate(idx, { actionType: ev.target.value })}>
             {config.actionTypes?.map((at) => <option key={at.value} value={at.value}>{at.label.toLowerCase()}</option>)}
           </select>
@@ -339,7 +340,7 @@ function FullPowerRow({ entry: e, idx, config, level, statBlock, atkBonusTables,
               placeholder="5-6" style={{ minWidth: 20 }} />
           </>}
           )</span>
-        <span style={{ color: 'rgba(255,255,255,0.7)' }}>
+        <span style={{ color: withAlpha(usageText, 0.7) }}>
           ✦ <TagInput compact values={Array.isArray(e.keywords) ? e.keywords : []} onChange={(kw) => onUpdate(idx, { keywords: kw })}
             suggestions={config.attackTraits} placeholder="keywords..." />
         </span>
@@ -351,13 +352,13 @@ function FullPowerRow({ entry: e, idx, config, level, statBlock, atkBonusTables,
       {/* Header line 2: Attack — range, target, bonus vs defense */}
       {(e.attackBonus != null || e.target || e.rangeValue) && (
         <div style={{ display: 'flex', gap: 4, alignItems: 'center', flexWrap: 'wrap', padding: '1px 8px',
-          background: usageColor + '88', color: 'var(--color-text-on-dark)', ...hdrColors }}>
+          background: tint(usageColor, 0.85), color: usageText, ...hdrColors }}>
           <select className="ghost" style={hdrSelect} value={e.rangeType} onChange={(ev) => onUpdate(idx, { rangeType: ev.target.value })}>
             {(config.rangeTypes ?? []).map((rt) => <option key={rt.value} value={rt.value}>{rt.label}</option>)}
           </select>
           {e.rangeType === 'personal' ? (
             <button onClick={() => onUpdate(idx, { attackBonus: null, attackNotes: '', rangeType: '', rangeValue: '', target: '', defense: 'AC', damage: [] })}
-              style={{ color: 'rgba(255,255,255,0.5)', padding: '0 2px', lineHeight: 1 }}>×</button>
+              style={{ color: withAlpha(usageText, 0.5), padding: '0 2px', lineHeight: 1 }}>×</button>
           ) : <>
           {(
             <input className="ghost" value={e.rangeValue} onChange={(ev) => onUpdate(idx, { rangeValue: ev.target.value })}
@@ -378,7 +379,7 @@ function FullPowerRow({ entry: e, idx, config, level, statBlock, atkBonusTables,
                 placeholder="—" style={{ color: 'inherit' }} /></span>
               {atkBenchmark != null && e.attackBonus != null && e.attackBonus !== atkBenchmark && (
                 <span onClick={() => onUpdate(idx, { attackBonus: atkBenchmark })} title={atkTooltip}
-                  style={{ color: 'rgba(255,255,255,0.5)', cursor: 'pointer', fontSize: '0.85em' }}>({atkBenchmark})</span>
+                  style={{ color: withAlpha(usageText, 0.5), cursor: 'pointer', fontSize: '0.85em' }}>({atkBenchmark})</span>
               )}
               {' '}vs{' '}
               <select className="ghost" style={hdrSelect} value={e.defense} onChange={(ev) => onUpdate(idx, { defense: ev.target.value })}>
@@ -388,12 +389,12 @@ function FullPowerRow({ entry: e, idx, config, level, statBlock, atkBonusTables,
           })()}
           {e.attackNotes ? (
             <input className="ghost" value={e.attackNotes} onChange={(ev) => onUpdate(idx, { attackNotes: ev.target.value })}
-              style={{ color: 'rgba(255,255,255,0.6)', minWidth: 30 }} />
+              style={{ color: withAlpha(usageText, 0.6), minWidth: 30 }} />
           ) : e.attackBonus != null ? (
-            <button onClick={() => onUpdate(idx, { attackNotes: ' ' })} style={{ color: 'rgba(255,255,255,0.5)', padding: '0 2px', lineHeight: 1 }}>+</button>
+            <button onClick={() => onUpdate(idx, { attackNotes: ' ' })} style={{ color: withAlpha(usageText, 0.5), padding: '0 2px', lineHeight: 1 }}>+</button>
           ) : null}
           <button onClick={() => onUpdate(idx, { attackBonus: null, attackNotes: '', rangeType: '', rangeValue: '', target: '', defense: 'AC', damage: [] })}
-            style={{ marginLeft: 'auto', color: 'rgba(255,255,255,0.5)', padding: '0 2px', lineHeight: 1 }}>×</button>
+            style={{ marginLeft: 'auto', color: withAlpha(usageText, 0.5), padding: '0 2px', lineHeight: 1 }}>×</button>
         </>}
         </div>
       )}
