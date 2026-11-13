@@ -3,6 +3,9 @@ import { useState, useRef, useEffect, type ReactNode, type CSSProperties } from 
 /**
  * Generic virtualized list for rendering large datasets efficiently.
  * Only renders rows visible in the viewport + overscan buffer.
+ * Rows are striped (--row-odd/--row-even) by absolute index, so the stripes
+ * don't shift while scrolling. A row leaves its own background transparent
+ * unless it has a state to show (selected), which then paints over the stripe.
  */
 
 const DEFAULT_ROW_HEIGHT = 28
@@ -43,7 +46,10 @@ export function VirtualizedList<T>({ items, rowHeight = DEFAULT_ROW_HEIGHT, over
         {items.slice(startIdx, endIdx).map((item, i) => {
           const idx = startIdx + i
           return (
-            <div key={idx} style={{ position: 'absolute', top: idx * rowHeight, left: 0, right: 0, height: rowHeight }}>
+            <div key={idx} style={{
+              position: 'absolute', top: idx * rowHeight, left: 0, right: 0, height: rowHeight,
+              background: idx % 2 ? 'var(--row-even)' : 'var(--row-odd)',
+            }}>
               {renderRow(item, idx)}
             </div>
           )

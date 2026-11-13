@@ -23,6 +23,16 @@
   --hover: color-mix(in srgb, var(--accent) 10%, var(--surface));
   --active: color-mix(in srgb, var(--accent) 22%, var(--surface));
 
+  /* Table/list row stripes (4ecb style: alternate backgrounds, no divider
+     lines). 4ecb paints even rows --surface-subtle over --surface; here lists
+     sit on --background as often as on --surface, and the light theme's
+     --surface-subtle is lighter than --background, so the stripe is a
+     translucent --text wash instead: about 4ecb's tone over --surface, and
+     still visible over --background, in both themes. Hover/selected rows
+     paint over it. Inside .stat-block-4e use --sb-row-alt instead. */
+  --row-odd: transparent;
+  --row-even: color-mix(in srgb, var(--text) 5%, transparent);
+
   /* Combat: HP bands (text and bar fills) */
   --hp-full: var(--success);
   --hp-high: color-mix(in srgb, var(--success) 60%, var(--warning));

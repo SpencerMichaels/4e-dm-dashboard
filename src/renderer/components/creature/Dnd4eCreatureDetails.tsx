@@ -243,10 +243,9 @@ export function Dnd4eCreatureDetails({ creature, onSave: save, config, compact }
       {(() => {
         const speeds = (sb.speeds as Record<string, number> | undefined) ?? {}
         const landSpeed = (sb.speed as number) ?? 0
-        const hasSaves = ((sb.savingThrowBonus as number) ?? 0) > 0 || ((sb.actionPoints as number) ?? 0) > 0
         const available = config.speedTypes.filter(({ key }) => key !== 'land' && !(key in speeds))
         return (
-          <div className={`sb-row${!hasSaves ? ' sb-row-sep' : ''}`}>
+          <div className="sb-row">
             <b className="sb-label">Speed</b>
             {/* Land speed chip — deletable when other speeds exist */}
             {(landSpeed > 0 || Object.keys(speeds).length === 0) && (
@@ -288,7 +287,7 @@ export function Dnd4eCreatureDetails({ creature, onSave: save, config, compact }
         )
       })()}
       {(((sb.savingThrowBonus as number) ?? 0) > 0 || ((sb.actionPoints as number) ?? 0) > 0) && (
-        <div className="sb-row sb-row-sep">
+        <div className="sb-row">
           {((sb.savingThrowBonus as number) ?? 0) > 0 && (
             <span><b className="sb-label">Saving Throws</b>{' +'}
               <input className="ghost" type="number" value={(sb.savingThrowBonus as number) ?? 0}
@@ -303,7 +302,7 @@ export function Dnd4eCreatureDetails({ creature, onSave: save, config, compact }
       )}
 
       {/* ── GROUP 2: HP, AC, Defenses, Immunities, Resistances, Weaknesses ── */}
-      <div className="sb-row">
+      <div className="sb-row sb-row-alt">
         <span title={tierTooltip(config.statDefs.find(d => d.key === 'hp')?.table, level)}>
           <b className="sb-label">HP</b>{' '}
           <input className="ghost" type="number" value={creature.hp}
@@ -316,7 +315,7 @@ export function Dnd4eCreatureDetails({ creature, onSave: save, config, compact }
         const defs = (sb.defenses as Record<string, number>) ?? {}
         const uDef = (key: string, val: number) => u('defenses', { ...defs, [key]: val })
         return (
-          <div className="sb-row">
+          <div className="sb-row sb-row-alt">
             <span title={tierTooltip(config.statDefs.find(d => d.key === 'ac')?.table, level)}>
               <b className="sb-label">AC</b> <input className="ghost" type="number" value={(sb.ac as number) ?? 10}
               onChange={e => u('ac', Number(e.target.value))} />
@@ -333,7 +332,7 @@ export function Dnd4eCreatureDetails({ creature, onSave: save, config, compact }
           </div>
         )
       })()}
-      <div className="sb-row sb-row-sep">
+      <div className="sb-row sb-row-alt">
         <InlineEntryChips label="Immune" entries={Array.isArray(sb.immunities) ? sb.immunities as any[] : []}
           onChange={v => u('immunities', v)} suggestions={config.damageTypes} />
         <span>;</span>

@@ -5,6 +5,8 @@
   font-family: var(--font-card);
   font-size: 12px;
   line-height: 1.4;
+  /* Striped rows inside stat blocks and cards use the book's warm tint */
+  --row-even: var(--sb-row-alt);
 }
 
 /* Header bar — creature name + level/role */

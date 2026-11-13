@@ -317,9 +317,9 @@ function DescriptionTable({ headers, rows, links, onNavigate }: {
           </tr>
         </thead>
       )}
-      <tbody>
+      <tbody className="striped-rows">
         {rows.map((row, ri) => (
-          <tr key={ri} style={{ borderBottom: '1px solid var(--sb-separator)' }}>
+          <tr key={ri}>
             {row.map((cell, ci) => {
               const linkId = links?.[`${ri},${ci}`]
               return (

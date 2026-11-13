@@ -10,11 +10,6 @@
   align-items: center;
   gap: 6px;
   padding: 4px 8px;
-  border-bottom: 1px solid var(--sb-separator);
-}
-
-.stateRow:last-child {
-  border-bottom: none;
 }
 
 .designator {

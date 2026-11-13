@@ -24,7 +24,7 @@ export function PinnedCardsPanel({ cards, onUnpin }: Props) {
       width={320}
       maxHeight="60vh"
     >
-      <div className="stat-block-4e" style={{ fontSize: 11 }}>
+      <div className="stat-block-4e striped-rows" style={{ fontSize: 11 }}>
         {(() => {
           // Group cards by combatant name, preserving order
           const groups: { name: string; cards: PinnedCard[] }[] = []
@@ -37,7 +37,7 @@ export function PinnedCardsPanel({ cards, onUnpin }: Props) {
             }
           }
           return groups.map(group => (
-            <div key={group.name} style={{ borderBottom: '1px solid var(--color-border)', padding: '4px 0' }}>
+            <div key={group.name} style={{ padding: '4px 0' }}>
               <div style={{ padding: '0 8px 2px', fontSize: 9, color: 'var(--color-text-muted)', fontWeight: 600 }}>
                 {group.name}
               </div>

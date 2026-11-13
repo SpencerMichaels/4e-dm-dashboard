@@ -84,7 +84,6 @@ export function CreatureCompendiumList({ items, onAdd, addingId, onSelect, onAct
             style={{
               display: 'grid', gridTemplateColumns: cols, height: '100%',
               gap: 'var(--space-2)', alignItems: 'center', padding: '0 var(--space-2)',
-              borderBottom: '1px solid var(--color-border-subtle, rgba(128,128,128,0.1))',
               background: isSelected ? 'var(--color-bg-active, rgba(92,124,250,0.15))' : 'transparent',
               cursor: onSelect || onActivate ? 'pointer' : undefined,
               userSelect: onActivate ? 'none' : undefined,

@@ -146,7 +146,6 @@ export function Dnd4eTrapBrowser() {
               <div onClick={() => handleSelect(item.id)} style={{
                 display: 'grid', gridTemplateColumns: GRID_COLS, height: '100%',
                 gap: 'var(--space-2)', alignItems: 'center', padding: '0 var(--space-2)',
-                borderBottom: '1px solid var(--color-border-subtle, rgba(128,128,128,0.1))',
                 background: isSelected ? 'var(--color-bg-active, rgba(92,124,250,0.15))' : 'transparent',
                 cursor: 'pointer', ...xs,
               }}>

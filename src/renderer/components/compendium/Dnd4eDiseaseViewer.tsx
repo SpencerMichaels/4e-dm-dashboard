@@ -64,9 +64,9 @@ export function Dnd4eDiseaseViewer({ disease }: { disease: ParsedDisease }) {
                     <th style={{ padding: '2px 6px', textAlign: 'left', fontWeight: 700 }}>Effect</th>
                   </tr>
                 </thead>
-                <tbody>
+                <tbody className="striped-rows">
                   {disease.checkTable.map((row, i) => (
-                    <tr key={i} style={{ borderBottom: '1px solid var(--sb-separator)' }}>
+                    <tr key={i}>
                       <td style={{ padding: '1px 6px', whiteSpace: 'nowrap' }}>{row.result}</td>
                       <td style={{ padding: '1px 6px' }}>{row.effect}</td>
                     </tr>

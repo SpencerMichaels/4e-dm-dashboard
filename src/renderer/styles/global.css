@@ -133,6 +133,18 @@ input[type="number"] {
   -moz-appearance: textfield;
 }
 
+/* Striped tables and lists: put .striped-rows on the element whose children
+   are the rows (a <tbody>, a list container). Rows alternate backgrounds
+   instead of divider lines. A row with a state (selected, current) sets its
+   own background, which wins over the stripe; inside .stat-block-4e the
+   stripe is the warm --sb-row-alt (see statblock.css). */
+.striped-rows > :nth-child(odd) {
+  background: var(--row-odd);
+}
+.striped-rows > :nth-child(even) {
+  background: var(--row-even);
+}
+
 /* Ghost inputs — transparent until hovered, for inline stat editing */
 input.ghost, textarea.ghost, select.ghost, button.ghost {
   background: transparent;

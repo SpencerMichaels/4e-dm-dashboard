@@ -658,7 +658,7 @@ export function Dnd4eEncounterEditor({ encounter, onSave, creatures, onNavigate 
         )}
 
         {/* Creature list */}
-        <div style={{ borderTop: encounter.creatures.length === 0 ? '1px solid var(--sb-separator)' : 'none', flex: 1, overflowX: 'hidden', overflowY: 'auto', minHeight: 0 }}>
+        <div className="striped-rows" style={{ borderTop: encounter.creatures.length === 0 ? '1px solid var(--sb-separator)' : 'none', flex: 1, overflowX: 'hidden', overflowY: 'auto', minHeight: 0 }}>
           {encounter.creatures.length === 0 ? (
             <div className="sb-row" style={{ color: 'var(--color-text-muted)', fontStyle: 'italic' }}>
               Add creatures from the compendium →
@@ -714,8 +714,7 @@ export function Dnd4eEncounterEditor({ encounter, onSave, creatures, onNavigate 
                 <div key={key}
                   onClick={() => selectRow(key)}
                   style={{
-                    borderBottom: '1px solid var(--color-border-subtle, rgba(128,128,128,0.1))',
-                    background: isRowSelected ? 'var(--color-bg-active, rgba(92,124,250,0.15))' : 'transparent',
+                    background: isRowSelected ? 'var(--color-bg-active, rgba(92,124,250,0.15))' : undefined,
                     cursor: 'pointer', userSelect: 'none',
                   }}
                 >
@@ -1227,7 +1226,6 @@ function TemplatePanel({ targetSb, appliedNames, previewTemplateName, onSelect, 
             style={{
               display: 'grid', gridTemplateColumns: GRID_COLS, height: '100%',
               gap: 'var(--space-2)', alignItems: 'center', padding: '0 var(--space-2)',
-              borderBottom: '1px solid var(--color-border-subtle, rgba(128,128,128,0.1))',
               background: isSelected ? 'var(--color-bg-active, rgba(92,124,250,0.15))' : 'transparent',
               cursor: 'pointer', userSelect: 'none', ...xs,
             }}

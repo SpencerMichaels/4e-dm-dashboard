@@ -36,7 +36,7 @@ If a regex keeps causing over-capture across multiple fixes, the regex approach 
 ## UI
 
 ### Colors come from tokens, never hex
-Write colors as CSS custom properties, in both CSS files and inline styles. Use the 4e-kit tokens (`vendor/4e-kit/styles/tokens.css`: `--background`, `--surface`, `--surface-raised`, `--text`, `--muted`, `--border`, `--accent`, `--focus`, `--danger`, `--warning`, `--success`, `--notify`, `--power-*` and their `-soft`/`-contrast` partners) or the app tokens derived from them in `src/renderer/styles/theme.css` (`--hp-*`, `--damage`, `--heal`, `--readied`, `--action-point`, `--cond-*`, `--sb-*`, `--player-*`, `--on-fill`, `--hover`, `--active`).
+Write colors as CSS custom properties, in both CSS files and inline styles. Use the 4e-kit tokens (`vendor/4e-kit/styles/tokens.css`: `--background`, `--surface`, `--surface-raised`, `--text`, `--muted`, `--border`, `--accent`, `--focus`, `--danger`, `--warning`, `--success`, `--notify`, `--power-*` and their `-soft`/`-contrast` partners) or the app tokens derived from them in `src/renderer/styles/theme.css` (`--hp-*`, `--damage`, `--heal`, `--readied`, `--action-point`, `--cond-*`, `--sb-*`, `--player-*`, `--on-fill`, `--hover`, `--active`, `--row-odd`, `--row-even`).
 - **No hex or rgba literals in components.** A new color is a new token in `theme.css`, derived from the kit tokens with `color-mix()`, so it works in both themes without a dark-mode override. Change shared colors in the kit (then 4ecb), not here.
 - **The `--color-*` names are legacy aliases** of the tokens above, kept so old inline styles work. Don't add new uses; convert old ones when you touch them.
 - **Check both themes.** Light-theme semantic colors are deep and dark-theme ones are light (`--accent`, `--danger`, `--success` flip). Text on a filled semantic color uses `var(--on-fill)`; text on a deep fill that stays the same in both themes (power tones, overlays on images) uses `var(--color-text-on-dark)` or the tone's `-contrast` token.
@@ -47,7 +47,7 @@ Write colors as CSS custom properties, in both CSS files and inline styles. Use 
 Follow the formatting conventions of official 4e sources (e.g. the 4e stat block format on iws.mx). Key principles:
 - **Labels inline with values**, not on separate lines. `Initiative +10  Perception +11; low-light vision` — not three separate labeled rows.
 - **Group related stats on one line**: AC + defenses together, alignment + languages together, initiative + perception + senses together.
-- **Use separator lines** (border-bottom) between logical groups, not section headers or whitespace.
+- **Shade alternate logical groups** (`sb-row-alt` bands on every row of the shaded group), not separator lines, section headers, or whitespace.
 - **No section headers** for obvious groupings — the labels are self-documenting.
 - **Flavor text (description) at the bottom** — after the mechanical stats, before the source citation.
 - **Two-column responsive layout**: stats on the left, powers/abilities on the right. Use `flex-wrap` so columns stack on narrow windows.
@@ -55,6 +55,9 @@ Follow the formatting conventions of official 4e sources (e.g. the 4e stat block
 - **Semicolons between same-line items**: `Initiative 5; Senses Perception 11; darkvision` — not just whitespace.
 - **Readability is paramount**: text must have high contrast on its background. Check both themes; `--muted` is the dimmest text color to use for content.
 - The goal is to fit as much information as possible on screen without scrolling, matching the density a DM expects from a printed stat block.
+
+### Tables and lists: striped rows, no divider lines
+Separate repeated rows (compendium lists, encounter creatures, description tables, grouped combat rows, pinned card groups) with alternating backgrounds, as 4ecb does, not with `border-bottom` lines. Put `.striped-rows` (global.css) on the element whose children are the rows, or, for `VirtualizedList`, do nothing: it stripes its row wrappers by absolute index so stripes don't shift while scrolling. Colors are the `--row-odd`/`--row-even` tokens in `theme.css`; inside `.stat-block-4e` `--row-even` becomes the book's warm `--sb-row-alt`, and stat block groups alternate as bands (`sb-row-alt` on every row of the shaded group) instead of separator lines. A row with a state (selected, current turn) sets its own background, which paints over the stripe, so leave plain rows' background unset or `transparent`. Keep borders that are structure, not row dividers: header-row underlines, section boundaries before power cards, panel and card outlines, inputs, focus and selection indicators, menus.
 
 ### Inputs should be ghost-styled and content-sized
 Use CSS class `ghost` for inline editable fields — transparent background and no border by default, subtle bottom-border on hover, full input on focus. This makes stat blocks read like printed text while still being editable. Use `field-sizing: content` so inputs auto-size to their value (no fixed widths creating trailing whitespace). Number inputs should have zero padding. Within stat block contexts, override the global ghost padding to 0 and use `border-width: 0` with only a bottom border.
