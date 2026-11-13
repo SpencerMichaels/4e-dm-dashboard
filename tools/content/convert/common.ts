@@ -1,0 +1,230 @@
+// Shared pieces of the parsed-content -> 4e-kit converter (build-time only).
+// Deterministic only: structured fields are filled from parser output, each
+// printed line goes into Line.text, and clauses are added only where a simple
+// exact pattern makes them unambiguous. Everything else keeps `clauses: []`.
+
+import {
+  ACTION_TYPES, CONDITION_IDS, DAMAGE_TYPES, DEFENSES, isOneOf,
+  type ActionType, type Attack, type Clause, type DamageType, type Defense,
+  type Line, type Provenance, type Range, type RangeKind, type Recharge, type SourceRef, type Usage,
+} from '@kit'
+
+export interface ConvertContext {
+  provenance: Provenance
+}
+
+/** Per-entry conversion notes (things the schema has no place for, dropped values). */
+export class Notes {
+  readonly list: string[] = []
+  add(note: string): void { if (!this.list.includes(note)) this.list.push(note) }
+}
+
+export function provenanceFor(ctx: ConvertContext, notes: Notes): Provenance {
+  return notes.list.length > 0 ? { ...ctx.provenance, notes: [...notes.list] } : { ...ctx.provenance }
+}
+
+/** Whitespace-normalized printed text. */
+export function normText(text: string): string {
+  return text.replace(/\s+/g, ' ').trim()
+}
+
+export function line(text: string, clauses: Clause[] = []): Line {
+  return { text: normText(text), clauses }
+}
+
+/** A Line for non-empty text, undefined otherwise. */
+export function optLine(text: string | undefined | null): Line | undefined {
+  return text && text.trim() ? line(text) : undefined
+}
+
+/** Drop undefined values so JSON output has no placeholder keys (keeps insertion order). */
+export function compact<T extends object>(obj: T): T {
+  for (const key of Object.keys(obj) as (keyof T)[]) {
+    if (obj[key] === undefined) delete obj[key]
+  }
+  return obj
+}
+
+export function kebab(text: string): string {
+  return text.toLowerCase().replace(/['’]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
+}
+
+// ── Source ──
+
+/** "Monster Manual 3, page(s) 132, Dungeon Magazine 190." -> { book: 'Monster Manual 3', page: 132 } */
+export function parseSource(source: string, notes: Notes): SourceRef {
+  const text = normText(source ?? '').replace(/\.$/, '')
+  if (!text) return { book: '' }
+  const m = text.match(/^(.+?),\s*page\(s\)\s*(\d+)/)
+  const book = m ? m[1].trim() : text.split(',')[0].trim()
+  const page = m ? parseInt(m[2]) : undefined
+  const rest = m ? text.substring(m[0].length).replace(/^[-\d\s]*,?\s*/, '') : text.split(',').slice(1).join(',').trim()
+  if (rest) notes.add(`also published in: ${rest}`)
+  return compact({ book, page })
+}
+
+// ── Action, usage, range, defense ──
+
+export function toActionType(raw: string | undefined): ActionType | undefined {
+  const s = (raw ?? '').toLowerCase().replace(/\s+action$/, '').replace(/\s+/g, '-').trim()
+  if (isOneOf(ACTION_TYPES, s)) return s
+  if (s === 'no') return 'no-action'
+  return undefined
+}
+
+export function toUsage(raw: string | undefined): Usage | undefined {
+  const s = (raw ?? '').toLowerCase().trim()
+  if (s.startsWith('recharge')) return 'recharge'
+  if (s === 'at-will' || s === 'at will') return 'at-will'
+  if (s === 'encounter' || s === 'daily' || s === 'consumable') return s
+  return undefined
+}
+
+/** "5-6" -> roll 5; "6" -> roll 6; "when first bloodied" -> bloodied; else text. */
+export function toRecharge(condition: string | undefined): Recharge | undefined {
+  const c = (condition ?? '').trim()
+  if (!c) return undefined
+  const roll = c.match(/^([2-6])(?:-6)?$/)
+  if (roll) return { kind: 'roll', min: parseInt(roll[1]) as 2 | 3 | 4 | 5 | 6 }
+  if (/^when (?:first )?bloodied$/i.test(c)) return { kind: 'bloodied' }
+  return { kind: 'text', text: c }
+}
+
+export function toDefense(raw: string | undefined): Defense | undefined {
+  const d = (raw ?? '').toLowerCase()
+  return isOneOf(DEFENSES, d) ? d : undefined
+}
+
+/** Parser rangeType/rangeValue ("area-burst", "2 within 10") -> kit Range. */
+export function toRange(rangeType: string, rangeValue: string, note?: string): Range {
+  const kind = (rangeType || 'melee') as RangeKind
+  const range: Range = { kind }
+  const v = (rangeValue ?? '').trim()
+  const within = v.match(/^(\d+)\s+within\s+(\d+)/)
+  const num = v.match(/^(\d+)/)
+  if (kind === 'melee') {
+    if (num) range.reach = parseInt(num[1])
+  } else if (within) {
+    range.size = parseInt(within[1])
+    range.within = parseInt(within[2])
+  } else if (num) {
+    range.size = parseInt(num[1])
+  }
+  const extra = num ? v.substring((within ?? num)[0].length).trim() : v
+  const noteParts = [extra, note].filter(Boolean)
+  if (noteParts.length > 0) range.note = noteParts.join('; ')
+  return range
+}
+
+/**
+ * Parse a printed attack line ("Ranged 5 (one creature); +21 vs. Will",
+ * "Close burst 2 (enemies in the burst); item level + 3 vs. Will") into the
+ * range/target/bonus/defense parts of an Attack.
+ */
+export function parseAttackLine(text: string): Pick<Attack, 'range' | 'target' | 'bonus' | 'vs'> | undefined {
+  const t = normText(text)
+  const m = t.match(/^(.*?)\s*;?\s*(\+\d+|[^;]*?level\s*\+\s*\d+|[^;]*?\+\s*\d+)\s+vs\.?\s+(AC|Fortitude|Reflex|Will)\b/i)
+  if (!m) return undefined
+  const vs = toDefense(m[3])
+  if (!vs) return undefined
+  const rangeText = m[1].replace(/[;,]\s*$/, '').trim()
+  const bonusText = m[2].trim()
+  const fixed = bonusText.match(/^\+(\d+)$/)
+  const lvl = bonusText.match(/^level\s*\+\s*(\d+)$/i)
+  const bonus = fixed ? { kind: 'fixed' as const, value: parseInt(fixed[1]) }
+    : lvl ? { kind: 'level' as const, plus: parseInt(lvl[1]) }
+    : { kind: 'formula' as const, text: bonusText }
+  const target = rangeText.match(/\(([^()]*(?:\([^()]*\)[^()]*)*)\)\s*$/)?.[1]?.trim() ?? ''
+  const head = target ? rangeText.substring(0, rangeText.lastIndexOf('(')).trim() : rangeText
+  const kind = rangeKindOf(head)
+  const value = head.replace(/^.*?(close burst|close blast|area burst|area wall|ranged|range|melee|reach|personal|area)\s*/i, '')
+  return { range: toRange(kind, value), target, bonus, vs }
+}
+
+export function rangeKindOf(text: string): RangeKind {
+  const l = text.toLowerCase()
+  if (l.includes('close burst')) return 'close-burst'
+  if (l.includes('close blast')) return 'close-blast'
+  if (l.includes('area burst')) return 'area-burst'
+  if (l.includes('area wall')) return 'area-wall'
+  if (/\bpersonal\b/.test(l)) return 'personal'
+  if (/\branged?\b/.test(l)) return 'ranged'
+  return 'melee'
+}
+
+// ── Clauses ──
+
+const TYPE_ALT = DAMAGE_TYPES.join('|')
+const CONDITION_ALT = CONDITION_IDS.filter(c => !c.includes('-')).join('|')
+
+function exprPattern(expr: string): string {
+  // "2d6+7" matches "2d6 + 7"; the expression must start at a word boundary.
+  return expr.split(/([+-])/).map(p => p === '+' ? '\\s*\\+\\s*' : p === '-' ? '\\s*[-−]\\s*' : p.replace(/[.*?^${}()|[\]\\]/g, '\\$&')).join('')
+}
+
+function typesOf(text: string): DamageType[] | undefined {
+  const words = text.toLowerCase().split(/\s*(?:,|\band\b|\bor\b)\s*/).map(s => s.trim()).filter(Boolean)
+  if (words.length === 0) return []
+  return words.every(w => isOneOf(DAMAGE_TYPES, w)) ? words as DamageType[] : undefined
+}
+
+export interface DamagePartIn { expr: string; type: string; ongoing: boolean; saveEnds?: boolean }
+
+/**
+ * Damage clauses for an attack's own (non-ongoing) damage parts: each part's
+ * dice must appear in the line text as "<dice> [<type>[ and <type>]] damage".
+ */
+export function damageClauses(text: string, parts: DamagePartIn[]): Clause[] {
+  const clauses: Clause[] = []
+  let from = 0
+  for (const part of parts) {
+    if (part.ongoing) continue
+    const re = new RegExp(`(?<![\\w+])${exprPattern(part.expr)}\\s+(?:((?:${TYPE_ALT})(?:(?:,\\s*|\\s+(?:and|or)\\s+)(?:${TYPE_ALT}))*)\\s+)?damage\\b`, 'gi')
+    re.lastIndex = from
+    const m = re.exec(text)
+    if (!m) continue
+    const types = typesOf(m[1] ?? '')
+    if (!types) continue
+    // "cold or fire damage" is a choice, not both types: leave it for agents.
+    if (/\bor\b/i.test(m[1] ?? '')) continue
+    clauses.push({ at: [m.index, m.index + m[0].length], kind: 'damage', dice: part.expr, types, who: 'target' })
+    from = m.index + m[0].length
+  }
+  return clauses
+}
+
+/**
+ * Exact "(save ends)" patterns about the target:
+ *   "ongoing 5 fire damage (save ends)" after the attack's damage or "the target takes"
+ *   "the target is dazed (save ends)"
+ */
+export function saveEndsClauses(text: string): Clause[] {
+  const clauses: Clause[] = []
+  const ongoing = new RegExp(`(?:^|damage,?\\s+(?:and|plus)\\s+|the target takes\\s+)(ongoing (\\d+) (?:(${TYPE_ALT}) )?damage \\(save ends\\))`, 'gi')
+  for (const m of text.matchAll(ongoing)) {
+    const start = m.index! + m[0].length - m[1].length
+    clauses.push({
+      at: [start, start + m[1].length], kind: 'ongoing-damage', amount: parseInt(m[2]),
+      types: m[3] ? [m[3].toLowerCase() as DamageType] : [], who: 'target', duration: { kind: 'save-ends' },
+    })
+  }
+  const cond = new RegExp(`\\bthe target is (${CONDITION_ALT}) \\(save ends\\)`, 'gi')
+  for (const m of text.matchAll(cond)) {
+    const condition = m[1].toLowerCase()
+    if (!isOneOf(CONDITION_IDS, condition)) continue
+    clauses.push({ at: [m.index!, m.index! + m[0].length], kind: 'condition', condition, who: 'target', duration: { kind: 'save-ends' } })
+  }
+  return clauses.sort((a, b) => a.at[0] - b.at[0])
+}
+
+/** Hit line with the deterministic clauses above. */
+export function hitLine(text: string, parts: DamagePartIn[]): Line {
+  const l = line(text)
+  l.clauses = [...damageClauses(l.text, parts), ...saveEndsClauses(l.text)].sort((a, b) => a.at[0] - b.at[0])
+  return l
+}
+
+/** Sort an object's keys alphabetically (for maps like skills). */
+export function sortedRecord<T>(rec: Record<string, T>): Record<string, T> {
+  return Object.fromEntries(Object.entries(rec).sort(([a], [b]) => a.localeCompare(b)))
+}

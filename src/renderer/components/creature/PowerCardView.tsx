@@ -14,6 +14,7 @@ export const ACTION_ICONS: Record<string, string> = {
   free:                 '\u25CB',          // ○ empty circle
   'immediate-reaction': '\u21BB',          // ↻ clockwise loop (responds AFTER trigger)
   'immediate-interrupt':'\u21AF',          // ↯ downwards zigzag arrow (failed/interrupted reaction)
+  opportunity:          '\u21BB',          // ↻ same glyph as immediate reaction (kit ACTION_TYPE_SYMBOLS)
   'no-action':          '\u2013',          // – en dash
 }
 const RANGE_ICONS: Record<string, string> = {
@@ -49,6 +50,8 @@ export interface PowerCardEntry {
   trigger?: string
   requirement?: string
   critical?: string
+  secondary?: string
+  aftereffect?: string
   sustain?: string
   text?: string
   levelScaling?: { level: number; text: string }[]
@@ -156,18 +159,20 @@ export function PowerCardView({ entry: e, selectedLevel, detectedConditions, onC
               <span title={`${(e as any)._levelAdjust.source}: ${(e as any)._levelAdjust.damageDelta > 0 ? '+' : ''}${(e as any)._levelAdjust.damageDelta} damage`}
                 style={{ color: 'var(--notify)', textDecoration: 'underline dotted', textUnderlineOffset: 2 }}>
                 {damage.map((p, i) => (
-                  <span key={i}>{i > 0 && ' plus '}{p.ongoing && 'ongoing '}{p.expr}{p.type && ` ${p.type}`}</span>
+                  <span key={i}>{i > 0 && ' plus '}{p.ongoing && 'ongoing '}{p.expr}{p.type && ` ${p.type}`}{p.saveEnds && ' (save ends)'}</span>
                 ))}
               </span>
             ) : (
               damage.map((p, i) => (
-                <span key={i}>{i > 0 && ' plus '}{p.ongoing && 'ongoing '}{p.expr}{p.type && ` ${p.type}`}</span>
+                <span key={i}>{i > 0 && ' plus '}{p.ongoing && 'ongoing '}{p.expr}{p.type && ` ${p.type}`}{p.saveEnds && ' (save ends)'}</span>
               ))
             )}
           </div>
         )}
         {e.critical && <div><b style={labelStyle}>Critical</b> {e.critical}</div>}
         {e.hit && <div><b style={labelStyle}>Hit</b> {renderHighlighted(e.hit.replace(/^\+\s*/, ''), 'hit')}</div>}
+        {e.secondary && <div><b style={labelStyle}>Secondary</b> {e.secondary}</div>}
+        {e.aftereffect && <div><b style={labelStyle}>Aftereffect</b> {e.aftereffect}</div>}
         {e.miss && <div><b style={labelStyle}>Miss</b> {renderHighlighted(e.miss, 'miss')}</div>}
         {e.effect && <div><b style={labelStyle}>Effect</b> {renderHighlighted(e.effect, 'effect')}</div>}
         {e.sustain && <div><b style={labelStyle}>Sustain</b> {e.sustain}</div>}

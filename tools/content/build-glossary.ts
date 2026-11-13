@@ -1,6 +1,6 @@
 #!/usr/bin/env npx tsx
 // Pre-parses raw 4e glossary HTML data into a structured lookup table.
-// Run: npx tsx tools/content/build-glossary.ts
+// Run: npm run content:build (rebuilds all content/parsed files)
 
 import { readFileSync, writeFileSync, mkdirSync } from 'fs'
 import { join } from 'path'

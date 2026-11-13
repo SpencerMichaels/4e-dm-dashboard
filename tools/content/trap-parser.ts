@@ -1,5 +1,6 @@
 // D&D 4e trap/hazard/terrain HTML parser — build-time only
 // Parses raw HTML for traps across three different formats.
+import { fixLigatureSplits, normalizeRecharge, normalizeActionLabel } from './text-utils'
 
 export interface TrapAction {
   name: string
@@ -57,7 +58,7 @@ function normalizeInitiative(init: string): string {
 }
 
 function stripHtml(html: string): string {
-  return html.replace(/<br\s*\/?>/gi, '\n').replace(/<\/p>/gi, '\n').replace(/<[^>]+>/g, '').replace(/^[ \t]+/gm, '').replace(/\n{3,}/g, '\n\n').trim()
+  return fixLigatureSplits(html.replace(/<br\s*\/?>/gi, '\n').replace(/<\/p>/gi, '\n').replace(/<[^>]+>/g, '').replace(/^[ \t]+/gm, '').replace(/\n{3,}/g, '\n\n').trim())
 }
 
 function extractText(html: string, regex: RegExp): string {
@@ -77,6 +78,12 @@ function parseRole(text: string): { role: string; modifier: string } {
     if (text.includes(r)) { role = r; break }
   }
   return { role, modifier }
+}
+
+/** "Recharge ⚃ ⚄ ⚅" -> "Recharge 4-6"; other usages unchanged. */
+export function normalizeTrapUsage(usage: string): string {
+  const m = usage.match(/^Recharge\s+(.*)$/i)
+  return m ? `Recharge ${normalizeRecharge(m[1])}` : usage
 }
 
 /** Parse old-format attack text into a structured TrapAction */
@@ -118,7 +125,7 @@ function parseAttackText(text: string): TrapAction {
   return {
     name: 'Attack',
     usage: 'At-Will',
-    action: actionType || undefined,
+    action: actionType ? normalizeActionLabel(actionType) : undefined,
     trigger: undefined,
     attack: [rangeInfo, target && `(${target})`, attackRoll && `; ${attackRoll}`]
       .filter(Boolean).join(' ') || attackRoll || undefined,
@@ -321,12 +328,22 @@ function parseThHeadFormat(html: string): ParsedTrap {
           return m ? stripHtml(m[1]).replace(/^:\s*/, '').trim() : ''
         }
 
+        // "Triggered Actions" sections give the real action type as an
+        // "(Immediate Reaction):" prefix on the attack line.
+        let attack = extractField('Attack')
+        let action = normalizeActionLabel(sectionTitle)
+        const actionPrefix = attack.match(/^\(((?:standard|move|minor|free|opportunity|no)\s+action|immediate\s+(?:interrupt|reaction))\)\s*:?\s*/i)
+        if (actionPrefix) {
+          action = normalizeActionLabel(actionPrefix[1])
+          attack = attack.substring(actionPrefix[0].length)
+        }
+
         actions.push({
           name: actionName,
-          usage,
-          action: sectionTitle,
+          usage: normalizeTrapUsage(usage),
+          action,
           trigger: extractField('Trigger'),
-          attack: extractField('Attack'),
+          attack,
           hit: extractField('Hit'),
           miss: extractField('Miss'),
           effect: extractField('Effect(?:\\s*\\([^)]*\\))?'),
@@ -419,7 +436,7 @@ function parseDmFormat(html: string): ParsedTrap {
     const action: TrapAction = {
       name: 'Attack',
       usage: 'At-Will',
-      action: actionType || undefined,
+      action: actionType ? normalizeActionLabel(actionType) : undefined,
       requirement: fields['Requirement'] || undefined,
       trigger: fields['Trigger'] || undefined,
       attack: [fields['Target'] && `(${fields['Target']})`, fields['Attack']].filter(Boolean).join('; ') || undefined,

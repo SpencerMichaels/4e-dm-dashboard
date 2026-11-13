@@ -1,5 +1,6 @@
 // D&D 4e item HTML parser — build-time only
 // Parses raw HTML for items, weapons, armor, implements, and rituals.
+import { fixLigatureSplits, normalizeActionLabel } from './text-utils'
 
 export interface LevelScaling {
   level: number
@@ -72,7 +73,7 @@ export type DescriptionPart =
   | { type: 'power'; power: ItemPower }
 
 function stripHtml(html: string): string {
-  return html.replace(/<br\s*\/?>/gi, '\n').replace(/<\/p>/gi, '\n').replace(/<\/li>/gi, '\n').replace(/<[^>]+>/g, '').replace(/^[ \t]+/gm, '').replace(/\n{3,}/g, '\n\n').trim()
+  return fixLigatureSplits(html.replace(/<br\s*\/?>/gi, '\n').replace(/<\/p>/gi, '\n').replace(/<\/li>/gi, '\n').replace(/<[^>]+>/g, '').replace(/^[ \t]+/gm, '').replace(/\n{3,}/g, '\n\n').trim())
 }
 
 /** Extract "Level X:" lines from text, returning base text and scaling entries */
@@ -488,7 +489,7 @@ function parseItemPower(header: string, bodyHtml: string): ItemPower {
   return {
     name,
     usage: usageMatch?.[1] ?? '',
-    action: actionMatch?.[1] ?? '',
+    action: normalizeActionLabel(actionMatch?.[1] ?? ''),
     keywords,
     trigger, effect, attack, target, hit, miss, requirement, sustain,
     text,

@@ -39,6 +39,8 @@ function toPowerCardEntry(p: PowerEntry): PowerCardEntry {
     damage: isTrait ? undefined : p.damage,
     hit: isTrait ? undefined : p.hit,
     critical: isTrait ? undefined : (p as any).critical,
+    secondary: isTrait ? undefined : (p as any).secondary,
+    aftereffect: isTrait ? undefined : (p as any).aftereffect,
     miss: isTrait ? undefined : p.miss,
     effect: p.effect,
     trigger: p.trigger,

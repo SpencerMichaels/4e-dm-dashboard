@@ -51,7 +51,8 @@ The application is functional across its main workflows:
 - The app is D&D 4e only: the 4e rules module and UI components are imported directly (PF2e, Delta Green, user plugins, the system picker, and URL import were removed in 2026-11).
 - Renamed from "Tabletop Dashboard" to "4e DM Dashboard" (2026-11-12). On first launch, `src/main/data/migrate-user-data.ts` moves the old `~/.config/tabletop-dashboard` userData dir to the new location.
 - Restyled toward 4ecb (2026-11-12, first half of TODO section 4): 4e-kit color tokens in light and dark themes with a stored system/light/dark preference, 2px corners, 4ecb's focus ring and button hover, EB Garamond headings, Arial stat blocks and power cards (the proprietary Mentor/DnDVecna fonts are gone), power-tone card headers, palette-derived condition pills, the Player window on tokens, and styled TipTap notes. Icons, the dialog/button/table components, and the remaining hardcoded colors (listed in `TODO.md`) are still to do.
-- `npm test` (Vitest: combat engine, app settings, color helpers), `npm run build`, and `npm run typecheck:node` pass in the devcontainer as of 2026-11-12.
+- Content pipeline (TODO section 5): parser fixes, the kit-schema converter, validators and the agent pilot harness exist; the pilot has not been run. The app still reads `content/parsed/`.
+- `npm test` (Vitest: combat engine, app settings, color helpers, content parser, converter, validator and agent-harness suites), `npm run build`, and `npm run typecheck:node` pass in the devcontainer as of 2026-11-12.
 
 Current planned implementation work is maintained in `TODO.md`. Historical completed batches are recorded in `CLEANUP.md`, `issues.txt`, `tasks.md`, and `feedback.md`.
 
@@ -73,7 +74,11 @@ Current planned implementation work is maintained in `TODO.md`. Historical compl
 | `src/renderer/theme.ts` | `initThemeSync`: applies the stored theme preference to a window (DM and Player) |
 | `src/common/rules/dnd4e.ts` | 4e rules module (conditions, HP descriptors, builder benchmarks, settings) |
 | `src/main/compendium/compendium.ts` | Loads the parsed compendium JSON from `content/parsed/` |
-| `tools/content/` | Parsers and build scripts that turn `content/raw/` into `content/parsed/` |
+| `tools/content/` | Parsers and build scripts that turn `content/raw/` into `content/parsed/` (`npm run content:build`) |
+| `tools/content/convert/` | Parsed content -> kit schema, written to the private content repo (`npm run content:convert`) |
+| `tools/content/validate/` | Shape, clause-span and DMG math-band validators (`npm run content:validate`) |
+| `tools/content/agent/` | Agent cleaning harness: pilot sampler, prompt template and assembler, apply-after-validation |
+| `~/Projects/4e-content` | Private content repo (WotC-derived, never publish): one kit-schema JSON file per entry, with provenance |
 
 ## Known Issues / Next Steps
 

@@ -1,6 +1,6 @@
 #!/usr/bin/env npx tsx
 // Pre-parses raw 4e disease HTML data into structured JSON.
-// Run: npx tsx tools/content/build-diseases.ts
+// Run: npm run content:build (rebuilds all content/parsed files)
 
 import { readFileSync, writeFileSync, mkdirSync } from 'fs'
 import { join } from 'path'

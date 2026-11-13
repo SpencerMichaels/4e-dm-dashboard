@@ -28,6 +28,8 @@
     "electron.vite.config.ts",
     "vitest.config.ts",
     "tools/**/*",
+    "src/renderer/components/creature/monster-templates.ts",
+    "src/renderer/components/creature/monster-themes.ts",
     "content/parsed/*.json"
   ]
 }
