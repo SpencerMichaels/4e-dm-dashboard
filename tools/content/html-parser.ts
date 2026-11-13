@@ -85,7 +85,7 @@ function _parseMonsterHtml(html: string, warnings: string[], options: ParseOptio
   const fort = parseInt(defMatch?.[2] ?? '10')
   const ref = parseInt(defMatch?.[3] ?? '10')
   const will = parseInt(defMatch?.[4] ?? '10')
-  const savingThrowBonus = parseInt(statsText.match(/Saving Throws\s+\+(\d+)/)?.[1] ?? '0')
+  const { bonus: savingThrowBonus, notes: savingThrowNotes } = parseSavingThrows(statsHtml.match(/Saving Throws?\s*<\/b>\s*([^<]*)/)?.[1] ?? '')
   const actionPoints = parseInt(statsText.match(/Action Points?\s+(\d+)/)?.[1] ?? '0')
 
   // Speed — capture all speed entries including notes like (hover)
@@ -255,7 +255,7 @@ function _parseMonsterHtml(html: string, warnings: string[], options: ParseOptio
       origin, creatureType: type, subtypes: filteredKeywords,
       immunities, resistances, weaknesses,
       skills, skillNotes: skillNotes.length > 0 ? skillNotes : undefined, alignment, languages, equipment,
-      xp, savingThrowBonus, actionPoints,
+      xp, savingThrowBonus, savingThrowNotes, actionPoints,
       description, source,
       actions,
       regeneration,
@@ -782,6 +782,21 @@ function parseOneAbility(headerHtml: string, bodyBlocks: string[], sectionDefaul
 export function auraRangeIf(text: string): { value: number; if: string }[] | undefined {
   const m = text.match(/\baura\s+\d+\s*(?:,\s*or\s+|\(\s*(?:aura\s+)?)(\d+)\s+(while\b[^;.()]*?)\s*(?:\)|[;.]|$)/i)
   return m ? [{ value: parseInt(m[1]), if: m[2].trim() }] : undefined
+}
+
+/**
+ * The stat line's "Saving Throws" text: the unconditional bonus, and the rest
+ * as printed notes. "+2 (+4 against charm effects)" and "+2; +4 against charm
+ * effects" are bonus 2 with note "+4 against charm effects"; "+5 against fear
+ * effects" alone is bonus 0 with that note.
+ */
+export function parseSavingThrows(text: string): { bonus: number; notes?: string[] } {
+  const s = text.replace(/\s+/g, ' ').replace(/[\s;,.]+$/, '').trim()
+  const lead = s.match(/^\+?(\d+)(?!\d)(?!\s*(?:against|vs)\b)/i)
+  const bonus = lead ? parseInt(lead[1]) : 0
+  let rest = (lead ? s.slice(lead[0].length) : s).replace(/^[\s;,]+/, '').trim()
+  if (/^\([^()]*\)$/.test(rest)) rest = rest.slice(1, -1).trim()
+  return rest ? { bonus, notes: [rest] } : { bonus }
 }
 
 // ─── Parse auras from the stats <p class=flavor> HTML ───

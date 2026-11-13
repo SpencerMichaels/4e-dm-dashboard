@@ -1,6 +1,6 @@
 // Parser regression tests. Each power snippet is copied from content/raw/monsters.json.
 import { describe, expect, it } from 'vitest'
-import { cleanHeaderKeywords, parseMonsterHtml, parseRangePart, parseResistValues, splitDamageFromHit } from './html-parser'
+import { cleanHeaderKeywords, parseMonsterHtml, parseRangePart, parseResistValues, parseSavingThrows, splitDamageFromHit } from './html-parser'
 
 /** Minimal monster around real power HTML. */
 function parsePowers(powersHtml: string, section = 'Standard Actions', printed = false): any[] {
@@ -118,6 +118,21 @@ describe('parser helpers', () => {
     expect(parseRangePart('Targets the triggering enemy')).toEqual({ rangeType: 'melee', rangeValue: '', target: 'the triggering enemy', notes: [] })
     expect(parseRangePart('Range 5/10 (one creature)')).toEqual({ rangeType: 'ranged', rangeValue: '5/10', target: 'one creature', notes: [] })
     expect(parseRangePart('Melee 1 or Ranged 10')).toEqual({ rangeType: 'ranged', rangeValue: '1', target: '', notes: ['or Ranged 10'] })
+  })
+
+  it('parseSavingThrows keeps only the unconditional bonus and the rest as notes', () => {
+    expect(parseSavingThrows('+2; ')).toEqual({ bonus: 2 })
+    expect(parseSavingThrows('+5 against fear effects')).toEqual({ bonus: 0, notes: ['+5 against fear effects'] })
+    expect(parseSavingThrows('5 against charm effects')).toEqual({ bonus: 0, notes: ['5 against charm effects'] })
+    expect(parseSavingThrows('+2 (+4 against charm effects)')).toEqual({ bonus: 2, notes: ['+4 against charm effects'] })
+    expect(parseSavingThrows('+2; +5 against charm effects, immobilized, restrained, and slowed')).toEqual({ bonus: 2, notes: ['+5 against charm effects, immobilized, restrained, and slowed'] })
+    expect(parseSavingThrows('+2, +4 against poison')).toEqual({ bonus: 2, notes: ['+4 against poison'] })
+    expect(parseSavingThrows('+12 (+14 vs. effects with the fear or charm keywords)')).toEqual({ bonus: 12, notes: ['+14 vs. effects with the fear or charm keywords'] })
+    expect(parseSavingThrows('+5; see also unstoppable')).toEqual({ bonus: 5, notes: ['see also unstoppable'] })
+    expect(parseSavingThrows('')).toEqual({ bonus: 0 })
+    const html = '<h1 class=monster>Test<br><span class=type>Medium natural humanoid</span><br><span class=level>Level 5 Brute<span class=xp> XP 200</span></span></h1>' +
+      '<table class=bodytable><tr><td><b>HP</b> 70; <b>Bloodied</b> 35</td></tr><tr><td><b>Saving Throws</b> +2 (+4 against charm effects); <b>Action Points</b> 1</td></tr></table>'
+    expect(parseMonsterHtml(html, []).statBlock).toMatchObject({ savingThrowBonus: 2, savingThrowNotes: ['+4 against charm effects'], actionPoints: 1 })
   })
 
   it('parseResistValues handles trailing semicolons, notes, and text-only entries', () => {

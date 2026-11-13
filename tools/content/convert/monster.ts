@@ -77,6 +77,7 @@ export function convertMonster(id: string, parsed: any, ctx: ConvertContext): Mo
     speed: convertSpeed(sb),
     defenses: { ac: sb.ac, fortitude: sb.defenses?.fortitude, reflex: sb.defenses?.reflex, will: sb.defenses?.will },
     savingThrowBonus: sb.savingThrowBonus ?? 0,
+    savingThrowNotes: sb.savingThrowNotes?.length ? sb.savingThrowNotes : undefined,
     actionPoints: sb.actionPoints ?? 0,
     immune: (sb.immunities ?? []).map((i: any) => ({ type: String(i.type).toLowerCase() })),
     resist: (sb.resistances ?? []).map((r: any) => damageModifier(r.type, r.value, r.note)),

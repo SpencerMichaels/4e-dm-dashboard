@@ -61,7 +61,7 @@ export class Checker {
 
 function duration(c: Checker, d: unknown, path: string): void {
   if (!c.obj(d, path)) return
-  const kinds = ['save-ends', 'turn-end', 'turn-start', 'encounter', 'sustain', 'instant', 'indefinite', 'while-in-aura', 'permanent', 'until']
+  const kinds = ['save-ends', 'turn-end', 'turn-start', 'encounter', 'sustain', 'instant', 'indefinite', 'while-in-aura', 'this-power', 'permanent', 'until']
   c.oneOf(kinds, d.kind, `${path}.kind`)
   c.keys(d, d.kind === 'turn-end' || d.kind === 'turn-start' ? ['kind', 'whose', 'next'] : d.kind === 'sustain' ? ['kind', 'action'] : d.kind === 'until' ? ['kind', 'text'] : ['kind'], path)
   if (d.kind === 'until') c.str(d.text, `${path}.text`, { nonEmpty: true })
@@ -72,7 +72,7 @@ function duration(c: Checker, d: unknown, path: string): void {
   if (d.kind === 'sustain') c.oneOf(ACTION_TYPES, d.action, `${path}.action`)
 }
 
-const WHO = ['target', 'self', 'each-target', 'ally', 'enemies-in-area', 'creatures-in-area', 'allies-in-area', 'other']
+const WHO = ['target', 'self', 'each-target', 'ally', 'enemies-in-area', 'creatures-in-area', 'allies-in-area', 'rider', 'mount', 'other']
 const MOD_STATS = ['attack', 'ac', 'fortitude', 'reflex', 'will', 'defenses', 'speed', 'saving-throws', 'damage']
 
 function damageTypes(c: Checker, v: unknown, path: string): void {
@@ -110,6 +110,10 @@ const CLAUSE_FIELDS: Record<string, string[]> = {
   'status': ['status', 'who', 'duration', 'saveGroup'],
   'opportunity-reach': ['who'],
   'difficult-terrain': ['who', 'duration'],
+  'charge': ['who'],
+  'disease': ['disease', 'diseaseId', 'stage', 'who'],
+  'reroll': ['what', 'keep', 'who'],
+  'action-point': ['amount', 'who'],
   'unparsed': ['text'],
 }
 
@@ -203,6 +207,17 @@ export function clause(c: Checker, cl: unknown, path: string): void {
     case 'status': c.oneOf(STATUS_IDS, cl.status, `${path}.status`); who(); dur(); break
     case 'opportunity-reach': who(); break
     case 'difficult-terrain': if (cl.who !== undefined) who(); dur(); break
+    case 'charge': who(); break
+    case 'disease':
+      c.str(cl.disease, `${path}.disease`, { nonEmpty: true }); who()
+      c.optional(cl, 'diseaseId', path, (v, p) => c.str(v, p, { nonEmpty: true }))
+      c.optional(cl, 'stage', path, (v, p) => c.int(v, p, { min: 0 }))
+      break
+    case 'reroll':
+      c.oneOf(['attack', 'save', 'damage', 'check'], cl.what, `${path}.what`); who()
+      c.optional(cl, 'keep', path, (v, p) => c.oneOf(['new', 'higher', 'lower'], v, p))
+      break
+    case 'action-point': c.int(cl.amount, `${path}.amount`, { min: 1 }); who(); break
     case 'unparsed': c.str(cl.text, `${path}.text`, { nonEmpty: true }); break
   }
 }
@@ -382,7 +397,7 @@ export function monsterShape(c: Checker, m: unknown): void {
   const path = '$'
   if (!c.obj(m, path)) return
   c.keys(m, ['id', 'name', 'level', 'role', 'rank', 'leader', 'size', 'origin', 'type', 'keywords', 'xp', 'hp', 'initiative',
-    'perception', 'senses', 'speed', 'defenses', 'savingThrowBonus', 'actionPoints', 'immune', 'resist', 'vulnerable',
+    'perception', 'senses', 'speed', 'defenses', 'savingThrowBonus', 'savingThrowNotes', 'actionPoints', 'immune', 'resist', 'vulnerable',
     'regeneration', 'abilities', 'skills', 'skillNotes', 'alignment', 'languages', 'equipment', 'traits', 'auras', 'powers', 'description',
     'sources', 'provenance'], path)
   c.str(m.id, '$.id', { nonEmpty: true })
@@ -407,6 +422,7 @@ export function monsterShape(c: Checker, m: unknown): void {
   speed(c, m.speed, '$.speed')
   if (c.obj(m.defenses, '$.defenses')) for (const d of DEFENSES) c.int(m.defenses[d], `$.defenses.${d}`, { min: 0 })
   c.int(m.savingThrowBonus, '$.savingThrowBonus', { min: 0 })
+  c.optional(m, 'savingThrowNotes', '$', (v, p) => list(c, v, p, (n, q) => c.str(n, q, { nonEmpty: true })))
   c.int(m.actionPoints, '$.actionPoints', { min: 0 })
   list(c, m.immune, '$.immune', (x, p) => { if (c.obj(x, p)) c.str(x.type, `${p}.type`, { nonEmpty: true }) })
   damageModifiers(c, m.resist, '$.resist')

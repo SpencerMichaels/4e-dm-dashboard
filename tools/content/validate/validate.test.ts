@@ -417,6 +417,7 @@ describe('schema v7', () => {
     expect(spanProblem(dmg('10') as any, '2d8+10')).toMatch(/dice "10" not in span/)
     expect(spanProblem(dmg('1d10') as any, '1d10+6')).toMatch(/not in span/)
     expect(spanProblem(dmg('2d8+1') as any, '2d8+10')).toMatch(/not in span/)
+    expect(spanProblem(dmg('5', ['cold']) as any, 'deals +5 cold damage')).toBeUndefined()
     expect(spanProblem(dmg('10', ['fire']) as any, 'takes 10 fire damage')).toBeUndefined()
     expect(spanProblem({ ...dmg('2d12+18'), critical: true } as any, '(crit 2d12 + 18)')).toBeUndefined()
     expect(spanProblem({ ...dmg('2d12+18'), critical: true } as any, '2d12 + 18')).toMatch(/crit/)
@@ -452,5 +453,66 @@ describe('schema v7', () => {
     const paths = validateEntry('monsters', m).errors.map(e => e.path)
     for (const p of ['clauses[0].who', 'clauses[1].who', 'clauses[2].who[1]', 'clauses[3].escapeDc']) expect(paths).toContain(`$.powers[0].attacks[0].hit.${p}`)
     expect(paths).toEqual(expect.arrayContaining(['$.auras[0].rangeIf[0].if', '$.auras[0].rangeIf[1].if']))
+  })
+})
+
+describe('schema v8', () => {
+  const p = (cl: any, span: string, after = '') => spanProblem(cl, span, after)
+
+  it('checks the keywords of charge, disease, reroll and action-point', () => {
+    expect(p({ kind: 'charge', who: 'self' }, 'charges and makes the following attack')).toBeUndefined()
+    expect(p({ kind: 'charge', who: 'self' }, 'shifts and makes the following attack')).toMatch(/charge/)
+    const rot = { kind: 'disease', disease: 'mummy rot', who: 'target' }
+    expect(p(rot, 'the target contracts level 6 mummy rot')).toBeUndefined()
+    expect(p({ ...rot, disease: 'Mummy  Rot' }, 'contracts mummy rot')).toBeUndefined()
+    expect(p(rot, 'contracts filth fever')).toMatch(/disease "mummy rot" not in span/)
+    expect(p({ ...rot, disease: 'werewolf moon frenzy', stage: 1 }, 'contracts werewolf moon frenzy (stage 1)')).toBeUndefined()
+    expect(p({ ...rot, stage: 2 }, 'contracts mummy rot (stage 1)')).toMatch(/stage 2/)
+    expect(p({ kind: 'reroll', what: 'attack', who: 'other' }, 'forces the attacker to reroll the attack')).toBeUndefined()
+    expect(p({ kind: 'reroll', what: 'save', who: 'self', keep: 'higher' }, 'rolls again and uses the higher result')).toBeUndefined()
+    expect(p({ kind: 'reroll', what: 'attack', who: 'other' }, 'the attack misses')).toMatch(/reroll/)
+    expect(p({ kind: 'action-point', amount: 1, who: 'self' }, 'gains 1 action point')).toBeUndefined()
+    expect(p({ kind: 'action-point', amount: 1, who: 'self' }, 'gains an action point')).toBeUndefined()
+    expect(p({ kind: 'action-point', amount: 2, who: 'self' }, 'gains an action point')).toMatch(/amount 2/)
+    expect(p({ kind: 'action-point', amount: 1, who: 'self' }, 'gains 1 extra action')).toMatch(/action point/)
+  })
+
+  it('finds an escape DC later in the grab sentence, not in the next one', () => {
+    const grab = { kind: 'condition', condition: 'grabbed', who: 'target', duration: { kind: 'indefinite' }, escapeDc: 21 }
+    expect(p(grab, 'the target is grabbed', ' and takes ongoing 10 fire damage until it escapes (DC 21).')).toBeUndefined()
+    expect(p(grab, 'the target is restrained (until it escapes (DC 21))'.replace('restrained', 'grabbed'))).toBeUndefined()
+    expect(p(grab, 'the target is grabbed', '. The dragon can escape DC 21.')).toMatch(/escape DC 21/)
+  })
+
+  it('accepts the v8 fields, Who values, this-power duration and savingThrowNotes', () => {
+    const m = monster()
+    const t = 'The hippogriff charges and makes the following attack, and its rider gains 1 action point. Each attack is at a -2 penalty, and the target contracts mummy rot (stage 1). The attacker must reroll the attack and use the second result.'
+    const at = (q: string) => { const i = t.indexOf(q); return [i, i + q.length] }
+    m.powers[0].effect = { text: t, clauses: [
+      { at: at('charges'), kind: 'charge', who: 'self', optional: true },
+      { at: at('gains 1 action point'), kind: 'action-point', amount: 1, who: 'rider' },
+      { at: at('-2 penalty'), kind: 'modifier', stat: 'attack', value: -2, who: 'self', duration: { kind: 'this-power' } },
+      { at: at('contracts mummy rot (stage 1)'), kind: 'disease', disease: 'mummy rot', diseaseId: 'disease30', stage: 1, who: 'target' },
+      { at: at('must reroll the attack'), kind: 'reroll', what: 'attack', keep: 'new', who: ['other', 'mount'] },
+    ] } as any
+    ;(m as any).savingThrowNotes = ['+5 against fear effects']
+    expect(validateEntry('monsters', m).errors).toEqual([])
+  })
+
+  it('rejects malformed v8 values', () => {
+    const m = monster()
+    const t = '2d8 + 4 damage.'
+    m.powers[0].attacks[0].hit = { text: t, clauses: [
+      { at: [0, 3], kind: 'disease', disease: '', stage: -1, who: 'target' },
+      { at: [0, 3], kind: 'reroll', what: 'initiative', keep: 'best', who: 'self' },
+      { at: [0, 3], kind: 'action-point', amount: 0, who: 'driver' },
+      { at: [0, 3], kind: 'charge' },
+    ] } as any
+    ;(m as any).savingThrowNotes = ['']
+    const paths = validateEntry('monsters', m).errors.map(e => e.path)
+    for (const q of ['clauses[0].disease', 'clauses[0].stage', 'clauses[1].what', 'clauses[1].keep', 'clauses[2].amount', 'clauses[2].who', 'clauses[3].who']) {
+      expect(paths).toContain(`$.powers[0].attacks[0].hit.${q}`)
+    }
+    expect(paths).toContain('$.savingThrowNotes[0]')
   })
 })

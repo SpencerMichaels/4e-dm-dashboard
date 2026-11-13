@@ -215,6 +215,13 @@ describe('schema v4 fields', () => {
     expect(m.skillNotes).toEqual(['Bluff +23 while the mimic is duplicating a creature'])
   })
 
+  it('keeps conditional saving throw bonuses as notes, not as the bonus (v8)', () => {
+    const html = "<h1 class=monster>Knight<br><span class=type>Medium natural humanoid</span><br><span class=level>Level 5 Soldier<span class=xp> XP 200</span></span></h1><table class=bodytable><tr><td><b>HP</b> 50; <b>Bloodied</b> 25<td class=rightalign><b>Initiative</b> +8<tr><td><b>AC</b> 19, <b>Fortitude</b> 17, <b>Reflex</b> 16, <b>Will</b> 16<td class=rightalign><b>Perception</b>+4<tr><td><b>Speed</b> 5<td class=rightalign><tr><td><b>Saving Throws</b> +5 against fear effects</table>"
+    const m = convertMonster('monster1', parseMonsterHtml(html, [], { printed: true }), { provenance: { origin: 'parser', at: '2026-11-12' } })
+    expect(m.savingThrowBonus).toBe(0)
+    expect(m.savingThrowNotes).toEqual(['+5 against fear effects'])
+  })
+
   it('records a sustain printed only inside a line', () => {
     const p = convertPower({
       name: 'Breath', actionType: 'standard', usage: 'encounter', keywords: ['zone'], damage: [],

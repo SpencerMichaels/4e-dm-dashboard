@@ -58,7 +58,7 @@ function compactDice(s: string): string {
 /** The dice expression or flat number as a whole: "10" is not in "2d8+10" or "1d10", "2d8+1" not in "2d8+10". */
 function hasDice(span: string, dice: string): boolean {
   const d = compactDice(dice).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-  return new RegExp(`(?<!\\d|\\dd|[+-])${d}(?!\\d|d\\d|[+-]\\d)`).test(compactDice(span))
+  return new RegExp(`(?<!\\d|\\dd|\\d[+-])${d}(?!\\d|d\\d|[+-]\\d)`).test(compactDice(span))
 }
 
 /**
@@ -70,7 +70,8 @@ export function spanProblem(clause: Clause, span: string, after = ''): string | 
   const s = span.toLowerCase()
   const has = (re: RegExp | string) => typeof re === 'string' ? s.includes(re) : re.test(span)
   /** The number as digits, or spelled out ("two squares"). */
-  const num = (n: number) => new RegExp(`(?<!\\d)${n}(?!\\d)`).test(span) || (n >= 0 && n <= 10 && new RegExp(`\\b${NUMBER_WORDS[n]}\\b`, 'i').test(span))
+  const numIn = (n: number, text: string) => new RegExp(`(?<!\\d)${n}(?!\\d)`).test(text) || (n >= 0 && n <= 10 && new RegExp(`\\b${NUMBER_WORDS[n]}\\b`, 'i').test(text))
+  const num = (n: number) => numIn(n, span)
   const hasType = (t: string) => has(t) || after.toLowerCase().includes(t)
   const anyType = (types: string[] | undefined) => !types || types.some(hasType) || has(/one of|choice|choose|chosen/i)
   switch (clause.kind) {
@@ -92,7 +93,11 @@ export function spanProblem(clause: Clause, span: string, after = ''): string | 
     case 'condition': {
       const re = CONDITION_WORDS[clause.condition] ?? new RegExp(clause.condition.replace(/ed$/, ''), 'i')
       if (!re.test(span)) return `condition "${clause.condition}" not in span (any form of the word will do: "grabs", "is knocked prone")`
-      return clause.escapeDc === undefined || (has('escape') && num(clause.escapeDc)) ? undefined : `no "escape DC ${clause.escapeDc}" in span`
+      if (clause.escapeDc === undefined) return undefined
+      // "escape DC 21" or "escapes (DC 21)", in the quote or later in its sentence
+      // (a DC printed after other clauses: "... and grabs it. ... (escape DC 25).").
+      const sentence = span + after.split(/(?<=[.!?])\s/)[0]
+      return /escape/i.test(sentence) && numIn(clause.escapeDc, sentence) ? undefined : `no "escape DC ${clause.escapeDc}" in the span or the rest of its sentence`
     }
     case 'grants-ca': return has('combat advantage') ? undefined : 'no "combat advantage" in span'
     case 'forced-move':
@@ -134,6 +139,17 @@ export function spanProblem(clause: Clause, span: string, after = ''): string | 
     case 'status': return has(STATUS_WORDS[clause.status] ?? clause.status) ? undefined : `no "${clause.status}" in span`
     case 'opportunity-reach': return has('opportunit') ? undefined : 'no "opportunity" in span'
     case 'difficult-terrain': return has('difficult terrain') ? undefined : 'no "difficult terrain" in span'
+    case 'charge': return has(/\bcharg/i) ? undefined : 'no "charge" in span'
+    case 'disease': {
+      // The printed name ("contracts level 6 mummy rot": disease "mummy rot"), and the stage.
+      const name = clause.disease.replace(/\s+/g, ' ').trim().toLowerCase()
+      if (!s.replace(/\s+/g, ' ').replace(/[‘’]/g, "'").includes(name.replace(/[‘’]/g, "'"))) return `disease "${clause.disease}" not in span`
+      return clause.stage === undefined || (has('stage') && num(clause.stage)) ? undefined : `no "stage ${clause.stage}" in span`
+    }
+    case 'reroll': return has(/\bre-?roll|\broll(s|ing)? again/i) ? undefined : 'no "reroll" in span'
+    case 'action-point':
+      if (!has(/\baction points?\b/i)) return 'no "action point" in span'
+      return num(clause.amount) || (clause.amount === 1 && has(/\ban action point/i)) ? undefined : `amount ${clause.amount} not in span`
     case 'unparsed':
       return span.replace(/\s+/g, ' ').trim() === clause.text.replace(/\s+/g, ' ').trim() ? undefined : 'unparsed text differs from span'
   }
