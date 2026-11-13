@@ -86,7 +86,7 @@ const CLAUSE_FIELDS: Record<string, string[]> = {
   'damage-formula': ['text', 'types'],
   'half-damage': [],
   'ongoing-damage': ['amount', 'types', 'typeChoice', 'who', 'duration', 'saveGroup'],
-  'condition': ['condition', 'who', 'duration', 'saveGroup'],
+  'condition': ['condition', 'who', 'duration', 'saveGroup', 'escapeDc'],
   'grants-ca': ['to', 'who', 'duration', 'saveGroup'],
   'forced-move': ['move', 'squares', 'who'],
   'move': ['move', 'squares', 'who'],
@@ -109,6 +109,7 @@ const CLAUSE_FIELDS: Record<string, string[]> = {
   'power-restriction': ['what', 'who', 'duration', 'saveGroup'],
   'status': ['status', 'who', 'duration', 'saveGroup'],
   'opportunity-reach': ['who'],
+  'difficult-terrain': ['who', 'duration'],
   'unparsed': ['text'],
 }
 
@@ -139,7 +140,14 @@ export function clause(c: Checker, cl: unknown, path: string): void {
   const fields = CLAUSE_FIELDS[String(cl.kind)]
   if (!fields) { c.fail(`${path}.kind`, `unknown clause kind "${String(cl.kind)}"`); return }
   c.keys(cl, ['at', 'if', 'unless', 'optional', 'kind', ...fields], path)
-  const who = () => c.oneOf(WHO, cl.who, `${path}.who`)
+  // who: one Who, or a non-empty list of distinct ones (one effect on several subjects).
+  const who = () => {
+    const p = `${path}.who`
+    if (!Array.isArray(cl.who)) { c.oneOf(WHO, cl.who, p); return }
+    if (cl.who.length === 0) c.fail(p, 'expected at least one Who')
+    if (new Set(cl.who).size !== cl.who.length) c.fail(p, 'expected distinct values')
+    cl.who.forEach((w, i) => c.oneOf(WHO, w, `${p}[${i}]`))
+  }
   const dur = () => duration(c, cl.duration, `${path}.duration`)
   const flag = (k: string) => { if (cl[k] !== undefined && cl[k] !== true) c.fail(`${path}.${k}`, 'expected true or absent') }
   c.optional(cl, 'saveGroup', path, (v, p) => c.str(v, p, { nonEmpty: true }))
@@ -150,10 +158,14 @@ export function clause(c: Checker, cl: unknown, path: string): void {
     case 'half-damage': break
     case 'ongoing-damage':
       c.int(cl.amount, `${path}.amount`, { min: 1 }); damageTypes(c, cl.types, `${path}.types`); typeChoice(c, cl, path); who(); dur(); break
-    case 'condition': c.oneOf(CONDITION_IDS, cl.condition, `${path}.condition`); who(); dur(); break
+    case 'condition':
+      c.oneOf(CONDITION_IDS, cl.condition, `${path}.condition`); who(); dur()
+      c.optional(cl, 'escapeDc', path, (v, p) => c.int(v, p, { min: 1 }))
+      if (cl.escapeDc !== undefined && cl.condition !== 'grabbed') c.fail(`${path}.escapeDc`, 'escapeDc only on a grabbed condition')
+      break
     case 'grants-ca': c.oneOf(['all', 'source', 'source-allies'], cl.to, `${path}.to`); who(); dur(); break
     case 'forced-move': c.oneOf(['push', 'pull', 'slide'], cl.move, `${path}.move`); c.int(cl.squares, `${path}.squares`, { min: 0 }); who(); break
-    case 'move': c.oneOf(['shift', 'teleport', 'swap'], cl.move, `${path}.move`); c.optional(cl, 'squares', path, (v, p) => c.int(v, p, { min: 0 })); who(); break
+    case 'move': c.oneOf(['shift', 'teleport', 'swap', 'fly', 'move'], cl.move, `${path}.move`); c.optional(cl, 'squares', path, (v, p) => c.int(v, p, { min: 0 })); who(); break
     case 'modifier':
       if (Array.isArray(cl.stat)) {
         if (cl.stat.length === 0) c.fail(`${path}.stat`, 'expected at least one stat')
@@ -190,6 +202,7 @@ export function clause(c: Checker, cl: unknown, path: string): void {
       who(); dur(); break
     case 'status': c.oneOf(STATUS_IDS, cl.status, `${path}.status`); who(); dur(); break
     case 'opportunity-reach': who(); break
+    case 'difficult-terrain': if (cl.who !== undefined) who(); dur(); break
     case 'unparsed': c.str(cl.text, `${path}.text`, { nonEmpty: true }); break
   }
 }
@@ -321,11 +334,22 @@ function levelSteps(c: Checker, v: unknown, path: string): void {
 
 function trait(c: Checker, t: unknown, path: string, aura = false): void {
   if (!c.obj(t, path)) return
-  c.keys(t, aura ? ['name', 'keywords', 'text', 'range'] : ['name', 'keywords', 'text'], path)
+  c.keys(t, aura ? ['name', 'keywords', 'text', 'range', 'rangeIf'] : ['name', 'keywords', 'text'], path)
   c.str(t.name, `${path}.name`, { nonEmpty: true })
   if (c.arr(t.keywords, `${path}.keywords`)) t.keywords.forEach((k, i) => c.str(k, `${path}.keywords[${i}]`))
   lineShape(c, t.text, `${path}.text`)
-  if (aura) c.int(t.range, `${path}.range`, { min: 0 })
+  if (!aura) return
+  c.int(t.range, `${path}.range`, { min: 0 })
+  // rangeIf: printed alternative sizes ("aura 2, or 3 while bloodied"), `if` as printed words.
+  c.optional(t, 'rangeIf', path, (v, q) => list(c, v, q, (x, p) => {
+    if (!c.obj(x, p)) return
+    c.keys(x, ['value', 'if'], p)
+    c.int(x.value, `${p}.value`, { min: 0 })
+    if (Array.isArray(x.if)) {
+      if (x.if.length === 0) c.fail(`${p}.if`, 'expected at least one fragment')
+      x.if.forEach((f, i) => c.str(f, `${p}.if[${i}]`, { nonEmpty: true }))
+    } else c.str(x.if, `${p}.if`, { nonEmpty: true })
+  }))
 }
 
 function list<T>(c: Checker, v: unknown, path: string, each: (item: unknown, p: string) => T): void {

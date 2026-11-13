@@ -379,3 +379,78 @@ describe('schema v6: if / unless / optional', () => {
     expect(validateEntry('monsters', m).errors).toEqual([])
   })
 })
+
+describe('schema v7', () => {
+  /** A hit line with clauses given as [quote, fields]; spans are found in order. */
+  function hit(text: string, clauses: [string, any][]) {
+    let from = 0
+    const m = monster()
+    m.powers[0].attacks[0].hit = { text, clauses: clauses.map(([q, cl]) => {
+      const start = text.indexOf(q, from)
+      from = start + q.length
+      return { at: [start, start + q.length], ...cl }
+    }) }
+    return validateEntry('monsters', m).errors
+  }
+  const dmg = (dice: string, types: string[] = []) => ({ kind: 'damage', dice, types, who: 'target' })
+  const ongoing = (amount: number, types: string[]) => ({ kind: 'ongoing-damage', amount, types, who: 'target', duration: { kind: 'save-ends' } })
+
+  it('structures multi-part damage: a damage quote needs the dice, not the word "damage"', () => {
+    expect(hit('2d8+10 plus 2d6 lightning damage, and the target is pushed 3 squares.', [
+      ['2d8+10', dmg('2d8+10')], ['2d6 lightning damage', dmg('2d6', ['lightning'])],
+      ['pushed 3 squares', { kind: 'forced-move', move: 'push', squares: 3, who: 'target' }],
+    ])).toEqual([])
+    expect(hit('1d10+6 and ongoing 5 poison damage (save ends).', [
+      ['1d10+6', dmg('1d10+6')], ['ongoing 5 poison damage (save ends)', ongoing(5, ['poison'])],
+    ])).toEqual([])
+    expect(hit('1d8+5 plus 1d10 cold damage.', [['1d8+5', dmg('1d8+5')], ['1d10 cold damage', dmg('1d10', ['cold'])]])).toEqual([])
+    expect(hit('3d6 + 7 damage, or 5d6 + 7 against a prone target.', [
+      ['3d6 + 7 damage', { ...dmg('3d6+7'), unless: 'against a prone target' }],
+      ['5d6 + 7', { ...dmg('5d6+7'), if: 'against a prone target' }],
+    ])).toEqual([])
+  })
+
+  it('takes a damage type from the clause or the words after it, and matches whole dice', () => {
+    expect(hit('2d6 + 5 or 3d6 + 5 fire damage.', [['2d6 + 5', dmg('2d6+5', ['fire'])], ['3d6 + 5 fire damage', dmg('3d6+5', ['fire'])]])).toEqual([])
+    expect(hit('5 fire damage plus 2d6 damage.', [['5 fire damage', dmg('5', ['fire'])], ['2d6 damage', dmg('2d6', ['fire'])]])
+      .map(e => e.message)).toEqual([expect.stringMatching(/type "fire" not in span or the words after it/)])
+    expect(spanProblem(dmg('10') as any, '2d8+10')).toMatch(/dice "10" not in span/)
+    expect(spanProblem(dmg('1d10') as any, '1d10+6')).toMatch(/not in span/)
+    expect(spanProblem(dmg('2d8+1') as any, '2d8+10')).toMatch(/not in span/)
+    expect(spanProblem(dmg('10', ['fire']) as any, 'takes 10 fire damage')).toBeUndefined()
+    expect(spanProblem({ ...dmg('2d12+18'), critical: true } as any, '(crit 2d12 + 18)')).toBeUndefined()
+    expect(spanProblem({ ...dmg('2d12+18'), critical: true } as any, '2d12 + 18')).toMatch(/crit/)
+  })
+
+  it('accepts difficult-terrain, fly/move, no-provoke, who lists and escapeDc', () => {
+    const turn = { kind: 'turn-end', whose: 'source', next: true }
+    expect(spanProblem({ kind: 'difficult-terrain', who: 'enemies-in-area', duration: { kind: 'permanent' } } as any, 'is difficult terrain for enemies')).toBeUndefined()
+    expect(spanProblem({ kind: 'difficult-terrain', duration: { kind: 'permanent' } } as any, 'is hindering terrain')).toMatch(/difficult terrain/)
+    expect(spanProblem({ kind: 'move', move: 'fly', squares: 12, who: 'self' } as any, 'flies up to 12 squares')).toBeUndefined()
+    expect(spanProblem({ kind: 'move', move: 'move', who: 'self' } as any, 'moves its speed')).toBeUndefined()
+    expect(spanProblem({ kind: 'move', move: 'move', squares: 5, who: 'self' } as any, 'jumps 5 squares')).toBeUndefined()
+    expect(spanProblem({ kind: 'move', move: 'fly', who: 'self' } as any, 'shifts 2 squares')).toMatch(/no "fly"/)
+    expect(spanProblem({ kind: 'status', status: 'no-provoke', who: 'self', duration: { kind: 'instant' } } as any, 'without provoking opportunity attacks')).toBeUndefined()
+    expect(spanProblem({ kind: 'condition', condition: 'grabbed', who: 'target', duration: { kind: 'indefinite' }, escapeDc: 19 } as any, 'the target is grabbed (escape DC 19)')).toBeUndefined()
+    expect(spanProblem({ kind: 'condition', condition: 'grabbed', who: 'target', duration: { kind: 'indefinite' }, escapeDc: 20 } as any, 'the target is grabbed (escape DC 19)')).toMatch(/escape DC 20/)
+
+    const m = monster()
+    const t = 'The overseer and one ally turn invisible until the end of the overseer\'s next turn. The ground in the aura is difficult terrain for enemies.'
+    m.powers[0].effect = { text: t, clauses: [
+      { at: [t.indexOf('turn invisible'), t.indexOf('turn invisible') + 14], kind: 'condition', condition: 'invisible', who: ['self', 'ally'], duration: turn } as any,
+      { at: [t.indexOf('is difficult'), t.length - 1], kind: 'difficult-terrain', who: 'enemies-in-area', duration: { kind: 'permanent' } } as any,
+    ] }
+    m.auras = [{ name: 'Flaming Body', keywords: ['fire'], range: 2, rangeIf: [{ value: 3, if: 'while the balor is bloodied' }], text: { text: 'Fire.', clauses: [] } }]
+    expect(validateEntry('monsters', m).errors).toEqual([])
+  })
+
+  it('rejects malformed v7 values', () => {
+    const m = monster()
+    const cl = (over: any) => ({ at: [0, 14], kind: 'condition', condition: 'dazed', who: 'target', duration: { kind: 'save-ends' }, ...over })
+    m.powers[0].attacks[0].hit = { text: '2d8 + 4 damage.', clauses: [cl({ who: [] }), cl({ who: ['self', 'self'] }), cl({ who: ['self', 'foe'] }), cl({ escapeDc: 12 })] }
+    m.auras = [{ name: 'A', keywords: [], range: 2, rangeIf: [{ value: 3 }, { value: 3, if: [] }], text: { text: '', clauses: [] } } as any]
+    const paths = validateEntry('monsters', m).errors.map(e => e.path)
+    for (const p of ['clauses[0].who', 'clauses[1].who', 'clauses[2].who[1]', 'clauses[3].escapeDc']) expect(paths).toContain(`$.powers[0].attacks[0].hit.${p}`)
+    expect(paths).toEqual(expect.arrayContaining(['$.auras[0].rangeIf[0].if', '$.auras[0].rangeIf[1].if']))
+  })
+})

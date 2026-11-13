@@ -578,6 +578,7 @@ function parseOneAbility(headerHtml: string, bodyBlocks: string[], sectionDefaul
   const allBodyText = unlabeledText + ' ' + Object.values(fields).join(' ')
   if (icon === '☼' || allBodyText.toLowerCase().startsWith('aura') || afterIcon.toLowerCase().includes('aura')) {
     const auraRange = parseInt((afterIcon + ' ' + allBodyText).match(/[Aa]ura\s+(\d+)/)?.[1] ?? '1')
+    const rangeIf = auraRangeIf(afterIcon)
     const text = allBodyText.replace(/^Aura\s+\d+\s*/i, '')
     return {
       name, entryType: 'aura', actionType: '', usage: '',
@@ -586,6 +587,7 @@ function parseOneAbility(headerHtml: string, bodyBlocks: string[], sectionDefaul
       hit: '', miss: '',
       effect: text.substring(0, 500),
       trigger: '', requirement: '', sustain: '', auraRange,
+      ...(rangeIf ? { auraRangeIf: rangeIf } : {}),
       ...(options.printed ? { printed: { text: text.trim() } } : {}),
     }
   }
@@ -771,6 +773,15 @@ function parseOneAbility(headerHtml: string, bodyBlocks: string[], sectionDefaul
     trigger: cap(trigger), requirement, sustain,
     ...(options.printed ? { printed } : {}),
   }
+}
+
+/**
+ * Printed alternative aura sizes: "Aura 2, or 3 while the balor is bloodied",
+ * "Aura 1 (aura 3 while bloodied)", "Aura 1 (3 while the Voidharrow is bloodied)".
+ */
+export function auraRangeIf(text: string): { value: number; if: string }[] | undefined {
+  const m = text.match(/\baura\s+\d+\s*(?:,\s*or\s+|\(\s*(?:aura\s+)?)(\d+)\s+(while\b[^;.()]*?)\s*(?:\)|[;.]|$)/i)
+  return m ? [{ value: parseInt(m[1]), if: m[2].trim() }] : undefined
 }
 
 // ─── Parse auras from the stats <p class=flavor> HTML ───

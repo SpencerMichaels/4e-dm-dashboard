@@ -49,6 +49,24 @@ describe('clause helpers', () => {
       .toEqual([{ at: [0, 14], kind: 'damage', dice: '2d8+5', types: [], who: 'target' }])
   })
 
+  it('damageClauses quotes bare dice that another part follows (schema v7)', () => {
+    const dmg = (at: [number, number], dice: string, types: string[] = []) => ({ at, kind: 'damage', dice, types, who: 'target' })
+    expect(damageClauses('2d8+10 plus 2d6 lightning damage, and the target is pushed 3 squares.', [
+      { expr: '2d8+10', type: '', ongoing: false }, { expr: '2d6', type: 'lightning', ongoing: false },
+    ])).toEqual([dmg([0, 6], '2d8+10'), dmg([12, 32], '2d6', ['lightning'])])
+    expect(damageClauses('1d8+5 plus 1d10 cold damage.', [{ expr: '1d8+5', type: '', ongoing: false }, { expr: '1d10', type: 'cold', ongoing: false }]))
+      .toEqual([dmg([0, 5], '1d8+5'), dmg([11, 27], '1d10', ['cold'])])
+    const ongoing = '1d10+6 and ongoing 5 poison damage (save ends).'
+    expect(damageClauses(ongoing, [{ expr: '1d10+6', type: '', ongoing: false }])).toEqual([dmg([0, 6], '1d10+6')])
+    expect(saveEndsClauses(ongoing)).toEqual([
+      { at: [11, 46], kind: 'ongoing-damage', amount: 5, types: ['poison'], who: 'target', duration: { kind: 'save-ends' } },
+    ])
+    // A typed part with no "damage" of its own, or bare dice with nothing after, stay for agents.
+    expect(damageClauses('2d6 fire plus 1d6 cold damage.', [{ expr: '2d6', type: 'fire', ongoing: false }])).toEqual([])
+    expect(damageClauses('3d6 + 7 damage, or 5d6 + 7 against a prone target.', [{ expr: '3d6+7', type: '', ongoing: false }, { expr: '5d6+7', type: '', ongoing: false }]))
+      .toEqual([dmg([0, 14], '3d6+7')])
+  })
+
   it('saveEndsClauses only takes the exact patterns', () => {
     const text = '2d6 + 5 fire damage, and ongoing 5 fire damage (save ends).'
     expect(saveEndsClauses(text)).toEqual([

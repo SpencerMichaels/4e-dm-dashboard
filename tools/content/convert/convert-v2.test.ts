@@ -2,7 +2,7 @@
 
 import { describe, expect, it } from 'vitest'
 import { MONSTER_TEMPLATES } from '../../../src/renderer/components/creature/monster-templates'
-import { parseMonsterHtml } from '../html-parser'
+import { auraRangeIf, parseMonsterHtml } from '../html-parser'
 import { parseTrapHtml } from '../trap-parser'
 import { Notes, damageModifier, parseSources, splitRangePrefix, type ConvertContext } from './common'
 import { checkFrom, enduranceFrom } from './disease'
@@ -247,5 +247,16 @@ describe('schema v5', () => {
     }, notes)
     expect(p.attacks[0].vs).toBe('unknown')
     expect(notes.list[0]).toMatch(/not a kit Defense/)
+  })
+})
+
+describe('schema v7', () => {
+  it('reads printed alternative aura sizes into rangeIf', () => {
+    const html = "<h1 class=monster>Balor<br><span class=type>Huge elemental humanoid (demon)</span><br><span class=level>Level 27 Elite Brute<br>XP 22,000</span></h1><table class=bodytable><tr><td><b>HP</b> 620<td class=rightalign><b>Initiative</b> +18<tr><td><b>AC</b> 41, <b>Fortitude</b> 41, <b>Reflex</b> 37, <b>Will</b> 37<td class=rightalign><b>Perception</b> +18<tr><td><b>Speed</b> 8, fly 12<td class=rightalign>Truesight 6</table><h2>Traits</h2><p class='flavor alt'>☼ <b>Flaming Body</b> (fire) ✦ <b>Aura</b> 2, or 3 while the balor is bloodied</p><p class=flavorIndent>Any enemy that starts its turn in the aura takes 10 fire damage.</p><p class=flavor><b>Str</b> 32 (+24) <b>Dex</b> 21 (+18) <b>Wis</b> 21 (+18)<br><b>Con</b> 26 (+21) <b>Int</b> 12 (+14) <b>Cha</b> 12 (+14)</p><p class=flavor><b>Alignment</b> Chaotic evil <b>Languages</b> Abyssal</p><p class=publishedIn>Published in Monster Manual, page(s) 53.</p>"
+    const m = convertMonster('monster32', parseMonsterHtml(html, [], { printed: true }), ctx)
+    expect(m.auras[0]).toMatchObject({ name: 'Flaming Body', range: 2, rangeIf: [{ value: 3, if: 'while the balor is bloodied' }] })
+    expect(auraRangeIf('Aura 1 (aura 3 while bloodied)')).toEqual([{ value: 3, if: 'while bloodied' }])
+    expect(auraRangeIf('Aura 1 (3 while the Voidharrow is bloodied)')).toEqual([{ value: 3, if: 'while the Voidharrow is bloodied' }])
+    expect(auraRangeIf('Aura 5')).toBeUndefined()
   })
 })

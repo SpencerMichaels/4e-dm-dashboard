@@ -268,7 +268,10 @@ export interface DamagePartIn { expr: string; type: string; ongoing: boolean; sa
 
 /**
  * Damage clauses for an attack's own (non-ongoing) damage parts: each part's
- * dice must appear in the line text as "<dice> [<type>[ and <type>]] damage".
+ * dice must appear in the line text as "<dice> [<type>[ and <type>]] damage",
+ * or, for an untyped part, as bare dice that another part follows ("2d8+10
+ * plus 2d6 lightning damage", "1d10+6 and ongoing 5 poison damage"): the quote
+ * is then the dice alone and the trailing type is not the part's.
  */
 export function damageClauses(text: string, parts: DamagePartIn[]): Clause[] {
   const clauses: Clause[] = []
@@ -278,7 +281,16 @@ export function damageClauses(text: string, parts: DamagePartIn[]): Clause[] {
     const re = new RegExp(`(?<![\\w+])${exprPattern(part.expr)}\\s+(?:((?:${TYPE_ALT})(?:(?:,\\s*|\\s+(?:and|or)\\s+)(?:${TYPE_ALT}))*)\\s+)?damage\\b`, 'gi')
     re.lastIndex = from
     const m = re.exec(text)
-    if (!m) continue
+    if (!m) {
+      if (part.type) continue
+      const bare = new RegExp(`(?<![\\w+])${exprPattern(part.expr)}(?=,?\\s+(?:plus|and)\\s+(?:ongoing\\s+)?\\d)`, 'gi')
+      bare.lastIndex = from
+      const b = bare.exec(text)
+      if (!b) continue
+      clauses.push({ at: [b.index, b.index + b[0].length], kind: 'damage', dice: part.expr, types: [], who: 'target' })
+      from = b.index + b[0].length
+      continue
+    }
     const types = typesOf(m[1] ?? '')
     if (!types) continue
     // "cold or fire damage" is a choice, not both types: leave it for agents.
@@ -291,12 +303,12 @@ export function damageClauses(text: string, parts: DamagePartIn[]): Clause[] {
 
 /**
  * Exact "(save ends)" patterns about the target:
- *   "ongoing 5 fire damage (save ends)" after the attack's damage or "the target takes"
+ *   "ongoing 5 fire damage (save ends)" after the attack's damage or dice ("1d10+6 and ongoing 5 ...") or "the target takes"
  *   "the target is dazed (save ends)"
  */
 export function saveEndsClauses(text: string): Clause[] {
   const clauses: Clause[] = []
-  const ongoing = new RegExp(`(?:^|damage,?\\s+(?:and|plus)\\s+|the target takes\\s+)(ongoing (\\d+) (?:(${TYPE_ALT}) )?damage \\(save ends\\))`, 'gi')
+  const ongoing = new RegExp(`(?:^|(?:damage|\\dd\\d+(?:\\s*[+-]\\s*\\d+)?),?\\s+(?:and|plus)\\s+|the target takes\\s+)(ongoing (\\d+) (?:(${TYPE_ALT}) )?damage \\(save ends\\))`, 'gi')
   for (const m of text.matchAll(ongoing)) {
     const start = m.index! + m[0].length - m[1].length
     clauses.push({
