@@ -159,7 +159,7 @@ export function TemplateViewer({ template: t }: { template: MonsterTemplate }) {
       )}
 
       {/* Stats */}
-      <div style={{ borderTop: '1px solid var(--sb-separator)' }}>
+      <div className="sb-section">
         {t.keyword && (
           <div className="sb-row"><span><b className="sb-label">Keyword</b> {t.keyword}</span></div>
         )}
@@ -197,7 +197,7 @@ export function TemplateViewer({ template: t }: { template: MonsterTemplate }) {
 
       {/* Powers */}
       {t.powers.length > 0 && (
-        <div style={{ borderTop: '1px solid var(--sb-separator)' }}>
+        <div className="sb-section">
           {t.powers.map((pow, i) => {
             const parts = (pow.action ?? '').split(';').map(s => s.trim())
             const usageWords = ['at will', 'at-will', 'encounter', 'daily', 'recharge', 'recharges']

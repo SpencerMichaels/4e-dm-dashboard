@@ -121,7 +121,7 @@ export function Dnd4eItemViewer({ item, tooltip: tip, onSelectItem }: { item: Pa
 
       {/* Weapon/implement stats */}
       {(item.damage || item.proficiency || item.weight || item.group) && (
-        <div style={{ borderTop: '1px solid var(--sb-separator)' }}>
+        <div className="sb-section">
           {(item.damage || item.proficiency || item.range || item.weight) && (
             <div className="sb-row">
               <span>{joinSemicolon([
@@ -142,7 +142,7 @@ export function Dnd4eItemViewer({ item, tooltip: tip, onSelectItem }: { item: Pa
 
       {/* Ritual stats */}
       {item.category === 'ritual' && (
-        <div style={{ borderTop: '1px solid var(--sb-separator)' }}>
+        <div className="sb-section">
           <div className="sb-row">
             <span>{joinSemicolon([
               item.componentCost && <span key="cost"><b className="sb-label">Component Cost</b> {item.componentCost}</span>,
@@ -160,7 +160,7 @@ export function Dnd4eItemViewer({ item, tooltip: tip, onSelectItem }: { item: Pa
 
       {/* Alchemical item stats */}
       {item.alchemicalType && (
-        <div style={{ borderTop: '1px solid var(--sb-separator)' }}>
+        <div className="sb-section">
           <div className="sb-row">
             <span>{joinSemicolon([
               <span key="type"><b className="sb-label">Alchemical Item</b> {item.alchemicalType}</span>,
@@ -180,7 +180,7 @@ export function Dnd4eItemViewer({ item, tooltip: tip, onSelectItem }: { item: Pa
 
       {/* Enhancement + Critical */}
       {(displayEnhancement || item.critical) && (
-        <div style={{ borderTop: '1px solid var(--sb-separator)' }}>
+        <div className="sb-section">
           {displayEnhancement && <div className="sb-row"><span><b className="sb-label">Enhancement</b> {
             selectedTier?.enhancement
               ? `${selectedTier.enhancement} ${item.enhancement}`
@@ -197,7 +197,7 @@ export function Dnd4eItemViewer({ item, tooltip: tip, onSelectItem }: { item: Pa
         const shortProps = item.properties.filter(isShort)
         const longProps = item.properties.filter(p => !isShort(p))
         return (
-          <div style={{ borderTop: '1px solid var(--sb-separator)' }}>
+          <div className="sb-section">
             {shortProps.length > 0 && (
               <div className="sb-row">
                 <b className="sb-label">{longProps.length === 0 && shortProps.length === 1 ? 'Property' : 'Properties'}</b>{' '}
@@ -231,7 +231,7 @@ export function Dnd4eItemViewer({ item, tooltip: tip, onSelectItem }: { item: Pa
 
       {/* Structured description (rituals, item sets, concordance — before powers) */}
       {item.descriptionParts && item.descriptionParts.length > 0 && (
-        <div style={{ padding: '4px 8px', fontSize: 11, borderTop: '1px solid var(--sb-separator)' }}>
+        <div className="sb-section" style={{ padding: '4px 8px', fontSize: 11 }}>
           {item.descriptionParts.map((part, i) => {
             if (part.type === 'table') {
               return <DescriptionTable key={i} headers={part.headers} rows={part.rows}
@@ -276,7 +276,7 @@ export function Dnd4eItemViewer({ item, tooltip: tip, onSelectItem }: { item: Pa
       )}
       {/* Plain text description fallback */}
       {!item.descriptionParts && item.description && item.description !== item.flavor && (item.category === 'ritual' || item.category === 'set') && (
-        <div style={{ padding: '4px 8px', fontSize: 11, borderTop: '1px solid var(--sb-separator)' }}>
+        <div className="sb-section" style={{ padding: '4px 8px', fontSize: 11 }}>
           {item.description.split('\n').filter(l => l.trim()).map((line, i) => (
             <p key={i} style={{ margin: 0, marginBottom: '0.4em', textIndent: i > 0 ? '1em' : 0 }}>{line}</p>
           ))}
@@ -285,7 +285,7 @@ export function Dnd4eItemViewer({ item, tooltip: tip, onSelectItem }: { item: Pa
 
       {/* Powers */}
       {item.powers.length > 0 && (
-        <div style={{ borderTop: '1px solid var(--sb-separator)' }}>
+        <div className="sb-section">
           {item.powers.map((pow, i) => (
             <PowerCardView key={i} entry={pow} selectedLevel={selectedLevel} />
           ))}

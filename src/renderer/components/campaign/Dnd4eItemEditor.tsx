@@ -252,7 +252,7 @@ export function Dnd4eItemEditor({ item, onSave }: Props) {
 
       {/* ── Set items + benefits ── */}
       {isSet && (
-        <div style={{ borderTop: '1px solid var(--sb-separator)' }}>
+        <div className="sb-section">
           <div className="sb-row" style={{ alignItems: 'flex-start', flexDirection: 'column', gap: 2 }}>
             <b className="sb-label">Set Items</b>
             {setItemIds().map((itemId, i) => {
@@ -287,7 +287,7 @@ export function Dnd4eItemEditor({ item, onSave }: Props) {
               }} />
           </div>
 
-          <div className="sb-row" style={{ alignItems: 'flex-start', flexDirection: 'column', gap: 2, borderTop: '1px solid var(--sb-separator)' }}>
+          <div className="sb-row sb-section" style={{ alignItems: 'flex-start', flexDirection: 'column', gap: 2 }}>
             <b className="sb-label">Set Benefits</b>
             {setBenefits().map((sb, i) => (
               <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 4, width: '100%' }}>
@@ -313,7 +313,7 @@ export function Dnd4eItemEditor({ item, onSave }: Props) {
 
       {/* ── Weapon stats (when category is weapon) ── */}
       {hasWeaponStats && (
-        <div style={{ borderTop: '1px solid var(--sb-separator)' }}>
+        <div className="sb-section">
           <datalist id="dl-damage">{['1d4', '1d6', '1d8', '1d10', '1d12', '2d4', '2d6'].map(d => <option key={d} value={d} />)}</datalist>
           <datalist id="dl-range">{['5/10', '6/12', '10/20', '15/30', '20/40', '25/50'].map(r => <option key={r} value={r} />)}</datalist>
           <div className="sb-row">
@@ -339,7 +339,7 @@ export function Dnd4eItemEditor({ item, onSave }: Props) {
 
       {/* ── Groups (weapon + implement) ── */}
       {hasGroups && (
-        <div className="sb-row" style={{ borderTop: hasWeaponStats ? undefined : '1px solid var(--sb-separator)' }}>
+        <div className={hasWeaponStats ? 'sb-row' : 'sb-row sb-section'}>
           <b className="sb-label">Group</b>{' '}
           <span>{arr('groups').map((g, i) => (
             <span key={g}>{i > 0 && ', '}{g}
@@ -360,7 +360,7 @@ export function Dnd4eItemEditor({ item, onSave }: Props) {
 
       {/* ── Ritual stats ── */}
       {isRitual && (
-        <div style={{ borderTop: '1px solid var(--sb-separator)' }}>
+        <div className="sb-section">
           <datalist id="dl-keyskill">
             {['Arcana', 'Nature', 'Religion', 'Heal', 'Diplomacy', 'Dungeoneering', 'Thievery',
               'Arcana (no check)', 'Nature (no check)', 'Religion (no check)',
@@ -399,7 +399,7 @@ export function Dnd4eItemEditor({ item, onSave }: Props) {
 
       {/* ── Alchemical stats ── */}
       {hasAlchemical && (
-        <div style={{ borderTop: '1px solid var(--sb-separator)' }}>
+        <div className="sb-section">
           <div className="sb-row">
             <span>
               <b className="sb-label">Alchemical Item</b>{' '}
@@ -416,7 +416,7 @@ export function Dnd4eItemEditor({ item, onSave }: Props) {
       )}
       {/* Show add-alchemical button when not already alchemical and not ritual */}
       {!hasAlchemical && category === 'item' && (
-        <div className="sb-row" style={{ borderTop: '1px solid var(--sb-separator)' }}>
+        <div className="sb-row sb-section">
           <button onClick={() => u('alchemicalType', 'Volatile')}
             style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)', cursor: 'pointer' }}>
             + Alchemical
@@ -426,7 +426,7 @@ export function Dnd4eItemEditor({ item, onSave }: Props) {
 
       {/* ── Enhancement + Critical ── */}
       {(hasEnhancement || hasCritical) && (
-        <div style={{ borderTop: '1px solid var(--sb-separator)' }}>
+        <div className="sb-section">
           {hasEnhancement && (
             <div className="sb-row">
               <b className="sb-label">Enhancement</b>{' '}
@@ -465,7 +465,7 @@ export function Dnd4eItemEditor({ item, onSave }: Props) {
       )}
 
       {/* ── Properties ── */}
-      <div style={{ borderTop: '1px solid var(--sb-separator)' }}>
+      <div className="sb-section">
         <datalist id="property-suggestions">
           {propertySuggestions.map(s => <option key={s} value={s} />)}
         </datalist>
@@ -490,7 +490,7 @@ export function Dnd4eItemEditor({ item, onSave }: Props) {
 
       {/* ── Special / Requirement (hidden when empty) ── */}
       {(str('special') || str('requirement')) && (
-        <div style={{ borderTop: '1px solid var(--sb-separator)' }}>
+        <div className="sb-section">
           {str('special') !== '' && (
             <div className="sb-row" style={{ alignItems: 'flex-start' }}>
               <b className="sb-label">Special</b>{' '}

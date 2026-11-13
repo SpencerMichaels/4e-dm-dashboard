@@ -145,7 +145,7 @@ function ThemeViewer({ theme: t }: { theme: MonsterTheme }) {
 
       {/* Modifications */}
       {(t.skillModifications || t.originChange) && (
-        <div style={{ borderTop: '1px solid var(--sb-separator)' }}>
+        <div className="sb-section">
           {t.originChange && (
             <div className="sb-row"><span><b className="sb-label">Origin</b> {t.originChange}</span></div>
           )}
@@ -157,7 +157,7 @@ function ThemeViewer({ theme: t }: { theme: MonsterTheme }) {
 
       {/* Attack Powers */}
       {attackPowers.length > 0 && (
-        <div style={{ borderTop: '1px solid var(--sb-separator)' }}>
+        <div className="sb-section">
           <div style={{ padding: '4px 8px', marginTop: 8, fontWeight: 700, fontSize: 14 }}>Attack Powers</div>
           {attackPowers.map((pow, i) => (
             <div key={i} style={{ marginTop: 12 }}>
@@ -179,7 +179,7 @@ function ThemeViewer({ theme: t }: { theme: MonsterTheme }) {
 
       {/* Utility Powers */}
       {utilityPowers.length > 0 && (
-        <div style={{ borderTop: '1px solid var(--sb-separator)' }}>
+        <div className="sb-section">
           <div style={{ padding: '4px 8px', marginTop: 8, fontWeight: 700, fontSize: 14 }}>Utility Powers</div>
           {utilityPowers.map((pow, i) => (
             <div key={i} style={{ marginTop: 12 }}>

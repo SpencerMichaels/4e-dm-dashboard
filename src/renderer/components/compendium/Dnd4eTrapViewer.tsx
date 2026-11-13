@@ -82,14 +82,14 @@ export function Dnd4eTrapViewer({ trap }: { trap: ParsedTrap }) {
 
       {/* Description */}
       {trap.description && (
-        <div className="sb-row" style={{ borderTop: '1px solid var(--sb-separator)' }}>
+        <div className="sb-row sb-section">
           <span><MultiLine text={trap.description} /></span>
         </div>
       )}
 
       {/* Detection + Skills */}
       {(trap.perception || trap.additionalSkills.length > 0) && (
-        <div style={{ borderTop: '1px solid var(--sb-separator)' }}>
+        <div className="sb-section">
           {trap.perception && (
             <div className="sb-row"><span><b className="sb-label">Perception</b> <MultiLine text={trap.perception} /></span></div>
           )}
@@ -101,7 +101,7 @@ export function Dnd4eTrapViewer({ trap }: { trap: ParsedTrap }) {
 
       {/* Stats */}
       {(trap.hp || trap.ac || trap.defenses || trap.resist || trap.immune || hasInitiative) && (
-        <div style={{ borderTop: '1px solid var(--sb-separator)' }}>
+        <div className="sb-section">
           {hasInitiative && (
             <div className="sb-row"><span><b className="sb-label">Initiative</b> {trap.initiative}</span></div>
           )}
@@ -122,21 +122,21 @@ export function Dnd4eTrapViewer({ trap }: { trap: ParsedTrap }) {
 
       {/* Trigger (old format) */}
       {trap.trigger && !trap.actions?.length && (
-        <div className="sb-row" style={{ borderTop: '1px solid var(--sb-separator)' }}>
+        <div className="sb-row sb-section">
           <span><b className="sb-label">Trigger</b> <MultiLine text={trap.trigger} /></span>
         </div>
       )}
 
       {/* Attack (old format) */}
       {trap.attack && !trap.actions?.length && (
-        <div className="sb-row" style={{ borderTop: '1px solid var(--sb-separator)' }}>
+        <div className="sb-row sb-section">
           <span><b className="sb-label">Attack</b> <MultiLine text={trap.attack} /></span>
         </div>
       )}
 
       {/* Actions */}
       {trap.actions && trap.actions.length > 0 && (
-        <div style={{ borderTop: '1px solid var(--sb-separator)', paddingTop: 2 }}>
+        <div className="sb-section" style={{ paddingTop: 2 }}>
           {trap.actions.map((a, i) => (
             <PowerCardView key={i} entry={a} />
           ))}
@@ -145,7 +145,7 @@ export function Dnd4eTrapViewer({ trap }: { trap: ParsedTrap }) {
 
       {/* Countermeasures */}
       {trap.countermeasures.length > 0 && (
-        <div style={{ borderTop: '1px solid var(--sb-separator)' }}>
+        <div className="sb-section">
           <div className="sb-row" style={{ fontWeight: 700 }}>Countermeasures</div>
           {trap.countermeasures.map((cm, i) => (
             <div key={i} className="sb-row" style={{ paddingLeft: 16 }}>

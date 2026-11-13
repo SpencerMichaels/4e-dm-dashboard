@@ -71,6 +71,12 @@
   background: var(--sb-row-alt);
 }
 
+/* Section boundaries inside a card (item stats, description, powers, trap
+   countermeasures, ...): a small gap, never a separator line. */
+.stat-block-4e .sb-section {
+  margin-top: var(--space-1);
+}
+
 /* Labels */
 .stat-block-4e .sb-label {
   font-weight: 700;

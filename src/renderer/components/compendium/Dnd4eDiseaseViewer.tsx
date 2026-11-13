@@ -34,7 +34,7 @@ export function Dnd4eDiseaseViewer({ disease }: { disease: ParsedDisease }) {
       )}
 
       {/* Stages */}
-      <div style={{ borderTop: '1px solid var(--sb-separator)' }}>
+      <div className="sb-section">
         {disease.stages.map((s, i) => {
           const label = STAGE_LABELS[s.stage]
           return (
@@ -51,7 +51,7 @@ export function Dnd4eDiseaseViewer({ disease }: { disease: ParsedDisease }) {
 
       {/* Check */}
       {disease.check && (
-        <div style={{ borderTop: '1px solid var(--sb-separator)' }}>
+        <div className="sb-section">
           <div className="sb-row">
             <span><b className="sb-label">Check</b> {disease.check}</span>
           </div>
