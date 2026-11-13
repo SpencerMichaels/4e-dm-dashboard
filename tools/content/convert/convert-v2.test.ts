@@ -2,13 +2,14 @@
 
 import { describe, expect, it } from 'vitest'
 import { MONSTER_TEMPLATES } from '../../../src/renderer/components/creature/monster-templates'
+import { parseMonsterHtml } from '../html-parser'
 import { parseTrapHtml } from '../trap-parser'
 import { Notes, damageModifier, parseSources, splitRangePrefix, type ConvertContext } from './common'
 import { checkFrom, enduranceFrom } from './disease'
 import { armorFrom, cleanWeight, parsePrice, tierOf } from './item'
-import { convertPower } from './monster'
+import { convertMonster, convertPower } from './monster'
 import { convertTemplate, convertTheme, prereqFromCheck } from './template'
-import { convertTrap, isSkillHeading } from './trap'
+import { convertTrap, isSkillHeading, parseTrapSpeed } from './trap'
 
 const ctx: ConvertContext = { provenance: { origin: 'parser', by: 'tools/content@test', at: '2026-11-12' } }
 
@@ -193,5 +194,32 @@ describe('templates and themes', () => {
     } as any, ctx)
     expect(theme.powers[0]).toMatchObject({ recommendedFor: ['controller'], recommendedText: 'controllers, leaders' })
     expect(theme.sources).toEqual([{ book: 'Test' }])
+  })
+})
+
+describe('schema v4 fields', () => {
+  it('reads trap speeds', () => {
+    const notes = new Notes()
+    expect(parseTrapSpeed('5', notes)).toEqual({ walk: 5 })
+    expect(parseTrapSpeed('0, fly 4 (hover)', notes)).toEqual({ walk: 0, fly: 4, notes: '(hover)' })
+    expect(parseTrapSpeed("8(consider altering this based on the PCs' speeds)", notes)).toEqual({ walk: 8, notes: "(consider altering this based on the PCs' speeds)" })
+    expect(notes.list).toEqual([])
+    expect(parseTrapSpeed("1d6+8 (Roll at the start of each cyclone's move)", notes)).toBeUndefined()
+    expect(notes.list[0]).toMatch(/not a number/)
+  })
+
+  it('keeps conditional skill bonuses as notes, not as the bonus', () => {
+    const html = "<h1 class=monster>Mimic<br><span class=type>Medium aberrant magical beast</span><br><span class=level>Level 5 Lurker<span class=xp> XP 200</span></span></h1><table class=bodytable><tr><td><b>HP</b> 50; <b>Bloodied</b> 25<td class=rightalign><b>Initiative</b> +8<tr><td><b>AC</b> 19, <b>Fortitude</b> 17, <b>Reflex</b> 16, <b>Will</b> 16<td class=rightalign><b>Perception</b>+4<tr><td><b>Speed</b> 5<td class=rightalign></table><p class='flavor alt'><b>Skills</b> Bluff +19, Stealth +17 (Bluff +23 while the mimic is duplicating a creature)<br> <b>Str</b> 10 (+4) <b>Dex</b> 18 (+8) <b>Wis</b> 11 (+4)<br><b>Con</b> 17 (+7) <b>Int</b> 13 (+5) <b>Cha</b> 20 (+9)</p><p class=flavor><b>Alignment</b> unaligned <b> Languages</b> -</p>"
+    const m = convertMonster('monster1', parseMonsterHtml(html, [], { printed: true }), { provenance: { origin: 'parser', at: '2026-11-12' } })
+    expect(m.skills).toEqual({ bluff: 19, stealth: 17 })
+    expect(m.skillNotes).toEqual(['Bluff +23 while the mimic is duplicating a creature'])
+  })
+
+  it('records a sustain printed only inside a line', () => {
+    const p = convertPower({
+      name: 'Breath', actionType: 'standard', usage: 'encounter', keywords: ['zone'], damage: [],
+      printed: { effect: 'The blast creates a zone that lasts until the end of the dragon\'s next turn (sustain minor).' },
+    }, new Notes())
+    expect(p.sustain).toEqual({ action: 'minor' })
   })
 })

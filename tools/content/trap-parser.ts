@@ -33,6 +33,7 @@ export interface ParsedTrap {
   perception: string     // DC info
   additionalSkills: { skill: string; text: string }[]
   initiative: string     // "+3" or "-"
+  speed?: string         // "5", "0, fly 4 (hover)": printed text after "Speed"
   trigger: string
   attack: string         // full attack text (format 1)
   countermeasures: string[]
@@ -178,6 +179,7 @@ function parseTrapFormat(html: string): ParsedTrap {
   // Initiative (from traplead with Initiative)
   const initMatch = html.match(/<b>Initiative<\/b>\s*([^<]+)/)
   const initiative = initMatch ? normalizeInitiative(initMatch[1].trim()) : '-'
+  const speed = html.match(/<b>Speed<\/b>\s*([^<]+)/)?.[1]?.replace(/\s+/g, ' ').trim() || undefined
 
   // Parse block sections: trapblocktitle followed by trapblockbody spans
   // Collect all title/body pairs
@@ -231,7 +233,7 @@ function parseTrapFormat(html: string): ParsedTrap {
 
   return {
     name, trapType, level, role, modifier, xp, flavor, description,
-    perception, additionalSkills, initiative, trigger, attack: '',
+    perception, additionalSkills, initiative, speed, trigger, attack: '',
     countermeasures: splitCMs, actions, source,
   }
 }
@@ -255,6 +257,7 @@ function parseThHeadFormat(html: string): ParsedTrap {
   // Initiative
   const initMatch = html.match(/<b>Initiative<\/b>\s*([^<]+)/)
   const initiative = initMatch ? normalizeInitiative(initMatch[1].trim()) : '-'
+  const speed = html.match(/<b>Speed<\/b>\s*([^<]+)/)?.[1]?.replace(/\s+/g, ' ').trim() || undefined
 
   // Stats from thStat paragraphs
   let hp = '', ac = '', defenses = '', resist = '', immune = ''
@@ -391,7 +394,7 @@ function parseThHeadFormat(html: string): ParsedTrap {
 
   return {
     name, trapType, level, role, modifier, xp, flavor, description: '',
-    perception, additionalSkills, initiative,
+    perception, additionalSkills, initiative, speed,
     trigger: '', attack: '',
     countermeasures: splitCountermeasures(countermeasures),
     hp: hp || undefined,

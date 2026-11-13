@@ -88,6 +88,7 @@ export function convertMonster(id: string, parsed: any, ctx: ConvertContext): Mo
     } : undefined,
     abilities,
     skills: sortedRecord(skills as Record<string, number>) as Partial<Record<Skill, number>>,
+    skillNotes: sb.skillNotes?.length ? sb.skillNotes : undefined,
     alignment: sb.alignment ?? '',
     languages: sb.languages ?? '',
     equipment: sb.equipment ?? '',
@@ -209,6 +210,8 @@ export function convertPower(a: any, notes: Notes): Power {
   }
 
   const sustainAction = toActionType(a.sustain)
+  // A sustain printed only in the header or inside a line ("(sustain minor)"), with no Sustain line.
+  const inlineSustain = p.sustain ? undefined : sustainAction ?? toActionType(Object.values(p).join(' ').match(/\(sustain (minor|move|standard)\)/i)?.[1])
   const trigger = p.trigger ?? a.trigger
   const power: Power = compact({
     name: a.name,
@@ -223,7 +226,7 @@ export function convertPower(a: any, notes: Notes): Power {
     range,
     attacks,
     effect: optLine(effectText),
-    sustain: p.sustain ? { action: sustainAction ?? 'minor', line: line(p.sustain) } : undefined,
+    sustain: p.sustain ? { action: sustainAction ?? 'minor', line: line(p.sustain) } : inlineSustain ? { action: inlineSustain } : undefined,
     special: optLine(p.special),
     extraLines: extraLines.length > 0 ? extraLines : undefined,
   } as Power)

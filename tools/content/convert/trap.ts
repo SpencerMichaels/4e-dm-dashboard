@@ -1,6 +1,6 @@
 // Parsed trap (trap-parser output) -> kit Trap.
 
-import { SKILLS, isOneOf, type Attack, type Aura, type Power, type Trait, type Trap } from '@kit'
+import { SKILLS, isOneOf, type Attack, type Aura, type Power, type Speed, type Trait, type Trap } from '@kit'
 import type { ParsedTrap, TrapAction } from '../trap-parser'
 import {
   Notes, compact, damageModifier, failedSaveN, hitLine, line, normText, optLine, parseAttackLine, parseSources,
@@ -107,6 +107,7 @@ export function convertTrap(id: string, t: ParsedTrap, ctx: ConvertContext): Tra
     xp: t.xp,
     detect,
     initiative,
+    speed: parseTrapSpeed(t.speed, notes),
     hp: hp && hp > 0 ? hp : undefined,
     hpText,
     defenses: Object.keys(defenses).length > 0 ? defenses : undefined,
@@ -170,4 +171,27 @@ function convertTrapAction(a: TrapAction, notes: Notes): Power {
     sustain: a.sustain ? { action: 'minor', line: line(a.sustain) } : undefined,
     extraLines: extraLines.length > 0 ? extraLines : undefined,
   } as Power)
+}
+
+/**
+ * "Speed 5", "Speed 0, fly 4 (hover)", "Speed 4fly". Text after the numbers
+ * goes to notes ("(hover)", "(consider altering this ...)"); a speed that
+ * does not start with a number ("1d6+8 (...)") stays in the provenance notes.
+ */
+export function parseTrapSpeed(raw: string | undefined, notes: Notes): Speed | undefined {
+  const text = normText(raw ?? '')
+  if (!text) return undefined
+  const m = /^\d+d\d/i.test(text) ? null : text.match(/^(\d+)\s*(.*)$/)
+  if (!m) { notes.add(`speed "${text}" is not a number`); return undefined }
+  const speed: Speed = { walk: parseInt(m[1]) }
+  const rest: string[] = []
+  for (const part of m[2].replace(/^[,;]\s*/, '').split(/[,;]\s*/).map(s => s.trim()).filter(Boolean)) {
+    const mode = part.match(/^(fly|climb|swim|burrow|teleport)\s*(\d+)\s*(.*)$/i)
+    if (mode) {
+      speed[mode[1].toLowerCase() as 'fly' | 'climb' | 'swim' | 'burrow' | 'teleport'] = parseInt(mode[2])
+      if (mode[3]) rest.push(mode[3])
+    } else rest.push(part)
+  }
+  if (rest.length > 0) speed.notes = rest.join('; ')
+  return speed
 }

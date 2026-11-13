@@ -139,8 +139,12 @@ function _parseMonsterHtml(html: string, warnings: string[], options: ParseOptio
   )
 
   const skillsMatch = footerText.match(/Skills\s+(.+?)(?=\s+Str\s)/i)
+  // Conditional bonuses in parentheses ("Stealth +6 (+10 amid gold coins)")
+  // are notes; their numbers are not the skill's bonus.
+  const skillNotes: string[] = []
   if (skillsMatch) {
-    for (const m of skillsMatch[1].matchAll(/(\w+)\s+\+(\d+)/g)) {
+    const plain = skillsMatch[1].replace(/\(([^()]*)\)/g, (_, note: string) => { if (note.trim()) skillNotes.push(note.trim()); return ' ' })
+    for (const m of plain.matchAll(/(\w+)\s+\+(\d+)/g)) {
       skills[m[1].toLowerCase()] = parseInt(m[2])
     }
   }
@@ -250,7 +254,7 @@ function _parseMonsterHtml(html: string, warnings: string[], options: ParseOptio
       abilities, primaryAbility,
       origin, creatureType: type, subtypes: filteredKeywords,
       immunities, resistances, weaknesses,
-      skills, alignment, languages, equipment,
+      skills, skillNotes: skillNotes.length > 0 ? skillNotes : undefined, alignment, languages, equipment,
       xp, savingThrowBonus, actionPoints,
       description, source,
       actions,

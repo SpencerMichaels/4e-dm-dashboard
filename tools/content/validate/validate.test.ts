@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { Monster } from '@kit'
 import { checkMonsterBands, diceAverage } from './bands'
 import { validateEntry } from './index'
-import { checkLineSpans } from './spans'
+import { checkLineSpans, spanProblem } from './spans'
 
 function monster(over: Partial<Monster> = {}): Monster {
   return {
@@ -209,5 +209,107 @@ describe('schema v3', () => {
     }
     expect(validateEntry('items', item).errors).toEqual([])
     expect(validateEntry('items', { ...item, alchemical: { cost: 1 } }).errors.map(e => e.path)).toEqual(['$.alchemical.cost'])
+  })
+})
+
+describe('span keywords', () => {
+  const ok = (clause: any, span: string) => expect(spanProblem(clause, span)).toBeUndefined()
+  const bad = (clause: any, span: string) => expect(spanProblem(clause, span)).toBeDefined()
+  const cond = (condition: string) => ({ kind: 'condition', condition, who: 'target', duration: { kind: 'save-ends' } })
+
+  it('accepts inflections and common phrasings of conditions', () => {
+    ok(cond('grabbed'), 'The devil grabs the target')
+    ok(cond('grabbed'), 'the target is grabbed')
+    ok(cond('prone'), 'knocks the target prone')
+    ok(cond('prone'), 'is knocked prone')
+    ok(cond('dazed'), 'dazes the target')
+    ok(cond('stunned'), 'stuns it')
+    ok(cond('immobilized'), 'immobilizes the target')
+    ok(cond('marked'), 'marks the target')
+    ok(cond('slowed'), 'slows each enemy')
+    ok(cond('weakened'), 'weakens the target')
+    ok(cond('petrified'), 'petrifies the target')
+    ok(cond('removed-from-play'), 'is removed from play')
+    ok(cond('dominated'), 'dominates the target')
+    ok(cond('blinded'), 'blinds the target')
+    bad(cond('grabbed'), 'the target is restrained')
+    bad(cond('dazed'), 'the target is stunned')
+    bad(cond('slowed'), 'slowly')
+  })
+
+  it('accepts forms of movement, healing and the other kinds', () => {
+    ok({ kind: 'forced-move', move: 'push', squares: 2, who: 'target' }, 'the target is pushed 2 squares')
+    ok({ kind: 'forced-move', move: 'slide', squares: 3, who: 'target' }, 'slides the target three squares')
+    ok({ kind: 'forced-move', move: 'slide', squares: 1, who: 'target' }, 'is slid 1 square')
+    ok({ kind: 'forced-move', move: 'pull', squares: 1, who: 'target' }, 'pulls the target')
+    bad({ kind: 'forced-move', move: 'push', squares: 3, who: 'target' }, 'pushes the target 2 squares')
+    ok({ kind: 'move', move: 'shift', who: 'self' }, 'shifts up to its speed')
+    ok({ kind: 'move', move: 'teleport', squares: 5, who: 'self' }, 'teleports 5 squares')
+    ok({ kind: 'move', move: 'swap', who: 'self' }, 'switches places with an ally')
+    ok({ kind: 'heal', amount: 10, who: 'self' }, 'regains 10 hit points')
+    ok({ kind: 'temp-hp', amount: 5, who: 'ally' }, 'gains 5 temporary hit points')
+    ok({ kind: 'grants-ca', to: 'source', who: 'target', duration: { kind: 'permanent' } }, 'gains combat advantage against the target')
+    ok({ kind: 'saving-throw', who: 'self' }, 'saves')
+    bad({ kind: 'grants-ca', to: 'source', who: 'target', duration: { kind: 'permanent' } }, 'flanks the target')
+  })
+
+  it('checks the v4 kinds', () => {
+    const turn = { kind: 'turn-end', whose: 'source', next: true }
+    ok({ kind: 'redirect-attack', who: 'self' }, 'The triggering attack targets the guard instead')
+    bad({ kind: 'redirect-attack', who: 'self' }, 'The guard shifts 1 square')
+    ok({ kind: 'crit-range', min: 18, who: 'self', duration: turn }, 'scores a critical hit on a roll of 18-20')
+    bad({ kind: 'crit-range', min: 19, who: 'self', duration: turn }, 'scores a critical hit on a roll of 18-20')
+    ok({ kind: 'power-restriction', what: ['encounter', 'daily'], who: 'target', duration: turn }, 'cannot use encounter or daily powers')
+    ok({ kind: 'power-restriction', what: 'attack', who: 'self', duration: turn }, 'can’t attack')
+    bad({ kind: 'power-restriction', what: 'daily', who: 'target', duration: turn }, "can't use encounter powers")
+    ok({ kind: 'status', status: 'phasing', who: 'self', duration: turn }, 'gains phasing')
+    ok({ kind: 'status', status: 'insubstantial', who: 'self', duration: turn }, 'becomes insubstantial')
+    ok({ kind: 'opportunity-reach', who: 'self' }, 'can make opportunity attacks against all enemies within its reach')
+    ok({ kind: 'damage', dice: '4d10+6', types: [], typeChoice: ['acid', 'fire'], who: 'target' }, '4d10 + 6 damage of one of the following types')
+    bad({ kind: 'damage', dice: '4d10+6', types: [], typeChoice: ['acid', 'fire'], who: 'target' }, '4d10 + 6 damage')
+  })
+})
+
+describe('schema v4', () => {
+  it('accepts the new clause kinds, typeChoice, perTarget, until, inline sustain and skillNotes', () => {
+    const m = monster({ skillNotes: ['+5 to Stealth checks when in ice or snow'] })
+    const text = 'Resist 30 to one of the following damage types: acid or fire. It regains 5 hit points for each creature damaged. It becomes insubstantial until it attacks.'
+    const at = (s: string): [number, number] => [text.indexOf(s), text.indexOf(s) + s.length]
+    m.powers[0].sustain = { action: 'minor' }
+    m.powers[0].effect = { text, clauses: [
+      { at: at('Resist 30 to one of the following damage types: acid or fire'), kind: 'resistance', type: 'choice', typeChoice: ['acid', 'fire'], value: 30, who: 'self', duration: { kind: 'encounter' } },
+      { at: at('regains 5 hit points for each creature damaged'), kind: 'heal', amount: 5, who: 'self', perTarget: true },
+      { at: at('becomes insubstantial until it attacks'), kind: 'status', status: 'insubstantial', who: 'self', duration: { kind: 'until', text: 'until it attacks' } },
+    ] }
+    expect(validateEntry('monsters', m).errors).toEqual([])
+  })
+
+  it('rejects malformed v4 values', () => {
+    const m = monster()
+    m.powers[0].attacks[0].hit!.clauses = [
+      { at: [0, 14], kind: 'damage', dice: '2d8+4', types: ['fire'], typeChoice: ['acid'], who: 'target' } as any,
+    ]
+    m.powers[0].effect = { text: 'x', clauses: [
+      { at: [0, 1], kind: 'resistance', type: 'fire', typeChoice: ['acid', 'cold'], value: 5, who: 'self', duration: { kind: 'until' } } as any,
+      { at: [0, 1], kind: 'status', status: 'flying', who: 'self', duration: { kind: 'permanent' } } as any,
+      { at: [0, 1], kind: 'crit-range', min: 21, who: 'self', duration: { kind: 'permanent' } } as any,
+      { at: [0, 1], kind: 'power-restriction', what: ['at-will'], who: 'self', duration: { kind: 'save-ends', whose: 'source' } } as any,
+    ] }
+    const paths = validateEntry('monsters', m).errors.map(e => e.path)
+    for (const p of ['hit.clauses[0].typeChoice', 'hit.clauses[0].types', 'effect.clauses[0].type', 'effect.clauses[0].duration.text',
+      'effect.clauses[1].status', 'effect.clauses[2].min', 'effect.clauses[3].what[0]', 'effect.clauses[3].duration.whose']) {
+      expect(paths).toContain(`$.powers[0].${p.startsWith('hit') ? 'attacks[0].' : ''}${p}`)
+    }
+  })
+
+  it('accepts a trap speed', () => {
+    const prov = { origin: 'parser', by: 'tools/content@test', at: '2026-11-12' }
+    const trap = {
+      id: 'trap1', name: 'Curse', kind: 'hazard', level: 1, role: 'lurker', rank: 'standard', xp: 100, speed: { walk: 0, fly: 4, notes: '(hover)' },
+      detect: [], immune: [], resist: [], traits: [], auras: [], powers: [], countermeasures: [], flavor: '', description: '',
+      sources: [{ book: 'DMG' }], provenance: prov,
+    }
+    expect(validateEntry('traps', trap).errors).toEqual([])
+    expect(validateEntry('traps', { ...trap, speed: { fly: 4 } }).errors.map(e => e.path)).toEqual(['$.speed.walk'])
   })
 })
