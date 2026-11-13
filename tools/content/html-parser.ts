@@ -79,8 +79,15 @@ function _parseMonsterHtml(html: string, warnings: string[], options: ParseOptio
     const m = statsText.match(new RegExp(kw, 'i'))
     if (m) foundSenses.push(m[0])
   }
+  // A sense printed with no range on the Perception line ("Perception +7; blindsight").
+  const senseLine = statsText.match(/Perception[^\n]*/i)?.[0] ?? ''
+  for (const m of senseLine.matchAll(/\b(blindsight|tremorsense|truesight)\b(?!\s*\d)/gi)) {
+    if (!foundSenses.some(s => s.toLowerCase().startsWith(m[1].toLowerCase()))) foundSenses.push(m[1])
+  }
   const senses = foundSenses.join(', ')
   const hp = parseInt(statsText.match(/HP\s+(\d+)/)?.[1] ?? '1')
+  // HP 0 with a printed rule ("HP 0; Bloodied 0 ; The colossus has infinite hit points; ..."): hpText.
+  const hpText = hp === 0 ? statsText.match(/HP\s+0\s*;\s*Bloodied\s+\d+\s*;\s*([^\n]+)/i)?.[1]?.split(/\s{2,}|(?=(?:Initiative|AC|Perception|Speed|Immune|Resist)\b)/)[0].trim() || undefined : undefined
   // Defenses, with printed conditional values ("AC 24 (28 against opportunity attacks)") in defensesIf.
   const parsedDefenses = parseDefenses(statsText)
   const { ac, fortitude: fort, reflex: ref, will } = parsedDefenses?.defenses ?? { ac: 10, fortitude: 10, reflex: 10, will: 10 }
@@ -221,7 +228,7 @@ function _parseMonsterHtml(html: string, warnings: string[], options: ParseOptio
       immunities, resistances, weaknesses,
       skills, skillNotes: skillNotes.length > 0 ? skillNotes : undefined, alignment, languages, equipment,
       defensesIf: parsedDefenses?.defensesIf, defenseNotes: parsedDefenses?.unplaced,
-      xp, savingThrowBonus, savingThrowNotes, actionPoints,
+      xp, savingThrowBonus, savingThrowNotes, actionPoints, hpText,
       description, source,
       actions,
       regeneration,
@@ -343,8 +350,10 @@ export function cleanHeaderKeywords(bolds: string[]): HeaderKeywords {
 }
 
 // ─── Range, target and notes from an attack's range part ───
-// "Close burst 5; targets enemies" / "Ranged 10 (one creature)" / "Melee 1 or Ranged 10"
-export function parseRangePart(rangePart: string): { rangeType: string; rangeValue: string; target: string; notes: string[] } {
+// "Close burst 5; targets enemies" / "Ranged 10 (one creature)" / "Melee 1 or Ranged 10".
+// A bare number with no range word takes `fallback` (the power icon's kind: "20; +15 vs. Reflex"
+// after ➶ is ranged 20); a bare "15/30" (normal/long range) is always ranged.
+export function parseRangePart(rangePart: string, fallback = 'melee'): { rangeType: string; rangeValue: string; target: string; notes: string[] } {
   const segs = rangePart.split(/\s*;\s*/).map(s => s.trim()).filter(Boolean)
   let target = ''
   const notes: string[] = []
@@ -355,10 +364,13 @@ export function parseRangePart(rangePart: string): { rangeType: string; rangeVal
     // No range at all: "Targets the triggering enemy"
     target = first.replace(/^targets?\s+/i, '')
   } else {
-    rangeType = parseRangeType(first)
+    const bare = /^\d+(\/\d+)?\b/.test(first) && !/\b(close|area|ranged?|melee|reach)\b/i.test(first)
+    // "1 square within 10" (area icon) is an area burst 0 within 10.
+    const square = bare && /^1 square within \d+/i.test(first)
+    rangeType = square ? 'area-burst' : bare ? (/^\d+\/\d+/.test(first) ? 'ranged' : fallback) : parseRangeType(first)
     const paren = first.match(/\((.+)\)\s*$/)
     if (paren) target = paren[1].trim()
-    const value = parseRangeValue(first)
+    const value = parseRangeValue(square ? first.replace(/^1 square/i, '0') : first)
     const lead = value.match(/^(?:\d+(?:\/\d+)?(?:\s+within\s+\d+)?(?:\s+squares?)?|sight|touch)\b/i)
     rangeValue = lead ? lead[0].replace(/\s+squares?$/i, '') : ''
     const rest = lead ? value.substring(lead[0].length).replace(/^[\s,.]+/, '') : value
@@ -562,6 +574,7 @@ function parseOneAbility(headerHtml: string, bodyBlocks: string[], sectionDefaul
 
   // ─── Build result from labeled fields ───
   let rangeType = icon === '➶' || icon === '✻' ? 'ranged' : icon === 'ᗕ' ? 'close-burst' : 'melee'
+  const iconRange = rangeType
   let rangeValue = ''
   let target = ''
   let attackBonus: number | null = null
@@ -580,7 +593,7 @@ function parseOneAbility(headerHtml: string, bodyBlocks: string[], sectionDefaul
   if (fields.attack) {
     const atkLabeled = fields.attack.match(/(.+?)\s*;\s*\+(\d+)\s+vs\.?\s*(\w+)/)
     if (atkLabeled) {
-      const r = parseRangePart(atkLabeled[1].trim())
+      const r = parseRangePart(atkLabeled[1].trim(), iconRange)
       rangeType = r.rangeType
       rangeValue = r.rangeValue
       target = r.target
@@ -601,7 +614,7 @@ function parseOneAbility(headerHtml: string, bodyBlocks: string[], sectionDefaul
 
       const beforeAtk = unlabeledText.substring(0, atkRollMatch.index).trim().replace(/;$/, '').trim()
       if (beforeAtk) {
-        const r = parseRangePart(beforeAtk)
+        const r = parseRangePart(beforeAtk, iconRange)
         rangeType = r.rangeType
         rangeValue = r.rangeValue
         target = r.target

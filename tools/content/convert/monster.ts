@@ -76,6 +76,8 @@ export function convertMonster(id: string, parsed: any, ctx: ConvertContext): Mo
     keywords: (sb.subtypes ?? []).map((s: string) => s.toLowerCase()),
     xp: sb.xp,
     hp: rank === 'minion' ? 1 : parsed.hp,
+    // "HP 0; Bloodied 0 ; The colossus has infinite hit points; ..." (schema v13).
+    hpText: sb.hpText,
     initiative: sb.initiative,
     perception: sb.perception,
     senses: parseSenses(sb.senses ?? '', notes),

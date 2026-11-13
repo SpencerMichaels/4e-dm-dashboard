@@ -115,6 +115,29 @@ describe('monster parser fixes', () => {
     expect(c.trigger).toBe('when missed by a melee attack made by an adjacent attacker')
     expect(c.triggerEvents).toBeUndefined()
   })
+
+  it('reads a bare "15/30" as ranged and a bare number by the power icon (v13, monster4116 Crossbow)', () => {
+    const [a, b, c] = parsePowers("<p class='flavor alt'>(➶) <b>Crossbow</b> (standard, at-will) ✦ <b>Weapon</b></p><p class=flavorIndent>15/30; +11 vs AC; 1d8+5 damage.</p>" +
+      "<p class='flavor alt'>➶ <b>Spit</b> (standard, at-will)</p><p class=flavorIndent>20; +15 vs Reflex; 1d8+5 acid damage.</p>" +
+      "<p class='flavor alt'>(⚔) <b>Claw</b> (standard, at-will)</p><p class=flavorIndent>2; +15 vs AC; 1d8+5 damage.</p>")
+    expect([a.rangeType, a.rangeValue]).toEqual(['ranged', '15/30'])
+    expect([b.rangeType, b.rangeValue]).toEqual(['ranged', '20'])
+    expect([c.rangeType, c.rangeValue]).toEqual(['melee', '2'])
+    const [d] = parsePowers("<p class='flavor alt'>✻ <b>Cloud of Daggers</b> (standard, at-will) ✦ <b>Force </b></p><p class=flavorIndent>1 square within 10; +18 vs Reflex; 1d6+7 force damage.</p>")
+    expect([d.rangeType, d.rangeValue]).toEqual(['area-burst', '0 within 10'])
+  })
+
+  it('keeps the printed rule of an HP 0 line and a sense printed with no range (v13)', () => {
+    const html = '<h1 class=monster>Colossus<br><span class=type>Large elemental animate</span><br>' +
+      '<span class=level>Level 10 Solo Brute<span class=xp> XP 0</span></span></h1>' +
+      '<p class=flavor><b>Initiative</b> +9 <b>Senses</b> Perception +7; blindsight<br><b>HP</b> 0; <b>Bloodied</b> 0 ; The colossus has infinite hit points; the colossus cannot be bloodied.<br><b>AC</b> 23; <b>Fortitude</b> 22, <b>Reflex</b> 18, <b>Will</b> 22<br><b>Speed</b> 5</p>'
+    const sb = parseMonsterHtml(html, [], {}).statBlock as any
+    expect(sb.hpText).toBe('The colossus has infinite hit points; the colossus cannot be bloodied.')
+    expect(sb.senses).toBe('blindsight')
+    // Table stat blocks run the cells together ("your bloodied valueInitiative as conjurer").
+    const fig = parseMonsterHtml('<h1 class=monster>Zombie<br><span class=type>Medium natural animate (undead)</span><br><span class=level>Level 1 Brute<span class=xp> XP 0</span></span></h1><table class=bodytable><tr><td><b>HP</b> 0; <b>Bloodied</b> 0 ; your bloodied value<td class=rightalign><b>Initiative</b> as conjurer<tr><td><b>AC</b> 0</table>', [], {}).statBlock as any
+    expect(fig.hpText).toBe('your bloodied value')
+  })
 })
 
 describe('parser helpers', () => {
