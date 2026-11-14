@@ -36,6 +36,19 @@ describe('AI sessions writing into campaigns', () => {
     expect(published).toEqual(['trap', 'trap', 'disease', 'disease', 'template', 'template', 'theme', 'theme'])
   })
 
+  it('puts new content into a campaign: none without one, and a published copy keeps its source and art', async () => {
+    const campaign = join(root, 'campaigns', 'c2')
+    mkdirSync(campaign, { recursive: true })
+    writeFileSync(join(campaign, 'campaign.json'), JSON.stringify({ id: 'c2', name: 'Copies' }))
+    const s = new AuthoringService(root, join(root, 'content'))
+    await expect(s.call('create_draft', { kind: 'trap', name: 'Loose', level: 1 }, 'agent')).rejects.toThrow('No campaign is open')
+    const key = 'published/theme/' + (await s.call('search', { kind: 'theme', text: '', limit: 1 }) as { key: string }[])[0].key.split('/').pop()
+    writeFileSync(join(campaign, 'annotations.json'), JSON.stringify({ [key.split('/').pop()!]: { imageId: 'art.png' } }))
+    const d: any = await s.call('create_draft', { from: key, destinations: [{ type: 'campaign', id: 'c2' }] }, 'agent')
+    const record = JSON.parse(readFileSync(join(campaign, 'themes', `${d.destinations[0].entityId}.json`), 'utf8'))
+    expect(record).toMatchObject({ basedOn: key, art: { imageId: 'art.png' } })
+  })
+
   it('refuses library destinations, which were removed', async () => {
     const s = new AuthoringService(root, join(root, 'content'))
     await expect(s.call('create_draft', { kind: 'trap', name: 'X', level: 1, destinations: [{ type: 'library', id: 'old' }] }, 'dm')).rejects.toThrow('campaign')

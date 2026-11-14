@@ -2,7 +2,7 @@ import { dirname, join } from 'path'
 import { mkdir } from 'fs/promises'
 import type { Actor, Content, ContentKind } from '../../common/authoring/types'
 import { benchmarks, scaffold, search, validate } from '../../common/authoring/core'
-import { ENTITY_DIRS, entityTypeForKind, newRecord } from '../../common/campaign-records'
+import { ENTITY_DIRS, entityTypeForKind, newRecord, recordTypeFor } from '../../common/campaign-records'
 import { DraftStore, readJson, safeId, atomicJson, digest } from './store'
 import { Catalog } from './catalog'
 import { withWriteLock } from '../data/write-lock'
@@ -51,6 +51,18 @@ export class AuthoringService {
   }
   /** What the DM has open (set by the dashboard): the kind, and a campaign entry or a published id; `editing` when in the editor. */
   focus: { kind: ContentKind; campaignId?: string; entityId?: string; publishedId?: string; editing?: boolean } | null = null
+  /** A published entry (`published/<kind>/<id>`, as search returns it) as a campaign copy: its content, and the copy's source and art. */
+  async publishedCopy(key: string, campaignId: string, content?: Content) {
+    const m = /^published\/(\w+)\/(.+)$/.exec(key)
+    if (!m) throw new Error(`Not a published entry key: ${key}`)
+    const [, kind, id] = m
+    // The catalog (the whole converted corpus) only when the copy's content is not given.
+    const e = content ? undefined : (await this.catalog.entries()).find(x => x.key === key)
+    if (!content && !e) throw new Error(`No published entry ${key}`)
+    const annotations = await readJson<Record<string, Record<string, unknown>>>(join(this.userData, 'campaigns', safeId(campaignId), 'annotations.json')) ?? {}
+    const art = Object.fromEntries(Object.entries(annotations[id] ?? {}).filter(([k]) => ['imageId', 'tokenImageId', 'tokenCrop'].includes(k)))
+    return { kind: kind as ContentKind, content: content ?? e!.content, entry: { basedOn: `published/${recordTypeFor(kind)}/${id}`, ...(Object.keys(art).length ? { art } : {}) } }
+  }
   /** The entry's working copy: the draft bound to it, or a new one made from it. */
   async workingCopy(campaignId: string, kind: ContentKind, entityId: string, actor: Actor) {
     const existing = (await this.drafts.list()).find(d => d.destinations.some(x => x.id === campaignId && x.entityId === entityId))
@@ -92,7 +104,13 @@ export class AuthoringService {
         const d = await this.workingCopy(f.campaignId, f.kind, f.entityId, actor)
         return { open: { ...f, draftId: d.id } }
       }
-      case 'create_draft': return this.drafts.create(a.kind, a.content ?? scaffold(a.kind, a.name, a.level, a.role, a.rank), a.intent, a.destinations, actor, a.entry)
+      case 'create_draft': {
+        // New content always goes into a campaign (the dashboard's open one, for an agent), as + new does.
+        if (!a.destinations?.length) throw new Error('No campaign is open in the dashboard: new content goes into the open campaign.')
+        // A copy of a published entry (`from`: its search key) gets what Copy to campaign gives it: its source, its art.
+        const from = a.from ? await this.publishedCopy(a.from, a.destinations[0].id, a.content) : undefined
+        return this.drafts.create(a.kind ?? from?.kind, a.content ?? from?.content ?? scaffold(a.kind, a.name, a.level, a.role, a.rank), a.intent, a.destinations, actor, from?.entry)
+      }
       case 'list_drafts': return this.drafts.list()
       case 'get_draft': return this.drafts.get(a.id)
       case 'suggest_numbers': return suggestNumbers(await this.drafts.get(a.id), a.recipe)

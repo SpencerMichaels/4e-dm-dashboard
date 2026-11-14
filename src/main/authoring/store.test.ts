@@ -172,6 +172,25 @@ describe('live writes into the campaign', () => {
     expect(versions[1].changes).toEqual([{ label: 'HP', change: 'changed', before: String((d.content as Monster).hp), after: '44' }])
     expect(versions[0].changes[0]).toMatchObject({ label: 'Gloom bite › name', before: (d.content as Monster).powers[0].name, after: 'Gloom bite' })
   })
+  it('stamps new content human (whoever wrote it) and keeps a copy\'s provenance', async () => {
+    const s = new DraftStore(root, publisher().p)
+    const agentMade = content(); agentMade.provenance = { origin: 'agent', at: '2026-01-01T00:00:00.000Z' }
+    expect((await s.create('monster', agentMade, '', [{ type: 'campaign', id: 'a' }], 'agent')).content.provenance.origin).toBe('human')
+    const published = content(); published.sources = [{ book: 'Monster Manual', page: 1 }]; published.provenance = { origin: 'parser', at: '2026-01-01T00:00:00.000Z', by: 'parser' }
+    expect((await s.create('monster', published, '', [{ type: 'campaign', id: 'a' }], 'agent')).content.provenance).toEqual(published.provenance)
+  })
+  it('creates nothing when the entry cannot be written, and writes unwritten working copies into their campaign', async () => {
+    const p = publisher(); p.fail(1)
+    const s = new DraftStore(root, p.p)
+    await expect(s.create('monster', content(), '', [{ type: 'campaign', id: 'a' }])).rejects.toThrow('disk full')
+    expect(await s.list()).toEqual([])
+    // A working copy from before entries were written live: bound to a campaign, no entry yet.
+    const old = await new DraftStore(root).create('monster', content(), '', [{ type: 'campaign', id: 'a' }])
+    expect(old.destinations[0].entityId).toBeUndefined()
+    await s.writeUnwritten('a')
+    const written = await s.get(old.id)
+    expect(p.content(`a/${written.destinations[0].entityId}`)).toMatchObject({ name: 'Synthetic shade' })
+  })
   it('moves an archived session out of the drafts list, keeping its files', async () => {
     const s = new DraftStore(join(root, 'drafts'), publisher().p)
     const d = await s.create('monster', content(), '', [{ type: 'campaign', id: 'a' }])

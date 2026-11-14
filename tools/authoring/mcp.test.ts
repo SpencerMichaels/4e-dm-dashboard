@@ -1,7 +1,7 @@
 import { it, expect } from 'vitest'
 import { Client } from '@modelcontextprotocol/sdk/client/index.js'
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js'
-import { mkdtemp, rm, writeFile } from 'fs/promises'
+import { mkdir, mkdtemp, rm, writeFile } from 'fs/promises'
 import { tmpdir } from 'os'
 import { join } from 'path'
 import { startBridge, bridgeCall } from '../../src/main/authoring/bridge'
@@ -24,7 +24,11 @@ it('negotiates MCP and completes draft/feedback tools without exposing approval'
       if (result.isError) throw new Error(JSON.stringify(result.content))
       return JSON.parse((result.content as { text: string }[])[0].text)
     }
-    const d = await call('create_draft', { kind: 'monster', name: 'Synthetic test', level: 7, role: 'lurker' })
+    // New content goes into a campaign: without one it is refused.
+    await expect(call('create_draft', { kind: 'monster', name: 'Synthetic test', level: 7, role: 'lurker' })).rejects.toThrow('No campaign is open')
+    await mkdir(join(root, 'campaigns', 'c1'), { recursive: true })
+    await writeFile(join(root, 'campaigns', 'c1', 'campaign.json'), JSON.stringify({ id: 'c1', name: 'Test' }))
+    const d = await call('create_draft', { kind: 'monster', name: 'Synthetic test', level: 7, role: 'lurker', destinations: [{ type: 'campaign', id: 'c1' }] })
     await service.drafts.patch({ id: d.id, revision: 1, changes: [{ path: '/content/hp', value: 40 }] }, 'dm')
     await service.drafts.comment(d.id, 'Keep the low HP', '/content/hp', 'dm')
     const current = await call('get_draft', { id: d.id })

@@ -1,32 +1,19 @@
-// A kit Item as its printed statblock (the item viewer) or, with onChange, the item editor.
-// The editor works on its own model; edits are applied to the kit item field by field, so kit-only
-// data the editor does not show (description parts, armor, property scaling, clauses) is kept.
+// A kit Item as its printed statblock (the item viewer). Editing is the entry's working-copy editor
+// (authoring/EntryEditor through the item adapter), the same for every campaign entry.
 
-import { useState } from 'react'
 import type { Item, Power } from '@kit'
 import { powerToLegacy } from '@common/authoring/legacy'
-import { itemFromEditor, itemToEditor } from '@common/authoring/item-editor-adapter'
 import { Dnd4eItemViewer } from '../compendium/Dnd4eItemViewer'
-import { Dnd4eItemEditor } from '../campaign/Dnd4eItemEditor'
 import { PowerCardView, type PowerCardEntry } from '../creature/PowerCardView'
 import { Annotation } from '../creature/annotations'
 
-export function ItemStatblock({ item, onChange }: { item: Item; onChange?: (next: Item) => void }) {
-  return onChange ? <ItemEditor item={item} onChange={onChange} /> : <ItemView item={item} />
-}
-
-function ItemEditor({ item, onChange }: { item: Item; onChange: (next: Item) => void }) {
-  // The editor model stays local: re-deriving it from the kit item on every keystroke would trim
-  // what is being typed. Each change is applied to the item as it was when editing started.
-  const [base] = useState(item)
-  const [baseView] = useState(() => itemToEditor(item))
-  const [view, setView] = useState(baseView)
-  return <Dnd4eItemEditor item={view} onSave={next => { setView(next); onChange(itemFromEditor(base, baseView, next)) }} />
+export function ItemStatblock({ item }: { item: Item }) {
+  return <ItemView item={item} />
 }
 
 function ItemView({ item: c }: { item: Item }) {
   const source = c.sources.map(s => `${s.book}${s.page ? ', ' + s.page : ''}`).join('; ')
-  // In the Workshop, powers carry their draft node IDs (`_draftNode`) so comment markers anchor to the cards.
+  // With a working copy, powers carry its node ids (`_draftNode`) so comment markers anchor to the cards.
   const cards = (powers: Power[]) => powers.map((p, i) => <div key={i}>
     <PowerCardView entry={powerToLegacy(p) as PowerCardEntry} />
     <Annotation anchor={{ kind: 'entry', entry: { entryType: 'action', name: p.name, _draftNode: (p as { _draftNode?: string })._draftNode } }} />

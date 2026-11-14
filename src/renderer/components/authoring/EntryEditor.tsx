@@ -5,14 +5,7 @@ import { contentWith, isUnsaved } from '@common/authoring/unsaved'
 import { useAuthoringStore } from '../../stores/authoring-store'
 import { useUiStore } from '../../stores/ui-store'
 import { NativeCreatureDraftEditor } from './NativeCreatureDraftEditor'
-import { isKitNative, ItemDraftEditor, KitDraftEditor, KitStatblock } from './KitDraftEditor'
-import { withDraftNodes } from '@common/authoring/creature-editor-adapter'
-import { decorate } from '@common/authoring/kit-editor-adapter'
-import { Dnd4eCreatureViewer } from '../creature/Dnd4eCreatureViewer'
-import { kitViewCreature } from '../creature/kit-view'
-import { ItemStatblock } from '../item/ItemStatblock'
-import { useGlossary } from '../compendium/use-glossary'
-import type { Item, Monster } from '@kit'
+import { isKitNative, ItemDraftEditor, KitDraftEditor } from './KitDraftEditor'
 import { DraftAnnotations, Thread } from './DraftAnnotations'
 import type { EditStatus } from './live-edits'
 import { allAnchorPaths, within } from '@common/authoring/anchors'
@@ -64,8 +57,8 @@ export function EntryDiscussion({ draft: d }: { draft: Draft }) {
  */
 export function EntryEditor({ draft: d, create, onCreated, art, onArtChange }: {
   draft: Draft
-  /** For a new entry: where its first edit creates it, and the campaign-side fields it starts with. */
-  create?: { destinations: Destination[]; intent?: string; entry?: Record<string, unknown> }
+  /** For a new entry: where its first edit creates it, and the published entry it copies (main adds its source and art). */
+  create?: { destinations: Destination[]; from?: string }
   onCreated?: (d: Draft) => void
   art?: RecordArt
   onArtChange?: (art: RecordArt) => void
@@ -115,21 +108,3 @@ export function EntryEditor({ draft: d, create, onCreated, art, onArtChange }: {
   </>
 }
 
-/**
- * A campaign entry's read-only stat block, drawn from its working copy so comment markers anchor to its
- * lines (and the agent's edits show as they land). Same viewers, art, and pop-out as the compendium's.
- */
-export function EntryPreview({ draft: d, art, onArtChange, onPopout }: { draft: Draft; art?: RecordArt; onArtChange?: (art: RecordArt) => void; onPopout?: () => void }) {
-  const { tooltip } = useGlossary()
-  const agent = useUiStore(s => s.agentConnection)
-  return <>
-    <DraftAnnotations draft={d} enabled={agent}>
-      {d.kind === 'monster' ? <Dnd4eCreatureViewer creature={withDraftNodes(kitViewCreature(d.content as Monster, undefined, { ...art }), d)} tooltip={tooltip}
-          onImageChange={onArtChange && (imageId => onArtChange({ imageId }))}
-          onTokenChange={onArtChange && ((tokenImageId, tokenCrop) => onArtChange({ tokenImageId, tokenCrop }))} onPopout={onPopout} />
-        : d.kind === 'item' ? <ItemStatblock item={decorate<Item>(d)} />
-          : <KitStatblock kind={d.kind} content={decorate(d)} />}
-    </DraftAnnotations>
-    {agent && <EntryDiscussion draft={d} />}
-  </>
-}

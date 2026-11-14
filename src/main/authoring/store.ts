@@ -1,4 +1,4 @@
-import { mkdir, readFile, readdir, rename, writeFile, unlink } from 'fs/promises'
+import { mkdir, readFile, readdir, rename, rm, writeFile, unlink } from 'fs/promises'
 import { dirname, join } from 'path'
 import { randomUUID, createHash } from 'crypto'
 import { SCHEMA_VERSION } from '@kit'
@@ -170,6 +170,16 @@ export class DraftStore {
       }
     })
   }
+  /** Writes the working copies bound to a campaign but not yet to an entry (from before entries were written live) into it. */
+  writeUnwritten(campaignId: string) {
+    return this.serial(async () => {
+      for (const row of await this.list()) {
+        if (!row.destinations.some(x => x.id === campaignId && !x.entityId)) continue
+        const d = await this.get(row.id)
+        try { await this.sync(d); this.changed(d) } catch { /* it stays a working copy; the next edit retries */ }
+      }
+    })
+  }
   /** An entry was deleted: its drafts are archived (nothing would bring the entry back). */
   async entryDeleted(campaignId: string, entityId: string) {
     for (const row of await this.list()) if (row.destinations.some(x => x.id === campaignId && x.entityId === entityId)) await this.archive(row.id)
@@ -192,15 +202,22 @@ export class DraftStore {
       if (errors.length) throw new Error(JSON.stringify(errors))
       this.checkDestinations(destinations)
       const id = randomUUID(), at = new Date().toISOString()
-      // A copy keeps the provenance of what it copies.
-      normalized.id = id; normalized.provenance ??= { origin: actor === 'dm' ? 'human' : 'agent', at }
+      // Campaign content is the DM's homebrew whoever wrote it: new content is stamped "human", and a copy keeps
+      // the provenance of what it copies (a published entry stays "parser").
+      normalized.id = id
+      if (!normalized.provenance || normalized.provenance.origin === 'agent') normalized.provenance = { origin: 'human', at }
       const nodes: Record<string, string[]> = {}
       for (const group of NODE_GROUPS) if (Array.isArray((normalized as any)[group])) nodes[group] = (normalized as any)[group].map(() => randomUUID())
       if (entry && Object.keys(entry).length) {
         await mkdir(this.dir(id), { recursive: true, mode: 0o700 })
         await atomicJson(join(this.dir(id), 'sync.json'), { hashes: {}, entry })
       }
-      return this.persist({ version: 1, schemaVersion: SCHEMA_VERSION, id, kind, revision: 1, event: 0, createdAt: at, updatedAt: at, content: normalized, intent, decisions: '', policy: POLICY, nodes, overrides: [], stale: [], destinations, comments: [] }, actor, 'created')
+      const d: Draft = { version: 1, schemaVersion: SCHEMA_VERSION, id, kind, revision: 1, event: 0, createdAt: at, updatedAt: at, content: normalized, intent, decisions: '', policy: POLICY, nodes, overrides: [], stale: [], destinations, comments: [] }
+      // All or nothing: a working copy always has its entry, so if the entry cannot be written there is no draft.
+      await this.record(d, actor, 'created')
+      try { await this.sync(d) } catch (e) { await rm(this.dir(id), { recursive: true, force: true }); throw e }
+      this.changed(d)
+      return d
     })
   }
   private checkDestinations(destinations: Destination[]) {

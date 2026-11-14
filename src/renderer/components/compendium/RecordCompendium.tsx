@@ -14,7 +14,8 @@ import { useHotkeys } from '@renderer/hooks/use-hotkeys'
 import { useUiStore } from '@renderer/stores/ui-store'
 import { useAuthoringStore, type DraftRow } from '@renderer/stores/authoring-store'
 import type { Draft } from '@common/authoring/types'
-import { EntryEditor, EntryPreview } from '../authoring/EntryEditor'
+import { EntryDiscussion, EntryEditor } from '../authoring/EntryEditor'
+import { DraftAnnotations } from '../authoring/DraftAnnotations'
 import { unsavedDraft } from '@common/authoring/unsaved'
 import type { Content } from '@common/authoring/types'
 import '../authoring/authoring.css'
@@ -27,16 +28,15 @@ import '../creature/statblock.css'
 /** A list row; `cells` line up with the kind's columns. */
 export interface RecordRow {
   id: string; name: string; level: number; cells: string[]; custom?: boolean
-  /** A working copy whose entry could not be created yet (an agent's invalid new entry; row id "ai:<draft id>"). */
-  ai?: DraftRow
   /** Filterable values that aren't shown as columns (a creature's rank, size, origin). */
   facets?: string[]
 }
 
-/** What a kind's stat block gets: the content, and the editing, artwork, and pop-out hooks the kind opts into. */
+/** What a kind's stat block gets: the content, and the comment, artwork, and pop-out hooks the kind opts into (editing is EntryEditor's). */
 export interface StatblockProps<T> {
   value: T
-  onChange?: (next: T) => void
+  /** The entry's working copy, when its comment markers show: its node ids anchor them to the stat block's lines. */
+  draft?: Draft
   art?: RecordArt
   onArtChange?: (art: RecordArt) => void
   onPopout?: () => void
@@ -64,7 +64,7 @@ export interface RecordKind<T extends { id: string; name: string }> {
 
 const filterValue = (r: RecordRow, f: RecordKind<any>['filters'][number]) => 'facet' in f ? r.facets?.[f.facet] ?? '' : r.cells[f.column] ?? ''
 /** What the editor has open: the selected entry's working copy, or a new entry's unsaved one. */
-type Edit = { copy: true } | { fresh: Draft; key: string; entry?: Record<string, unknown> }
+type Edit = { copy: true } | { fresh: Draft; key: string; from?: string }
 
 export function RecordCompendium<T extends { id: string; name: string }>({ kind, initialId, draftId }: {
   kind: RecordKind<T>
@@ -90,25 +90,11 @@ export function RecordCompendium<T extends { id: string; name: string }>({ kind,
   useEffect(() => { void kind.index().then(setPublished) }, [kind])
 
   // ── Rows: Custom entries first, then published, filtered and sorted ──
-  // AI sessions write straight into their entries; one whose entry could not be created yet (an agent's
-  // invalid new entry) is a row of its own, marked AI.
   const campaignId = useCampaignStore(s => s.campaignId)
   const contentKind = contentKindFor(kind.type)
   const draftList = useAuthoringStore(s => s.list)
   const sessions = useMemo(() => draftList.filter(d => d.kind === contentKind && d.destinations?.some(x => x.id === campaignId)), [draftList, contentKind, campaignId])
-  // Such an entry's row comes from its working copy's content (the list of drafts has only names and levels).
-  const loadedDrafts = useAuthoringStore(s => s.drafts)
-  const unwritten = useMemo(() => sessions.filter(s => !s.destinations?.some(x => x.entityId)), [sessions])
-  useEffect(() => {
-    for (const s of unwritten) if (!loadedDrafts[s.id]) void window.api.authoring.call('get_draft', { id: s.id }).then(useAuthoringStore.getState().receive)
-  }, [unwritten])
-  const custom = useMemo((): RecordRow[] => [
-    ...unwritten.map(s => {
-      const content = loadedDrafts[s.id]?.content as unknown as T | undefined
-      return { ...(content ? kind.row(content) : { name: s.name, level: s.level ?? 0, cells: kind.columns.map(() => '') }), id: `ai:${s.id}`, custom: true, ai: s }
-    }),
-    ...records.map(r => ({ ...kind.row(r.content), id: r.id, custom: true })),
-  ], [records, unwritten, loadedDrafts, kind])
+  const custom = useMemo((): RecordRow[] => records.map(r => ({ ...kind.row(r.content), id: r.id, custom: true })), [records, kind])
   const filters = useDeferredValue({ search, levelStr, source, selects })
   const rows = useMemo(() => {
     const q = filters.search.toLowerCase()
@@ -148,15 +134,14 @@ export function RecordCompendium<T extends { id: string; name: string }>({ kind,
   const leaveEdit = () => !edit || !useAuthoringStore.getState().pendingFields.length || window.confirm('Discard unapplied edits?')
   const loadCopy = async (row: RecordRow): Promise<string | null> => {
     if (!campaignId) return null
-    const d: Draft = row.ai ? openDrafts[row.ai.id] ?? await window.api.authoring.call('get_draft', { id: row.ai.id })
-      : await window.api.authoring.call('working_copy', { campaignId, kind: contentKind, entityId: row.id })
+    const d: Draft = await window.api.authoring.call('working_copy', { campaignId, kind: contentKind, entityId: row.id })
     useAuthoringStore.getState().receive(d)
-    if (!row.ai && !draftList.some(x => x.id === d.id)) void useAuthoringStore.getState().refreshList()
+    if (!draftList.some(x => x.id === d.id)) void useAuthoringStore.getState().refreshList()
     return d.id
   }
   const entryRow = (d: Draft): RecordRow => {
     const entityId = d.destinations.find(x => x.id === campaignId)?.entityId
-    return custom.find(r => r.id === entityId) ?? { id: entityId ?? `ai:${d.id}`, name: d.content.name, level: (d.content as { level?: number }).level ?? 0, cells: [], custom: true }
+    return custom.find(r => r.id === entityId) ?? { id: entityId!, name: d.content.name, level: (d.content as { level?: number }).level ?? 0, cells: [], custom: true }
   }
   /** Edit: a campaign entry edits its working copy; a published one becomes a new entry on the first edit. */
   const startEdit = async (row: RecordRow | null = selected) => {
@@ -166,9 +151,8 @@ export function RecordCompendium<T extends { id: string; name: string }>({ kind,
       if (id) { setCopyId(id); setEdit({ copy: true }) }
       return
     }
-    const art = kind.art ? annotations[row.id] : undefined
-    setEdit({ fresh: unsavedDraft(contentKind, await kind.get(row.id) as unknown as Content), key: `new-${Date.now()}`,
-      entry: { basedOn: `published/${kind.type}/${row.id}`, ...(art && Object.keys(art).length ? { art: { ...art } } : {}) } })
+    // Main gives the copy its source and art from the published entry (the same as an agent's copy).
+    setEdit({ fresh: unsavedDraft(contentKind, await kind.get(row.id) as unknown as Content), key: `new-${Date.now()}`, from: `published/${contentKind}/${row.id}` })
   }
   const startNew = async () => {
     if (!campaignId || !leaveEdit()) return
@@ -190,8 +174,7 @@ export function RecordCompendium<T extends { id: string; name: string }>({ kind,
     setPreview(row.custom ? records.find(r => r.id === row.id)?.content ?? null : await kind.get(row.id))
     previewRef.current?.scrollTo(0, 0)
     // With the agent connection on, the preview shows the working copy (comment markers, the agent's edits live).
-    // An entry not yet in the campaign (an older working copy never written to it) has only its working copy.
-    if (row.custom && (agent || row.ai)) setCopyId(await loadCopy(row))
+    if (row.custom && agent) setCopyId(await loadCopy(row))
   }
   // A working copy to show (an agent's open_review, the command palette).
   useEffect(() => {
@@ -212,18 +195,14 @@ export function RecordCompendium<T extends { id: string; name: string }>({ kind,
   const remove = async (id: string) => {
     setMenu(null)
     if (selected?.id === id) { setEdit(null); setSelected(null); setPreview(null); setCopyId(null) }
-    // An agent's entry that never reached the campaign is only its working copy.
-    if (id.startsWith('ai:')) {
-      await window.api.authoring.call('archive', { id: id.slice(3) })
-      await useAuthoringStore.getState().refreshList()
-    } else await window.api.entity.delete(kind.type, id)
+    await window.api.entity.delete(kind.type, id)
   }
   // The agent's current_entry: what the DM has open (only while the agent connection is on).
   useEffect(() => {
     if (!agent) return
     void window.api.authoring.call('focus', selected || edit ? {
       kind: contentKind, editing: !!edit,
-      ...(selected?.custom ? { campaignId, entityId: selected.id.startsWith('ai:') ? undefined : selected.id } : selected ? { publishedId: selected.id } : {}),
+      ...(selected?.custom ? { campaignId, entityId: selected.id } : selected ? { publishedId: selected.id } : {}),
     } : {})
   }, [selected?.id, !!edit, campaignId, contentKind, agent])
   useHotkeys([{ key: 'e', handler: () => { if (!edit) void startEdit() } }])
@@ -238,6 +217,11 @@ export function RecordCompendium<T extends { id: string; name: string }>({ kind,
   const header = (label: string, key: number) => <span style={{ cursor: 'pointer', whiteSpace: 'nowrap' }}
     onClick={() => setSort(s => ({ key, asc: s.key === key ? !s.asc : true }))}>{label}{sort.key === key && <>{' '}<Icon name={sort.asc ? 'chevron-up' : 'chevron-down'} label={sort.asc ? 'ascending' : 'descending'} style={{ verticalAlign: '-0.125em' }} /></>}</span>
   const Statblock = kind.Statblock
+  // What the preview shows: a campaign entry live from its record (agent edits included), a published one as loaded.
+  const shown = (selected?.custom && records.find(r => r.id === selected.id)?.content) || preview
+  const previewBlock = selected && shown && <Statblock value={shown} draft={agent ? copy : undefined} art={kind.art ? artFor(selected) : undefined}
+    onArtChange={kind.art ? art => void setArt(selected, art) : undefined}
+    onPopout={kind.popout ? () => popOut(selected.id, shown, kind.art ? artFor(selected) : undefined) : undefined} />
   const action = (label: string, onClick: () => void, title?: string): ReactNode => <button className="btn btn-sm record-action" title={title} onClick={onClick}>{label}</button>
 
   return <div className="stat-block-4e compendium-split record-compendium">
@@ -282,21 +266,19 @@ export function RecordCompendium<T extends { id: string; name: string }>({ kind,
     <div ref={previewRef} className="compendium-preview">
       {edit ? <div className="record-entry-editor">
         {editDraft ? <EntryEditor key={'fresh' in edit ? edit.key : editorKeys.current[editDraft.id] ?? editDraft.id} draft={editDraft}
-          create={'fresh' in edit && campaignId ? { destinations: [{ type: 'campaign', id: campaignId }], entry: edit.entry } : undefined} onCreated={created}
+          create={'fresh' in edit && campaignId ? { destinations: [{ type: 'campaign', id: campaignId }], from: edit.from } : undefined} onCreated={created}
           art={kind.art && selected?.custom ? artFor(selected) : undefined} onArtChange={kind.art && selected?.custom ? art => void setArt(selected, art) : undefined} />
           : <div className="record-empty">Loading…</div>}
       </div>
-        : selected && (copy || preview) ? <>
+        : selected && shown ? <>
           <div className="record-actions">
             {campaignId && action(selected.custom ? 'Edit' : 'Copy to campaign', () => void startEdit(selected),
               selected.custom ? 'Edit this campaign entry (e)' : 'Make an editable campaign copy (e); your first edit adds it')}
             {selected.custom && action('Delete', () => void remove(selected.id))}
           </div>
-          {copy ? <EntryPreview draft={copy} art={kind.art ? artFor(selected) : undefined} onArtChange={kind.art ? art => void setArt(selected, art) : undefined}
-              onPopout={kind.popout ? () => popOut(selected.id, copy.content as unknown as T, kind.art ? artFor(selected) : undefined) : undefined} />
-            : <Statblock value={preview!} art={kind.art ? artFor(selected) : undefined}
-              onArtChange={kind.art ? art => void setArt(selected, art) : undefined}
-              onPopout={kind.popout ? () => popOut(selected.id, preview!, kind.art ? artFor(selected) : undefined) : undefined} />}
+          {/* One stat block for every entry; with the agent connection on, the working copy adds comment markers. */}
+          {agent && copy ? <DraftAnnotations draft={copy} enabled>{previewBlock}</DraftAnnotations> : previewBlock}
+          {agent && copy && <EntryDiscussion draft={copy} />}
         </>
         : <div className="record-empty">Click a {kind.singular} to preview</div>}
     </div>

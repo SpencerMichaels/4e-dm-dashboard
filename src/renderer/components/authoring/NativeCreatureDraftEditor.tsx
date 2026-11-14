@@ -5,9 +5,7 @@ import { creatureEditorChanges, draftToCreatureEditor } from '@common/authoring/
 import { isUnsaved } from '@common/authoring/unsaved'
 import { useUiStore } from '../../stores/ui-store'
 import { Dnd4eCreatureDetails } from '../creature/Dnd4eCreatureDetails'
-import { DraftNotes } from './DraftNotes'
 import { useLiveEdits, type EditStatus } from './live-edits'
-import type { Monster } from '@kit'
 
 interface Props {
   draft: Draft
@@ -17,7 +15,7 @@ interface Props {
   art?: RecordArt
   onArtChange?: (art: RecordArt) => void
 }
-/** The Creatures compendium editor on a draft; edits go into the draft as you make them (see live-edits). */
+/** The Creatures compendium editor on an entry's working copy; edits go into it as you make them (see live-edits). */
 export function NativeCreatureDraftEditor({ draft, status, apply, art, onArtChange }: Props) {
   const config = useUiStore(s => s.systemPlugin?.creatureBuilder)
   // The rules normally load when a campaign opens; the workshop works without one.
@@ -26,7 +24,6 @@ export function NativeCreatureDraftEditor({ draft, status, apply, art, onArtChan
     draft, apply, status, project: draftToCreatureEditor,
     diff: (base, sent) => creatureEditorChanges(base, draftToCreatureEditor(base), sent),
   })
-  const description = String(creature.statBlock.description ?? '')
   // Artwork goes to the entry; everything else into the draft.
   const view: Creature = onArtChange ? { ...creature, ...art } : creature
   const save = (next: Creature) => {
@@ -38,8 +35,7 @@ export function NativeCreatureDraftEditor({ draft, status, apply, art, onArtChan
     {isUnsaved(draft) && <p className="authoring-notice authoring-edit-bar">{busy ? 'Adding it to the campaign…' : 'New: your first change adds it to the campaign.'}</p>}
     {notice}
     <div className="native-draft-editor">
-      {config ? <Dnd4eCreatureDetails creature={view} onSave={save} config={config} compact showImages={!!onArtChange} showDescription={false} /> : <p>Loading the creature editor…</p>}
-      <DraftNotes monster={draft.content as Monster} edit={{ value: description, change: value => edit({ ...creature, statBlock: { ...creature.statBlock, description: value } }) }} />
+      {config ? <Dnd4eCreatureDetails creature={view} onSave={save} config={config} compact showImages={!!onArtChange} /> : <p>Loading the creature editor…</p>}
     </div>
   </>
 }

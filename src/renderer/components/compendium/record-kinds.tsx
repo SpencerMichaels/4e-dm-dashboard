@@ -4,6 +4,7 @@
 import type { Disease, Item, Monster, MonsterTemplate, MonsterTheme, Trap } from '@kit'
 import type { CompendiumEntry, DiseaseIndexEntry, ItemIndexEntry, TrapIndexEntry } from '@common/types'
 import { scaffold } from '@common/authoring/core'
+import { decorate } from '@common/authoring/kit-editor-adapter'
 import type { RecordType } from '@common/campaign-records'
 import { TrapStatblock } from '../trap/TrapStatblock'
 import { DiseaseStatblock } from '../disease/DiseaseStatblock'
@@ -24,7 +25,7 @@ export const TRAP_KIND: RecordKind<Trap> = {
   row: t => ({ name: t.name, level: t.level, cells: [cap(t.kind), cap(t.role)] }),
   get: id => window.api.compendium.kitGet('trap', id),
   blank: () => scaffold('trap', 'New Trap', 1) as Trap,
-  Statblock: ({ value, onChange }) => <TrapStatblock trap={value} onChange={onChange} />,
+  Statblock: ({ value, draft }) => <TrapStatblock trap={draft ? decorate<Trap>(draft) : value} />,
 }
 
 export const DISEASE_KIND: RecordKind<Disease> = {
@@ -34,7 +35,7 @@ export const DISEASE_KIND: RecordKind<Disease> = {
   row: d => ({ name: d.name, level: d.level, cells: [] }),
   get: id => window.api.compendium.kitGet('disease', id),
   blank: () => scaffold('disease', 'New Disease', 1) as Disease,
-  Statblock: ({ value, onChange }) => <DiseaseStatblock disease={value} onChange={onChange} />,
+  Statblock: ({ value, draft }) => <DiseaseStatblock disease={draft ? decorate<Disease>(draft) : value} />,
 }
 
 export const TEMPLATE_KIND: RecordKind<MonsterTemplate> = {
@@ -45,7 +46,7 @@ export const TEMPLATE_KIND: RecordKind<MonsterTemplate> = {
   row: t => ({ name: t.name, level: 0, cells: [t.role, t.sources[0]?.book ?? ''] }),
   get: id => window.api.compendium.kitGet('template', id),
   blank: () => scaffold('template', 'New Template') as MonsterTemplate,
-  Statblock: ({ value, onChange }) => <TemplateStatblock template={value} onChange={onChange} />,
+  Statblock: ({ value, draft }) => <TemplateStatblock template={draft ? decorate<MonsterTemplate>(draft) : value} />,
   levelless: true,
 }
 
@@ -57,7 +58,7 @@ export const THEME_KIND: RecordKind<MonsterTheme> = {
   row: t => ({ name: t.name, level: 0, cells: [t.sources[0]?.book ?? ''] }),
   get: id => window.api.compendium.kitGet('theme', id),
   blank: () => scaffold('theme', 'New Theme') as MonsterTheme,
-  Statblock: ({ value, onChange }) => <ThemeStatblock theme={value} onChange={onChange} />,
+  Statblock: ({ value, draft }) => <ThemeStatblock theme={draft ? decorate<MonsterTheme>(draft) : value} />,
   levelless: true,
 }
 
@@ -72,7 +73,7 @@ export const ITEM_KIND: RecordKind<Item> = {
   row: i => ({ name: i.name, level: i.level, cells: [cap(i.category), itemSlot(i), i.rarity ? cap(i.rarity) : '', itemPrice(i)] }),
   get: id => window.api.compendium.kitGet('item', id),
   blank: () => scaffold('item', 'New Item', 1) as Item,
-  Statblock: ({ value, onChange }) => <ItemStatblock item={value} onChange={onChange} />,
+  Statblock: ({ value, draft }) => <ItemStatblock item={draft ? decorate<Item>(draft) : value} />,
 }
 
 /** Creatures: the published index's role, type, rank, size, and origin, with artwork and pop-outs. */
