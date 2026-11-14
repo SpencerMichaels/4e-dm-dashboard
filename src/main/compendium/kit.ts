@@ -1,11 +1,11 @@
 // Published compendium entries as kit content, for the kit-native statblocks.
 
+import { contentRoot } from '../content-root'
 import type { Disease, Item, Monster, MonsterTemplate, MonsterTheme, Trap } from '@kit'
 import type { Creature } from '@common/types'
 import { join } from 'path'
 import { existsSync, readFileSync } from 'fs'
 import { homedir } from 'os'
-import { app } from 'electron'
 import { publishedMonster } from './published-monsters'
 import { convertTrap } from '../../../tools/content/convert/trap'
 import { convertDisease } from '../../../tools/content/convert/disease'
@@ -54,7 +54,7 @@ export function getKitEntry(kind: KitKind, id: string): KitEntry | null {
   if (kind === 'template') return structuredClone(publishedTemplates().find(t => t.id === id) ?? null)
   if (kind === 'theme') return structuredClone(publishedThemes().find(t => t.id === id) ?? null)
   // Monsters keep their own cache (re-parsed from content/raw with printed text).
-  if (kind === 'monster') return publishedMonster(join(app.getAppPath(), 'content'), id, () => compendium.resolveCreature!(id) as unknown as Creature | null)
+  if (kind === 'monster') return publishedMonster(contentRoot(), id, () => compendium.resolveCreature!(id) as unknown as Creature | null)
   const key = `${kind}/${id}`
   if (cache.has(key)) return structuredClone(cache.get(key)) as KitEntry
   let value: KitEntry | null = null

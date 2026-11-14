@@ -3,7 +3,7 @@ process.env.FOUR_E_HIDDEN_WINDOWS = '1'
 // Published traps from the parser, not a content repo on this machine.
 process.env.CONTENT_REPO = '/nonexistent-content-repo'
 const { app, BrowserWindow } = require('electron')
-const { mkdtempSync, mkdirSync, writeFileSync, symlinkSync, existsSync, rmSync } = require('fs')
+const { mkdtempSync, mkdirSync, writeFileSync } = require('fs')
 const { tmpdir } = require('os')
 const { join, resolve } = require('path')
 const root = mkdtempSync(join(tmpdir(), '4e-authoring-ui-'))
@@ -11,10 +11,10 @@ app.setPath('appData', root)
 mkdirSync(join(root, 'user'))
 app.setPath('userData', join(root, 'user'))
 // The compendium and glossary load content/parsed relative to the app path (this script's folder).
-const contentLink = join(__dirname, 'content')
-if (!existsSync(contentLink)) symlinkSync(resolve(__dirname, '../../content'), contentLink)
-process.on('exit', () => { try { rmSync(contentLink) } catch {} })
-require('../../out/main/index.js')
+// The checkout's content/, read in place (no shared symlink, so concurrent runs are independent).
+process.env.FOUR_E_CONTENT_DIR = resolve(__dirname, '../../content')
+// The build to test: $FOUR_E_OUT_DIR (`npm run test:ui` builds a private one per run), else out/.
+require(join(process.env.FOUR_E_OUT_DIR || resolve(__dirname, '../../out'), 'main/index.js'))
 const sleep = ms => new Promise(r => setTimeout(r, ms))
 const timeout = setTimeout(() => { console.error('UI smoke timed out'); app.exit(1) }, 60000)
 

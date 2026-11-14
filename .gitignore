@@ -25,3 +25,6 @@ images/
 # direnv (copy .envrc.example to .envrc)
 .envrc
 .direnv/
+
+# Private UI test builds and their screenshots (npm run test:ui)
+.ui-test-builds/

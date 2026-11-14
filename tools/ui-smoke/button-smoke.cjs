@@ -6,7 +6,7 @@ process.env.FOUR_E_HIDDEN_WINDOWS = '1'
 // Published traps from the parser, not a content repo on this machine.
 process.env.CONTENT_REPO = '/nonexistent-content-repo'
 const { app, BrowserWindow } = require('electron')
-const { mkdtempSync, mkdirSync, writeFileSync, symlinkSync, rmSync, existsSync } = require('fs')
+const { mkdtempSync, mkdirSync, writeFileSync } = require('fs')
 const { tmpdir } = require('os')
 const { join, resolve } = require('path')
 const { auditButtons } = require('./button-audit.cjs')
@@ -14,12 +14,12 @@ const root = mkdtempSync(join(tmpdir(), '4e-button-ui-'))
 app.setPath('appData', root)
 mkdirSync(join(root, 'user'))
 app.setPath('userData', join(root, 'user'))
-// The compendium reads content/ relative to the app path (this script's folder).
-const contentLink = join(__dirname, 'content')
-if (!existsSync(contentLink)) symlinkSync(resolve(__dirname, '../../content'), contentLink)
-require('../../out/main/index.js')
+// The checkout's content/, read in place (no shared symlink, so concurrent runs are independent).
+process.env.FOUR_E_CONTENT_DIR = resolve(__dirname, '../../content')
+// The build to test: $FOUR_E_OUT_DIR (`npm run test:ui` builds a private one per run), else out/.
+require(join(process.env.FOUR_E_OUT_DIR || resolve(__dirname, '../../out'), 'main/index.js'))
 const sleep = ms => new Promise(r => setTimeout(r, ms))
-const finish = code => { try { rmSync(contentLink) } catch {} app.exit(code) }
+const finish = code => app.exit(code)
 const timeout = setTimeout(() => { console.error('Button smoke timed out'); finish(1) }, 120000)
 
 const now = new Date().toISOString()

@@ -1,16 +1,16 @@
 // D&D 4e CompendiumProvider implementation
 // Reads pre-parsed JSON data from content/parsed/ and exposes it via the plugin interface.
 
+import { contentRoot } from '../content-root'
 import { readFileSync } from 'fs'
 import { join } from 'path'
-import { app } from 'electron'
 import { generateId } from '../../common/utils/id'
 import type { CompendiumProvider } from '../../common/types/system-plugin'
 import type { CompendiumEntry, ItemIndexEntry, TrapIndexEntry, DiseaseIndexEntry } from '../../common/types/compendium'
 import type { Creature } from '../../common/types/creature'
 
 function dataDir(): string {
-  return join(app.getAppPath(), 'content/parsed')
+  return join(contentRoot(), 'parsed')
 }
 
 // Caches — lazily populated on first access

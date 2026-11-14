@@ -9,6 +9,7 @@
     "test:compendium:ui": "FOUR_E_HIDDEN_WINDOWS=1 electron tools/ui-smoke/compendium-smoke.cjs --ozone-platform=wayland --no-sandbox",
     "test:combat:ui": "FOUR_E_HIDDEN_WINDOWS=1 electron tools/ui-smoke/combat-smoke.cjs --ozone-platform=wayland --no-sandbox",
     "test:buttons:ui": "FOUR_E_HIDDEN_WINDOWS=1 electron tools/ui-smoke/button-smoke.cjs --ozone-platform=wayland --no-sandbox",
+    "test:ui": "node tools/ui-smoke/run.cjs",
     "dev": "electron-vite dev",
     "build": "electron-vite build",
     "preview": "electron-vite preview",
