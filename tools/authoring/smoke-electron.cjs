@@ -1,5 +1,7 @@
 // Never show test windows on the desktop (see src/main/windows.ts).
 process.env.FOUR_E_HIDDEN_WINDOWS = '1'
+// Published traps from the parser, not a content repo on this machine.
+process.env.CONTENT_REPO = '/nonexistent-content-repo'
 const { app, BrowserWindow } = require('electron')
 const { mkdtempSync, mkdirSync, writeFileSync, symlinkSync, existsSync, rmSync } = require('fs')
 const { tmpdir } = require('os')

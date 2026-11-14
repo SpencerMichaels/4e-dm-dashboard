@@ -2,6 +2,8 @@
 // edit in place, delete, and create new. Windows are hidden and render offscreen; nothing
 // appears on the desktop. Run with `npm run test:compendium:ui` after `npm run build`.
 process.env.FOUR_E_HIDDEN_WINDOWS = '1'
+// Published traps from the parser, not a content repo on this machine.
+process.env.CONTENT_REPO = '/nonexistent-content-repo'
 const { app, BrowserWindow } = require('electron')
 const { mkdtempSync, mkdirSync, writeFileSync, symlinkSync, rmSync, existsSync } = require('fs')
 const { tmpdir } = require('os')

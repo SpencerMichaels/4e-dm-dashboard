@@ -28,6 +28,8 @@ export interface PluginCombatPanelProps {
   onPopoutStatblock?: (combatantId: string) => void
   /** Traps: a countermeasure stopped it, or it works again. */
   onToggleDisabled?: () => void
+  /** Traps: a countermeasure's effect button or a skill challenge check (TrapCountermeasures). */
+  onCountermeasure?: (use: import('./TrapCountermeasures').CountermeasureUse) => void
   onApplyConditionToTargets: (condition: { conditionId: string; value?: number; customDescription?: string; sourceId?: string; duration?: { type: string; remaining?: number; expiresOnId?: string } }, multi: boolean) => void
   /** A disease named in a power: select PCs to expose (tracked on their PC records). */
   onApplyDiseaseToTargets?: (disease: import('@common/types').DiseaseRef, name: string, multi: boolean) => void

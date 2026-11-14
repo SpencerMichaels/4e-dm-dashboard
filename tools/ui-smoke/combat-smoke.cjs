@@ -3,6 +3,8 @@
 // combatants; the combat panels render them and recharge powers prompt a roll. Windows are hidden and
 // render offscreen. Run with `npm run test:combat:ui` after `npm run build`.
 process.env.FOUR_E_HIDDEN_WINDOWS = '1'
+// Published traps come from this stand-in content repo (one trap with countermeasure clauses), never the DM's.
+process.env.CONTENT_REPO = require('path').join(__dirname, 'fixtures', 'content-repo')
 const { app, BrowserWindow } = require('electron')
 const { mkdtempSync, mkdirSync, writeFileSync, readFileSync, symlinkSync, rmSync, existsSync } = require('fs')
 const { tmpdir } = require('os')
@@ -261,6 +263,30 @@ app.whenReady().then(async () => {
     state = await current()
     if (!state.combatants[legBreaker.id].dead) throw new Error('Disable did not mark the trap')
 
+    // Countermeasures (from the content repo's clauses): the panel lists each with its checks, action, and
+    // attackable part; the strip has their actions; a skill challenge's last success disables the trap.
+    const cmText = await js(() => document.querySelector('.trap-countermeasures')?.innerText ?? '')
+    if (!cmText.includes('Thievery DC 17') || !cmText.includes('Standard Action') || !cmText.includes('AC 10, Fort 10, Ref 10, Will 10; HP 20')) throw new Error('Countermeasures panel wrong: ' + cmText)
+    if (await js(() => [...document.querySelectorAll('.stat-block-4e, .power-card')].some(e => e.querySelector('.pc-name, .pc-title')?.textContent === 'Countermeasures'))) throw new Error('Countermeasures also drawn as a text card')
+    await js(() => [...document.querySelectorAll('.triggered-trap button')].find(b => b.textContent === 'Re-arm').click())
+    await until(() => !!document.querySelector('.trap-countermeasures-compact'), 'the strip countermeasure actions')
+    const stripActions = await js(() => [...document.querySelectorAll('.trap-countermeasures-compact button')].map(b => b.textContent.trim()))
+    const stripRows = await js(() => [...document.querySelectorAll('.trap-countermeasures-compact > div')].map(r => r.innerText.replace(/\s+/g, ' ').trim()))
+    if (JSON.stringify(stripRows) !== JSON.stringify(['Thievery DC 17 Disable', 'AC 10, Fort 10, Ref 10, Will 10; HP 20 Destroy', 'Dungeoneering DC 17 Successes 0/3 Failures 0/2'])) throw new Error('Strip countermeasure rows: ' + JSON.stringify(stripRows))
+    if (JSON.stringify(stripActions) !== JSON.stringify(['Disable', 'Destroy', 'Successes 0/3', 'Failures 0/2'])) throw new Error('Strip countermeasure actions: ' + JSON.stringify(stripActions))
+    await sleep(500)
+    await screenshot('out/combat-trap-countermeasures.png')
+    for (let n = 1; n <= 3; n++) {
+      await js(() => [...document.querySelectorAll('.trap-countermeasures-compact button')].find(b => b.textContent.startsWith('Successes')).click())
+      if (n < 3) await until(k => [...document.querySelectorAll('.trap-countermeasures-compact button')].some(b => b.textContent.trim() === `Successes ${k}/3`), 'success ' + n, n)
+    }
+    await until(() => [...document.querySelectorAll('.triggered-trap button')].some(b => b.textContent === 'Re-arm'), 'the skill challenge disabling the trap')
+    state = await current()
+    if (!state.combatants[legBreaker.id].dead || state.combatants[legBreaker.id].countermeasures?.['2/0']?.successes !== 3) throw new Error('Skill challenge state: ' + JSON.stringify(state.combatants[legBreaker.id].countermeasures))
+    await js(() => document.querySelector('button[aria-label="Combat log"]').click())
+    await until(() => document.body.innerText.includes('Leg Breaker Trap is disabled (Dungeoneering DC 17)') && document.body.innerText.includes('Dungeoneering DC 17 succeeded (3/3)'), 'the countermeasure in the combat log')
+    await js(() => document.querySelector('button[aria-label="Combat log"]').click())
+
     // ── Home board: the hero's lasting conditions, with this encounter's on top; the disease opens the conditions dialog,
     // the hero contracts it, then a failed Endurance check worsens it ──
     await js(id => window.api.combat.addCondition(id, { conditionId: 'dazed', duration: { type: 'save-ends' } }), heroC.id)
@@ -300,7 +326,7 @@ app.whenReady().then(async () => {
 
     const confirms = await js(() => window.__confirms)
     clearTimeout(timeout)
-    console.log('COMBAT_SMOKE_OK: a Library creature resolving live in an encounter row, legacy creature converted on open, encounter row preview (template, level adjustment), the session board and level warnings, combat start in main with kit combatants (elite captain, troll regeneration, grouped minions), combat panel, recharge prompt, live pinned card, location trap stat blocks and search, location traps joining the encounter, encounter diseases, disease name in a power applied to a PC like a condition, the PCs library (search, sort, detail pane), PC lasting conditions (carried into combat, the encounter\'s on top on the Home board, disease stages, adding a condition), PC sheet import (row defenses, panel, PCs page), pinned cards popped out to an OS window and back, trap rows with XP and preview, hidden trap with initiative, triggered trap (Trigger, Disable); confirms: ' + confirms.length + '; screenshots out/home.png, out/pcs-levels.png, out/combat-encounter-preview.png, out/combat-panel.png, out/combat-trap.png, out/location-traps.png, out/combat-disease.png, out/pc-diseases.png, out/combat-pc-sheet.png, out/popout-pinned.png')
+    console.log('COMBAT_SMOKE_OK: a Library creature resolving live in an encounter row, legacy creature converted on open, encounter row preview (template, level adjustment), the session board and level warnings, combat start in main with kit combatants (elite captain, troll regeneration, grouped minions), combat panel, recharge prompt, live pinned card, location trap stat blocks and search, location traps joining the encounter, encounter diseases, disease name in a power applied to a PC like a condition, the PCs library (search, sort, detail pane), PC lasting conditions (carried into combat, the encounter\'s on top on the Home board, disease stages, adding a condition), PC sheet import (row defenses, panel, PCs page), pinned cards popped out to an OS window and back, trap rows with XP and preview, hidden trap with initiative, triggered trap (Trigger, Disable), trap countermeasures from content-repo clauses (checks, action, part, strip actions, a skill challenge disabling the trap, logged); confirms: ' + confirms.length + '; screenshots out/home.png, out/pcs-levels.png, out/combat-encounter-preview.png, out/combat-panel.png, out/combat-trap.png, out/combat-trap-countermeasures.png, out/location-traps.png, out/combat-disease.png, out/pc-diseases.png, out/combat-pc-sheet.png, out/popout-pinned.png')
     finish(0)
   } catch (err) {
     console.error(err)

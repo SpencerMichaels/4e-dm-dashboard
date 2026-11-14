@@ -45,7 +45,8 @@ export function trapStatBlock(t: Trap): Record<string, any> {
       ...t.powers.map(powerToLegacy),
       ...(t.trigger ? [text('Trigger', t.trigger.text)] : []),
       ...(t.detect.length ? [text('Detect', t.detect.map(d => `${cap(d.skill)}${d.dc === null ? '' : ` DC ${d.dc}`}: ${d.text}`).join('\n'))] : []),
-      ...(t.countermeasures.length ? [text('Countermeasures', t.countermeasures.map(x => x.text).join('\n'))] : []),
+      // The combat panel draws countermeasures with their checks and actions (TrapCountermeasures) instead.
+      ...(t.countermeasures.length ? [{ ...text('Countermeasures', t.countermeasures.map(x => x.text).join('\n')), _countermeasures: true }] : []),
     ],
     description: [t.flavor, t.description].filter(Boolean).join('\n'),
     source: t.sources.map(s => `${s.book}${s.page ? ', ' + s.page : ''}`).join('; '),

@@ -3,6 +3,8 @@
 // plain text before it is hovered (see button-audit.cjs). Windows are hidden and render offscreen.
 // Run with `npm run test:buttons:ui` after `npm run build`.
 process.env.FOUR_E_HIDDEN_WINDOWS = '1'
+// Published traps from the parser, not a content repo on this machine.
+process.env.CONTENT_REPO = '/nonexistent-content-repo'
 const { app, BrowserWindow } = require('electron')
 const { mkdtempSync, mkdirSync, writeFileSync, symlinkSync, rmSync, existsSync } = require('fs')
 const { tmpdir } = require('os')

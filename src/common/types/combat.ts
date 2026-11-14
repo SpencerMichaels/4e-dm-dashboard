@@ -19,7 +19,7 @@ export type CombatEventType =
   | 'bloodied' | 'death'
   | 'turn-start' | 'turn-end'
   | 'attack-hit' | 'attack-miss'
-  | 'trap-triggered' | 'trap-disabled'
+  | 'trap-triggered' | 'trap-disabled' | 'trap-delayed' | 'countermeasure-check'
 
 export interface CombatEvent {
   timestamp: number
@@ -63,6 +63,8 @@ export interface CombatantState {
   readiedAction?: string        // Freeform text: what action is readied + trigger
   usedPowers: Record<number, number>
   usedActionPoints: number
+  /** Traps: skill challenge progress per countermeasure (`src/common/combat/countermeasures.ts`). */
+  countermeasures?: import('../combat/countermeasures').CountermeasureProgress
   miniIndicator?: string
   miniNumber?: number           // Numbered marker (1–9) shown on the token badge
   miniDescriptor?: string       // Short descriptor appended in parens, e.g. "bow" → "Orc Raider (bow)"

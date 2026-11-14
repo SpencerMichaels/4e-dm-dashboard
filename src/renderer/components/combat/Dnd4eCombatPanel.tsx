@@ -1,6 +1,7 @@
 import { toPowerCardEntry } from '../creature/power-card-entry'
 import { useState, useEffect } from 'react'
 import type { PluginCombatPanelProps } from './panel-types'
+import { TrapCountermeasures } from './TrapCountermeasures'
 import type { PowerEntry } from '../creature/PowerEntryEditor'
 import { PowerCardView, type PowerCardEntry } from '../creature/PowerCardView'
 import { USAGE_COLORS, sign } from '../creature/dnd4e-utils'
@@ -25,7 +26,7 @@ export function Dnd4eCombatPanel({
   onUsePower, onUnusePower, onQuickDamage,
   onDamage, onHeal, onAddCondition, onAddEffect, onDelay, onUndelay, onRemove,
   conditions: conditionDefs, notifications, onPinCard, pinnedKeys, onApplyConditionToTargets, onApplyDiseaseToTargets,
-  onPopoutStatblock, hideMainActionPowers, onToggleDisabled,
+  onPopoutStatblock, hideMainActionPowers, onToggleDisabled, onCountermeasure,
 }: PluginCombatPanelProps) {
   const sb = combatStatBlock(c)
   // A PC's imported sheet: players track their own hit points, so the panel shows it for reference.
@@ -53,7 +54,7 @@ export function Dnd4eCombatPanel({
 
   // Separate action types
   const hiddenActionTypes = new Set(['standard', 'move', 'minor'])
-  const traitEntries = actions.filter(a => a.entryType === 'trait')
+  const traitEntries = actions.filter(a => a.entryType === 'trait' && !(a as { _countermeasures?: boolean })._countermeasures)
   const auraEntries = actions.filter(a => a.entryType === 'aura')
   const powerEntries = actions.filter(a => a.entryType === 'action' && !(hideMainActionPowers && hiddenActionTypes.has(a.actionType)))
   const usageOrder: Record<string, number> = { 'at-will': 0, 'encounter': 1, 'recharge': 2 }
@@ -263,6 +264,8 @@ export function Dnd4eCombatPanel({
           })}
         </div>
       )}
+
+      {isTrap && <TrapCountermeasures combatant={c} onUse={use => onCountermeasure?.(use)} />}
 
       {/* Bottom stats: alignment, languages, skills, abilities, equipment */}
       <div style={{ borderTop: '1px solid var(--sb-separator)', fontSize: 11 }}>

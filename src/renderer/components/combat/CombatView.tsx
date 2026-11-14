@@ -20,6 +20,8 @@ import { AttackApplyPanel } from './AttackApplyPanel'
 import { ReadyActionDialog } from './ReadyActionDialog'
 import { EffectDialog } from './EffectDialog'
 import { TriggeredTraps } from './TriggeredTraps'
+import { checksText, type CountermeasureUse } from './TrapCountermeasures'
+import { recordCheck, STOPS_TRAP } from '@common/combat/countermeasures'
 import { Icon } from '../shared/Icon'
 import { withAlpha } from '../../utils/color'
 
@@ -540,6 +542,29 @@ export function CombatView() {
     window.api.combat.updateCombatant(id, { dead: !t.dead })
   }
 
+  /** A countermeasure's effect button, or one check of a skill challenge (whose last success applies its effect). */
+  const applyCountermeasure = (id: string, use: CountermeasureUse) => {
+    const t = combat.combatants[id]
+    const { m } = use
+    const by = checksText(m) || undefined
+    const stop = (updates: Partial<CombatantState>) => {
+      if (STOPS_TRAP[m.effect] && !t.dead) {
+        addEvent('trap-disabled', id, t.name, { how: m.effect === 'destroy' ? 'destroyed' : 'disabled', by })
+        updates.dead = true
+      } else if (m.effect === 'delay') addEvent('trap-delayed', id, t.name, { by })
+      return updates
+    }
+    if (!('outcome' in use)) { window.api.combat.updateCombatant(id, stop({})); return }
+    const r = recordCheck(t.countermeasures, m, use.outcome, use.delta)
+    if (use.delta > 0) {
+      const n = r.progress[m.key]![use.outcome === 'success' ? 'successes' : 'failures']
+      const goal = use.outcome === 'success' ? m.complexity?.successes : m.complexity?.failures
+      addEvent('countermeasure-check', id, t.name, { by, outcome: use.outcome, count: goal ? `${n}/${goal}` : String(n) })
+    }
+    const updates: Partial<CombatantState> = { countermeasures: r.progress }
+    window.api.combat.updateCombatant(id, r.done === 'success' ? stop(updates) : updates)
+  }
+
   const renderDetailPanel = (combatant: CombatantState, opts?: { hideMainActionPowers?: boolean }) => {
     const isCurrent = combatant.id === currentId
     return (
@@ -568,6 +593,7 @@ export function CombatView() {
         pinnedKeys={pinnedKeys}
         onPopoutStatblock={(id) => setPoppedOutStatblockIds(prev => prev.includes(id) ? prev : [...prev, id])}
         onToggleDisabled={() => toggleTrapDisabled(combatant.id)}
+        onCountermeasure={use => applyCountermeasure(combatant.id, use)}
         onApplyConditionToTargets={handleApplyConditionToTargets}
         onApplyDiseaseToTargets={handleApplyDiseaseToTargets}
         hideMainActionPowers={opts?.hideMainActionPowers}
@@ -650,6 +676,7 @@ export function CombatView() {
           onInspect={id => setSelectedIds([id])}
           onTrigger={id => { setSelectedIds([id]); addEvent('trap-triggered', id, combat.combatants[id].name) }}
           onToggleDisabled={toggleTrapDisabled}
+          onCountermeasure={applyCountermeasure}
         />
 
         <div style={{ flex: '1 1 auto', minHeight: 200, overflow: 'auto' }}>

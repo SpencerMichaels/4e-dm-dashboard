@@ -1,0 +1,29 @@
+{
+  "id": "trap41",
+  "name": "Leg Breaker Trap",
+  "kind": "trap",
+  "level": 5,
+  "role": "lurker",
+  "rank": "standard",
+  "xp": 200,
+  "detect": [{ "skill": "perception", "dc": 17, "text": "The character spots the plate." }],
+  "immune": [],
+  "resist": [],
+  "trigger": { "text": "The trap attacks a creature that steps on its plate.", "clauses": [] },
+  "traits": [],
+  "auras": [],
+  "powers": [{
+    "name": "Snap", "action": "opportunity", "usage": "at-will", "keywords": [],
+    "attacks": [{ "label": "primary", "range": { "kind": "melee" }, "target": "The triggering creature", "bonus": { "kind": "fixed", "value": 8 }, "vs": "reflex",
+      "hit": { "text": "1d10 + 4 damage.", "clauses": [] } }]
+  }],
+  "countermeasures": [
+    { "text": "Thievery DC 17: An adjacent character jams the plate.", "clauses": [{ "at": [0, 52], "kind": "countermeasure", "effect": "disable", "checks": [{ "skill": "thievery", "dc": 17 }], "action": "standard" }] },
+    { "text": "A character can smash the plate (AC 10, other defenses 10; hp 20).", "clauses": [{ "at": [0, 66], "kind": "countermeasure", "effect": "destroy", "defenses": { "ac": 10, "fortitude": 10, "reflex": 10, "will": 10 }, "hp": 20 }] },
+    { "text": "Dungeoneering DC 17: Three successes before two failures take the springs apart.", "clauses": [{ "at": [0, 81], "kind": "countermeasure", "effect": "disable", "checks": [{ "skill": "dungeoneering", "dc": 17 }], "complexity": { "successes": 3, "failures": 2 } }] }
+  ],
+  "flavor": "",
+  "description": "A smoke-test stand-in for the published trap, with structured countermeasures.",
+  "sources": [{ "book": "UI smoke fixture" }],
+  "provenance": { "origin": "human", "at": "2026-11-14" }
+}

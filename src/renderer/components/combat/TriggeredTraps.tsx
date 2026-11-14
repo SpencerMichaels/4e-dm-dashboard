@@ -1,10 +1,12 @@
 // Traps without initiative act only when triggered, so they sit outside the turn order. This strip
 // lists them: click a name to inspect it, Trigger to bring up its stat block and log it, Disable when
-// a countermeasure stops it. The eye shows whether players can see it.
+// a countermeasure stops it, and under each the actions of its countermeasures (TrapCountermeasures).
+// The eye shows whether players can see it.
 
 import type { CombatState } from '@common/types'
 import { actsOnInitiative } from '@common/combat/facts'
 import { Icon } from '../shared/Icon'
+import { TrapCountermeasures, type CountermeasureUse } from './TrapCountermeasures'
 
 interface Props {
   combat: CombatState
@@ -12,17 +14,18 @@ interface Props {
   onInspect: (id: string) => void
   onTrigger: (id: string) => void
   onToggleDisabled: (id: string) => void
+  onCountermeasure: (id: string, use: CountermeasureUse) => void
 }
 
-export function TriggeredTraps({ combat, selectedIds, onInspect, onTrigger, onToggleDisabled }: Props) {
+export function TriggeredTraps({ combat, selectedIds, onInspect, onTrigger, onToggleDisabled, onCountermeasure }: Props) {
   const traps = Object.values(combat.combatants).filter(c => c.kind === 'trap' && !actsOnInitiative(c))
   if (!traps.length) return null
   const small = { fontSize: 'var(--font-size-xs)', padding: '1px 6px' }
   return (
     <div className="triggered-traps" role="list" style={{ flexShrink: 0, border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', padding: '4px 6px' }}>
       <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--muted)', marginBottom: 2 }}>Triggered traps</div>
-      {traps.map(t => (
-        <div key={t.id} className="triggered-trap" role="listitem" style={{ display: 'flex', alignItems: 'center', gap: 6, opacity: t.dead ? 0.5 : 1 }}>
+      {traps.map(t => <div key={t.id} role="listitem">
+        <div className="triggered-trap" style={{ display: 'flex', alignItems: 'center', gap: 6, opacity: t.dead ? 0.5 : 1 }}>
           <button onClick={() => onInspect(t.id)} title="Inspect"
             style={{ flex: 1, textAlign: 'left', background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontWeight: selectedIds.includes(t.id) ? 700 : 400, textDecoration: t.dead ? 'line-through' : undefined }}>
             {t.name}
@@ -34,7 +37,8 @@ export function TriggeredTraps({ combat, selectedIds, onInspect, onTrigger, onTo
           {!t.dead && <button style={small} onClick={() => onTrigger(t.id)} title="The trap's trigger happened">Trigger</button>}
           <button style={small} onClick={() => onToggleDisabled(t.id)}>{t.dead ? 'Re-arm' : 'Disable'}</button>
         </div>
-      ))}
+        <TrapCountermeasures combatant={t} compact onUse={use => onCountermeasure(t.id, use)} />
+      </div>)}
     </div>
   )
 }

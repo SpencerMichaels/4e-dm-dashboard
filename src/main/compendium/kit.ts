@@ -3,6 +3,8 @@
 import type { Disease, Item, Monster, MonsterTemplate, MonsterTheme, Trap } from '@kit'
 import type { Creature } from '@common/types'
 import { join } from 'path'
+import { existsSync, readFileSync } from 'fs'
+import { homedir } from 'os'
 import { app } from 'electron'
 import { publishedMonster } from './published-monsters'
 import { convertTrap } from '../../../tools/content/convert/trap'
@@ -18,6 +20,23 @@ const ctx = () => ({ provenance: { origin: 'parser' as const, at: new Date(0).to
 const cache = new Map<string, unknown>()
 
 type KitEntry = Monster | Item | Trap | Disease | MonsterTemplate | MonsterTheme
+
+/**
+ * The agent-cleaned content repo, until the content pack (TODO section 8) replaces this bridge:
+ * $CONTENT_REPO, or ~/Projects/4e-content when it exists. Its traps carry effect clauses
+ * (countermeasures with checks and DCs) that the parser's do not.
+ */
+const contentRepo = (): string | null => {
+  const dir = process.env.CONTENT_REPO ?? join(homedir(), 'Projects', '4e-content')
+  return existsSync(join(dir, 'traps')) ? dir : null
+}
+
+/** A published trap from the content repo, or null (no repo, no file, or unreadable). */
+function repoTrap(id: string): Trap | null {
+  const dir = contentRepo()
+  if (!dir || !/^[\w-]+$/.test(id)) return null
+  try { return JSON.parse(readFileSync(join(dir, 'traps', `${id}.json`), 'utf-8')) as Trap } catch { return null }
+}
 
 // Templates and themes are still built-in data (DMG, DMG2); the content pack will replace that source.
 let templates: MonsterTemplate[] | null = null
@@ -40,7 +59,7 @@ export function getKitEntry(kind: KitKind, id: string): KitEntry | null {
   if (cache.has(key)) return structuredClone(cache.get(key)) as KitEntry
   let value: KitEntry | null = null
   if (kind === 'item') { const i = compendium.getItem!(id); value = i ? convertItem(id, i as never, ctx()) : null }
-  else   if (kind === 'trap') { const t = compendium.getTrap!(id); value = t ? convertTrap(id, t as never, ctx()) : null }
+  else if (kind === 'trap') { const t = compendium.getTrap!(id); value = t ? repoTrap(id) ?? convertTrap(id, t as never, ctx()) : null }
   else if (kind === 'disease') { const d = compendium.getDisease!(id); value = d ? convertDisease(id, d as never, ctx()) : null }
   if (value) cache.set(key, value)
   return value && structuredClone(value)

@@ -35,7 +35,11 @@ export function renderEvent(e: CombatEvent): string {
     case 'trap-triggered':
       return `${e.targetName} is triggered!`
     case 'trap-disabled':
-      return `${e.targetName} is disabled`
+      return `${e.targetName} is ${d.how ?? 'disabled'}${d.by ? ` (${d.by})` : ''}`
+    case 'trap-delayed':
+      return `${e.targetName} is delayed${d.by ? ` (${d.by})` : ''}`
+    case 'countermeasure-check':
+      return `${e.targetName}: ${d.by ?? 'check'} ${d.outcome === 'success' ? 'succeeded' : 'failed'}${d.count ? ` (${d.count})` : ''}`
     default:
       return `${e.targetName}: ${e.type}`
   }
@@ -54,6 +58,8 @@ export function eventColor(type: CombatEvent['type']): string {
     case 'attack-miss': return 'var(--notify)'
     case 'trap-triggered': return 'var(--warning)'
     case 'trap-disabled': return 'var(--success)'
+    case 'trap-delayed': return 'var(--notify)'
+    case 'countermeasure-check': return ''
     case 'turn-start': case 'turn-end': return ''
     default: return ''
   }
