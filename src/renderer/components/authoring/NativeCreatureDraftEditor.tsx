@@ -2,7 +2,6 @@ import { useEffect } from 'react'
 import type { Change, Draft } from '@common/authoring/types'
 import type { Creature, RecordArt } from '@common/types'
 import { creatureEditorChanges, draftToCreatureEditor } from '@common/authoring/creature-editor-adapter'
-import { isUnsaved } from '@common/authoring/unsaved'
 import { useUiStore } from '../../stores/ui-store'
 import { Dnd4eCreatureDetails } from '../creature/Dnd4eCreatureDetails'
 import { useLiveEdits, type EditStatus } from './live-edits'
@@ -20,7 +19,7 @@ export function NativeCreatureDraftEditor({ draft, status, apply, art, onArtChan
   const config = useUiStore(s => s.systemPlugin?.creatureBuilder)
   // The rules normally load when a campaign opens; the workshop works without one.
   useEffect(() => { if (!config) void window.api.system.getRules().then(useUiStore.getState().setSystemPlugin) }, [config])
-  const { value: creature, edit, busy, notice } = useLiveEdits<Creature>({
+  const { value: creature, edit, notice } = useLiveEdits<Creature>({
     draft, apply, status, project: draftToCreatureEditor,
     diff: (base, sent) => creatureEditorChanges(base, draftToCreatureEditor(base), sent),
   })
@@ -32,7 +31,6 @@ export function NativeCreatureDraftEditor({ draft, status, apply, art, onArtChan
     edit({ ...next, imageId: creature.imageId, tokenImageId: creature.tokenImageId, tokenCrop: creature.tokenCrop })
   }
   return <>
-    {isUnsaved(draft) && <p className="authoring-notice authoring-edit-bar">{busy ? 'Adding it to the campaign…' : 'New: your first change adds it to the campaign.'}</p>}
     {notice}
     <div className="native-draft-editor">
       {config ? <Dnd4eCreatureDetails creature={view} onSave={save} config={config} compact showImages={!!onArtChange} /> : <p>Loading the creature editor…</p>}

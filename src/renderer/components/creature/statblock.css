@@ -23,6 +23,22 @@
   font-weight: 700;
   font-size: 14px;
 }
+.stat-block-4e .sb-header > .sb-name { flex: 1 1 auto; }
+
+/* The compendium page's controls in the title bar (shared/record-header.tsx): right after the name, with
+   the level kept at the right. An editable name sizes to its text so the controls follow it. */
+.stat-block-4e .sb-header:has(> .sb-header-actions) > .sb-name { flex: 0 1 auto; field-sizing: content; min-width: 6ch; }
+/* Its home chip, then icon buttons, all one height (--sb-control). */
+.stat-block-4e .sb-header-actions { --sb-control: 20px; display: inline-flex; align-items: center; gap: 2px; margin: 0 auto 0 8px; align-self: center; font-size: var(--font-size-xs); font-weight: normal; font-family: var(--font-ui); white-space: nowrap; }
+.stat-block-4e .sb-header-home { display: inline-flex; align-items: center; box-sizing: border-box; height: var(--sb-control); margin-right: 4px; padding: 0 6px; border-radius: var(--radius-sm); background: color-mix(in srgb, currentColor 18%, transparent); font-size: 10px; font-weight: 600; }
+.stat-block-4e .sb-header-actions .sb-icon-btn { display: inline-flex; align-items: center; justify-content: center; box-sizing: border-box; width: var(--sb-control); height: var(--sb-control); padding: 0; border: 1px solid transparent; border-radius: var(--radius-sm); background: transparent; color: inherit; font-size: 13px; }
+.stat-block-4e .sb-header-actions .sb-icon-btn:hover { background: color-mix(in srgb, currentColor 18%, transparent); box-shadow: none; }
+/* Edit stays pressed while editing; pressing it again is done. */
+.stat-block-4e .sb-header-actions .sb-icon-btn[aria-pressed="true"] { background: color-mix(in srgb, currentColor 28%, transparent); border-color: currentColor; }
+
+/* An entry popped out into a window of its own (compendium/EntryPane.tsx). */
+.record-popout { height: 100%; }
+.record-popout .record-popout-body { min-height: 100%; box-sizing: border-box; padding: var(--space-2); background: var(--background); }
 
 .stat-block-4e .sb-subheader {
   background: var(--sb-subheader-bg);
@@ -165,26 +181,21 @@
 .stat-block-4e .sb-check-table th { padding: 2px 6px; text-align: left; font-weight: 700; border-bottom: 2px solid var(--sb-separator); }
 .stat-block-4e .sb-check-table td { padding: 1px 6px; vertical-align: top; }
 
+/* Lists in a stat block panel outside the compendium (the Home board), styled like its lists:
+   .sb-columns is the column-heading row, .sb-list-row a row (striped by a .striped-rows parent). */
+.stat-block-4e .sb-list-row { display: grid; gap: var(--space-2); align-items: center; padding: 0 var(--space-2); font-size: var(--font-size-xs); }
+.stat-block-4e .sb-list-row > * { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
 /* RecordCompendium: list rows, actions, and the edit bar */
 .record-compendium .record-columns, .stat-block-4e .sb-columns { display: grid; gap: var(--space-2); padding: 2px var(--space-2); border-bottom: 1px solid var(--sb-separator, var(--border)); flex-shrink: 0; color: var(--muted); font-weight: 600; font-size: var(--font-size-xs); user-select: none; }
 .record-compendium .record-row { display: grid; gap: var(--space-2); align-items: center; height: 100%; padding: 0 var(--space-2); cursor: pointer; font-size: var(--font-size-xs); }
 .record-compendium .record-row.active { background: var(--active); font-weight: 600; }
 .record-compendium .record-row > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .record-compendium .record-cell { color: var(--muted); }
-.record-compendium .record-custom { margin-left: 6px; padding: 0 4px; font-size: 9px; font-weight: 600; border-radius: var(--radius-sm); background: var(--hover); color: var(--text-secondary); }
 .record-compendium .record-count { color: var(--muted); padding: var(--space-2) 0; flex-shrink: 0; font-size: var(--font-size-xs); }
-.record-compendium .record-editbar { flex-shrink: 0; border-top: 1px solid var(--sb-separator); padding: var(--space-2) 0; display: flex; align-items: center; gap: var(--space-2); font-size: var(--font-size-xs); color: var(--muted); font-style: italic; }
-.record-compendium .record-editbar button { padding: 2px 8px; background: transparent; border: 1px solid var(--border); border-radius: var(--radius-sm); cursor: pointer; color: var(--muted); font-size: var(--font-size-xs); font-style: normal; }
-.record-compendium .record-actions { display: flex; gap: 10px; justify-content: flex-end; padding: 0 2px 4px; font-size: var(--font-size-xs); }
-.record-compendium .record-action { color: var(--text-secondary); }
 .record-compendium .record-empty { display: flex; align-items: center; justify-content: center; height: 100%; color: var(--muted); font-size: var(--font-size-sm); }
 .record-menu { position: fixed; z-index: 1000; background: var(--background); border: 1px solid var(--border); border-radius: var(--radius-sm); box-shadow: var(--shadow-md); padding: var(--space-1) 0; min-width: 140px; }
 .record-menu button { display: block; width: 100%; text-align: left; padding: 4px 12px; background: none; border: 0; color: var(--danger, var(--danger)); cursor: pointer; }
-
-/* Lists in a stat block panel outside the compendium (the Home board), styled like its lists:
-   .sb-columns is the column-heading row, .sb-list-row a row (striped by a .striped-rows parent). */
-.stat-block-4e .sb-list-row { display: grid; gap: var(--space-2); align-items: center; padding: 0 var(--space-2); font-size: var(--font-size-xs); }
-.stat-block-4e .sb-list-row > * { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 /* Power cards (PowerCardView): header in the usage tone, a lighter attack line, then the printed
    lines in book order, grouped by spacing rather than rules. */
@@ -216,6 +227,6 @@
 /* Buttons on the dark stat block header: outlined in the header's text color, so they read as buttons there. */
 .stat-block-4e .sb-header .btn { background: transparent; border-color: currentColor; color: inherit; }
 /* Where custom entries live: the open campaign's, or the Library's (shared by every campaign) */
-.record-compendium .record-custom.library { background: color-mix(in srgb, var(--accent) 16%, transparent); color: var(--text); }
-.record-compendium .record-home { margin-right: auto; align-self: center; color: var(--muted); font-style: italic; }
 .record-menu button.neutral { color: var(--text); }
+.record-menu button:disabled { opacity: 0.5; cursor: default; }
+.record-menu button svg { vertical-align: -0.125em; }

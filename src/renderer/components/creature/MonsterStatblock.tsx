@@ -8,12 +8,11 @@ import { useGlossary } from '../compendium/use-glossary'
 import { Dnd4eCreatureViewer } from './Dnd4eCreatureViewer'
 import { kitViewCreature } from './kit-view'
 
-export function MonsterStatblock({ value, draft, art, onArtChange, onPopout }: StatblockProps<Monster>) {
+export function MonsterStatblock({ value, draft, art, onArtChange }: StatblockProps<Monster>) {
   const { tooltip } = useGlossary()
   // With a working copy, entries carry its node ids so comment markers anchor to them.
   const creature = kitViewCreature(value, undefined, { ...art })
   return <Dnd4eCreatureViewer creature={draft ? withDraftNodes(creature, draft) : creature} tooltip={tooltip}
     onImageChange={onArtChange && (imageId => onArtChange({ imageId }))}
-    onTokenChange={onArtChange && ((tokenImageId, tokenCrop) => onArtChange({ tokenImageId, tokenCrop }))}
-    onPopout={onPopout} />
+    onTokenChange={onArtChange && ((tokenImageId, tokenCrop) => onArtChange({ tokenImageId, tokenCrop }))} />
 }

@@ -32,7 +32,7 @@ const helpers = `
     statInput: label => [...document.querySelectorAll('.native-draft-editor .sb-label')].find(b => b.textContent === label).parentElement.querySelector('input'),
     powerRow: name => [...document.querySelectorAll('.native-draft-editor input')].find(i => i.value === name)?.closest('div[style*="flex: 1"]'),
     powerField: (name, label) => [...(window.__smoke.powerRow(name)?.querySelectorAll('b') ?? [])].find(b => b.textContent === label)?.parentElement.querySelector('input, textarea'),
-    button: text => [...document.querySelectorAll('button')].find(b => b.textContent.trim() === text),
+    button: text => [...document.querySelectorAll('button')].find(b => b.textContent.trim() === text || b.getAttribute('aria-label') === text),
     draft: id => window.api.authoring.call('get_draft', { id }),
     // AI sessions show on their kind's compendium page as entries marked AI: go there from the sidebar, then click the row.
     nav: label => [...document.querySelectorAll('button')].find(b => b.textContent.replace(/^[^A-Za-z]+/, '').startsWith(label)).click(),
@@ -41,6 +41,11 @@ const helpers = `
     openDraft: async (kind, name) => {
       window.__smoke.nav({ monster: 'Creatures', item: 'Items', trap: 'Traps', disease: 'Diseases', template: 'Templates', theme: 'Themes' }[kind])
       const wait = async test => { for (let i = 0; i < 50 && !test(); i++) await new Promise(r => setTimeout(r, 100)) }
+      // Custom entries sort in with published ones (the list renders only what is in view): search for it.
+      await wait(() => document.querySelector('.record-compendium input.sb-name'))
+      const search = document.querySelector('.record-compendium input.sb-name')
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(search, name)
+      search.dispatchEvent(new Event('input', { bubbles: true }))
       await wait(() => window.__smoke.row(name))
       window.__smoke.row(name).click()
       await wait(() => window.__smoke.button('Edit'))
@@ -180,10 +185,10 @@ app.whenReady().then(async () => {
     await js(`(async()=>{const d=await __smoke.draft(${id});await window.api.authoring.call('restore_draft',{id:d.id,revision:d.revision,event:${firstVersion}})})()`)
     for (let i = 0; i < 30 && (await entry()).content.hp === 46; i++) await sleep(100)
     if ((await entry()).content.hp !== original.content.hp) throw new Error('Restoring the first version did not reach the entry: ' + (await entry()).content.hp)
-    // Back closes the editor; the entry previews as it now is.
-    await js(`[...document.querySelectorAll('.record-editbar button')].find(b => b.textContent.includes('Back')).click()`)
+    // Done closes the editor; the entry previews as it now is.
+    await js(`[...document.querySelectorAll('.compendium-preview .sb-header-actions button')].find(b => b.getAttribute('aria-label') === 'Done').click()`)
     await sleep(300)
-    if (await js(`!!document.querySelector('.record-entry-editor')`)) throw new Error('Back did not close the editor')
+    if (await js(`!!document.querySelector('.record-entry-editor')`)) throw new Error('Done did not close the editor')
 
     // Every other kind edits with its own statblock in the AI editor, with comment markers.
     const campaignDest = JSON.stringify([{ type: 'campaign', id: result.campaignId }])

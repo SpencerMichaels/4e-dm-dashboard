@@ -4,7 +4,7 @@
 
 import { join } from 'path'
 import type { CampaignRecord } from '@common/types'
-import { checkRecord, RECORD_STORAGE, RECORD_TYPES, type RecordType } from '@common/campaign-records'
+import { checkRecord, ENTITY_DIRS, RECORD_STORAGE, RECORD_TYPES, REFERENCED_FROM, type RecordType } from '@common/campaign-records'
 import { readdir } from 'fs/promises'
 import { getCampaignsRoot, getLibraryAssetsDir, getLibraryDir } from './paths'
 import { atomicWriteJson, deleteFile, ensureDir, listJsonFiles, readJson } from './file-io'
@@ -65,18 +65,14 @@ export async function libraryUsage(type: RecordType, id: string): Promise<{ camp
       default: return 0
     }
   }
-  // Where each kind can be referenced from.
-  const folders: Record<RecordType, string[]> = {
-    creature: ['encounters'], trap: ['encounters', 'locations'], disease: ['player-characters'],
-    template: ['encounters'], theme: ['encounters'], item: [],
-  }
+  const folders = REFERENCED_FROM[type].map(t => ENTITY_DIRS[t])
   const result: { campaignId: string; name: string; uses: number }[] = []
   for (const d of dirs) {
     if (!d.isDirectory()) continue
     const meta = await readJson<{ id: string; name: string }>(join(root, d.name, 'campaign.json'))
     if (!meta) continue
     let uses = 0
-    for (const folder of folders[type]) {
+    for (const folder of folders) {
       const dir = join(root, d.name, folder)
       for (const f of await listJsonFiles(dir)) uses += usesIn(await readJson(join(dir, f)) ?? {})
     }

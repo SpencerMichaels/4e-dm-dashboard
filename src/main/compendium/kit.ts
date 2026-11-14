@@ -26,9 +26,9 @@ const publishedTemplates = () => templates ??= MONSTER_TEMPLATES.map(t => conver
 const publishedThemes = () => themes ??= MONSTER_THEMES.map(t => convertTheme(t, ctx()))
 
 /** Index rows for kinds without a parsed index file. */
-export function getKitIndex(kind: 'template' | 'theme'): { id: string; name: string; level: number; cells: string[] }[] {
-  if (kind === 'template') return publishedTemplates().map(t => ({ id: t.id, name: t.name, level: 0, cells: [t.role, t.sources[0]?.book ?? ''] }))
-  return publishedThemes().map(t => ({ id: t.id, name: t.name, level: 0, cells: [t.sources[0]?.book ?? ''] }))
+export function getKitIndex(kind: 'template' | 'theme'): { id: string; name: string; level: number; cells: string[]; book: string }[] {
+  if (kind === 'template') return publishedTemplates().map(t => ({ id: t.id, name: t.name, level: 0, cells: [t.role, t.sources[0]?.book ?? ''], book: t.sources[0]?.book ?? '' }))
+  return publishedThemes().map(t => ({ id: t.id, name: t.name, level: 0, cells: [t.sources[0]?.book ?? ''], book: t.sources[0]?.book ?? '' }))
 }
 
 export function getKitEntry(kind: KitKind, id: string): KitEntry | null {

@@ -73,9 +73,9 @@ export class AuthoringService {
     return { kind: kind as ContentKind, content: content ?? e!.content, entry: { basedOn: `published/${recordTypeFor(kind)}/${id}`, ...(Object.keys(art).length ? { art } : {}) } }
   }
   /**
-   * A custom entry as a copy into another home (Copy to campaign from the Library, Copy to library from a
-   * campaign): `library/<kind>/<id>` or `campaign/<campaignId>/<kind>/<id>`. A Library source is recorded as
-   * `basedOn`; a campaign entry passes on its own `basedOn` (a campaign is never a source). Art comes along;
+   * A custom entry as a copy, beside it (Duplicate) or into another home (an agent's `from`):
+   * `library/<kind>/<id>` or `campaign/<campaignId>/<kind>/<id>`. A Library source is recorded as `basedOn`;
+   * a campaign entry passes on its own `basedOn` (a campaign is never a source). Art comes along;
    * copied into the Library, its image files are copied into the Library's assets, so they show in every campaign.
    */
   async customCopy(key: string, home: string) {

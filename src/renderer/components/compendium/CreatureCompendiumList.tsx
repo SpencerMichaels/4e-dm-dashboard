@@ -93,7 +93,7 @@ export function CreatureCompendiumList({ items, onAdd, addingId, onSelect, onAct
             }}>
             <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: isSelected ? 600 : 400 }}>
               {isCustom && <span title="Custom creature" style={{ color: 'var(--accent)', marginRight: 3, fontSize: '0.8em' }}><Icon name="star" label="Custom creature" fill="currentColor" /></span>}
-              {isLibrary && <span title="Library creature: shared by every campaign" style={{ color: 'var(--accent)', marginRight: 3, fontSize: '0.8em' }}><Icon name="library" label="Library creature" /></span>}
+              {isLibrary && <span title="Shared creature: in every campaign" style={{ color: 'var(--accent)', marginRight: 3, fontSize: '0.8em' }}><Icon name="library" label="Library creature" /></span>}
               {item.name}
             </span>
             <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: 'var(--muted)' }}>{item.type}</span>

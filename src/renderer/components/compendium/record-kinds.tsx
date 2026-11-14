@@ -21,7 +21,7 @@ export const TRAP_KIND: RecordKind<Trap> = {
   type: 'trap', singular: 'trap', plural: 'traps',
   columns: [{ label: 'Type', width: '65px' }, { label: 'Role', width: '70px' }],
   filters: [{ label: 'type', column: 0 }, { label: 'role', column: 1 }],
-  index: async () => (await window.api.compendium.trapIndex() as TrapIndexEntry[]).map(e => ({ id: e.id, name: e.name, level: e.level, cells: [e.trapType, e.role] })),
+  index: async () => (await window.api.compendium.trapIndex() as TrapIndexEntry[]).map(e => ({ id: e.id, name: e.name, level: e.level, cells: [e.trapType, e.role], book: e.source })),
   row: t => ({ name: t.name, level: t.level, cells: [cap(t.kind), cap(t.role)] }),
   get: id => window.api.compendium.kitGet('trap', id),
   blank: () => scaffold('trap', 'New Trap', 1) as Trap,
@@ -31,7 +31,7 @@ export const TRAP_KIND: RecordKind<Trap> = {
 export const DISEASE_KIND: RecordKind<Disease> = {
   type: 'disease', singular: 'disease', plural: 'diseases',
   columns: [], filters: [],
-  index: async () => (await window.api.compendium.diseaseIndex() as DiseaseIndexEntry[]).map(e => ({ id: e.id, name: e.name, level: e.level, cells: [] })),
+  index: async () => (await window.api.compendium.diseaseIndex() as DiseaseIndexEntry[]).map(e => ({ id: e.id, name: e.name, level: e.level, cells: [], book: e.source })),
   row: d => ({ name: d.name, level: d.level, cells: [] }),
   get: id => window.api.compendium.kitGet('disease', id),
   blank: () => scaffold('disease', 'New Disease', 1) as Disease,
@@ -41,7 +41,7 @@ export const DISEASE_KIND: RecordKind<Disease> = {
 export const TEMPLATE_KIND: RecordKind<MonsterTemplate> = {
   type: 'template', singular: 'template', plural: 'templates',
   columns: [{ label: 'Role', width: '80px' }, { label: 'Source', width: '70px' }],
-  filters: [{ label: 'role', column: 0 }, { label: 'source', column: 1 }],
+  filters: [{ label: 'role', column: 0 }],
   index: () => window.api.compendium.kitIndex('template'),
   row: t => ({ name: t.name, level: 0, cells: [t.role, t.sources[0]?.book ?? ''] }),
   get: id => window.api.compendium.kitGet('template', id),
@@ -53,7 +53,7 @@ export const TEMPLATE_KIND: RecordKind<MonsterTemplate> = {
 export const THEME_KIND: RecordKind<MonsterTheme> = {
   type: 'theme', singular: 'theme', plural: 'themes',
   columns: [{ label: 'Source', width: '80px' }],
-  filters: [{ label: 'source', column: 0 }],
+  filters: [],
   index: () => window.api.compendium.kitIndex('theme'),
   row: t => ({ name: t.name, level: 0, cells: [t.sources[0]?.book ?? ''] }),
   get: id => window.api.compendium.kitGet('theme', id),
@@ -69,7 +69,7 @@ export const ITEM_KIND: RecordKind<Item> = {
   type: 'item', singular: 'item', plural: 'items',
   columns: [{ label: 'Category', width: '75px' }, { label: 'Slot', width: '90px' }, { label: 'Rarity', width: '75px' }, { label: 'Price', width: '80px' }],
   filters: [{ label: 'category', column: 0 }, { label: 'slot', column: 1 }, { label: 'rarity', column: 2 }],
-  index: async () => (await window.api.compendium.itemIndex() as ItemIndexEntry[]).map(e => ({ id: e.id, name: e.name, level: e.level, cells: [cap(e.category), e.slot, e.rarity, e.price] })),
+  index: async () => (await window.api.compendium.itemIndex() as ItemIndexEntry[]).map(e => ({ id: e.id, name: e.name, level: e.level, cells: [cap(e.category), e.slot, e.rarity, e.price], book: e.source })),
   row: i => ({ name: i.name, level: i.level, cells: [cap(i.category), itemSlot(i), i.rarity ? cap(i.rarity) : '', itemPrice(i)] }),
   get: id => window.api.compendium.kitGet('item', id),
   blank: () => scaffold('item', 'New Item', 1) as Item,
@@ -84,14 +84,13 @@ export const MONSTER_KIND: RecordKind<Monster> = {
   columns: [{ label: 'Type', width: '90px' }, { label: 'Role', width: '80px' }],
   filters: [{ label: 'role', column: 1 }, { label: 'rank', facet: 0 }, { label: 'type', column: 0 }, { label: 'size', facet: 1 }, { label: 'origin', facet: 2 }],
   index: async () => (await window.api.compendium.index() as CompendiumEntry[]).filter(e => e.source !== 'Custom' && e.source !== 'Library').map(e => ({
-    id: e.id, name: e.name, level: e.level, cells: [typeLabel(e.type), cap(e.role)], facets: [cap(rankOf(e)), cap(e.size), cap(e.origin)],
+    id: e.id, name: e.name, level: e.level, book: e.source, cells: [typeLabel(e.type), cap(e.role)], facets: [cap(rankOf(e)), cap(e.size), cap(e.origin)],
   })),
   row: m => ({ name: m.name, level: m.level, cells: [typeLabel(m.type), cap(m.role ?? '')], facets: [cap(m.rank), cap(m.size), cap(m.origin ?? '')] }),
   get: id => window.api.compendium.kitGet('monster', id),
   blank: () => scaffold('monster', 'New Creature', 1) as Monster,
   Statblock: props => <MonsterStatblock {...props} />,
   art: true,
-  popout: true,
 }
 
 /** Every kind's page, by record type. */

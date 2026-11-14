@@ -46,6 +46,8 @@ const api = {
   library: {
     state: () => ipcRenderer.invoke(CMD.LIBRARY_STATE) as Promise<Record<string, unknown[]>>,
     usage: (entityType: EntityType, id: string) => ipcRenderer.invoke(CMD.LIBRARY_USAGE, entityType, id) as Promise<{ campaignId: string; name: string; uses: number }[]>,
+    /** Moves an entry into the Library (`shared`) or out of it into the open campaign; references follow it. */
+    share: (entityType: EntityType, id: string, shared: boolean) => ipcRenderer.invoke(CMD.ENTRY_SHARE, entityType, id, shared) as Promise<void>,
   },
 
   // Player characters

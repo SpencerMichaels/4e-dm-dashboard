@@ -60,7 +60,7 @@ export function TrapSearch({ onAdd, placeholder = '+ Add a trap…', style }: { 
     const q = query.trim().toLowerCase()
     if (!q) return []
     const custom = records.filter(r => r.content.name.toLowerCase().includes(q)).map(r => ({ ref: { trapId: r.id } as TrapRef, name: r.content.name, level: r.content.level, label: 'Custom' }))
-    const shared = library.filter(r => r.content.name.toLowerCase().includes(q)).map(r => ({ ref: { libraryId: r.id } as TrapRef, name: r.content.name, level: r.content.level, label: 'Library' }))
+    const shared = library.filter(r => r.content.name.toLowerCase().includes(q)).map(r => ({ ref: { libraryId: r.id } as TrapRef, name: r.content.name, level: r.content.level, label: 'Shared' }))
     const published = index.filter(e => e.name.toLowerCase().includes(q)).map(e => ({ ref: { compendiumId: e.id } as TrapRef, name: e.name, level: e.level, label: e.trapType }))
     return [...custom, ...shared, ...published].slice(0, 8)
   }, [query, records, library, index])

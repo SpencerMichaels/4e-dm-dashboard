@@ -13,12 +13,12 @@ This reverses decision 1 of [campaign-content-and-editors-plan.md](campaign-cont
 ## Decisions (DM, 2026-11-14)
 
 1. **Shared content is wanted.** Content shared across campaigns will come up, so the Library is a real third home, not just a hardening of campaign-only content.
-2. **Live reference.** Campaigns use Library entries by reference, like published ones. Editing a Library entry changes it in every campaign that uses it. **Copy to campaign** makes a campaign variant (`basedOn: library/<recordType>/<id>`) when a campaign needs its own version.
+2. **Live reference.** Campaigns use Library entries by reference, like published ones. Editing a Library entry changes it in every campaign that uses it. A campaign that needs its own version takes the entry back (if no other campaign uses it) or duplicates it (2026-11-14; `basedOn: library/<recordType>/<id>`).
 3. **Export bundles references; import keeps them in the campaign.** A future "export campaign" feature (sharing a planned adventure with another DM) must leave no dangling references, and importing must not add anything to the importing DM's Library. See Export below.
 
 4. **Deleting a Library entry in use: warn, then allow.** The confirm names the campaigns that use it; afterwards their references show as missing, like a deleted campaign entry.
-5. **Copy only.** Copy to library makes an independent Library entry; the campaign entry and its references are unchanged. No Move for now.
-6. **New asks where** while a campaign is open (a menu: In this campaign, In the Library); with no campaign open it goes to the Library.
+5. **Share moves, Duplicate copies** (2026-11-14, replacing "Copy only" and the Copy to campaign / Copy to library buttons, which left the DM managing duplicates). A campaign entry's **Shared with every campaign** toggle moves it into the Library under the same id: its art is copied along, this campaign's references follow (`creatureId`/`trapId`/`diseaseId` and `campaign:<id>` become `libraryId` and `library:<id>`), and its working copy moves with its history (`src/main/data/move-entry.ts`, `rehomeRefs` in `campaign-records.ts`, `DraftStore.rehome`, `CMD.ENTRY_SHARE`). Turning it off moves it back into the open campaign, allowed only while no other campaign uses it (otherwise the menu says which do; duplicate it instead). **Duplicate** copies an entry beside itself, at once.
+6. **New goes into the open campaign** (2026-11-14, replacing the In this campaign / In the Library menu); with no campaign open it goes to the Library. Share it afterwards if it should be shared.
 
 ## Why it was needed
 
@@ -54,10 +54,13 @@ Combat is unaffected by live edits once started: combatants already snapshot the
 
 ### Compendium pages
 
-Each kind's page (`RecordCompendium`) lists three labelled sections: **Published**, **Library**, and **Campaign · <name>** (only while a campaign is open). Every custom row shows its home.
+In the UI the Library is called **Shared** (2026-11-14): a custom entry is either in a campaign or shared with every campaign. "Library" remains the name in code, on disk (`library/`), and in the agent API.
 
-- **New** (no "+", 2026-11-14) is one button. While a campaign is open it opens a menu, **In this campaign** or **In the Library** (2026-11-14: a long campaign name made "+ New in <campaign>" plus a one-item menu cluttered the header); with none open it makes a Library entry directly (its tooltip says so).
-- **Copy to campaign** on published and Library entries; **Copy to library** on campaign entries. `basedOn` only ever names a published or Library source, never a campaign, so it still resolves after the content leaves the campaign. A campaign entry copied to the Library keeps its own `basedOn`, if it has one.
+Each kind's page (`RecordCompendium`) lists published, Library, and campaign entries sorted together (2026-11-14; first planned as labelled sections, then a home badge on every custom row, which was noise). Rows carry no home label: the stat block title bar shows it, and a **source** filter after the kind's own filters narrows the list to Published or Custom, and a second dropdown beside it to a book (a magazine's issues count as one) or, with a campaign open, to Shared or the campaign.
+
+- **New** is one button: a new entry in the open campaign, or in the Library with none open (2026-11-14).
+- The entry's controls sit in its stat block's title bar right after the name, before the level (`shared/record-header.tsx`, 2026-11-14): its home (**Campaign**, **Library**, or **New** until the first change adds it), then same-size icons: **pop out** (the entry, preview or editor, moves into an OS window of its own with the same controls), **Edit** (pressed while editing; press again for done), and for a custom entry a **⋯** menu (also on a row's right-click) with **Shared with every campaign**, **Duplicate**, and **Delete**. A published entry has only Edit, which makes a copy in the open campaign (or the Library) on the first change.
+- `basedOn` only ever names a published or Library source, never a campaign, so it still resolves after the content leaves the campaign. A duplicate of a campaign entry keeps its original's `basedOn`, if it has one; a shared entry keeps its own.
 - Viewing and editing are identical for all homes: the same stat block, editor, working copy, comment markers, art panel, delete, and pop-outs.
 - Search and pickers that choose content (encounter creature/trap search, location traps, template/theme pickers, the command palette) include Library entries, labelled.
 

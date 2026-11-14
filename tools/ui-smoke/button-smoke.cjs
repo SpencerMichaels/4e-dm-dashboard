@@ -135,7 +135,7 @@ app.whenReady().then(async () => {
       await js(() => { const el = document.querySelector('.compendium-preview input.sb-name'); el.focus(); el.select() })
       await wc.insertText('Button Smoke Trap')
       await until(async () => (await window.api.entity.list('trap')).length > 0, 'the campaign trap')
-      await clickButton('Back')
+      await js(() => document.querySelector('.compendium-preview button[aria-label="Done"]').click())
       await until(() => [...document.querySelectorAll('.record-row')].some(r => r.textContent.includes('Button Smoke Trap')), 'the campaign trap row')
       await js(() => { const r = [...document.querySelectorAll('.record-row')].find(r => r.textContent.includes('Button Smoke Trap')); r.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, clientX: 300, clientY: 300 })) })
       await until(() => !!document.querySelector('.record-menu'), 'the right-click menu')

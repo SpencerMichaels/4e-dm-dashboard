@@ -4,6 +4,7 @@ import type { PowerEntry } from '../creature/PowerEntryEditor'
 import { Annotation } from '../creature/annotations'
 import { TagInput } from '@renderer/components/shared/TagInput'
 import { Icon } from '../shared/Icon'
+import { RecordHeaderActions } from '../shared/record-header'
 import { useGlossary } from '../compendium/use-glossary'
 import '../creature/statblock.css'
 
@@ -194,7 +195,8 @@ export function Dnd4eItemEditor({ item, onSave }: Props) {
       <div className="sb-header">
         <input className="ghost sb-name" value={item.name}
           onChange={e => setName(e.target.value)}
-          placeholder="Flaming Sword" style={{ color: 'inherit', flex: 1 }} />
+          placeholder="Flaming Sword" style={{ color: 'inherit' }} />
+        <RecordHeaderActions />
         <span style={{ whiteSpace: 'nowrap', display: 'flex', alignItems: 'baseline', gap: 2 }}>
           Level
           <input className="ghost" type="number" value={num('level') || ''}

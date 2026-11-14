@@ -17,7 +17,6 @@
 .authoring-error { color: var(--danger); }
 .authoring-notice { color: var(--muted); font-size: 13px; }
 
-.authoring-edit-bar { margin-bottom: 8px; }
 
 .native-draft-editor > div:first-child { column-gap: 64px !important; row-gap: 16px !important; }
 

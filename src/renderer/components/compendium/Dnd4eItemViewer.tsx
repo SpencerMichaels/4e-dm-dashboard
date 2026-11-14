@@ -1,6 +1,7 @@
 import { useState, type ReactNode } from 'react'
 import { PowerCardView } from '../creature/PowerCardView'
 import { Annotation } from '../creature/annotations'
+import { RecordHeaderActions } from '../shared/record-header'
 import { capitalize } from '@common/utils/format'
 import '../creature/statblock.css'
 
@@ -94,6 +95,7 @@ export function Dnd4eItemViewer({ item, tooltip: tip, onSelectItem }: { item: Pa
       {/* Header */}
       <div className="sb-header">
         <span className="sb-name">{item.name}</span>
+        <RecordHeaderActions />
         <span style={{ display: 'flex', alignItems: 'baseline', gap: 4 }}>
           {hasLevels ? (
             <>Level <select className="ghost" value={selectedLevelIdx}

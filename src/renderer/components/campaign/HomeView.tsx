@@ -57,7 +57,7 @@ export function HomeView() {
         4e DM Dashboard
       </h1>
       <p style={{ color: 'var(--text-secondary)', marginBottom: 'var(--space-4)' }}>
-        No campaign is open. {campaigns.length > 0 ? 'Open one below or create a new one' : 'Create one to start'}: encounters, maps and PCs belong to a campaign. The compendium pages and the Library work without one.
+        No campaign is open. {campaigns.length > 0 ? 'Open one below or create a new one' : 'Create one to start'}: encounters, maps and PCs belong to a campaign. The compendium pages and shared entries work without one.
       </p>
 
       {creating ? (

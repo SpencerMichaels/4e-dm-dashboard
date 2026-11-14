@@ -6,7 +6,6 @@ import { type ReactNode } from 'react'
 import type { Disease, MonsterTemplate, MonsterTheme, Trap } from '@kit'
 import type { Change, Content, Draft } from '@common/authoring/types'
 import { decorate, kitEditorChanges } from '@common/authoring/kit-editor-adapter'
-import { isUnsaved } from '@common/authoring/unsaved'
 import { TrapStatblock } from '../trap/TrapStatblock'
 import { DiseaseStatblock } from '../disease/DiseaseStatblock'
 import { TemplateStatblock } from '../template/TemplateStatblock'
@@ -43,9 +42,8 @@ export const ItemDraftEditor = (props: Props) => <LiveDraftEditor {...props} pro
 function LiveDraftEditor<V>({ draft, status, apply, project, diff, render }: Props & {
   project: (d: Draft) => V; diff: (base: Draft, value: V) => Change[]; render: (value: V, edit: (next: V) => void) => ReactNode
 }) {
-  const { value, edit, busy, notice } = useLiveEdits<V>({ draft, apply, status, project, diff })
+  const { value, edit, notice } = useLiveEdits<V>({ draft, apply, status, project, diff })
   return <>
-    {isUnsaved(draft) && <p className="authoring-notice authoring-edit-bar">{busy ? 'Adding it to the campaign…' : 'New: your first change adds it to the campaign.'}</p>}
     {notice}
     <div className="native-draft-editor">{render(value, edit)}</div>
   </>

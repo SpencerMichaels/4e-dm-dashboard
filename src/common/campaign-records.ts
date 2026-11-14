@@ -57,6 +57,39 @@ export const ENTITY_DIRS: Record<EntityType, string> = {
   theme: RECORD_STORAGE.theme.dir,
 }
 
+/** Where a campaign refers to each record type: encounter rows (and their templates and themes), traps, PC diseases. */
+export const REFERENCED_FROM: Record<RecordType, EntityType[]> = {
+  creature: ['encounter'], trap: ['encounter', 'location'], disease: ['player-character'],
+  template: ['encounter'], theme: ['encounter'], item: [],
+}
+
+/**
+ * Points a campaign entity's references to entry `id` at its new home, after it moved between the campaign
+ * and the Library under the same id: `creatureId`/`trapId`/`diseaseId` and `campaign:<id>` refs become
+ * `libraryId` and `library:<id>` (`toLibrary`), or back. Mutates `value`; returns whether anything changed.
+ */
+export function rehomeRefs(type: RecordType, value: unknown, id: string, toLibrary: boolean): boolean {
+  const v = value as Record<string, any>
+  let changed = false
+  const swap = (rows: any[] | undefined, campaignKey: string) => {
+    const [from, to] = toLibrary ? [campaignKey, 'libraryId'] : ['libraryId', campaignKey]
+    for (const r of rows ?? []) if (r?.[from] === id) { delete r[from]; r[to] = id; changed = true }
+  }
+  const [oldRef, newRef] = toLibrary ? [`campaign:${id}`, `library:${id}`] : [`library:${id}`, `campaign:${id}`]
+  switch (type) {
+    case 'creature': swap(v.creatures, 'creatureId'); break
+    case 'trap': swap(v.traps, 'trapId'); break
+    case 'disease': swap(v.diseases, 'diseaseId'); break
+    case 'template':
+      for (const c of v.creatures ?? []) if (c?.monsterTemplates?.includes(oldRef)) { c.monsterTemplates = c.monsterTemplates.map((t: string) => t === oldRef ? newRef : t); changed = true }
+      break
+    case 'theme':
+      for (const c of v.creatures ?? []) if (c?.monsterTheme?.name === oldRef) { c.monsterTheme.name = newRef; changed = true }
+      break
+  }
+  return changed
+}
+
 /** The Workshop content kind a record type holds (a creature record holds a "monster"). */
 export const contentKindFor = (type: RecordType) => type === 'creature' ? 'monster' : type
 /** The record type a content kind is stored as: a Workshop "monster" is a campaign creature. */

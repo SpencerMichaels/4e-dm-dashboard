@@ -11,6 +11,7 @@ import { copyPower } from './power-clipboard'
 import { Annotation, type StatAnchor } from './annotations'
 import { xpForCreature, sign, THEME_COLOR, LEVEL_ADJUST_COLOR, templateColor } from './dnd4e-utils'
 import { Icon } from '../shared/Icon'
+import { RecordHeaderActions } from '../shared/record-header'
 import { withAlpha } from '../../utils/color'
 import { capitalize } from '@common/utils/format'
 import { normalizeStringArray } from '@common/utils/arrays'
@@ -198,6 +199,7 @@ export function Dnd4eCreatureViewer({ creature, tooltip: tip, compendiumId: comp
               }}
             ><Icon name="pencil" /></button>
           )}
+          <RecordHeaderActions />
         </span>
         <span>Level {level} {roleLabel}</span>
         <Annotation anchor={stat('header')} />

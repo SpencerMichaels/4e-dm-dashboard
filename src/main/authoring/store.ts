@@ -181,6 +181,30 @@ export class DraftStore {
       }
     })
   }
+  /**
+   * An entry moved between a campaign and the Library under the same id (shared or taken back): its working
+   * copy moves with it, keeping its history and merge base. No new version: nothing in the content changed.
+   */
+  rehome(from: string, to: string, entityId: string) {
+    return this.serial(async () => {
+      for (const row of await this.list()) {
+        if (!row.destinations.some(x => x.id === from && x.entityId === entityId)) continue
+        const d = await this.get(row.id)
+        const home = d.destinations[0]
+        const oldKey = `${home.type}/${home.id}/${entityId}`
+        home.type = to === 'library' ? 'library' : 'campaign'
+        home.id = to
+        const newKey = `${home.type}/${home.id}/${entityId}`
+        const state = await this.syncState(d.id)
+        for (const map of [state.hashes, state.written ?? {}] as Record<string, unknown>[]) {
+          if (oldKey in map) { map[newKey] = map[oldKey]; delete map[oldKey] }
+        }
+        await atomicJson(join(this.dir(d.id), 'sync.json'), state)
+        await atomicJson(join(this.dir(d.id), 'current.json'), d)
+        this.changed(d)
+      }
+    })
+  }
   /** An entry was deleted: its drafts are archived (nothing would bring the entry back). */
   async entryDeleted(campaignId: string, entityId: string) {
     for (const row of await this.list()) if (row.destinations.some(x => x.id === campaignId && x.entityId === entityId)) await this.archive(row.id)

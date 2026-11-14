@@ -5,7 +5,8 @@ import { applySnapshots, type ImportedFile, type ImportResult } from '@common/ch
 import { generateId } from '@common/utils/id'
 import { dirname } from 'path'
 import { isLibrary, isRecordType, LIBRARY, RECORD_STORAGE, RECORD_TYPES, type Home, type RecordType } from '@common/campaign-records'
-import { authoringCampaignDeleted, authoringCampaignOpened, authoringEntryChanged, authoringEntryDeleted } from './authoring-handlers'
+import { authoringCampaignDeleted, authoringCampaignOpened, authoringEntryChanged, authoringEntryDeleted, authoringEntryMoved } from './authoring-handlers'
+import { moveEntry } from '../data/move-entry'
 import * as store from '../data/campaign-store'
 import * as library from '../data/library-store'
 import { broadcastToDm } from '../windows'
@@ -81,6 +82,14 @@ export function registerCampaignHandlers(): void {
   })
 
   ipcMain.handle(CMD.LIBRARY_USAGE, async (_e, entityType: EntityType, id: string) => isRecordType(entityType) ? library.libraryUsage(entityType, id) : [])
+
+  ipcMain.handle(CMD.ENTRY_SHARE, async (_e, entityType: EntityType, id: string, shared: boolean) => {
+    if (!isRecordType(entityType)) throw new Error(`No ${entityType} can be shared`)
+    const changed = await moveEntry(entityType, id, shared, authoringEntryMoved)
+    if (entityType === 'creature') invalidateCreatureIndex()
+    await broadcastLibraryUpdate(entityType)
+    for (const t of [entityType, ...changed]) await broadcastEntityUpdate(t)
+  })
 
   ipcMain.handle(CMD.PC_IMPORT, async (_e, files: ImportedFile[], targetId?: string): Promise<ImportResult> => {
     const pcs = await store.listEntities('player-character') as PlayerCharacter[]

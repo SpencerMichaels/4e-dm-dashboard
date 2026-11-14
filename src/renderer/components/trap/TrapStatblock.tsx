@@ -4,6 +4,7 @@ import { monsterXp, type DamageModifier, type Defense, type Line, type Trap } fr
 import { Annotation } from '../creature/annotations'
 import { KitPowers, KitTraits } from '../statblock/KitPowers'
 import { Add, Choice, LineText, listOps, Move, Num, Prose, Remove, Tags, Text } from '../statblock/fields'
+import { RecordHeaderActions } from '../shared/record-header'
 import '../creature/statblock.css'
 
 const KINDS = ['trap', 'hazard', 'terrain', 'object', 'area', 'special'] as const
@@ -34,7 +35,8 @@ export function TrapStatblock({ trap: t, onChange }: { trap: Trap; onChange?: (n
 
   return <div className="stat-block-4e kit-statblock" style={{ fontSize: 12, lineHeight: 1.5 }}>
     <div className="sb-header">
-      <Text value={t.name} placeholder="Trap name" className="sb-name" style={{ color: 'inherit', flex: 1 }} onChange={set && (v => set('name', v))} />
+      <Text value={t.name} placeholder="Trap name" className="sb-name" style={{ color: 'inherit' }} onChange={set && (v => set('name', v))} />
+      <RecordHeaderActions />
       {edit ? <span style={{ whiteSpace: 'nowrap' }}>Level <Num value={t.level} min={1} max={40} label="Level" style={{ color: 'inherit', fontWeight: 600 }} onChange={v => setRanked!(v ?? 1, t.rank)} />{' '}
         <Choice value={t.rank} options={RANKS} label="Rank" style={{ textTransform: 'capitalize' }} onChange={v => setRanked!(t.level, v as Trap['rank'])} />{' '}
         <Choice value={t.role} options={ROLES} label="Role" style={{ textTransform: 'capitalize' }} onChange={v => set!('role', v)} /></span>

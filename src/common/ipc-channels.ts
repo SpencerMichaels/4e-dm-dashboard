@@ -16,6 +16,8 @@ export const CMD = {
   LIBRARY_STATE: 'library:state',
   /** The campaigns that use a Library entry: [{ campaignId, name, uses }]. */
   LIBRARY_USAGE: 'library:usage',
+  /** Shares a campaign entry with every campaign (moves it into the Library), or takes it back into the open campaign. */
+  ENTRY_SHARE: 'entry:share',
   ENTITY_DELETE: 'entity:delete',
   ENTITY_GET: 'entity:get',
   ENTITY_LIST: 'entity:list',

@@ -1291,7 +1291,7 @@ function ThemePicker({ currentTheme, onApply, onRemove, onClose, onPreview }: {
         >
           <option value="">— Select a theme —</option>
           {themes.map(t => (
-            <option key={t.ref} value={t.ref}>{t.name} ({t.library ? 'Library' : t.custom ? 'Custom' : t.source})</option>
+            <option key={t.ref} value={t.ref}>{t.name} ({t.library ? 'Shared' : t.custom ? 'Custom' : t.source})</option>
           ))}
         </select>
         {currentTheme && (

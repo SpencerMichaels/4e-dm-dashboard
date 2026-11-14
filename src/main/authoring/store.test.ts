@@ -124,6 +124,21 @@ describe('live writes into the campaign', () => {
     expect(p.writes()).toBe(2)
     expect((await s.syncState(d.id)).error).toBeUndefined()
   })
+  it('moves a working copy with its entry into the Library, keeping its history and merge base', async () => {
+    const p = publisher(); const s = new DraftStore(root, p.p)
+    const d = await s.create('monster', content(), '', [{ type: 'campaign', id: 'a' }])
+    const entityId = d.destinations[0].entityId!
+    // The entry moves (main's move-entry), then its working copy.
+    p.saved.set(`library/${entityId}`, p.saved.get(`a/${entityId}`)); p.saved.delete(`a/${entityId}`)
+    await s.rehome('a', 'library', entityId)
+    const moved = await s.get(d.id)
+    expect(moved.destinations[0]).toMatchObject({ type: 'library', id: 'library', entityId })
+    expect(Object.keys((await s.syncState(d.id)).written ?? {})).toEqual([`library/library/${entityId}`])
+    await s.patch({ id: d.id, revision: moved.revision, changes: [{ path: '/content/hp', value: 33 }] }, 'dm')
+    expect(p.content(`library/${entityId}`).hp).toBe(33)
+    expect(p.saved.has(`a/${entityId}`)).toBe(false)
+    expect((await s.versions(d.id)).length).toBe(2)
+  })
   it('restoring an earlier version writes it into the entry', async () => {
     const p = publisher(); const s = new DraftStore(root, p.p)
     const d = await s.create('monster', content(), '', [{ type: 'campaign', id: 'a' }])

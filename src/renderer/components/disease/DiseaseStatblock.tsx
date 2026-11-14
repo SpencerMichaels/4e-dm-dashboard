@@ -4,6 +4,7 @@ import type { Attack, Disease, Power } from '@kit'
 import { Annotation } from '../creature/annotations'
 import { KitPowers } from '../statblock/KitPowers'
 import { Add, Choice, LineText, listOps, Move, Num, Prose, Remove, Text } from '../statblock/fields'
+import { RecordHeaderActions } from '../shared/record-header'
 import '../creature/statblock.css'
 
 const STAGE_LABELS: Record<number, string> = { 0: 'Cured' }
@@ -34,7 +35,8 @@ export function DiseaseStatblock({ disease: d, onChange }: { disease: Disease; o
 
   return <div className="stat-block-4e kit-statblock" style={{ fontSize: 12, lineHeight: 1.5 }}>
     <div className="sb-header">
-      <Text value={d.name} placeholder="Disease name" className="sb-name" style={{ color: 'inherit', flex: 1 }} onChange={set && (v => set('name', v))} />
+      <Text value={d.name} placeholder="Disease name" className="sb-name" style={{ color: 'inherit' }} onChange={set && (v => set('name', v))} />
+      <RecordHeaderActions />
       {(edit || d.level > 0) && <span>Level <Num value={d.level} min={0} label="Level" style={{ color: 'inherit', fontWeight: 600 }} onChange={set && (v => set('level', v ?? 0))} /> Disease</span>}
       <Annotation anchor={{ kind: 'stat', key: 'disease-header' }} />
     </div>

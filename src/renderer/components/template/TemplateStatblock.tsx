@@ -4,6 +4,7 @@ import { ROLES, SENSE_KINDS, type Defense, type MonsterTemplate } from '@kit'
 import { Annotation } from '../creature/annotations'
 import { KitPowers, KitTraits } from '../statblock/KitPowers'
 import { Add, Choice, listOps, Num, Prose, Remove, Tags, Text } from '../statblock/fields'
+import { RecordHeaderActions } from '../shared/record-header'
 import '../creature/statblock.css'
 
 const DEFENSES: Defense[] = ['ac', 'fortitude', 'reflex', 'will']
@@ -26,7 +27,8 @@ export function TemplateStatblock({ template: t, onChange }: { template: Monster
 
   return <div className="stat-block-4e kit-statblock" style={{ fontSize: 12, lineHeight: 1.5 }}>
     <div className="sb-header">
-      <Text value={t.name} placeholder="Template name" className="sb-name" style={{ color: 'inherit', flex: 1 }} onChange={set && (v => set('name', v))} />
+      <Text value={t.name} placeholder="Template name" className="sb-name" style={{ color: 'inherit' }} onChange={set && (v => set('name', v))} />
+      <RecordHeaderActions />
       <span>{rank} <Choice value={t.role} options={['any', ...ROLES]} label="Role" style={{ textTransform: 'capitalize' }} onChange={set && (v => set('role', v as MonsterTemplate['role']))} />
         {edit ? <label style={{ fontSize: 10, marginLeft: 4 }}><input type="checkbox" checked={!!t.leader} onChange={e => set!('leader', e.target.checked ? true : undefined)} /> leader</label> : t.leader && ' (Leader)'}</span>
       <Annotation anchor={{ kind: 'stat', key: 'template-header' }} />

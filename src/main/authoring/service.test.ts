@@ -66,11 +66,11 @@ describe('AI sessions writing into campaigns', () => {
     // Its working copy is the same draft.
     expect((await s.call('working_copy', { campaignId: 'library', kind: 'trap', entityId: libId }, 'dm') as any).id).toBe(lib.id)
 
-    // Copy to campaign: the Library entry is the source.
+    // A copy from the Library into a campaign: the Library entry is the source.
     const toCampaign: any = await s.call('create_draft', { from: `library/trap/${libId}`, destinations: [{ type: 'campaign', id: 'c3' }] }, 'dm')
     expect(JSON.parse(readFileSync(join(campaign, 'traps', `${toCampaign.destinations[0].entityId}.json`), 'utf8'))).toMatchObject({ basedOn: `library/trap/${libId}`, content: { name: 'Shared snare' } })
 
-    // Copy to library: a campaign entry's art comes along, with its image file; its own source stays.
+    // A copy into the Library: a campaign entry's art comes along, with its image file; its own source stays.
     const entry: any = await s.call('create_draft', { kind: 'monster', name: 'Grave hound', level: 4, destinations: [{ type: 'campaign', id: 'c3' }] }, 'dm')
     const entryId = entry.destinations[0].entityId
     const path = join(campaign, 'creatures', `${entryId}.json`)

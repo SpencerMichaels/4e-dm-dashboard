@@ -4,6 +4,7 @@ import { PowerEntryEditor, TraitRow, AuraRow, emptyPower } from './PowerEntryEdi
 import type { PowerEntry } from './PowerEntryEditor'
 import { TagInput } from '@renderer/components/shared/TagInput'
 import { Icon } from '../shared/Icon'
+import { RecordHeaderActions } from '../shared/record-header'
 import { CreatureImageEditor } from '@renderer/components/shared/CreatureImageEditor'
 import { getPastedPower, getClipboardPowerName, onClipboardChange } from './power-clipboard'
 import { xpForCreature } from './dnd4e-utils'
@@ -149,7 +150,8 @@ export function Dnd4eCreatureDetails({ creature, onSave: save, config, compact, 
         <Annotation anchor={{ kind: 'stat', key: 'header' }} />
         <input className="ghost sb-name" value={creature.name}
           onChange={e => save({ ...creature, name: e.target.value })}
-          placeholder="Creature Name" style={{ color: 'inherit', flex: 1 }} />
+          placeholder="Creature Name" style={{ color: 'inherit' }} />
+        <RecordHeaderActions />
         <span style={{ whiteSpace: 'nowrap', display: 'flex', alignItems: 'baseline', gap: 2 }}>
           Level
           <input className="ghost" type="number" value={level} min={config.minLevel} max={config.maxLevel}

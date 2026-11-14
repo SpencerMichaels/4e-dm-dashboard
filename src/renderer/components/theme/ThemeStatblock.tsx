@@ -5,6 +5,7 @@ import { ORIGINS, SKILLS, type MonsterTheme, type ThemePower } from '@kit'
 import { Annotation } from '../creature/annotations'
 import { KitPowers } from '../statblock/KitPowers'
 import { Choice, Num, Prose, Tags, Text } from '../statblock/fields'
+import { RecordHeaderActions } from '../shared/record-header'
 import '../creature/statblock.css'
 
 const cap = (s: string) => s ? s[0].toUpperCase() + s.slice(1) : s
@@ -29,7 +30,8 @@ export function ThemeStatblock({ theme: t, onChange }: { theme: MonsterTheme; on
 
   return <div className="stat-block-4e kit-statblock" style={{ fontSize: 12, lineHeight: 1.5 }}>
     <div className="sb-header">
-      <Text value={t.name} placeholder="Theme name" className="sb-name" style={{ color: 'inherit', flex: 1 }} onChange={set && (v => set('name', v))} />
+      <Text value={t.name} placeholder="Theme name" className="sb-name" style={{ color: 'inherit' }} onChange={set && (v => set('name', v))} />
+      <RecordHeaderActions />
       <span>Theme</span>
       <Annotation anchor={{ kind: 'stat', key: 'theme-header' }} />
     </div>
