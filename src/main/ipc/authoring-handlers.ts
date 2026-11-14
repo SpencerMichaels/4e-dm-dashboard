@@ -15,10 +15,10 @@ import { entityTypeForKind, isLibrary, recordTypeFor } from '../../common/campai
 /** Campaign entries changed or deleted outside the authoring service: their working copies follow (set once the service starts). */
 export let authoringEntryChanged: (campaignId: string, entityId: string) => void = () => {}
 export let authoringEntryDeleted: (campaignId: string, entityId: string) => void = () => {}
-/** A campaign was opened: working copies bound to it but never written (old Workshop drafts) become its entries. */
-export let authoringCampaignOpened: (campaignId: string) => void = () => {}
 /** An entry moved between a campaign and the Library: its working copy moves with it. */
 export let authoringEntryMoved: (from: string, to: string, entityId: string) => Promise<void> = async () => {}
+/** A campaign was opened: working copies bound to it but never written (old Workshop drafts) become its entries. */
+export let authoringCampaignOpened: (campaignId: string) => void = () => {}
 /** A campaign was deleted: its working copies are archived. */
 export let authoringCampaignDeleted: (campaignId: string) => Promise<void> = async () => {}
 /** Opens or closes the local agent connection (set once the service starts). */
@@ -35,9 +35,9 @@ export async function registerAuthoringHandlers() {
     })
   authoringEntryChanged = (campaignId, entityId) => void service.drafts.entryChanged(campaignId, entityId).catch(() => {})
   authoringEntryDeleted = (campaignId, entityId) => void service.drafts.entryDeleted(campaignId, entityId).catch(() => {})
+  authoringEntryMoved = (from, to, entityId) => service.drafts.rehome(from, to, entityId)
   authoringCampaignOpened = campaignId => void service.drafts.writeUnwritten(campaignId).catch(() => {})
   authoringCampaignDeleted = campaignId => service.drafts.campaignDeleted(campaignId).catch(() => {})
-  authoringEntryMoved = (from, to, entityId) => service.drafts.rehome(from, to, entityId)
   // Working copies whose campaign or entry is gone (deleted before this check existed, or outside the app).
   void service.drafts.archiveOrphans().catch(() => {})
   const open = (id?: string) => {
