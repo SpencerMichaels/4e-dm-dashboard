@@ -138,6 +138,29 @@ describe('monster parser fixes', () => {
     const fig = parseMonsterHtml('<h1 class=monster>Zombie<br><span class=type>Medium natural animate (undead)</span><br><span class=level>Level 1 Brute<span class=xp> XP 0</span></span></h1><table class=bodytable><tr><td><b>HP</b> 0; <b>Bloodied</b> 0 ; your bloodied value<td class=rightalign><b>Initiative</b> as conjurer<tr><td><b>AC</b> 0</table>', [], {}).statBlock as any
     expect(fig.hpText).toBe('your bloodied value')
   })
+
+  it('reads companion surges and class roles, equipment commas and walk notes (v14)', () => {
+    const html = '<h1 class=monster>Taloklaxus (Companion)<br><span class=type>Medium natural magical beast</span><br><span class=level>Level 4 Defender<span class=xp>-</span></span></h1>' +
+      '<table class=bodytable><tr><td><b>HP</b> 48; <b>Bloodied</b> 24; <b>Healing Surges</b> 11; <b>Surge Value</b> 12<td class=rightalign><b>Initiative</b> +3<tr><td><b>Speed</b> 6 (earth walk), burrow 4 (loose earth only)</table>' +
+      "<p class='flavor alt'><b>Str</b> 10 (+0) <b>Con</b> 10 (+0)<br><b>Equipment</b>: chainmail , crossbow , warhammer .</p>"
+    const sb = parseMonsterHtml(html, [], {}).statBlock as any
+    expect(sb).toMatchObject({ role: '', classRole: 'defender', healingSurges: 11, surgeValue: 12, xp: 0, equipment: 'chainmail, crossbow, warhammer' })
+    expect(sb.speedNotes).toBe('earth walk; burrow: loose earth only')
+    const npc = (level: string) => parseMonsterHtml(`<h1 class=monster>N<br><span class=type>Medium natural humanoid</span><br><span class=level>${level}</span></h1>`, [], {}).statBlock as any
+    expect(npc('Level 5 Leader<span class=xp>-</span>')).toMatchObject({ role: '', classRole: 'leader', leader: undefined })
+    expect(npc('Level 2 Controller<span class=xp> XP 125</span>')).toMatchObject({ role: 'controller', classRole: undefined })
+    expect(npc('Level 2 Controller (Leader)<span class=xp> XP 125</span>')).toMatchObject({ role: 'controller', leader: true })
+  })
+
+  it('reads an attack printed under an Effect label or a named attack label (monster5737, monster6380, v14)', () => {
+    const [a] = parsePowers("<p class='flavor alt'>ᗕ <b>Pulsing Ghostfire</b> (fire) ✦ <b>Encounter</b></p><p class=flavorIndent><i>Trigger:</i> The drake is immobilized, restrained, or stunned.</p><p class=flavorIndent><i>Effect (No Action):</i> Close burst 2 (creatures in the burst); +9 vs. Reflex</p><p class=flavorIndent><i>Hit:</i> 3d10 + 4 fire damage, and the target falls prone.</p><p class=flavorIndent><i>Miss:</i> Half damage.</p>", 'Triggered Actions', true)
+    expect(a).toMatchObject({ actionType: 'no-action', rangeType: 'close-burst', rangeValue: '2', attackBonus: 9, defense: 'Reflex', miss: 'Half damage.' })
+    expect(a.printed.hit).toBe('3d10 + 4 fire damage, and the target falls prone.')
+    const [b] = parsePowers("<p class='flavor alt'>⚔ ᗕ <b>Fling</b> ✦ <b>At-Will</b></p><p class=flavorIndent><i>Effect:</i> Melee 3 (one creature grabbed by the kraken); the kraken slides the target up to 5 squares and makes the following attack against the target.</p><p class=flavorIndent>    <i>Tentacle Attack:</i> +19 vs. Fortitude</p><p class=flavorIndent>    <i>Hit:</i> 2d8 + 11 damage, and the target falls prone.</p>", 'Standard Actions', true)
+    expect(b).toMatchObject({ attackBonus: 19, defense: 'Fortitude', attackName: 'Tentacle' })
+    expect(b.printed.effect).toMatch(/^Melee 3/)
+    expect(b.printed.hit).toBe('2d8 + 11 damage, and the target falls prone.')
+  })
 })
 
 describe('parser helpers', () => {

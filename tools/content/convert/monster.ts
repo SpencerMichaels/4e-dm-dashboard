@@ -1,7 +1,7 @@
 // Parsed monster (html-parser output with `printed`) -> kit Monster.
 
 import {
-  ABILITIES, CREATURE_TYPES, ORIGINS, ROLES, SENSE_KINDS, SIZES, SKILLS, DAMAGE_TYPES, isOneOf,
+  ABILITIES, CLASS_ROLES, CREATURE_TYPES, ORIGINS, ROLES, SENSE_KINDS, SIZES, SKILLS, DAMAGE_TYPES, isOneOf,
   type Ability, type Attack, type Aura, type DamageType, type Monster, type Power, type Rank,
   type Sense, type Skill, type Speed, type Trait,
 } from '@kit'
@@ -68,6 +68,7 @@ export function convertMonster(id: string, parsed: any, ctx: ConvertContext): Mo
     name: parsed.name,
     level: sb.level,
     role: isOneOf(ROLES, sb.role) ? sb.role : null,
+    classRole: isOneOf(CLASS_ROLES, sb.classRole) ? sb.classRole : undefined,
     rank,
     leader: sb.leader ? true : undefined,
     size: isOneOf(SIZES, size) ? size : 'medium',
@@ -78,6 +79,8 @@ export function convertMonster(id: string, parsed: any, ctx: ConvertContext): Mo
     hp: rank === 'minion' ? 1 : parsed.hp,
     // "HP 0; Bloodied 0 ; The colossus has infinite hit points; ..." (schema v13).
     hpText: sb.hpText,
+    healingSurges: sb.healingSurges,
+    surgeValue: sb.surgeValue,
     initiative: sb.initiative,
     perception: sb.perception,
     senses: parseSenses(sb.senses ?? '', notes),
@@ -171,6 +174,7 @@ export function convertPower(a: any, notes: Notes): Power {
     const hitText = p.hit
     const primary: Attack = compact({
       label: 'primary',
+      name: a.attackName,
       range: toRange(a.rangeType, a.rangeValue, a.attackNotes || undefined),
       target: a.target ?? '',
       bonus: { kind: 'fixed', value: a.attackBonus },
