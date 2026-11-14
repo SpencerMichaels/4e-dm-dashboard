@@ -8,6 +8,7 @@ import { diseaseKey, useDisease } from '../disease/disease-refs'
 import { CombatToken } from '../combat/CombatToken'
 import { isActivePc, partyLevel, pcLevel } from '@common/rules/party'
 import { PartyLevelWarning, PcLevelWarning } from './level-warnings'
+import { PcDiseasesDialog } from './PcDiseases'
 import { RECORD_STORAGE, RECORD_TYPES, type RecordType } from '@common/campaign-records'
 import type { Campaign, CampaignRecord, PcDisease } from '@common/types'
 
@@ -164,9 +165,10 @@ export function HomeView() {
   )
 }
 
-// The session board: a one-page reference for running the campaign. It never scrolls and edits
-// nothing; its rows link to the pages where things are edited. Its panels are stat block panels
-// with striped lists, like the compendium's.
+// The session board: a one-page reference for running the campaign. It never scrolls and has no
+// editable fields; its rows link to the pages where things are edited, and a few controls open
+// dialogs that edit (a PC's diseases). Its panels are stat block panels with striped lists, like
+// the compendium's.
 function CampaignHome() {
   const campaignName = useCampaignStore((s) => s.campaign?.name)
   return (
@@ -206,8 +208,10 @@ const PARTY_COLUMNS = 'minmax(200px, 1fr) repeat(4, 36px) repeat(2, 72px) minmax
 function Party() {
   const pcs = useCampaignStore((s) => s.playerCharacters)
   const setView = useUiStore((s) => s.setView)
+  const [diseasesOf, setDiseasesOf] = useState<string | null>(null)
   const active = pcs.filter(isActivePc)
   const level = partyLevel(pcs)
+  const diseasesPc = pcs.find(pc => pc.id === diseasesOf)
   const toPcs = () => setView({ type: 'entity-list', entityType: 'player-character' })
   const num = (n: number | undefined) => <span>{n ?? <span style={{ color: 'var(--muted)' }}>–</span>}</span>
 
@@ -250,23 +254,29 @@ function Party() {
                 {num(sheet?.defenses.will)}
                 {num(sheet?.passivePerception)}
                 {num(sheet?.passiveInsight)}
-                <div>{(pc.diseases ?? []).map(d => <CarriedDisease key={diseaseKey(d)} carried={d} />)}</div>
+                {/* Diseases open their stage controls in a dialog; the + adds one. */}
+                <div className="home-pc-diseases" style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 4, whiteSpace: 'normal' }}>
+                  {(pc.diseases ?? []).map(d => <CarriedDisease key={diseaseKey(d)} carried={d} onOpen={() => setDiseasesOf(pc.id)} />)}
+                  <button className="btn btn-icon btn-sm" aria-label="Add a disease" title="Track a disease for this PC"
+                    onClick={(e) => { e.stopPropagation(); setDiseasesOf(pc.id) }}><Icon name="plus" /></button>
+                </div>
               </div>
             )
           })}
         </div>
       </>}
+      {diseasesPc && <PcDiseasesDialog pc={diseasesPc} onClose={() => setDiseasesOf(null)} />}
     </div>
   )
 }
 
-function CarriedDisease({ carried }: { carried: PcDisease }) {
+function CarriedDisease({ carried, onOpen }: { carried: PcDisease; onOpen: () => void }) {
   const disease = useDisease(carried)
   if (disease === undefined) return null
   return (
-    <div>
+    <button className="btn btn-sm home-pc-disease" onClick={(e) => { e.stopPropagation(); onOpen() }} title="Stages and Endurance checks">
       {disease?.name ?? 'Unknown disease'} <span style={{ color: 'var(--muted)' }}>{carried.stage === 'exposed' ? 'exposed' : `stage ${carried.stage}`}</span>
-    </div>
+    </button>
   )
 }
 

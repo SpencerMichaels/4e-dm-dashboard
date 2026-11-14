@@ -105,7 +105,18 @@ app.whenReady().then(async () => {
     // Recently changed fills the rest of the page: its panels reach the bottom of the main area.
     if (await js(() => { const main = document.querySelector('.home-party').parentElement.parentElement; const kind = document.querySelector('.home-recent-kind'); return main.getBoundingClientRect().bottom - kind.getBoundingClientRect().bottom > 48 })) throw new Error('Recently changed does not fill the page')
     await js(() => [...document.querySelectorAll('nav button')].find(b => b.textContent.trim().endsWith('PCs')).click())
-    await until(() => document.querySelector('h1')?.textContent === 'Player Characters' && document.querySelectorAll('.level-warning svg').length === 2, 'the PCs page level warnings')
+    // The PCs page is the character library: no party level or level warnings (those are the Home board's).
+    await until(() => document.querySelectorAll('.pc-library .pc-row').length === 2, 'the PCs page rows')
+    if (await js(() => !!document.querySelector('.pc-library .level-warning'))) throw new Error('The PCs page shows level warnings')
+    // Search matches character and player names; Level sorts.
+    const searchPcs = (q) => js((q) => { const i = document.querySelector('.pc-library input[aria-label="Search PCs"]'); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(i, q); i.dispatchEvent(new Event('input', { bubbles: true })) }, q)
+    await searchPcs('guest')
+    await until(() => document.querySelectorAll('.pc-library .pc-row').length === 1 && document.querySelector('.pc-row').innerText.includes('Squire'), 'the search by player name')
+    await searchPcs('')
+    await js(() => [...document.querySelectorAll('.pc-library .sb-columns span')].find(s => s.textContent.trim() === 'Level').click())
+    await until(() => document.querySelector('.pc-library .pc-row')?.innerText.includes('Squire'), 'the rows sorted by level')
+    // With none clicked, the pane shows the first row; a PC without a sheet picks its mark there and in its row.
+    if (!(await js(() => document.querySelector('.pc-detail input[aria-label="Character name"]')?.value === 'Squire' && !!document.querySelector('.pc-detail select[aria-label="Class mark"]') && !!document.querySelector('.pc-row select[aria-label="Class mark"]')))) throw new Error('The detail pane does not show the first row')
     await sleep(500) // let the page paint before the frame is taken
     await screenshot('out/pcs-levels.png')
     await js(() => window.api.entity.delete('player-character', 'squire'))
@@ -246,8 +257,10 @@ app.whenReady().then(async () => {
     state = await current()
     if (!state.combatants[legBreaker.id].dead) throw new Error('Disable did not mark the trap')
 
-    // ── PCs page: the exposed hero contracts the disease, then a failed Endurance check worsens it ──
-    await js(() => [...document.querySelectorAll('button')].find(b => b.textContent.trim().endsWith('PCs')).click())
+    // ── Home board: the exposed hero's disease opens its dialog; the hero contracts it, then a failed Endurance check worsens it ──
+    await js(() => [...document.querySelectorAll('button')].find(b => b.textContent.trim().endsWith('Home')).click())
+    await until(() => !!document.querySelector('.home-party .home-pc-disease'), 'the disease on the party row')
+    await js(() => document.querySelector('.home-party .home-pc-disease').click())
     await until(() => document.querySelector('.pc-disease')?.innerText.includes('Exposed'), 'the exposed disease row')
     await js(() => [...document.querySelectorAll('.pc-disease button')].find(b => b.textContent === 'Contracted').click())
     await until(() => document.querySelector('.pc-disease')?.innerText.includes('Stage 1'), 'stage 1')
@@ -258,12 +271,21 @@ app.whenReady().then(async () => {
     heroRecord = await js(() => window.api.entity.get('player-character', 'hero'))
     if (heroRecord.diseases[0].stage !== 2) throw new Error('Stage not saved: ' + JSON.stringify(heroRecord.diseases))
     await screenshot('out/pc-diseases.png')
-    if (!(await js(() => document.querySelector('.pc-sheet')?.innerText.includes('Level 4 Dwarf Fighter')))) throw new Error('The PC card does not show the sheet')
-    if (heroRecord.markType !== 'combat-challenge' || heroRecord.sheetFile !== 'brannoc.dnd4e') throw new Error('Import did not fill the mark or the file name')
+    await js(() => [...document.querySelectorAll('.dialog-shell button')].find(b => b.textContent === 'Done').click())
+    await until(() => !document.querySelector('.pc-disease') && document.querySelector('.home-pc-disease')?.innerText.includes('stage 2'), 'the dialog closed, the row at stage 2')
+    // The PCs page: the sheet's class in the row (no mark dropdown), its class mark in the pane.
+    await js(() => [...document.querySelectorAll('nav button')].find(b => b.textContent.trim().endsWith('PCs')).click())
+    await until(() => !!document.querySelector('.pc-detail'), 'the PCs page')
+    if (!(await js(() => [...document.querySelectorAll('.pc-row')].some(r => r.children[4]?.textContent === 'Dwarf' && r.children[5]?.textContent === 'Fighter' && !r.querySelector('select'))))) throw new Error('The PC table does not show the sheet\'s race and class in their columns')
+    if (!(await js(() => document.querySelector('.pc-detail').innerText.includes('Combat Challenge')))) throw new Error('The PC pane does not show the sheet\'s class mark')
+    if (!(await js(() => document.querySelector('.pc-detail .sb-header .pc-class-level')?.textContent.trim() === 'Dwarf Fighter 4'))) throw new Error('The PC pane header does not show race, class, and level')
+    await sleep(300)
+    await screenshot('out/pc-detail.png')
+    if (heroRecord.sheet?.markType !== 'combat-challenge' || heroRecord.sheetFile !== 'brannoc.dnd4e') throw new Error('Import did not fill the mark or the file name')
 
     const confirms = await js(() => window.__confirms)
     clearTimeout(timeout)
-    console.log('COMBAT_SMOKE_OK: a Library creature resolving live in an encounter row, legacy creature converted on open, encounter row preview (template, level adjustment), the session board and level warnings, combat start in main with kit combatants (elite captain, troll regeneration, grouped minions), combat panel, recharge prompt, live pinned card, location trap stat blocks and search, location traps joining the encounter, encounter diseases, disease name in a power applied to a PC like a condition, PC disease stages, PC sheet import (row defenses, panel, PC card), pinned cards popped out to an OS window and back, trap rows with XP and preview, hidden trap with initiative, triggered trap (Trigger, Disable); confirms: ' + confirms.length + '; screenshots out/home.png, out/pcs-levels.png, out/combat-encounter-preview.png, out/combat-panel.png, out/combat-trap.png, out/location-traps.png, out/combat-disease.png, out/pc-diseases.png, out/combat-pc-sheet.png, out/popout-pinned.png')
+    console.log('COMBAT_SMOKE_OK: a Library creature resolving live in an encounter row, legacy creature converted on open, encounter row preview (template, level adjustment), the session board and level warnings, combat start in main with kit combatants (elite captain, troll regeneration, grouped minions), combat panel, recharge prompt, live pinned card, location trap stat blocks and search, location traps joining the encounter, encounter diseases, disease name in a power applied to a PC like a condition, the PCs library (search, sort, detail pane), PC disease stages from the Home board, PC sheet import (row defenses, panel, PCs page), pinned cards popped out to an OS window and back, trap rows with XP and preview, hidden trap with initiative, triggered trap (Trigger, Disable); confirms: ' + confirms.length + '; screenshots out/home.png, out/pcs-levels.png, out/combat-encounter-preview.png, out/combat-panel.png, out/combat-trap.png, out/location-traps.png, out/combat-disease.png, out/pc-diseases.png, out/combat-pc-sheet.png, out/popout-pinned.png')
     finish(0)
   } catch (err) {
     console.error(err)

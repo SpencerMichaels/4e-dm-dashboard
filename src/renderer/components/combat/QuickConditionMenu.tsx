@@ -9,7 +9,7 @@ import { Glyph, Icon } from '../shared/Icon'
 import { getConditionStyle } from './condition-styles'
 import { DAMAGE_TYPE_NAMES, getDamageTypeStyle } from './damage-types'
 import { ConditionPill, buildConditionLabel } from './ConditionPill'
-import { CLASS_MARK_BY_ID, CLASS_MARK_BY_CONDITION_ID, type ClassMark } from '../../../common/rules/class-marks'
+import { CLASS_MARK_BY_ID, CLASS_MARK_BY_CONDITION_ID, pcMarkType, type ClassMark } from '../../../common/rules/class-marks'
 
 interface Props {
   combatantId: string
@@ -73,7 +73,7 @@ export function QuickConditionMenu({ combatantId, combatant, position, onClose, 
       // PCs don't have engine-tracked HP (it's 0); use the explicit dead flag instead
       if (!c.isPC || c.dead) continue
       const pc = c.entityId ? playerCharacters.find(p => p.id === c.entityId) : undefined
-      const markId = pc?.markType
+      const markId = pc && pcMarkType(pc)
       if (!markId) continue
       const mark = CLASS_MARK_BY_ID[markId]
       if (!mark) continue

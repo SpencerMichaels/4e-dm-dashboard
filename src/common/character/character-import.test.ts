@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { existsSync, readdirSync, readFileSync } from 'fs'
 import { join } from 'path'
 import { applySnapshots, readCharacterFile, snapshotFromDnd4e, snapshotsFrom4ecb } from './character-import'
+import { pcMarkType } from '../rules/class-marks'
 import { parseXml } from '../utils/xml'
 
 const stat = (value: number, ...aliases: string[]) =>
@@ -100,11 +101,18 @@ describe('applySnapshots', () => {
     const first = applySnapshots([], [file], { newId, now })
     expect(first.result).toEqual({ created: ['Brannoc & Sons'], updated: [], errors: [] })
     const pc = first.save[0]
-    expect(pc).toMatchObject({ name: 'Brannoc & Sons', playerName: 'Jo', markType: 'combat-challenge', sheetFile: 'brannoc.dnd4e' })
-    const edited = { ...pc, name: 'Brannoc', markType: 'divine-challenge', color: '#f00' }
+    expect(pc).toMatchObject({ name: 'Brannoc & Sons', playerName: 'Jo', sheetFile: 'brannoc.dnd4e' })
+    const edited = { ...pc, name: 'Brannoc', color: '#f00' }
     const again = applySnapshots([edited], [file], { newId, now })
     expect(again.result.updated).toEqual(['Brannoc'])
-    expect(again.save[0]).toMatchObject({ id: pc.id, name: 'Brannoc', markType: 'divine-challenge', color: '#f00' })
+    expect(again.save[0]).toMatchObject({ id: pc.id, name: 'Brannoc', color: '#f00' })
+  })
+
+  it('takes the class mark from the sheet, over one picked before the import', () => {
+    const picked = { id: 'x', name: 'Bran', playerName: '', markType: 'divine-challenge', createdAt: now, updatedAt: now }
+    expect(pcMarkType(picked)).toBe('divine-challenge')
+    const { save: saved } = applySnapshots([picked], [file], { newId, now, targetId: 'x' })
+    expect(pcMarkType(saved[0])).toBe('combat-challenge')
   })
 
   it('updates the target PC and reports bad files', () => {

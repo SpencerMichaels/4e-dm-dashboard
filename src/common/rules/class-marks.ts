@@ -147,3 +147,11 @@ export const CLASS_MARK_BY_ID: Record<string, ClassMark> = Object.fromEntries(
 export const CLASS_MARK_BY_CONDITION_ID: Record<string, ClassMark> = Object.fromEntries(
   CLASS_MARKS.filter(m => m.conditionId).map(m => [m.conditionId!, m])
 )
+
+/**
+ * The PC's class mark id: an imported sheet's, inferred from its class features
+ * (src/common/character/character-import.ts), otherwise the one the DM picked.
+ */
+export function pcMarkType(pc: { markType?: string; sheet?: { markType?: string } }): string | undefined {
+  return pc.sheet ? pc.sheet.markType : pc.markType
+}

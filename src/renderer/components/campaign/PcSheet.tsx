@@ -4,7 +4,7 @@
 import { useCallback, useState } from 'react'
 import { DEFENSE_LABELS, SKILLS, type CharacterSnapshot } from '@kit'
 import { sign } from '../creature/dnd4e-utils'
-import { Icon } from '../shared/Icon'
+import { Modal } from '../shared/Modal'
 import '../creature/statblock.css'
 
 export const sheetSubtitle = (s: CharacterSnapshot) =>
@@ -54,22 +54,14 @@ export function useCharacterImport() {
   return { pick, outcome, clear: () => setOutcome(null) }
 }
 
-export function ImportOutcomeBanner({ outcome, onClose }: { outcome: ImportOutcome; onClose: () => void }) {
-  const parts = [
-    outcome.created.length ? `Added ${outcome.created.join(', ')}` : '',
-    outcome.updated.length ? `Updated ${outcome.updated.join(', ')}` : '',
-  ].filter(Boolean)
+/**
+ * Files an import could not read. Successes need no message (the PCs appear or change in the list); errors do, in
+ * a dialog over the page rather than a banner that pushes it down.
+ */
+export function ImportErrorsDialog({ errors, onClose }: { errors: string[]; onClose: () => void }) {
   return (
-    <div role="status" style={{
-      display: 'flex', gap: 8, alignItems: 'flex-start', padding: '6px 10px', marginBottom: 'var(--space-3)',
-      border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', background: 'var(--surface-raised)',
-      fontSize: 'var(--font-size-sm)',
-    }}>
-      <div style={{ flex: 1 }}>
-        {parts.length > 0 && <div>{parts.join('. ')}.</div>}
-        {outcome.errors.map(e => <div key={e} style={{ color: 'var(--danger)' }}>{e}</div>)}
-      </div>
-      <button onClick={onClose} title="Dismiss" aria-label="Dismiss" style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, display: 'inline-flex' }}><Icon name="x" /></button>
-    </div>
+    <Modal title="Import failed" onClose={onClose} maxWidth={520} footer={<button className="btn btn-primary" onClick={onClose}>OK</button>}>
+      {errors.map(e => <div key={e} style={{ color: 'var(--danger)' }}>{e}</div>)}
+    </Modal>
   )
 }

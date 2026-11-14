@@ -175,7 +175,7 @@ export interface ImportResult { created: string[]; updated: string[]; errors: st
 
 /**
  * Snapshots onto the campaign's PCs. With `targetId`, the file's one character updates that PC; otherwise a PC
- * whose sheet has the same sourceId is updated, or a new PC is made. Names, player names, and a mark the DM set stay.
+ * whose sheet has the same sourceId is updated, or a new PC is made. Names and player names the DM set stay; a sheet's mark comes from the sheet (pcMarkType).
  */
 export function applySnapshots(
   pcs: PlayerCharacter[], files: ImportedFile[], opts: { targetId?: string; now?: string; newId: () => string },
@@ -202,7 +202,6 @@ export function applySnapshots(
         : { id: opts.newId(), name: sheet.name, playerName: sheet.player ?? '', createdAt: now, updatedAt: now }
       pc.name ||= sheet.name
       pc.playerName ||= sheet.player ?? ''
-      if (!pc.markType && sheet.markType) pc.markType = sheet.markType
       pc.sheet = sheet
       pc.sheetFile = file.name
       pc.updatedAt = now

@@ -97,7 +97,7 @@ app.whenReady().then(async () => {
     await audit('maps')
 
     await clickButton('PCs')
-    await until(() => !!document.querySelector('.pc-disease'), 'the PCs page')
+    await until(() => !!document.querySelector('.pc-library'), 'the PCs page')
     await audit('PCs')
 
     await clickButton('Encounters')
