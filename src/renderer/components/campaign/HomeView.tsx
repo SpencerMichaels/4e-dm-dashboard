@@ -4,13 +4,17 @@ import { useCombatStore } from '../../stores/combat-store'
 import { useUiStore, type ViewMode } from '../../stores/ui-store'
 import { ConfirmDialog } from '../shared/ConfirmDialog'
 import { Icon } from '../shared/Icon'
-import { diseaseKey, useDisease } from '../disease/disease-refs'
+import { useDisease } from '../disease/disease-refs'
+import { ConditionPill, buildConditionLabel } from '../combat/ConditionPill'
+import { formatConditionName } from '../../utils/combat-utils'
+import dnd4e from '@common/rules/dnd4e'
+import { conditionName, pcConditionKey } from '@common/rules/pc-conditions'
 import { CombatToken } from '../combat/CombatToken'
 import { isActivePc, partyLevel, pcLevel } from '@common/rules/party'
-import { PartyLevelWarning, PcLevelWarning } from './level-warnings'
-import { PcDiseasesDialog } from './PcDiseases'
+import { PcLevelWarning } from './level-warnings'
+import { PcConditionsDialog } from './PcConditions'
 import { RECORD_STORAGE, RECORD_TYPES, type RecordType } from '@common/campaign-records'
-import type { Campaign, CampaignRecord, PcDisease } from '@common/types'
+import type { Campaign, CampaignRecord, PcCondition, PcDisease } from '@common/types'
 
 export function HomeView() {
   const campaignId = useCampaignStore((s) => s.campaignId)
@@ -201,25 +205,26 @@ function CombatInProgress() {
   )
 }
 
-// Party columns: character, AC, Fort, Ref, Will, passive Perception, passive Insight, diseases.
-const PARTY_COLUMNS = 'minmax(200px, 1fr) repeat(4, 36px) repeat(2, 72px) minmax(120px, auto)'
+// Party columns: character, AC, Fort, Ref, Will, passive Perception, passive Insight, conditions.
+const PARTY_COLUMNS = 'minmax(200px, 1fr) repeat(6, 36px) minmax(120px, auto)'
 
 /** The active PCs' numbers the DM asks about at the table, from their imported sheets. A row opens the PCs page. */
 function Party() {
   const pcs = useCampaignStore((s) => s.playerCharacters)
   const setView = useUiStore((s) => s.setView)
-  const [diseasesOf, setDiseasesOf] = useState<string | null>(null)
+  const combat = useCombatStore((s) => s.combat)
+  const [conditionsOf, setConditionsOf] = useState<string | null>(null)
   const active = pcs.filter(isActivePc)
   const level = partyLevel(pcs)
-  const diseasesPc = pcs.find(pc => pc.id === diseasesOf)
+  const conditionsPc = pcs.find(pc => pc.id === conditionsOf)
   const toPcs = () => setView({ type: 'entity-list', entityType: 'player-character' })
   const num = (n: number | undefined) => <span>{n ?? <span style={{ color: 'var(--muted)' }}>–</span>}</span>
 
   return (
     <div className="stat-block-4e home-party" style={{ ...panel, alignSelf: 'flex-start', minWidth: 560 }}>
-      <div className="sb-header" style={{ alignItems: 'center', gap: 'var(--space-2)', justifyContent: 'flex-start' }}>
-        <span className="sb-name" style={{ flex: 'none' }}>Party{level != null && ` (Level ${level})`}</span>
-        <PartyLevelWarning pcs={pcs} />
+      <div className="sb-header" style={{ alignItems: 'center', gap: 'var(--space-2)' }}>
+        <span className="sb-name" style={{ flex: 1 }}>Party{level != null && ` (Level ${level})`}</span>
+        <span>{active.length} {active.length === 1 ? 'Player' : 'Players'}</span>
       </div>
       {active.length === 0 ? (
         <div style={{ padding: 'var(--space-2)', color: 'var(--muted)', fontSize: 'var(--font-size-xs)' }}>
@@ -229,12 +234,16 @@ function Party() {
         <div className="sb-columns" style={{ gridTemplateColumns: PARTY_COLUMNS }}>
           <span>Character</span>
           <span title="Armor Class">AC</span><span title="Fortitude">Fort</span><span title="Reflex">Ref</span><span title="Will">Will</span>
-          <span title="Passive Perception">Pass. Perc.</span><span title="Passive Insight">Pass. Ins.</span>
-          <span>Diseases</span>
+          <span title="Passive Perception">Perc</span><span title="Passive Insight">Ins</span>
+          <span>Conditions</span>
         </div>
         <div className="striped-rows" role="list">
           {active.map(pc => {
             const sheet = pc.sheet
+            const open = () => setConditionsOf(pc.id)
+            // In combat, the encounter's own conditions on this PC, on top of its lasting ones (those were carried in).
+            const combatant = combat && Object.values(combat.combatants).find(c => c.entityId === pc.id)
+            const encounterOnly = (combatant?.conditions ?? []).filter(c => !c.carried && c.conditionId !== 'reacted')
             return (
               <div key={pc.id} role="listitem" className="sb-list-row" onClick={toPcs} title="Open the PCs page" style={{ gridTemplateColumns: PARTY_COLUMNS, cursor: 'pointer', padding: '3px var(--space-2)' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
@@ -254,30 +263,44 @@ function Party() {
                 {num(sheet?.defenses.will)}
                 {num(sheet?.passivePerception)}
                 {num(sheet?.passiveInsight)}
-                {/* Diseases open their stage controls in a dialog; the + adds one. */}
-                <div className="home-pc-diseases" style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 4, whiteSpace: 'normal' }}>
-                  {(pc.diseases ?? []).map(d => <CarriedDisease key={diseaseKey(d)} carried={d} onOpen={() => setDiseasesOf(pc.id)} />)}
-                  <button className="btn btn-icon btn-sm" aria-label="Add a disease" title="Track a disease for this PC"
-                    onClick={(e) => { e.stopPropagation(); setDiseasesOf(pc.id) }}><Icon name="plus" /></button>
+                {/* Lasting conditions open the PC's conditions dialog; the + adds one. */}
+                <div className="home-pc-conditions" style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 4, whiteSpace: 'normal' }}>
+                  {(pc.conditions ?? []).map(c => <LastingCondition key={pcConditionKey(c)} condition={c} onOpen={open} />)}
+                  {encounterOnly.map((c, i) => {
+                    const name = formatConditionName(c.conditionId, dnd4e.conditions, c.customName)
+                    return <ConditionPill key={c.conditionId + i} conditionId={c.conditionId} customColor={c.customColor} customIcon={c.customIcon} damageType={c.customDescription} title={`${name}: this encounter only`}
+                      label={buildConditionLabel({ conditionId: c.conditionId, name, value: c.value, customDescription: c.customDescription, damageType: c.customDescription })} />
+                  })}
+                  <button className="btn btn-icon btn-sm" aria-label="Add a condition" title="Add a lasting condition, disease, or effect for this PC"
+                    onClick={(e) => { e.stopPropagation(); open() }}><Icon name="plus" /></button>
                 </div>
               </div>
             )
           })}
         </div>
       </>}
-      {diseasesPc && <PcDiseasesDialog pc={diseasesPc} onClose={() => setDiseasesOf(null)} />}
+      {conditionsPc && <PcConditionsDialog pc={conditionsPc} onClose={() => setConditionsOf(null)} />}
     </div>
   )
 }
 
-function CarriedDisease({ carried, onOpen }: { carried: PcDisease; onOpen: () => void }) {
+/** A chip for one of a PC's lasting conditions; it opens the PC's conditions dialog. */
+function LastingCondition({ condition, onOpen }: { condition: PcCondition; onOpen: () => void }) {
+  const chip = (className: string, title: string, label: React.ReactNode) => (
+    <button className={`btn btn-sm home-pc-condition ${className}`} onClick={(e) => { e.stopPropagation(); onOpen() }} title={title}>{label}</button>
+  )
+  switch (condition.kind) {
+    case 'disease': return <LastingDisease carried={condition} chip={chip} />
+    case 'condition': return chip('home-pc-status', condition.note ? `Until ${condition.note}` : 'Lasting condition', conditionName(condition.conditionId))
+    case 'effect': return chip('home-pc-effect', condition.description ?? 'Effect', condition.name)
+  }
+}
+
+function LastingDisease({ carried, chip }: { carried: PcDisease; chip: (className: string, title: string, label: React.ReactNode) => React.ReactNode }) {
   const disease = useDisease(carried)
   if (disease === undefined) return null
-  return (
-    <button className="btn btn-sm home-pc-disease" onClick={(e) => { e.stopPropagation(); onOpen() }} title="Stages and Endurance checks">
-      {disease?.name ?? 'Unknown disease'} <span style={{ color: 'var(--muted)' }}>{carried.stage === 'exposed' ? 'exposed' : `stage ${carried.stage}`}</span>
-    </button>
-  )
+  return chip('home-pc-disease', 'Stages and Endurance checks',
+    <>{disease?.name ?? 'Unknown disease'} <span style={{ color: 'var(--muted)' }}>{carried.stage === 'exposed' ? 'exposed' : `stage ${carried.stage}`}</span></>)
 }
 
 const RECORD_LABELS: Record<RecordType, string> = { creature: 'Creatures', item: 'Items', trap: 'Traps', disease: 'Diseases', template: 'Templates', theme: 'Themes' }

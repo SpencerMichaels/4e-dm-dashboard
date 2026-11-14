@@ -147,12 +147,13 @@ export function initCombat(encounterId?: string): CombatState {
   return combatState
 }
 
-export function addCombatant(combatant: Omit<CombatantState, 'conditions' | 'effects' | 'tempHp' | 'usedPowers'> & { tempHp?: number }): CombatState {
+/** Adds a combatant; `conditions` are the ones it starts with (a PC's lasting conditions, src/common/rules/pc-conditions.ts). */
+export function addCombatant(combatant: Omit<CombatantState, 'conditions' | 'effects' | 'tempHp' | 'usedPowers'> & { tempHp?: number; conditions?: AppliedCondition[] }): CombatState {
   if (!combatState) throw new Error('No active combat')
   combatState.combatants[combatant.id] = {
     ...combatant,
     tempHp: combatant.tempHp ?? 0,
-    conditions: [],
+    conditions: combatant.conditions ?? [],
     effects: [],
     usedPowers: {},
     usedActionPoints: 0,

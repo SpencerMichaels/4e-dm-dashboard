@@ -59,7 +59,8 @@ export async function libraryUsage(type: RecordType, id: string): Promise<{ camp
     switch (type) {
       case 'creature': return (v.creatures ?? []).filter((c: any) => c?.libraryId === id).length
       case 'trap': return (v.traps ?? []).filter((t: any) => t?.libraryId === id).length
-      case 'disease': return (v.diseases ?? []).filter((d: any) => d?.libraryId === id).length
+      // A campaign not opened since 2026-11-14 may still keep a PC's diseases in `diseases`.
+      case 'disease': return [...(v.diseases ?? []), ...(v.conditions ?? []).filter((c: any) => c?.kind === 'disease')].filter((d: any) => d?.libraryId === id).length
       case 'template': return (v.creatures ?? []).filter((c: any) => (c?.monsterTemplates ?? []).includes(ref)).length
       case 'theme': return (v.creatures ?? []).filter((c: any) => c?.monsterTheme?.name === ref).length
       default: return 0

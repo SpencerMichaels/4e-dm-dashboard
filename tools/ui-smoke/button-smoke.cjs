@@ -26,7 +26,7 @@ const encounter = {
   creatures: [{ compendiumId: 'monster723', count: 1 }, { compendiumId: 'monster4742', count: 2 }, { compendiumId: 'monster145', count: 1 }],
   traps: [{ compendiumId: 'trap40', count: 1 }, { compendiumId: 'trap41', count: 1, visible: true }],
 }
-const hero = { id: 'hero', name: 'Hero', playerName: 'Player', active: true, createdAt: now, updatedAt: now, diseases: [{ diseaseId: 'disease1', stage: 'exposed', since: now }] }
+const hero = { id: 'hero', name: 'Hero', playerName: 'Player', active: true, createdAt: now, updatedAt: now, conditions: [{ kind: 'disease', diseaseId: 'disease1', stage: 'exposed', since: now }] }
 const vault = { id: 'vault', name: 'Smoke Vault', description: '', tags: [], createdAt: now, updatedAt: now, traps: [{ compendiumId: 'trap41' }], encounterIds: ['smoke-fight'] }
 
 app.whenReady().then(async () => {

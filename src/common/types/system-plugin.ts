@@ -36,6 +36,7 @@ export interface AppliedCondition {
   grantsCATo?: 'all' | 'source' | 'source-allies'
   inhibitDamageTypes?: string[]    // Damage types that suppress this regeneration
   saveGroup?: string               // Links conditions so one successful save removes all in the group
+  carried?: boolean                // Copied from the PC's lasting conditions when it joined combat (src/common/rules/pc-conditions.ts)
 }
 
 // Creature builder: level/role benchmark data for the 4e creature editor

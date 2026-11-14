@@ -27,9 +27,9 @@ describe('references follow a shared entry', () => {
       creatures: [{ libraryId: 'x', count: 1, monsterTemplates: ['library:x', 'Lich'], monsterTheme: { name: 'library:x' } }, { compendiumId: 'x', count: 1 }],
       traps: [{ libraryId: 'x', count: 1 }, { trapId: 'y', count: 1 }],
     })
-    const pc = { diseases: [{ libraryId: 'rot', stage: 1 }] }
+    const pc = { conditions: [{ kind: 'disease', libraryId: 'rot', stage: 1 }, { kind: 'effect', id: 'rot', name: 'Cursed' }] }
     expect(rehomeRefs('disease', pc, 'rot', false)).toBe(true)
-    expect(pc).toEqual({ diseases: [{ diseaseId: 'rot', stage: 1 }] })
+    expect(pc).toEqual({ conditions: [{ kind: 'disease', diseaseId: 'rot', stage: 1 }, { kind: 'effect', id: 'rot', name: 'Cursed' }] })
     expect(rehomeRefs('disease', pc, 'rot', false)).toBe(false)
   })
 })

@@ -51,7 +51,8 @@ const encounter = {
   // The location adds Ceiling Scythe (trap300); its other traps are already in the encounter.
   locationId: 'vault',
 }
-const hero = { id: 'hero', name: 'Hero', playerName: 'Player', active: true, createdAt: now, updatedAt: now }
+// The hero starts with a lasting effect, which joins it in combat.
+const hero = { id: 'hero', name: 'Hero', playerName: 'Player', active: true, createdAt: now, updatedAt: now, conditions: [{ kind: 'effect', id: 'curse', name: 'Smoke Curse', description: '-1 to saves', since: now }] }
 
 app.whenReady().then(async () => {
   try {
@@ -97,8 +98,9 @@ app.whenReady().then(async () => {
     await js(p => window.api.entity.save('player-character', p), { id: 'squire', name: 'Squire', playerName: 'Guest', level: 2, createdAt: now, updatedAt: now })
     await sleep(300)
     await js(() => [...document.querySelectorAll('button')].find(b => b.textContent.trim().endsWith('Home')).click())
-    await until(() => document.querySelectorAll('.home-party .level-warning svg').length === 2, 'the session board with level warnings')
+    await until(() => document.querySelectorAll('.home-party .level-warning svg').length === 1, "the session board with the squire's level warning")
     if (!await js(() => document.querySelector('.home-party .sb-name').textContent === 'Party (Level 4)')) throw new Error('The party heading does not show the party level')
+    if (!await js(() => document.querySelector('.home-party .sb-header').textContent.endsWith('2 Players'))) throw new Error('The party heading does not show the player count')
     await screenshot('out/home.png')
     // The session board is one page: its scroll container (the main area) never scrolls.
     if (await js(() => { const main = document.querySelector('.home-party').parentElement.parentElement; return main.scrollHeight > main.clientHeight })) throw new Error('The session board scrolls')
@@ -180,6 +182,7 @@ app.whenReady().then(async () => {
     if (!(await js(() => document.querySelector('.triggered-trap-note')?.textContent.includes('Leg Breaker Trap')))) throw new Error('Initiative entry does not list the triggered trap')
     const scythe = byName('Ceiling Scythe')[0], rat = byName('Dire Rat')[0], heroC = combatants.find(c => c.isPC)
     if (scythe?.kind !== 'trap' || !scythe.hidden) throw new Error('The location trap did not join hidden')
+    if (!heroC.conditions.some(c => c.carried && c.customName === 'Smoke Curse' && c.duration?.type === 'indefinite')) throw new Error('The hero\'s lasting effect did not join combat: ' + JSON.stringify(heroC.conditions))
     // Initiative: captain first, then the rat (whose bite carries the disease), then the rest.
     const order = [cap, rat, troll, jets, scythe, ...goblins, heroC]
     for (const [i, c] of order.entries()) await js((id, n) => window.api.combat.setInitiative(id, n), c.id, 30 - i)
@@ -218,8 +221,9 @@ app.whenReady().then(async () => {
     await until(() => document.body.innerText.includes('Click a PC to expose to Dire Rat Filth Fever'), 'the expose banner')
     await js(() => [...document.querySelectorAll('*')].find(el => el.children.length === 0 && el.textContent.trim() === 'Hero').click())
     let heroRecord
-    for (let i = 0; i < 30 && !heroRecord?.diseases?.length; i++) { await sleep(100); heroRecord = await js(() => window.api.entity.get('player-character', 'hero')) }
-    if (heroRecord?.diseases?.length !== 1 || heroRecord.diseases[0].stage !== 'exposed' || !heroRecord.diseases[0].compendiumId) throw new Error('Expose did not track the disease: ' + JSON.stringify(heroRecord?.diseases))
+    const heroDiseases = r => (r?.conditions ?? []).filter(c => c.kind === 'disease')
+    for (let i = 0; i < 30 && !heroDiseases(heroRecord).length; i++) { await sleep(100); heroRecord = await js(() => window.api.entity.get('player-character', 'hero')) }
+    if (heroDiseases(heroRecord).length !== 1 || heroDiseases(heroRecord)[0].stage !== 'exposed' || !heroDiseases(heroRecord)[0].compendiumId) throw new Error('Expose did not track the disease: ' + JSON.stringify(heroRecord?.conditions))
     await screenshot('out/combat-disease.png')
 
     // The hero's imported sheet: defenses in its initiative row, the sheet in its panel.
@@ -257,9 +261,13 @@ app.whenReady().then(async () => {
     state = await current()
     if (!state.combatants[legBreaker.id].dead) throw new Error('Disable did not mark the trap')
 
-    // ── Home board: the exposed hero's disease opens its dialog; the hero contracts it, then a failed Endurance check worsens it ──
+    // ── Home board: the hero's lasting conditions, with this encounter's on top; the disease opens the conditions dialog,
+    // the hero contracts it, then a failed Endurance check worsens it ──
+    await js(id => window.api.combat.addCondition(id, { conditionId: 'dazed', duration: { type: 'save-ends' } }), heroC.id)
     await js(() => [...document.querySelectorAll('button')].find(b => b.textContent.trim().endsWith('Home')).click())
     await until(() => !!document.querySelector('.home-party .home-pc-disease'), 'the disease on the party row')
+    if (!(await js(() => [...document.querySelectorAll('.home-party .home-pc-effect')].map(b => b.textContent).join() === 'Smoke Curse'))) throw new Error('The lasting effect is not on the party row once')
+    if (!(await js(() => !!document.querySelector('.home-party .home-pc-conditions span[title="Dazed: this encounter only"]')))) throw new Error('The encounter\'s condition is not on the party row')
     await js(() => document.querySelector('.home-party .home-pc-disease').click())
     await until(() => document.querySelector('.pc-disease')?.innerText.includes('Exposed'), 'the exposed disease row')
     await js(() => [...document.querySelectorAll('.pc-disease button')].find(b => b.textContent === 'Contracted').click())
@@ -269,7 +277,14 @@ app.whenReady().then(async () => {
     await js(() => { const i = document.querySelector('.pc-disease input[aria-label="Endurance check result"]'); i.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })) })
     await until(() => document.querySelector('.pc-disease')?.innerText.includes('Stage 2'), 'stage 2 after a failed check')
     heroRecord = await js(() => window.api.entity.get('player-character', 'hero'))
-    if (heroRecord.diseases[0].stage !== 2) throw new Error('Stage not saved: ' + JSON.stringify(heroRecord.diseases))
+    if (heroDiseases(heroRecord)[0].stage !== 2) throw new Error('Stage not saved: ' + JSON.stringify(heroRecord.conditions))
+    // One search adds a standard condition (or a disease, or names an effect).
+    await js(() => { const i = document.querySelector('.add-condition input'); i.focus(); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(i, 'weak'); i.dispatchEvent(new Event('input', { bubbles: true })) })
+    await until(() => document.querySelector('.condition-search-results button')?.innerText.startsWith('Weakened'), 'Weakened offered first')
+    await js(() => document.querySelector('.condition-search-results button').click())
+    await until(() => !!document.querySelector('.pc-status'), 'the weakened row')
+    heroRecord = await js(() => window.api.entity.get('player-character', 'hero'))
+    if (!heroRecord.conditions.some(c => c.kind === 'condition' && c.conditionId === 'weakened')) throw new Error('Weakened not saved: ' + JSON.stringify(heroRecord.conditions))
     await screenshot('out/pc-diseases.png')
     await js(() => [...document.querySelectorAll('.dialog-shell button')].find(b => b.textContent === 'Done').click())
     await until(() => !document.querySelector('.pc-disease') && document.querySelector('.home-pc-disease')?.innerText.includes('stage 2'), 'the dialog closed, the row at stage 2')
@@ -285,7 +300,7 @@ app.whenReady().then(async () => {
 
     const confirms = await js(() => window.__confirms)
     clearTimeout(timeout)
-    console.log('COMBAT_SMOKE_OK: a Library creature resolving live in an encounter row, legacy creature converted on open, encounter row preview (template, level adjustment), the session board and level warnings, combat start in main with kit combatants (elite captain, troll regeneration, grouped minions), combat panel, recharge prompt, live pinned card, location trap stat blocks and search, location traps joining the encounter, encounter diseases, disease name in a power applied to a PC like a condition, the PCs library (search, sort, detail pane), PC disease stages from the Home board, PC sheet import (row defenses, panel, PCs page), pinned cards popped out to an OS window and back, trap rows with XP and preview, hidden trap with initiative, triggered trap (Trigger, Disable); confirms: ' + confirms.length + '; screenshots out/home.png, out/pcs-levels.png, out/combat-encounter-preview.png, out/combat-panel.png, out/combat-trap.png, out/location-traps.png, out/combat-disease.png, out/pc-diseases.png, out/combat-pc-sheet.png, out/popout-pinned.png')
+    console.log('COMBAT_SMOKE_OK: a Library creature resolving live in an encounter row, legacy creature converted on open, encounter row preview (template, level adjustment), the session board and level warnings, combat start in main with kit combatants (elite captain, troll regeneration, grouped minions), combat panel, recharge prompt, live pinned card, location trap stat blocks and search, location traps joining the encounter, encounter diseases, disease name in a power applied to a PC like a condition, the PCs library (search, sort, detail pane), PC lasting conditions (carried into combat, the encounter\'s on top on the Home board, disease stages, adding a condition), PC sheet import (row defenses, panel, PCs page), pinned cards popped out to an OS window and back, trap rows with XP and preview, hidden trap with initiative, triggered trap (Trigger, Disable); confirms: ' + confirms.length + '; screenshots out/home.png, out/pcs-levels.png, out/combat-encounter-preview.png, out/combat-panel.png, out/combat-trap.png, out/location-traps.png, out/combat-disease.png, out/pc-diseases.png, out/combat-pc-sheet.png, out/popout-pinned.png')
     finish(0)
   } catch (err) {
     console.error(err)

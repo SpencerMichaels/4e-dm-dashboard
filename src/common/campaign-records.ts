@@ -79,7 +79,7 @@ export function rehomeRefs(type: RecordType, value: unknown, id: string, toLibra
   switch (type) {
     case 'creature': swap(v.creatures, 'creatureId'); break
     case 'trap': swap(v.traps, 'trapId'); break
-    case 'disease': swap(v.diseases, 'diseaseId'); break
+    case 'disease': swap((v.conditions ?? []).filter((c: any) => c?.kind === 'disease'), 'diseaseId'); break
     case 'template':
       for (const c of v.creatures ?? []) if (c?.monsterTemplates?.includes(oldRef)) { c.monsterTemplates = c.monsterTemplates.map((t: string) => t === oldRef ? newRef : t); changed = true }
       break

@@ -1,6 +1,10 @@
 import { ipcMain } from 'electron'
 import { CMD, SYNC } from '@common/ipc-channels'
-import type { AppliedCondition, AppliedEffect, Encounter, EncounterCreature, Location } from '@common/types'
+import type { AppliedCondition, AppliedEffect, CampaignRecord, DiseaseRef, Encounter, EncounterCreature, Location, PlayerCharacter } from '@common/types'
+import type { Disease } from '@kit'
+import { carriedConditions, diseaseKey, pcDiseases } from '@common/rules/pc-conditions'
+import { getLibraryRecord } from '../data/library-store'
+import { getKitEntry } from '../compendium/kit'
 import * as engine from '../combat/combat-engine'
 import { getActiveCampaignId, getEntity } from '../data/campaign-store'
 import { broadcastToAll, broadcastToPlayer, getPlayerWindow, createPlayerWindow } from '../windows'
@@ -155,7 +159,13 @@ export function registerCombatHandlers(): void {
   withBroadcast(CMD.COMBAT_HEAL, (id: string, amount: number, sourceId?: string) => engine.healCombatant(id, amount, { sourceId }))
   withBroadcast(CMD.COMBAT_ADD_EFFECT, (id: string, effect: Omit<AppliedEffect, 'id'>) => engine.addEffect(id, effect))
   withBroadcast(CMD.COMBAT_REMOVE_EFFECT, (id: string, effectId: string) => engine.removeEffect(id, effectId))
-  withBroadcast(CMD.COMBAT_ADD_COMBATANT, (combatant: any) => engine.addCombatant(combatant))
+  // A PC joins with its lasting conditions (diseases, conditions, the DM's effects); the encounter's go on top.
+  ipcMain.handle(CMD.COMBAT_ADD_COMBATANT, async (_e, combatant: any) => {
+    const pc = combatant.isPC && combatant.entityId ? await getEntity<PlayerCharacter>('player-character', combatant.entityId) : null
+    const result = engine.addCombatant(pc ? { ...combatant, conditions: carriedConditions(pc, await pcDiseaseLookup(pc)) } : combatant)
+    broadcastCombatState()
+    return result
+  })
   withBroadcast(CMD.COMBAT_REMOVE_COMBATANT, (id: string) => engine.removeCombatant(id))
   withBroadcast(CMD.COMBAT_UPDATE_COMBATANT, (id: string, updates: any) => engine.updateCombatant(id, updates))
   withBroadcast(CMD.COMBAT_USE_POWER, (id: string, idx: number) => engine.usePower(id, idx))
@@ -164,4 +174,17 @@ export function registerCombatHandlers(): void {
   // The encounter editor's preview of a row: the adjusted kit monster and what each adjustment changed.
   ipcMain.handle(CMD.COMBAT_PREVIEW_ROW, async (_e, row: EncounterCreature, theme?: RowTheme) =>
     resolveRow(row, await campaignSources(), theme === undefined ? row.monsterTheme : theme))
+}
+
+/** The kit diseases a PC's conditions name, looked up for carriedConditions (null: the entry is gone). */
+async function pcDiseaseLookup(pc: PlayerCharacter): Promise<(ref: DiseaseRef) => Disease | null> {
+  const found = new Map<string, Disease | null>()
+  for (const ref of pcDiseases(pc)) {
+    const disease = ref.diseaseId ? (await getEntity<CampaignRecord<Disease>>('disease', ref.diseaseId))?.content
+      : ref.libraryId ? (await getLibraryRecord<Disease>('disease', ref.libraryId))?.content
+      : ref.compendiumId ? getKitEntry('disease', ref.compendiumId) as Disease | null
+      : null
+    found.set(diseaseKey(ref), disease ?? null)
+  }
+  return ref => found.get(diseaseKey(ref)) ?? null
 }

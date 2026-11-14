@@ -5,12 +5,13 @@ import { useEffect, useMemo, useState } from 'react'
 import type { Disease } from '@kit'
 import type { DiseaseIndexEntry, DiseaseRef, PcDisease } from '@common/types'
 import { findDiseaseMentions, type DiseaseName } from '@common/rules/diseases'
+import { diseaseKey, pcDiseases } from '@common/rules/pc-conditions'
 import { useCampaignStore } from '../../stores/campaign-store'
 import { useLibraryStore } from '../../stores/library-store'
 import { DiseaseStatblock } from './DiseaseStatblock'
 import { Icon } from '../shared/Icon'
 
-export const diseaseKey = (ref: DiseaseRef) => ref.diseaseId ? `disease:${ref.diseaseId}` : ref.libraryId ? `library:${ref.libraryId}` : `published:${ref.compendiumId}`
+export { diseaseKey } from '@common/rules/pc-conditions'
 
 let publishedIndex: Promise<DiseaseIndexEntry[]> | null = null
 const loadIndex = () => publishedIndex ??= window.api.compendium.diseaseIndex()
@@ -52,13 +53,13 @@ export function useDisease(ref: DiseaseRef | undefined): Disease | null | undefi
   return disease
 }
 
-/** Adds a disease to a PC record as "exposed" (unless the PC already has it). */
+/** Adds a disease to a PC's conditions as "exposed" (unless the PC already has it). */
 export async function exposePc(pcId: string, ref: DiseaseRef) {
   const pc = useCampaignStore.getState().playerCharacters.find(p => p.id === pcId)
-  if (!pc || (pc.diseases ?? []).some(d => diseaseKey(d) === diseaseKey(ref))) return
+  if (!pc || pcDiseases(pc).some(d => diseaseKey(d) === diseaseKey(ref))) return
   const now = new Date().toISOString()
-  const disease: PcDisease = { ...ref, stage: 'exposed', since: now }
-  await window.api.entity.save('player-character', { ...pc, diseases: [...(pc.diseases ?? []), disease], updatedAt: now })
+  const disease: PcDisease = { kind: 'disease', ...ref, stage: 'exposed', since: now }
+  await window.api.entity.save('player-character', { ...pc, conditions: [...(pc.conditions ?? []), disease], updatedAt: now })
 }
 
 /** Chips for the diseases a power's text exposes its target to; a chip opens the disease. (In combat, the name in the text applies it, like a condition.) */
