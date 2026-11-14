@@ -4,7 +4,7 @@
 // applications without access to the rules engine". We read those numbers as printed.
 // .4ecb (4ecb backup): 4ecb embeds evaluated snapshots in a top-level `snapshots` array.
 
-import { ABILITIES, SKILLS, CHARACTER_SNAPSHOT_VERSION, type Ability, type CharacterSnapshot, type Skill } from '@kit'
+import { ABILITIES, DAMAGE_TYPES, SKILLS, CHARACTER_SNAPSHOT_VERSION, type Ability, type CharacterSnapshot, type Skill } from '@kit'
 import { child, parseXml, type XmlElement } from '../utils/xml'
 import type { PlayerCharacter } from '../types/player-character'
 
@@ -24,6 +24,8 @@ const MARK_FEATURES: [RegExp, string][] = [
   [/^Oath of Enmity\b/, 'oath-of-enmity'],
   [/^Assassin's Shroud\b/, 'assassins-shroud'],
 ]
+
+const RESIST_TYPES = new Set<string>([...DAMAGE_TYPES, 'all'])
 
 export type CharacterFileKind = 'dnd4e' | '4ecb'
 
@@ -93,7 +95,8 @@ export function snapshotFromDnd4e(xml: string, now = new Date().toISOString()): 
   const named = (type: string) => tally.filter(e => e.attrs.type === type).map(e => e.attrs.name)
   let className = named('Class')[0] ?? ''
   const hybrids = named('Hybrid Class').map(n => n.replace(/^Hybrid\s+/, ''))
-  if (className === 'Hybrid' && hybrids.length) className = `Hybrid ${hybrids.join('/')}`
+  // As 4ecb prints it (D125): "Warlord / Fighter".
+  if (className === 'Hybrid' && hybrids.length) className = hybrids.join(' / ')
   const features = tally.filter(e => e.attrs.type === 'Class Feature' || e.attrs.type === 'CountsAsFeature').map(e => e.attrs.name)
   const markType = MARK_FEATURES.find(([re]) => features.some(f => re.test(f)))?.[1]
 
@@ -115,8 +118,9 @@ export function snapshotFromDnd4e(xml: string, now = new Date().toISOString()): 
 
   const resist: CharacterSnapshot['resist'] = []
   for (const [alias, value] of stats) {
-    const m = alias.match(/^resist:([a-z]+)$/)
-    if (m && value > 0) resist.push({ type: m[1], value })
+    // Damage types and "all" only, as 4ecb writes them; not resistances against attackers or areas.
+    const m = alias.match(/^resist:\s*(.+)$/)
+    if (m && RESIST_TYPES.has(m[1].trim()) && value > 0) resist.push({ type: m[1].trim(), value })
   }
 
   const items: CharacterSnapshot['items'] = []
