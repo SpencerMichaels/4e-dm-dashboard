@@ -16,7 +16,7 @@ describe('AI sessions writing into campaigns', () => {
     writeFileSync(join(campaign, 'campaign.json'), JSON.stringify({ id: 'c1', name: 'Test' }))
     const published: string[] = []
     const s = new AuthoringService(root, join(root, 'content'), () => {}, (_c, kind) => { published.push(kind) })
-    expect(await s.destinations()).toEqual([{ type: 'campaign', id: 'c1', name: 'Test' }])
+    expect(await s.destinations()).toEqual([{ type: 'campaign', id: 'c1', name: 'Test' }, { type: 'library', id: 'library', name: 'Library' }])
 
     for (const kind of ['trap', 'disease', 'template', 'theme'] as const) {
       const d: any = await s.call('create_draft', { kind, name: `Test ${kind}`, level: 3, destinations: [{ type: 'campaign', id: 'c1' }] }, 'dm')
@@ -41,7 +41,7 @@ describe('AI sessions writing into campaigns', () => {
     mkdirSync(campaign, { recursive: true })
     writeFileSync(join(campaign, 'campaign.json'), JSON.stringify({ id: 'c2', name: 'Copies' }))
     const s = new AuthoringService(root, join(root, 'content'))
-    await expect(s.call('create_draft', { kind: 'trap', name: 'Loose', level: 1 }, 'agent')).rejects.toThrow('No campaign is open')
+    await expect(s.call('create_draft', { kind: 'trap', name: 'Loose', level: 1 }, 'agent')).rejects.toThrow('needs a home')
     const key = 'published/theme/' + (await s.call('search', { kind: 'theme', text: '', limit: 1 }) as { key: string }[])[0].key.split('/').pop()
     writeFileSync(join(campaign, 'annotations.json'), JSON.stringify({ [key.split('/').pop()!]: { imageId: 'art.png' } }))
     const d: any = await s.call('create_draft', { from: key, destinations: [{ type: 'campaign', id: 'c2' }] }, 'agent')
@@ -49,9 +49,35 @@ describe('AI sessions writing into campaigns', () => {
     expect(record).toMatchObject({ basedOn: key, art: { imageId: 'art.png' } })
   })
 
-  it('refuses library destinations, which were removed', async () => {
-    const s = new AuthoringService(root, join(root, 'content'))
-    await expect(s.call('create_draft', { kind: 'trap', name: 'X', level: 1, destinations: [{ type: 'library', id: 'old' }] }, 'dm')).rejects.toThrow('campaign')
+  it('writes Library entries, and copies between the Library and a campaign with source and art', async () => {
+    const campaign = join(root, 'campaigns', 'c3')
+    mkdirSync(join(campaign, 'assets', 'images'), { recursive: true })
+    writeFileSync(join(campaign, 'campaign.json'), JSON.stringify({ id: 'c3', name: 'Shared' }))
+    const published: string[] = []
+    const s = new AuthoringService(root, join(root, 'content'), () => {}, home => { published.push(home) })
+    // The old homebrew libraries' destinations stay refused: the Library is the one with id "library".
+    await expect(s.call('create_draft', { kind: 'trap', name: 'X', level: 1, destinations: [{ type: 'library', id: 'old' }] }, 'dm')).rejects.toThrow('campaign or the Library')
     await expect(s.call('create_library', { name: 'Old' }, 'dm')).rejects.toThrow('Unknown authoring operation')
+
+    const lib: any = await s.call('create_draft', { kind: 'trap', name: 'Shared snare', level: 2, destinations: [{ type: 'library', id: 'library' }] }, 'dm')
+    const libId = lib.destinations[0].entityId
+    expect(JSON.parse(readFileSync(join(root, 'library', 'traps', `${libId}.json`), 'utf8'))).toMatchObject({ id: libId, content: { name: 'Shared snare' } })
+    expect(published).toEqual(['library'])
+    // Its working copy is the same draft.
+    expect((await s.call('working_copy', { campaignId: 'library', kind: 'trap', entityId: libId }, 'dm') as any).id).toBe(lib.id)
+
+    // Copy to campaign: the Library entry is the source.
+    const toCampaign: any = await s.call('create_draft', { from: `library/trap/${libId}`, destinations: [{ type: 'campaign', id: 'c3' }] }, 'dm')
+    expect(JSON.parse(readFileSync(join(campaign, 'traps', `${toCampaign.destinations[0].entityId}.json`), 'utf8'))).toMatchObject({ basedOn: `library/trap/${libId}`, content: { name: 'Shared snare' } })
+
+    // Copy to library: a campaign entry's art comes along, with its image file; its own source stays.
+    const entry: any = await s.call('create_draft', { kind: 'monster', name: 'Grave hound', level: 4, destinations: [{ type: 'campaign', id: 'c3' }] }, 'dm')
+    const entryId = entry.destinations[0].entityId
+    const path = join(campaign, 'creatures', `${entryId}.json`)
+    writeFileSync(path, JSON.stringify({ ...JSON.parse(readFileSync(path, 'utf8')), basedOn: 'published/creature/m1', art: { imageId: 'hound.png' } }))
+    writeFileSync(join(campaign, 'assets', 'images', 'hound.png'), 'png')
+    const toLibrary: any = await s.call('create_draft', { from: `campaign/c3/monster/${entryId}`, destinations: [{ type: 'library', id: 'library' }] }, 'dm')
+    expect(JSON.parse(readFileSync(join(root, 'library', 'creatures', `${toLibrary.destinations[0].entityId}.json`), 'utf8'))).toMatchObject({ basedOn: 'published/creature/m1', art: { imageId: 'hound.png' }, content: { name: 'Grave hound' } })
+    expect(readFileSync(join(root, 'library', 'assets', 'images', 'hound.png'), 'utf8')).toBe('png')
   })
 })

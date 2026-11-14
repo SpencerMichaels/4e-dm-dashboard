@@ -199,7 +199,7 @@ describe('live writes into the campaign', () => {
     await expect(s.create('monster', content(), '', [{ type: 'campaign', id: 'a' }, { type: 'campaign', id: 'b' }])).rejects.toThrow('exactly one campaign')
     expect(await s.list()).toEqual([])
     const d = await s.create('monster', content(), '', [{ type: 'campaign', id: 'a' }])
-    await expect(s.patch({ id: d.id, revision: 1, changes: [{ path: '/destinations', value: [] }] }, 'agent')).rejects.toThrow('stays with its campaign')
+    await expect(s.patch({ id: d.id, revision: 1, changes: [{ path: '/destinations', value: [] }] }, 'agent')).rejects.toThrow('stays in its campaign or the Library')
   })
   it('archives the working copies of a deleted campaign, and at startup those whose campaign or entry is gone', async () => {
     const p = publisher(); const gone = new Set<string>()

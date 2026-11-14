@@ -25,7 +25,7 @@ it('negotiates MCP and completes draft/feedback tools without exposing approval'
       return JSON.parse((result.content as { text: string }[])[0].text)
     }
     // New content goes into a campaign: without one it is refused.
-    await expect(call('create_draft', { kind: 'monster', name: 'Synthetic test', level: 7, role: 'lurker' })).rejects.toThrow('No campaign is open')
+    await expect(call('create_draft', { kind: 'monster', name: 'Synthetic test', level: 7, role: 'lurker' })).rejects.toThrow('needs a home')
     await mkdir(join(root, 'campaigns', 'c1'), { recursive: true })
     await writeFile(join(root, 'campaigns', 'c1', 'campaign.json'), JSON.stringify({ id: 'c1', name: 'Test' }))
     const d = await call('create_draft', { kind: 'monster', name: 'Synthetic test', level: 7, role: 'lurker', destinations: [{ type: 'campaign', id: 'c1' }] })

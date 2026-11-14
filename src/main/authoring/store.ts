@@ -247,9 +247,9 @@ export class DraftStore {
   }
   private checkDestinations(destinations: Destination[]) {
     // One home per working copy, fixed at creation: an entry never floats free of its campaign.
-    if (!Array.isArray(destinations) || destinations.length !== 1) throw new Error('A working copy belongs to exactly one campaign')
+    if (!Array.isArray(destinations) || destinations.length !== 1) throw new Error('A working copy belongs to exactly one campaign or the Library')
     for (const d of destinations) {
-      if (!d || d.type !== 'campaign') throw new Error('Invalid destination: content saves to a campaign')
+      if (!d || !(d.type === 'campaign' || (d.type === 'library' && d.id === 'library'))) throw new Error('Invalid destination: content saves to a campaign or the Library')
       safeId(d.id)
       if (d.entityId) { safeId(d.entityId); if (!/^[a-f0-9]{64}$/.test(d.expectedHash ?? '')) throw new Error('Updates need an expectedHash from destination content') }
     }

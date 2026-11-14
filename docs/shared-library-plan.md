@@ -88,7 +88,7 @@ An exported campaign is self-contained:
 ## Phases
 
 - [x] 1. Hardening: one fixed home per working copy, campaign deletion archives its copies, startup orphan check. Done 2026-11-14 (`DraftStore.campaignDeleted`, `archiveOrphans`). Tests in `store.test.ts` / `service.test.ts`.
-- [ ] 2. Library storage in main: `library/` folders, load and broadcast, art storage, CRUD through the same entity handlers with a home parameter.
+- [x] 2. Library storage in main: `library/` folders, load and broadcast, art storage, CRUD through the same entity handlers with a home parameter. Done 2026-11-14: `src/main/data/library-store.ts`, `ENTITY_SAVE`/`ENTITY_DELETE`/image commands take `home` ("library"), `CMD.LIBRARY_STATE` and `SYNC.LIBRARY_UPDATE` feed `stores/library-store.ts`, `IMAGE_GET` falls back to the Library's assets, authoring destinations `{ type: "library", id: "library" }` and `from` keys `library/<kind>/<id>` and `campaign/<campaignId>/<kind>/<id>` (`customCopy`, which copies art files into the Library).
 - [ ] 3. Compendium pages: the Library section, home labels, "+ New in ...", Copy to library / Copy to campaign from Library, delete with usage warning. Compendium UI smoke test extended.
 - [ ] 4. References: `libraryId` on encounter creature rows, encounter and location traps, PC diseases; `library:<id>` templates/themes; main resolution in encounter combatants and previews; pickers and search include Library entries. Combat UI smoke test with a Library creature in an encounter.
 - [ ] 5. Agent: library destination, `current_entry`/`edit_entry`/`from` for Library entries, skills and `docs/AUTHORING.md`.

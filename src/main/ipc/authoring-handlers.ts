@@ -5,10 +5,10 @@ import { startBridge } from '../authoring/bridge'
 import { getDmWindow, broadcastToDm } from '../windows'
 import { getActiveCampaignId } from '../data/campaign-store'
 import { getAppSettings } from '../data/app-settings-store'
-import { broadcastEntityUpdate } from './campaign-handlers'
+import { broadcastEntityUpdate, broadcastLibraryUpdate } from './campaign-handlers'
 import { invalidateCreatureIndex } from './compendium-handlers'
 import { CMD, SYNC } from '../../common/ipc-channels'
-import { entityTypeForKind } from '../../common/campaign-records'
+import { entityTypeForKind, isLibrary, LIBRARY, recordTypeFor } from '../../common/campaign-records'
 
 /** Campaign entries changed or deleted outside the authoring service: their working copies follow (set once the service starts). */
 export let authoringEntryChanged: (campaignId: string, entityId: string) => void = () => {}
@@ -24,9 +24,10 @@ export async function registerAuthoringHandlers() {
   const connectionFile = join(app.getPath('userData'), 'authoring', 'connection.json')
   const service = new AuthoringService(app.getPath('userData'), join(app.getAppPath(), 'content'),
     d => broadcastToDm(SYNC.AUTHORING, { draft: d }),
-    (campaignId, kind) => {
+    (home, kind) => {
       invalidateCreatureIndex()
-      if (campaignId === getActiveCampaignId()) void broadcastEntityUpdate(entityTypeForKind(kind))
+      if (isLibrary(home)) void broadcastLibraryUpdate(recordTypeFor(kind))
+      else if (home === getActiveCampaignId()) void broadcastEntityUpdate(entityTypeForKind(kind))
     })
   authoringEntryChanged = (campaignId, entityId) => void service.drafts.entryChanged(campaignId, entityId).catch(() => {})
   authoringEntryDeleted = (campaignId, entityId) => void service.drafts.entryDeleted(campaignId, entityId).catch(() => {})
@@ -39,10 +40,14 @@ export async function registerAuthoringHandlers() {
     broadcastToDm(SYNC.AUTHORING, { open: id ?? '' })
     return { opened: true }
   }
-  // New content without a destination goes into the open campaign (edits are written into it as they land).
+  // An agent's new content goes into the open campaign, or into the Library when it asks for it
+  // (`destination: "library"`) or no campaign is open; edits are written into it as they land.
   const withCampaign = (method: string, args: any) => {
+    if (method !== 'create_draft' || !args || typeof args !== 'object' || args.destinations?.length) return args
+    const { destination, ...rest } = args
     const campaignId = getActiveCampaignId()
-    return method === 'create_draft' && campaignId && args && !args.destinations?.length ? { ...args, destinations: [{ type: 'campaign', id: campaignId }] } : args
+    const home = destination === LIBRARY || !campaignId ? { type: 'library', id: LIBRARY } : { type: 'campaign', id: campaignId }
+    return { ...rest, destinations: [home] }
   }
   // The local agent connection: a socket and connection.json, only while the setting is on (off by default).
   let bridge: Awaited<ReturnType<typeof startBridge>> | null = null

@@ -35,10 +35,16 @@ const api = {
 
   // Entity CRUD
   entity: {
-    save: (entityType: EntityType, entity: Record<string, unknown>) => ipcRenderer.invoke(CMD.ENTITY_SAVE, entityType, entity),
-    delete: (entityType: EntityType, entityId: string) => ipcRenderer.invoke(CMD.ENTITY_DELETE, entityType, entityId),
+    // `home`: "library" for a Library entry; otherwise the open campaign.
+    save: (entityType: EntityType, entity: Record<string, unknown>, home?: string) => ipcRenderer.invoke(CMD.ENTITY_SAVE, entityType, entity, home),
+    delete: (entityType: EntityType, entityId: string, home?: string) => ipcRenderer.invoke(CMD.ENTITY_DELETE, entityType, entityId, home),
     get: (entityType: EntityType, entityId: string) => ipcRenderer.invoke(CMD.ENTITY_GET, entityType, entityId),
     list: (entityType: EntityType) => ipcRenderer.invoke(CMD.ENTITY_LIST, entityType),
+  },
+
+  // The Library: custom entries shared by every campaign (saved and deleted through entity with home "library").
+  library: {
+    state: () => ipcRenderer.invoke(CMD.LIBRARY_STATE) as Promise<Record<string, unknown[]>>,
   },
 
   // Player characters
@@ -114,9 +120,10 @@ const api = {
 
   // Images
   image: {
-    import: (sourcePath: string) => ipcRenderer.invoke(CMD.IMAGE_IMPORT, sourcePath),
-    importDialog: () => ipcRenderer.invoke(CMD.IMAGE_IMPORT_DIALOG) as Promise<string | null>,
-    saveData: (base64Data: string, ext: string) => ipcRenderer.invoke(CMD.IMAGE_SAVE_DATA, base64Data, ext) as Promise<string>,
+    // `home`: "library" stores the image with the Library (a Library entry's art); otherwise the open campaign.
+    import: (sourcePath: string, home?: string) => ipcRenderer.invoke(CMD.IMAGE_IMPORT, sourcePath, home),
+    importDialog: (home?: string) => ipcRenderer.invoke(CMD.IMAGE_IMPORT_DIALOG, home) as Promise<string | null>,
+    saveData: (base64Data: string, ext: string, home?: string) => ipcRenderer.invoke(CMD.IMAGE_SAVE_DATA, base64Data, ext, home) as Promise<string>,
     get: (imageId: string) => ipcRenderer.invoke(CMD.IMAGE_GET, imageId) as Promise<string | null>,
   },
 
@@ -161,6 +168,11 @@ const api = {
       const handler = (_event: Electron.IpcRendererEvent, update: { entityType: EntityType; key: string; data: Record<string, unknown> | null }) => callback(update)
       ipcRenderer.on(SYNC.CAMPAIGN_ENTITY_UPDATE, handler)
       return () => ipcRenderer.removeListener(SYNC.CAMPAIGN_ENTITY_UPDATE, handler)
+    },
+    libraryUpdate: (callback: (update: { entityType: EntityType; key: string; data: unknown[] }) => void) => {
+      const handler = (_event: Electron.IpcRendererEvent, update: { entityType: EntityType; key: string; data: unknown[] }) => callback(update)
+      ipcRenderer.on(SYNC.LIBRARY_UPDATE, handler)
+      return () => ipcRenderer.removeListener(SYNC.LIBRARY_UPDATE, handler)
     },
     combatState: (callback: (state: CombatState | null) => void) => {
       const handler = (_event: Electron.IpcRendererEvent, state: CombatState | null) => callback(state)
