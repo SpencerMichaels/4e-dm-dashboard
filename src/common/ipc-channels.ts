@@ -60,7 +60,7 @@ export const CMD = {
   // App settings (<userData>/app-settings.json)
   SETTINGS_GET: 'settings:get',
   SETTINGS_SET_THEME: 'settings:set-theme',
-  SETTINGS_DISMISS_TIP: 'settings:dismiss-tip',
+  SETTINGS_SET_AGENT_CONNECTION: 'settings:set-agent-connection',
 
   // Links
   LINKS_GET: 'links:get',

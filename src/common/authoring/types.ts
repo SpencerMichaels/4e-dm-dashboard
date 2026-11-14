@@ -36,6 +36,21 @@ export interface Review {
   author: Actor
   at: string
 }
+/**
+ * Main writes each valid version of a draft into its campaign entries as it changes (`sync.json` beside the
+ * draft): when it last did, the hash it wrote per entry (to notice edits made elsewhere), and why the
+ * latest version was not written, if it was not.
+ */
+export interface SyncState {
+  at?: string
+  /** Per entry ("campaign/<id>/<entity id>"): the hash of the content last written, and that content (the merge base). */
+  hashes: Record<string, string>
+  written?: Record<string, unknown>
+  /** Campaign-side fields for a new entry, used by its first write. */
+  entry?: Record<string, unknown>
+  error?: string
+}
+
 export interface Draft {
   version: 1
   schemaVersion: number

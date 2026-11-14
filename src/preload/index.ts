@@ -120,7 +120,7 @@ const api = {
   settings: {
     get: () => ipcRenderer.invoke(CMD.SETTINGS_GET) as Promise<AppSettings>,
     setTheme: (theme: ThemePreference) => ipcRenderer.invoke(CMD.SETTINGS_SET_THEME, theme) as Promise<AppSettings>,
-    dismissTip: (id: string) => ipcRenderer.invoke(CMD.SETTINGS_DISMISS_TIP, id) as Promise<AppSettings>,
+    setAgentConnection: (on: boolean) => ipcRenderer.invoke(CMD.SETTINGS_SET_AGENT_CONNECTION, on) as Promise<AppSettings>,
   },
 
   // Links

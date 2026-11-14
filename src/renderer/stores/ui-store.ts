@@ -1,26 +1,25 @@
 import { create } from 'zustand'
 import { useAuthoringStore } from './authoring-store'
 import type { EntityType } from '@common/types'
+import type { RecordType } from '@common/campaign-records'
 import { DEFAULT_THEME_PREFERENCE, nextThemePreference, type ResolvedTheme, type ThemePreference } from '@kit/theme'
 
 export type ViewMode =
-  | { type: 'authoring'; draftId?: string }
   | { type: 'home' }
   | { type: 'note'; noteId: string }
-  | { type: 'creature'; creatureId?: string }
   | { type: 'encounter'; encounterId?: string }
   | { type: 'location'; locationId?: string }
-  | { type: 'item'; itemId?: string }
   | { type: 'map'; mapId?: string }
   | { type: 'combat' }
   | { type: 'entity-list'; entityType: EntityType }
-  | { type: 'trap-compendium' }
-  | { type: 'disease-compendium' }
-  | { type: 'template-compendium' }
-  | { type: 'theme-compendium' }
+  /** A kind's compendium page: published and campaign entries, and Workshop drafts. `id` selects a campaign entry, `draftId` a draft. */
+  | { type: 'compendium'; kind: RecordType; id?: string; draftId?: string }
 
 export interface UiState {
   view: ViewMode
+  /** The AI agent connection setting (mirrored from main): comment markers and agent tools only while on. */
+  agentConnection: boolean
+  setAgentConnection: (on: boolean) => void
   /** Stored theme preference (mirrored from main via initThemeSync) */
   themePreference: ThemePreference
   /** Theme currently shown (<html data-theme>) */
@@ -46,6 +45,8 @@ export interface UiState {
 
 export const useUiStore = create<UiState>()((set, get) => ({
   view: { type: 'home' },
+  agentConnection: false,
+  setAgentConnection: (on) => { void window.api.settings.setAgentConnection(on) },
   themePreference: DEFAULT_THEME_PREFERENCE,
   resolvedTheme: 'light',
   sidebarCollapsed: false,
@@ -53,7 +54,7 @@ export const useUiStore = create<UiState>()((set, get) => ({
   systemPlugin: null,
   skipAutoOpen: false,
   setView: (view, options) => {
-    if (!options?.keepEdits && JSON.stringify(view) !== JSON.stringify(get().view) && useAuthoringStore.getState().pendingFields.length && !window.confirm('Discard unapplied draft edits and leave this view?')) return
+    if (!options?.keepEdits && JSON.stringify(view) !== JSON.stringify(get().view) && useAuthoringStore.getState().pendingFields.length && !window.confirm('Discard unapplied edits and leave this view?')) return
     set({ view })
   },
   setThemePreference: (preference) => {

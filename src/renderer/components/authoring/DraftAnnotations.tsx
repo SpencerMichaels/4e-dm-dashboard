@@ -72,7 +72,6 @@ function AnchorMarker({ draft, anchor, open, setOpen }: { draft: Draft; anchor: 
 export function Thread({ draft, anchor, comments, findings, close }: { draft: Draft; anchor: AnchorTarget; comments: Comment[]; findings: Finding[]; close?: () => void }) {
   const receive = useAuthoringStore(s => s.receive)
   const [text, setText] = useState('')
-  const [question, setQuestion] = useState(false)
   const [replyTo, setReplyTo] = useState<Comment | undefined>()
   const [focused, setFocused] = useState(false)
   const [busy, setBusy] = useState(false)
@@ -97,8 +96,8 @@ export function Thread({ draft, anchor, comments, findings, close }: { draft: Dr
   }
   const submit = async () => {
     if (!text.trim()) return
-    const ok = await call(replyTo ? { replyTo: replyTo.id, target: replyTo.target, text } : { target: anchor.target, text, question })
-    if (ok) { setText(''); setQuestion(false); setReplyTo(undefined) }
+    const ok = await call(replyTo ? { replyTo: replyTo.id, target: replyTo.target, text } : { target: anchor.target, text })
+    if (ok) { setText(''); setReplyTo(undefined) }
   }
   const toggle = (key: string) => setExpanded(x => x.includes(key) ? x.filter(i => i !== key) : [...x, key])
   // Newest first, so recent discussion sits right under the comment box.
@@ -114,8 +113,6 @@ export function Thread({ draft, anchor, comments, findings, close }: { draft: Dr
         onFocus={() => setFocused(true)} onBlur={() => setFocused(false)}
         onChange={e => setText(e.target.value)} onKeyDown={e => { if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') { e.preventDefault(); void submit() } }} />
       {composing && <div className="annotation-actions">
-        {!replyTo && <button type="button" className={`annotation-toggle${question ? ' on' : ''}`} aria-pressed={question} title="Blocks approval until you resolve it"
-          onMouseDown={e => e.preventDefault()} onClick={() => setQuestion(!question)}>{question && <><Icon name="check" style={{ verticalAlign: '-0.125em' }} />{' '}</>}Needs an answer</button>}
         <button disabled={busy || !text.trim()} onMouseDown={e => e.preventDefault()}>{replyTo ? 'Reply' : 'Send'}</button>
       </div>}
       {error && <p className="authoring-error" role="alert">{error}</p>}
@@ -141,7 +138,7 @@ export function Thread({ draft, anchor, comments, findings, close }: { draft: Dr
           return <p key={i} className="annotation-text annotation-reply" onClick={() => rs !== r.text && toggle(key)}><b className="annotation-author">{r.author === 'dm' ? 'You' : 'Agent'}</b> {ro ? r.text : rs}{!ro && rs !== r.text && <span className="annotation-more"> …</span>}</p>
         })}
         {!c.resolved && <div className="annotation-actions annotation-inline-actions">
-          {c.question && <span className="annotation-flag" title="Blocks approval until resolved"><span aria-hidden>? </span>needs an answer</span>}
+          {c.question && <span className="annotation-flag" title="The agent is waiting for your answer"><span aria-hidden>? </span>needs an answer</span>}
           <button type="button" className="annotation-link" onClick={() => setReplyTo(c)}>Reply</button>
           <button type="button" className="annotation-link" disabled={busy} onClick={() => void call({ replyTo: c.id, target: c.target, text: '', resolve: true })}>Resolve</button>
         </div>}

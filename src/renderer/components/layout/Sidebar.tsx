@@ -18,7 +18,6 @@ const navSections: { title: string; items: NavItem[] }[] = [
     title: 'Campaign',
     items: [
       { icon: '🏠', label: 'Home', view: { type: 'home' }, global: true },
-      { icon: '🛠️', label: 'Workshop', view: { type: 'authoring' }, global: true },
       { icon: '📝', label: 'Notes', view: { type: 'entity-list', entityType: 'note' } },
       { icon: '⚔️', label: 'Encounters', view: { type: 'entity-list', entityType: 'encounter' } },
       { icon: '🗺️', label: 'Maps', view: { type: 'entity-list', entityType: 'map' } },
@@ -28,12 +27,12 @@ const navSections: { title: string; items: NavItem[] }[] = [
   {
     title: 'Compendium',
     items: [
-      { icon: '👹', label: 'Creatures', view: { type: 'entity-list', entityType: 'creature' } },
-      { icon: '🎒', label: 'Items', view: { type: 'entity-list', entityType: 'item' } },
-      { icon: '🪤', label: 'Traps', view: { type: 'trap-compendium' } },
-      { icon: '🦠', label: 'Diseases', view: { type: 'disease-compendium' } },
-      { icon: '🧬', label: 'Templates', view: { type: 'template-compendium' } },
-      { icon: '🎭', label: 'Themes', view: { type: 'theme-compendium' } },
+      { icon: '👹', label: 'Creatures', view: { type: 'compendium', kind: 'creature' }, global: true },
+      { icon: '🎒', label: 'Items', view: { type: 'compendium', kind: 'item' }, global: true },
+      { icon: '🪤', label: 'Traps', view: { type: 'compendium', kind: 'trap' }, global: true },
+      { icon: '🦠', label: 'Diseases', view: { type: 'compendium', kind: 'disease' }, global: true },
+      { icon: '🧬', label: 'Templates', view: { type: 'compendium', kind: 'template' }, global: true },
+      { icon: '🎭', label: 'Themes', view: { type: 'compendium', kind: 'theme' }, global: true },
     ],
   },
 ]
@@ -55,6 +54,7 @@ export function Sidebar({ onShowHotkeys, onShowSettings }: SidebarProps) {
       if (navView.type === 'entity-list' && view.type === 'entity-list') {
         return navView.entityType === view.entityType
       }
+      if (navView.type === 'compendium' && view.type === 'compendium') return navView.kind === view.kind
       return true
     }
     return false

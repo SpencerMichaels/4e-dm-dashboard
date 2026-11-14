@@ -39,7 +39,7 @@ export function EncounterEditor({ encounterId }: Props) {
   }
 
   const navigateTo = (creatureId: string) => {
-    setView({ type: 'creature', creatureId })
+    setView({ type: 'compendium', kind: 'creature', id: creatureId })
   }
 
   return <Dnd4eEncounterEditor encounter={encounter} onSave={save} creatures={creatures} onNavigate={navigateTo} />

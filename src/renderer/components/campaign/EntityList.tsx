@@ -4,7 +4,7 @@ import { useUiStore } from '../../stores/ui-store'
 import { useCampaignActions } from '../../hooks/use-campaign'
 import { useHotkeys } from '../../hooks/use-hotkeys'
 import { RecordCompendium } from '../compendium/RecordCompendium'
-import { ITEM_KIND, MONSTER_KIND } from '../compendium/record-kinds'
+import { RECORD_KINDS } from '../compendium/record-kinds'
 import type { EntityType } from '@common/types'
 import { ConfirmDialog } from '../shared/ConfirmDialog'
 import { PCListView } from './PCListView'
@@ -26,7 +26,7 @@ const labels: Record<string, string> = {
 export function EntityList({ entityType }: Props) {
   const { setView } = useUiStore()
   const { creatures, encounters, locations, maps, items, playerCharacters, notes } = useCampaignStore()
-  const { createNote, createCreature, createEncounter, createLocation, createItem, createPC, createMap } = useCampaignActions()
+  const { createNote, createEncounter, createLocation, createPC, createMap } = useCampaignActions()
   const [pendingDelete, setPendingDelete] = useState<{ id: string; name: string } | null>(null)
 
   const entitiesMap: Record<string, { id: string; name?: string; title?: string }[]> = {
@@ -48,7 +48,6 @@ export function EntityList({ entityType }: Props) {
   const handleCreate = async () => {
     switch (entityType) {
       case 'note': { const n = await createNote('Untitled'); setView({ type: 'note', noteId: n.id }); break }
-      case 'creature': { const c = await createCreature('New Creature'); setView({ type: 'creature', creatureId: c.id }); break }
       case 'encounter': { const e = await createEncounter('New Encounter'); setView({ type: 'encounter', encounterId: e.id }); break }
       case 'location': { const l = await createLocation('New Location'); setView({ type: 'location', locationId: l.id }); break }
       case 'map': {
@@ -59,7 +58,6 @@ export function EntityList({ entityType }: Props) {
         setView({ type: 'map', mapId: m.id })
         break
       }
-      case 'item': { const i = await createItem('New Item'); setView({ type: 'item', itemId: i.id }); break }
       case 'player-character': { await createPC('New PC', ''); break }
     }
   }
@@ -67,11 +65,10 @@ export function EntityList({ entityType }: Props) {
   const navigateTo = (id: string) => {
     switch (entityType) {
       case 'note': setView({ type: 'note', noteId: id }); break
-      case 'creature': setView({ type: 'creature', creatureId: id }); break
+      case 'creature': case 'item': setView({ type: 'compendium', kind: entityType, id }); break
       case 'encounter': setView({ type: 'encounter', encounterId: id }); break
       case 'location': setView({ type: 'location', locationId: id }); break
       case 'map': setView({ type: 'map', mapId: id }); break
-      case 'item': setView({ type: 'item', itemId: id }); break
     }
   }
 
@@ -81,11 +78,8 @@ export function EntityList({ entityType }: Props) {
   }
 
   // Creatures and items get the shared compendium page
-  if (entityType === 'creature') {
-    return <RecordCompendium kind={MONSTER_KIND} />
-  }
-  if (entityType === 'item') {
-    return <RecordCompendium kind={ITEM_KIND} />
+  if (entityType === 'creature' || entityType === 'item') {
+    return <RecordCompendium kind={RECORD_KINDS[entityType]} />
   }
 
   return (

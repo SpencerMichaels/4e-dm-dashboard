@@ -1,10 +1,5 @@
 .authoring { padding: 16px 24px; max-width: 1800px; margin: auto; color: var(--text); }
-.authoring-layout { display: grid; grid-template-columns: 190px minmax(0, 1fr); gap: 24px; }
-.authoring-workspace, .authoring-review-grid > * { min-width: 0; }
-.authoring-drafts { border-right: 1px solid var(--border); padding-right: 16px; }
-.authoring-drafts h2 { font-size: 1.1rem; margin: 0 0 8px; }
-.authoring-drafts > button { display: block; width: 100%; text-align: left; margin-bottom: 6px; }
-.authoring-drafts small { display: block; color: var(--muted); margin-top: 2px; }
+
 .authoring [aria-current=page], .authoring [aria-selected=true] { border-color: var(--accent); background: var(--surface); }
 
 /* Generic workshop controls. The native stat block editor keeps its own ghost styling. */
@@ -13,9 +8,7 @@
 .authoring input:not([type=checkbox]):not(.native-draft-editor *), .authoring textarea:not(.native-draft-editor *), .authoring select:not(.native-draft-editor *) { display: block; width: 100%; padding: 6px 8px; box-sizing: border-box; }
 .authoring textarea:not(.native-draft-editor *) { resize: vertical; font: inherit; }
 .authoring input[type=checkbox] { margin-right: 6px; }
-.authoring .authoring-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
-.authoring-actions label { flex: 1; min-width: 100px; }
-.authoring-field { padding: 8px 0; border-bottom: 1px solid var(--border); }
+
 .authoring fieldset { border: 1px solid var(--border); margin: 12px 0; min-width: 0; }
 .authoring details { margin: 12px 0; padding: 8px; border: 1px solid var(--border); }
 .authoring summary { cursor: pointer; }
@@ -23,26 +16,9 @@
 .authoring pre { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 12px; }
 .authoring-error { color: var(--danger); }
 .authoring-notice { color: var(--muted); font-size: 13px; }
-.authoring-collision { border-left: 3px solid var(--accent); padding: 4px 8px; background: var(--surface); }
 
-/* Version history */
-.authoring-versions { list-style: none; padding: 0; margin: 0 0 16px; }
-.authoring-versions > li { padding: 4px 0; border-bottom: 1px solid var(--border); }
-.authoring-version-detail { padding: 4px 0 8px 16px; }
-.authoring-version-detail ul { margin: 0 0 8px; padding-left: 16px; }
-.authoring-version-detail del { color: var(--danger); }
-.authoring-version-detail ins { text-decoration: none; color: var(--accent); }
-
-/* Draft header and tabs */
-.authoring-draft-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; margin-bottom: 8px; }
-.authoring-draft-head h2 { margin: 0; }
-.authoring-tabs { margin-left: auto; display: flex; gap: 2px; }
-.authoring .authoring-tabs button { margin: 0; border: 1px solid transparent; }
 .authoring-edit-bar { margin-bottom: 8px; }
 
-/* Stat block column with a right gutter for comment markers; status rail beside it. */
-.authoring-review-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(280px, 360px); gap: 24px; }
-.authoring-main { padding-right: 64px; }
 .native-draft-editor > div:first-child { column-gap: 64px !important; row-gap: 16px !important; }
 
 /* Comment markers, anchored at the right edge of a stat line or power card */
@@ -82,7 +58,8 @@
   border: 1px solid var(--border); background: var(--surface); color: var(--text); margin-top: 6px; }
 .authoring .annotation-thread label { display: inline-flex; align-items: center; margin: 0; flex: 1; font-size: 12px; }
 .annotation-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 4px; }
-.authoring button.annotation-link, .authoring button.rail-link { background: none; border: 0; padding: 0; margin: 0; color: var(--accent); cursor: pointer; text-align: left; font: inherit; }
+/* Small secondary buttons in comment threads and History: bordered, so they read as buttons before hover. */
+button.annotation-link, button.rail-link { display: inline-flex; align-items: center; gap: 4px; padding: 0 6px; margin: 0; background: var(--surface-raised); border: 1px solid var(--border-strong); border-radius: var(--radius); color: var(--text); cursor: pointer; text-align: left; font: inherit; }
 .authoring .annotation-thread details, .authoring .authoring-rail details details { margin: 4px 0; padding: 0; border: 0; }
 .annotation-finding { border-left: 3px solid var(--muted); padding-left: 6px !important; }
 .annotation-finding.severity-concern { border-left-color: var(--severity-concern); }
@@ -102,53 +79,16 @@
 .authoring-markdown p { margin: 4px 0 8px; }
 .authoring-markdown ul { margin: 4px 0 8px; padding-left: 20px; }
 
-/* Status rail */
-.authoring-rail { position: sticky; top: 8px; align-self: start; max-height: calc(100vh - 16px); overflow: auto; font-size: 13px;
-  padding: 12px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); }
-.authoring-rail h3 { font-size: 1rem; margin: 0 0 4px; }
-
-@media (max-width: 1100px) { .authoring-review-grid { grid-template-columns: 1fr; } .authoring-rail { position: static; max-height: none; } .authoring-layout { grid-template-columns: 160px minmax(0, 1fr); } }
 @media (max-width: 800px) {
   .authoring { padding: 12px; }
-  .authoring-layout, .authoring-diff { grid-template-columns: minmax(0, 1fr); }
-  .authoring-drafts { border-right: 0; border-bottom: 1px solid var(--border); padding: 0 0 12px; }
-  .authoring-drafts > button { display: inline-block; width: auto; vertical-align: top; }
 }
 @container main-content (max-width: 800px) {
   .authoring { padding: 8px; }
-  .authoring-layout, .authoring-review-grid, .authoring-diff { grid-template-columns: minmax(0, 1fr); }
-  .authoring-drafts { border-right: 0; border-bottom: 1px solid var(--border); padding: 0 0 12px; }
-  .authoring-drafts > button { display: inline-block; width: auto; vertical-align: top; }
-  .authoring-rail { position: static; max-height: none; }
 }
 .annotation-text { cursor: pointer; white-space: pre-wrap; }
 /* Each slot is its own stacking context; lift the one holding the open thread above later markers. */
 .sb-annotation-slot:has(.annotation-thread) { z-index: 30; }
 .annotation-thread form { margin-bottom: 6px; }
-
-/* Rail: approve button, one status line of blockers, panels opened from it */
-.rail-approve { display: flex; gap: 6px; align-items: stretch; }
-.authoring .rail-approve button.authoring-approve { flex: 1; margin: 0; border: 2px solid var(--accent); padding: 6px; font-weight: 600; }
-.authoring .rail-approve button.authoring-approve:disabled { border-color: var(--border); }
-.authoring .rail-approve button.authoring-approve[aria-disabled="true"] { border-color: var(--border); color: var(--muted); }
-.rail-menu { position: relative; }
-.authoring .rail-menu { margin: 0; padding: 0; border: 0; }
-.rail-menu > summary { list-style: none; padding: 4px 10px; border: 1px solid var(--border); border-radius: var(--radius); height: 100%; box-sizing: border-box; display: flex; align-items: center; }
-.rail-menu > summary::-webkit-details-marker { display: none; }
-.rail-menu-items { position: absolute; right: 0; top: calc(100% + 4px); z-index: 10; min-width: 190px; display: flex; flex-direction: column;
-  background: var(--background); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow-md); padding: 4px; }
-.authoring .rail-menu-items button { margin: 0; text-align: left; border: 0; background: none; padding: 6px 8px; }
-.authoring .rail-menu-items button:hover { background: var(--surface); }
-.rail-status { margin: 6px 0 0; color: var(--muted); }
-.rail-panel { margin: 6px 0 0; padding: 8px; border-left: 2px solid var(--border); }
-.rail-panel p { margin: 4px 0; }
-.authoring .rail-panel button.rail-link { display: block; margin: 4px 0; color: var(--text); }
-.authoring .rail-panel label { margin: 4px 0; }
-.rail-item { display: flex; flex-wrap: wrap; gap: 4px; align-items: baseline; margin: 4px 0; }
-.rail-item b { flex: 1 1 100%; }
-.authoring .rail-item button { padding: 2px 8px; margin: 0; font-size: 12px; }
-.authoring .rail-accept { margin: 8px 0 0; }
-.rail-discussion { margin-top: 12px; }
 
 /* Thread details */
 .authoring .annotation-thread form textarea { margin-top: 0; }
@@ -156,83 +96,14 @@
 .annotation-where, .annotation-more { color: var(--muted); }
 .annotation-inline-actions { margin-top: 0; gap: 10px; font-size: 12px; }
 .annotation-flag { color: var(--accent); }
-.authoring .annotation-thread button.annotation-toggle { border: 1px solid var(--border); background: none; color: var(--muted); }
-.authoring .annotation-thread button.annotation-toggle.on { border-color: var(--accent); color: var(--accent); }
+
 .annotation-actions > button:last-child:not(.annotation-link) { margin-left: auto; }
 .authoring-markdown h4 { font-family: var(--font-display); }
 
-/* Draft list */
-.authoring-drafts-head { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 6px; }
-.authoring-drafts-head h2 { margin: 0; }
-.authoring .authoring-drafts-head button { margin: 0; padding: 2px 8px; font-size: 13px; }
-.authoring .authoring-drafts > button { border: 1px solid transparent; background: none; padding: 6px 8px; margin: 0 0 2px; border-radius: var(--radius); }
-.authoring .authoring-drafts > button:hover { background: var(--surface); }
-.authoring-draft-name { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.authoring-drafts small { padding-left: 1.6em; }
-
-/* Start page */
-.authoring-start { max-width: 760px; }
-.authoring-start section { margin-bottom: 28px; }
-.authoring-start h2 { font-size: 1.2rem; margin: 0 0 10px; }
-.authoring-new { display: flex; flex-direction: column; gap: 10px; }
-.authoring-kinds { display: flex; flex-wrap: wrap; gap: 4px; }
-.authoring .authoring-kinds button { margin: 0; padding: 4px 12px; border: 1px solid var(--border); background: none; border-radius: var(--radius); }
-.authoring .authoring-kinds button[aria-checked=true] { border-color: var(--accent); background: var(--surface); font-weight: 600; }
-.authoring-new-fields { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
-.authoring .authoring-new-fields input[aria-label=Name] { flex: 1 1 240px; width: auto; }
-.authoring .authoring-new-fields label { display: inline-flex; align-items: center; gap: 6px; margin: 0; white-space: nowrap; }
-.authoring .authoring-new-fields label input { width: 4.5em; }
-.authoring .authoring-new-fields select { width: auto; }
-.authoring-new-actions { display: flex; align-items: center; gap: 14px; }
-.authoring .authoring-new-actions button.authoring-primary { margin: 0; padding: 6px 18px; border: 2px solid var(--accent); font-weight: 600; }
-.authoring .authoring-new-actions button.authoring-primary:disabled { border-color: var(--border); }
-.authoring-search { display: flex; gap: 6px; }
-.authoring .authoring-search input { flex: 1; }
-.authoring .authoring-search button { margin: 0; }
-.authoring-results { list-style: none; margin: 8px 0 0; padding: 0; }
-.authoring-results li { display: flex; gap: 8px; align-items: baseline; justify-content: space-between; padding: 5px 0; border-bottom: 1px solid var(--border); }
-.authoring .authoring-results button { margin: 0; padding: 2px 10px; flex: none; }
-.authoring-footer { border-top: 1px solid var(--border); padding-top: 10px; }
-.authoring .authoring-new-kinds button:not(.rail-link) { padding: 10px 18px; font-size: 15px; }
-.authoring .authoring-new-kinds button:not(.rail-link):hover { border-color: var(--accent); background: var(--surface); }
-.authoring .authoring-new-kinds .rail-link { margin-left: 10px; }
-.authoring-new { margin-top: 10px; }
-
-/* Workshop home: kind tabs, intro, toolbar, drafts table */
-.authoring-home { max-width: 1100px; }
-.authoring-kind-tabs { display: flex; gap: 2px; border-bottom: 1px solid var(--border); margin-bottom: 16px; }
-.authoring .authoring-kind-tabs button { margin: 0 0 -1px; padding: 8px 16px; border: 1px solid transparent; border-bottom: 0; background: none; border-radius: var(--radius) var(--radius) 0 0; font-size: 15px; }
-.authoring .authoring-kind-tabs button[aria-selected=true] { border-color: var(--border); background: var(--background); font-weight: 600; }
 .authoring-intro { display: flex; gap: 16px; align-items: flex-start; padding: 12px 16px; margin-bottom: 16px; border: 1px solid var(--border); border-left: 3px solid var(--accent); border-radius: var(--radius); background: var(--surface); max-width: 80ch; }
 .authoring-intro h2 { font-size: 1.1rem; margin: 0 0 6px; }
 .authoring-intro p, .authoring-intro ol { margin: 4px 0; }
 .authoring-intro ol { padding-left: 20px; }
 .authoring-intro li { margin: 3px 0; }
 .authoring .authoring-intro > button { flex: none; margin: 0; }
-.authoring-toolbar { display: flex; gap: 6px; align-items: center; margin-bottom: 10px; }
-.authoring .authoring-toolbar button { margin: 0; }
-.authoring .authoring-toolbar button[aria-expanded=true] { border-color: var(--accent); }
-.authoring .authoring-toolbar button.authoring-primary { border: 2px solid var(--accent); font-weight: 600; }
-.authoring-tool { margin: 0 0 14px; padding: 10px; border: 1px solid var(--border); border-radius: var(--radius); }
-.authoring .authoring-tool > button { margin: 6px 0 0; }
-.authoring-table th { padding: 0; }
-.authoring .authoring-table th button { margin: 0; padding: 6px 8px; border: 0; background: none; font-weight: 600; color: var(--muted); width: 100%; text-align: left; }
-.authoring-table td { padding: 6px 8px; }
-.authoring-table tbody tr { cursor: pointer; }
-.authoring .authoring-table td button.rail-link { color: var(--text); font-weight: 600; }
-.authoring-table td:nth-child(2) { width: 5em; }
-.authoring-table td:nth-child(4) { width: 9em; color: var(--muted); }
-.authoring-attention { color: var(--accent); }
-.authoring-empty { color: var(--muted); padding: 16px 0; }
-.authoring-home .authoring-footer { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px; margin-top: 24px; }
-.authoring .authoring-back { display: inline-block; margin: 0 0 8px; }
 
-/* Numeric recipe form and its proposal */
-.recipe-editor { display: grid; gap: 8px; margin: 8px 0; }
-.recipe-row { display: flex; flex-wrap: wrap; gap: 8px 16px; }
-.recipe-field { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; }
-.recipe-field input { width: 6em; }
-.recipe-powers { border-collapse: collapse; font-size: 13px; }
-.recipe-powers th, .recipe-powers td { padding: 2px 8px; text-align: left; border-bottom: 1px solid var(--border); }
-.recipe-proposal del { color: var(--danger); }
-.recipe-proposal ins { text-decoration: none; color: var(--accent); }

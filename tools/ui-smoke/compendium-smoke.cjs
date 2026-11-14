@@ -50,7 +50,7 @@ app.whenReady().then(async () => {
     if (await js(() => !!document.querySelector('.compendium-preview input'))) throw new Error('Published preview is editable')
     await js(() => [...document.querySelectorAll('.record-action')].find(b => b.textContent === 'Copy to campaign').click())
     await until(() => !!document.querySelector('.compendium-preview input.sb-name'), 'the editor')
-    if (!(await js(() => document.querySelector('.record-editbar').textContent.includes('Draft (saves on first edit)')))) throw new Error('Clone is not marked as an unsaved draft')
+    if (!(await js(() => document.querySelector('.record-editbar').textContent.includes('New entry: your first change adds it')))) throw new Error('Clone is not marked as an unsaved draft')
     if ((await records('trap')).length) throw new Error('Cloning saved before any edit')
     await typeInto('.compendium-preview input.sb-name', 'Collapsing Vault')
     await sleep(900)
@@ -176,15 +176,29 @@ app.whenReady().then(async () => {
     let bog
     for (let i = 0; i < 30 && !(bog = (await records('creature')).find(r => r.content.name === 'Bog Thing')); i++) await sleep(100)
     if (!bog || bog.content.level !== 1) throw new Error('New creature was not saved')
-    // Edit in Workshop opens an update draft for the campaign creature.
+    // The AI agent connection is off by default: no comment markers. Turn it on for the agent steps.
+    if (await js(() => !!document.querySelector('.compendium-preview .annotation-marker'))) throw new Error('Comment markers show with the agent connection off')
+    if ((await js(() => window.api.settings.get())).agentConnection) throw new Error('The agent connection is on by default')
+    await js(() => window.api.settings.setAgentConnection(true))
+    await until(() => !!document.querySelector('.compendium-preview .annotation-marker'), 'comment markers once the agent connection is on')
+    // The creature's working copy is the one draft an AI agent edits too: what the DM has open is current_entry,
+    // and an agent edit appears in the open editor and in the entry, with no mode to switch.
+    const agentEdit = name => js(async name => { const { open } = await window.api.authoring.call('current_entry'); const d = await window.api.authoring.call('get_draft', { id: open.draftId }); await window.api.authoring.call('patch_draft', { id: d.id, revision: d.revision, changes: [{ path: '/content/name', value: name }] }) }, name)
+    const opened = await js(() => window.api.authoring.call('current_entry'))
+    if (opened.open?.entityId !== bog.id || !opened.open.editing || !opened.open.draftId) throw new Error('current_entry is not the open creature: ' + JSON.stringify(opened))
+    if ((await js(() => window.api.authoring.call('list_drafts'))).filter(d => d.name === 'Bog Thing').length !== 1) throw new Error('The creature has more than one working copy')
+    await agentEdit('Bog Beast')
+    await until(() => document.querySelector('.record-entry-editor input.sb-name')?.value === 'Bog Beast', 'the agent edit in the open editor')
+    for (let i = 0; i < 30 && (await records('creature')).find(r => r.id === bog.id)?.content.name !== 'Bog Beast'; i++) await sleep(100)
+    if ((await records('creature')).find(r => r.id === bog.id)?.content.name !== 'Bog Beast') throw new Error('The agent edit did not reach the entry')
+    // Back in the read-only preview, the agent's next edit shows there too, with comment markers on the stat block.
     await js(() => [...document.querySelectorAll('.record-editbar button')].find(b => b.textContent.includes('Back')).click())
-    await js(() => [...document.querySelectorAll('.record-action')].find(b => b.textContent === 'Edit in Workshop').click())
-    let drafts
-    for (let i = 0; i < 30 && !(drafts = await js(() => window.api.authoring.call('list_drafts'))).some(d => d.name === 'Bog Thing'); i++) await sleep(100)
-    if (!drafts.some(d => d.name === 'Bog Thing' && d.kind === 'monster')) throw new Error('Edit in Workshop made no creature draft: ' + JSON.stringify(drafts.map(d => [d.name, d.kind])))
+    await until(() => !document.querySelector('.record-entry-editor') && !!document.querySelector('.compendium-preview .annotation-marker'), 'the preview with comment markers')
+    await agentEdit('Bog Horror')
+    await until(() => document.querySelector('.compendium-preview')?.innerText.includes('Bog Horror'), 'the agent edit in the preview')
     const confirms = await js(() => window.__confirms)
     if (confirms.length) throw new Error('Unexpected confirmation prompts: ' + JSON.stringify(confirms))
-    console.log('COMPENDIUM_SMOKE_OK: published trap preview, clone on first edit (lossless, focus kept), in-place edits with autosave, Custom listing, delete, new trap and disease saved by their first edit, item clone with typed edits, template clone and new theme, creatures (published preview, pop-out, art carried into a lossless copy, new creature, Edit in Workshop); screenshots out/compendium-trap-edit.png, out/compendium-disease-edit.png')
+    console.log('COMPENDIUM_SMOKE_OK: the open creature as current_entry with agent edits reaching the open editor, the entry, and the preview (with comment markers), published trap preview, clone on first edit (lossless, focus kept), in-place edits with autosave, Custom listing, delete, new trap and disease saved by their first edit, item clone with typed edits, template clone and new theme, creatures (published preview, pop-out, art carried into a lossless copy, new creature); screenshots out/compendium-trap-edit.png, out/compendium-disease-edit.png')
     clearTimeout(timeout); finish(0)
   } catch (e) { console.error(e); clearTimeout(timeout); finish(1) }
 })

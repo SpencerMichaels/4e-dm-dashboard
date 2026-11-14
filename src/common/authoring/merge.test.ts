@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { Monster } from '@kit'
 import { scaffold } from './core'
 import { applyPatch } from './patch'
-import { clashes, stillApplicable } from './merge'
+import { stillApplicable } from './merge'
 import { describeChanges } from './diff'
 import { testPower } from './fixtures'
 import type { Draft } from './types'
@@ -15,24 +15,14 @@ function draft(): Draft {
   return { version: 1, schemaVersion: 5, id: 'd', kind: 'monster', revision: 1, event: 1, createdAt: '', updatedAt: '', content, intent: '', decisions: '', policy: '', nodes: { powers: ['p1', 'p2'], traits: [], auras: [] }, overrides: [], stale: [], destinations: [], comments: [] }
 }
 
-describe('merging DM edits onto agent changes', () => {
+describe('applying DM edits onto agent changes', () => {
   const from = draft()
-  const to = applyPatch(from, { id: 'd', revision: 1, changes: [{ path: '/content/hp', value: 70 }, { path: '/content/powers/@p1/name', value: 'Agent name' }] }, 'agent', newId)
-
-  it('lets edits to other fields through and flags the same field', () => {
-    const mine = [{ path: '/content/speed/walk', value: 7 }, { path: '/content/hp', value: 66 }, { path: '/content/powers/@p2/name', value: 'Mine' }]
-    expect(clashes(from, to, mine)).toEqual([{ path: '/content/hp', value: 66 }])
-  })
-  it('does not flag a field both set to the same value, or entries added and removed', () => {
-    expect(clashes(from, to, [{ path: '/content/hp', value: 70 }, { path: '/append/powers', value: testPower() }, { path: '/remove/powers/@p2', value: null }])).toEqual([])
-  })
-  it('flags an edit inside an entry the agent changed or removed, and a reorder of a reordered list', () => {
-    const removed = applyPatch(from, { id: 'd', revision: 1, changes: [{ path: '/remove/powers/@p2', value: null }, { path: '/order/powers', value: ['p1'] }] }, 'agent', newId)
-    expect(clashes(from, removed, [{ path: '/content/powers/@p2/name', value: 'Mine' }])).toHaveLength(1)
-    expect(clashes(from, to, [{ path: '/content/powers/@p1', value: { ...testPower(), name: 'Whole power' } }])).toHaveLength(1)
-    const reordered = applyPatch(from, { id: 'd', revision: 1, changes: [{ path: '/order/powers', value: ['p2', 'p1'] }] }, 'agent', newId)
-    expect(clashes(from, reordered, [{ path: '/order/powers', value: ['p2', 'p1'] }])).toHaveLength(1)
+  it('drops only edits to an entry the agent removed', () => {
+    const removed = applyPatch(from, { id: 'd', revision: 1, changes: [{ path: '/remove/powers/@p2', value: null }] }, 'agent', newId)
     expect(stillApplicable(removed, { path: '/remove/powers/@p2', value: null })).toBe(false)
+    expect(stillApplicable(removed, { path: '/content/powers/@p2/name', value: 'Mine' })).toBe(false)
+    expect(stillApplicable(removed, { path: '/content/powers/@p1/name', value: 'Mine' })).toBe(true)
+    expect(stillApplicable(removed, { path: '/content/hp', value: 66 })).toBe(true)
   })
 })
 

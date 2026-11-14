@@ -1,6 +1,7 @@
 import { useUiStore } from '../../stores/ui-store'
 import { useSettingsStore } from '../../stores/settings-store'
 import { Modal } from '../shared/Modal'
+import { CopyConnectionPath, WorkshopIntro } from '../authoring/EntryEditor'
 import type { SystemSettingDef } from '@common/types/system-plugin'
 import { THEME_PREFERENCES, THEME_PREFERENCE_LABELS, type ThemePreference } from '@kit/theme'
 
@@ -15,6 +16,8 @@ export function SettingsModal({ onClose }: Props) {
   const systemPlugin = useUiStore((s) => s.systemPlugin)
   const themePreference = useUiStore((s) => s.themePreference)
   const setThemePreference = useUiStore((s) => s.setThemePreference)
+  const agentConnection = useUiStore((s) => s.agentConnection)
+  const setAgentConnection = useUiStore((s) => s.setAgentConnection)
   const settings = useSettingsStore()
 
   const systemDefs: SystemSettingDef[] = systemPlugin?.settings ?? []
@@ -51,6 +54,22 @@ export function SettingsModal({ onClose }: Props) {
             )}
           </SettingsSection>
         )}
+
+        <SettingsSection title="AI agent">
+          <label style={{ display: 'flex', gap: 'var(--space-2)', alignItems: 'flex-start', cursor: 'pointer' }}>
+            <input type="checkbox" checked={agentConnection} onChange={e => setAgentConnection(e.target.checked)} style={{ marginTop: 3 }} />
+            <span>
+              <span style={{ fontSize: 'var(--font-size-sm)', fontWeight: 500 }}>Let a local AI agent connect</span>
+              <span style={{ display: 'block', fontSize: 'var(--font-size-xs)', color: 'var(--muted)' }}>
+                For a coding agent such as Claude Code on this computer (MCP server or CLI): it can work on the entry you have open, and you comment on its stat block lines.
+              </span>
+            </span>
+          </label>
+          {agentConnection && <>
+            <div className="authoring"><WorkshopIntro /></div>
+            <div style={{ fontSize: 'var(--font-size-sm)' }}><CopyConnectionPath /></div>
+          </>}
+        </SettingsSection>
       </div>
     </Modal>
   )

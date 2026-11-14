@@ -3,7 +3,8 @@ import { CMD, SYNC } from '@common/ipc-channels'
 import type { EntityType, PlayerCharacter } from '@common/types'
 import { applySnapshots, type ImportedFile, type ImportResult } from '@common/character/character-import'
 import { generateId } from '@common/utils/id'
-import { RECORD_STORAGE, RECORD_TYPES, type RecordType } from '@common/campaign-records'
+import { isRecordType, RECORD_STORAGE, RECORD_TYPES, type RecordType } from '@common/campaign-records'
+import { authoringEntryChanged, authoringEntryDeleted } from './authoring-handlers'
 import * as store from '../data/campaign-store'
 import { broadcastToDm } from '../windows'
 import { invalidateCreatureIndex } from './compendium-handlers'
@@ -38,6 +39,8 @@ export function registerCampaignHandlers(): void {
 
   ipcMain.handle(CMD.ENTITY_SAVE, async (_e, entityType: EntityType, entity: { id: string }) => {
     await store.saveEntity(entityType, entity)
+    const campaignId = store.getActiveCampaignId()
+    if (campaignId && isRecordType(entityType)) authoringEntryChanged(campaignId, entity.id)
     if (entityType === 'creature') invalidateCreatureIndex()
     broadcastEntityUpdate(entityType)
     return entity
@@ -45,6 +48,8 @@ export function registerCampaignHandlers(): void {
 
   ipcMain.handle(CMD.ENTITY_DELETE, async (_e, entityType: EntityType, entityId: string) => {
     await store.deleteEntity(entityType, entityId)
+    const campaign = store.getActiveCampaignId()
+    if (campaign && isRecordType(entityType)) authoringEntryDeleted(campaign, entityId)
     if (entityType === 'creature') invalidateCreatureIndex()
     broadcastEntityUpdate(entityType)
   })
