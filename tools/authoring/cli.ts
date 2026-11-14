@@ -42,9 +42,9 @@ async function main() {
     if (method === 'scaffold') return scaffold(a.kind ?? 'monster', a.name, a.level, a.role, a.rank)
     if (method === 'validate') return validate(a.kind, normalizeContent(a.content), a.recipe)
     if (method === 'search-local') {
-      // Loaded on demand: the catalog's compendium module needs Electron, which the installed server runs without.
+      // The installed content pack (<userData>/content, beside the connection file), or contentDir.
       const { Catalog } = await import('../../src/main/authoring/catalog')
-      return search(await new Catalog(a.contentRoot ?? (a.parsedRoot ? dirname(a.parsedRoot) : join(process.cwd(), 'content'))).entries(), a)
+      return search(await new Catalog(a.contentDir ?? join(dirname(dirname(defaultConnectionFile())), 'content')).entries(), a)
     }
     return bridgeCall(connection, method, a)
   }

@@ -3,6 +3,7 @@ import type { CompendiumEntry } from '@common/types'
 import { XP_BY_LEVEL } from '../creature/dnd4e-utils'
 import { useCampaignStore } from '../../stores/campaign-store'
 import { useLibraryStore } from '../../stores/library-store'
+import { useContentStore } from '../../stores/content-store'
 
 // Minion detection: native minions in the parsed data have an empty modifier
 // (no monsterModifier set) but their xp is exactly 1/4 of the standard XP for
@@ -65,12 +66,13 @@ export function useCompendium() {
   const [filters, setFilters] = useState<CompendiumFilters>(defaultFilters)
   const searchRef = useRef<HTMLInputElement>(null)
 
+  const contentVersion = useContentStore(s => s.version)
   useEffect(() => {
     setLoading(true)
     window.api.compendium.index()
       .then((entries: CompendiumEntry[]) => setIndex(entries))
       .finally(() => setLoading(false))
-  }, [])
+  }, [contentVersion])
 
   // Reload index when campaign or Library creatures change (custom creatures appear in merged index)
   const reloadIndex = useCallback(() => {

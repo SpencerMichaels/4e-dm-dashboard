@@ -1,14 +1,12 @@
 // SystemPlugin — shape of the D&D 4e rules module (src/common/rules/dnd4e.ts)
 
-import type { CompendiumEntry, ItemIndexEntry, TrapIndexEntry, DiseaseIndexEntry } from './compendium'
-import type { Creature } from './creature'
-
 export type DurationType = 'save-ends' | 'eont' | 'sont' | 'encounter' | 'indefinite' | 'custom' | 'rounds' | 'minutes' | 'unlimited'
 
 export interface ConditionDef {
   id: string
   name: string
-  description: string
+  /** One-line rules summary. Book conditions get theirs from the content pack (withConditionText). */
+  description?: string
   hasValue: boolean                   // e.g. Frightened 2 — has a numeric value
   hidden?: boolean                    // If true, don't show in condition picker (auto-managed)
 }
@@ -105,28 +103,6 @@ export interface SystemSettingDef {
   default: unknown
   description?: string
   options?: { value: string; label: string }[]  // for type: 'select'
-}
-
-/** Provider for system-specific compendium data (creature, item, trap, disease indices + lookups). */
-export interface CompendiumProvider {
-  /** Return the official creature index entries for this system. */
-  getCreatureIndex(): CompendiumEntry[]
-  /** The parsed (legacy-shaped) entry, the fallback when content/raw is missing; published monsters are served as kit content. */
-  resolveCreature(id: string): (Record<string, unknown> & { compendiumId: string }) | null
-  /** Return the item index, if this system has one. */
-  getItemIndex?(): ItemIndexEntry[]
-  /** Return full item data by id. */
-  getItem?(id: string): Record<string, unknown> | null
-  /** Return the glossary dictionary, if this system has one. */
-  getGlossary?(): Record<string, unknown>
-  /** Return the trap/hazard index, if this system has one. */
-  getTrapIndex?(): TrapIndexEntry[]
-  /** Return full trap data by id. */
-  getTrap?(id: string): Record<string, unknown> | null
-  /** Return the disease index, if this system has one. */
-  getDiseaseIndex?(): DiseaseIndexEntry[]
-  /** Return full disease data by id. */
-  getDisease?(id: string): Record<string, unknown> | null
 }
 
 export interface SystemPlugin {

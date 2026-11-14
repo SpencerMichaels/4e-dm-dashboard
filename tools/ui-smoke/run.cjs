@@ -8,6 +8,7 @@
 const { spawnSync } = require('child_process')
 const { mkdirSync, readdirSync, rmSync, statSync } = require('fs')
 const { join, resolve } = require('path')
+const { buildTestContent } = require('./test-content.cjs')
 
 const root = resolve(__dirname, '../..')
 const SUITES = {
@@ -38,12 +39,16 @@ let failed = []
 try {
   console.log(`Building into ${build}`)
   if (step(bin('electron-vite'), ['build', '--outDir', build], { cwd: root }) !== 0) { failed = ['build']; throw new Error('build failed') }
+  // The published content every suite reads (test-content.cjs), built once and deleted with the build.
+  const content = buildTestContent(build)
   for (const name of suites) {
     console.log(`\n== ${name}`)
-    const env = { ...process.env, FOUR_E_HIDDEN_WINDOWS: '1', FOUR_E_OUT_DIR: build }
+    const env = { ...process.env, FOUR_E_HIDDEN_WINDOWS: '1', FOUR_E_OUT_DIR: build, FOUR_E_TEST_CONTENT: content }
     if (step(bin('electron'), [join(root, SUITES[name]), '--ozone-platform=wayland', '--no-sandbox'], { cwd: run, env }) !== 0) failed.push(name)
   }
-} catch {} finally {
+} catch (e) {
+  if (!failed.length) { failed = ['setup']; console.error(e.message) }
+} finally {
   rmSync(build, { recursive: true, force: true })
 }
 console.log(`\nScreenshots: ${join(run, 'out')}`)

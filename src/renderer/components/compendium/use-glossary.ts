@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
+import { cachedPerVersion, useContentStore } from '../../stores/content-store'
 
 export interface GlossaryEntry {
   name: string
@@ -9,21 +10,20 @@ export interface GlossaryEntry {
 
 type Glossary = Record<string, GlossaryEntry>
 
-let cached: Glossary | null = null
+const loadGlossary = cachedPerVersion<Glossary>(() => window.api.compendium.glossary())
 
 export function useGlossary() {
-  const [glossary, setGlossary] = useState<Glossary>(cached ?? {})
-  const [loading, setLoading] = useState(!cached)
+  const version = useContentStore(s => s.version)
+  const [glossary, setGlossary] = useState<Glossary>(() => loadGlossary.peek(version) ?? {})
+  const [loading, setLoading] = useState(!loadGlossary.peek(version))
 
   useEffect(() => {
-    if (cached) return
-    setLoading(true)
-    window.api.compendium.glossary().then((data: Glossary) => {
-      cached = data
+    if (!loadGlossary.peek(version)) setLoading(true)
+    void loadGlossary(version).then(data => {
       setGlossary(data)
       setLoading(false)
     })
-  }, [])
+  }, [version])
 
   /** Look up a term (case-insensitive) */
   const lookup = useCallback((term: string): GlossaryEntry | undefined => {

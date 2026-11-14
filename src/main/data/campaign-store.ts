@@ -20,6 +20,7 @@ import { migrateLegacyCreatures } from './legacy-creatures'
 import { migratePartyLevel } from './legacy-party-level'
 import { migrateLegacyPcDiseases } from './legacy-pc-diseases'
 import { RECORD_STORAGE, checkRecord, isLibrary, isRecordType } from '@common/campaign-records'
+import { monsterIndexRow } from '@common/compendium-index'
 
 let activeCampaignId: string | null = null
 
@@ -231,19 +232,5 @@ export async function buildCreatureIndex(campaignId: string): Promise<Compendium
 
 /** Index rows for custom creature records: the open campaign's ("Custom") or the Library's ("Library"). */
 export function creatureIndexEntries(creatures: CreatureRecord[], source: 'Custom' | 'Library'): CompendiumEntry[] {
-  const cap = (s: string | null | undefined) => s ? s[0].toUpperCase() + s.slice(1) : ''
-  return creatures.filter(r => r.content).map(({ id, content: m }) => ({
-    id,
-    name: m.name,
-    level: m.level ?? 1,
-    role: m.role ?? '',
-    // The published index marks elites and solos; minions show by their quarter XP.
-    modifier: m.rank === 'elite' || m.rank === 'solo' ? m.rank : '',
-    size: cap(m.size) || 'Medium',
-    type: (m.type ?? '').replace(/-/g, ' '),
-    origin: m.origin ?? '',
-    alignment: m.alignment ?? '',
-    xp: m.xp ?? 0,
-    source,
-  }))
+  return creatures.filter(r => r.content).map(r => monsterIndexRow(r.content, r.id, source))
 }

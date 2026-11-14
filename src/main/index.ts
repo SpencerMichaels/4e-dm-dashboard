@@ -8,12 +8,19 @@ import { registerSettingsHandlers } from './ipc/settings-handlers'
 import { migrateLegacyUserData } from './data/migrate-user-data'
 import { loadAppSettings } from './data/app-settings-store'
 import { registerAuthoringHandlers } from './ipc/authoring-handlers'
+import { conditionDescriptions, onContentChanged, recoverInterruptedImport } from './content/store'
+import { setConditionText } from '@common/rules/condition-text'
 
 migrateLegacyUserData()
 
 app.whenReady().then(async () => {
   // Load the theme before any window exists so the first paint uses it
   await loadAppSettings()
+
+  // The content pack: finish an import a crash interrupted, and serve its condition text
+  await recoverInterruptedImport()
+  setConditionText(conditionDescriptions())
+  onContentChanged(() => setConditionText(conditionDescriptions()))
 
   // Register IPC handlers
   registerCampaignHandlers()

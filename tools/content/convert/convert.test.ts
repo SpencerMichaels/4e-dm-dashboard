@@ -1,5 +1,4 @@
 import { describe, expect, it } from 'vitest'
-import { MONSTER_TEMPLATES } from '../../../src/renderer/components/creature/monster-templates'
 import { parseMonsterHtml } from '../html-parser'
 import { Notes, damageClauses, parseAttackLine, saveEndsClauses, toRecharge, type ConvertContext } from './common'
 import { enduranceFrom } from './disease'
@@ -97,14 +96,14 @@ describe('clause helpers', () => {
 
 describe('templates, traps, diseases', () => {
   it('turns prereqCheck functions into TemplatePrereq data', () => {
-    const byName = Object.fromEntries(MONSTER_TEMPLATES.map(t => [t.name, t]))
-    expect(prereqFromCheck(byName['Battle Champion'].prereqCheck)).toEqual({ kind: 'type', any: ['humanoid'] })
-    // Death Knight's text says "Humanoid, level 11" but its check is level only; the check wins.
-    expect(prereqFromCheck(byName['Death Knight'].prereqCheck)).toEqual({ kind: 'min-level', level: 11 })
+    // As the old built-in templates checked: Battle Champion (humanoid), Death Knight (level 11 only).
+    const isHumanoid = (sb: any) => (sb.creatureType ?? '').toLowerCase() === 'humanoid'
+    expect(prereqFromCheck(isHumanoid)).toEqual({ kind: 'type', any: ['humanoid'] })
+    expect(prereqFromCheck((sb: any) => (sb.level ?? 0) >= 11)).toEqual({ kind: 'min-level', level: 11 })
     expect(prereqFromCheck((sb: any) => sb.creatureType === 'humanoid' && sb.level >= 11)).toEqual({
       kind: 'all', of: [{ kind: 'type', any: ['humanoid'] }, { kind: 'min-level', level: 11 }],
     })
-    expect(prereqFromCheck(byName['Victim of the Mad Dance'].prereqCheck)).toBeUndefined()
+    expect(prereqFromCheck(undefined)).toBeUndefined()
   })
 
   it('parseDetect reads DC lines', () => {

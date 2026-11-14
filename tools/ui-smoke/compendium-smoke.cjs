@@ -2,8 +2,6 @@
 // edit in place, delete, and create new. Windows are hidden and render offscreen; nothing
 // appears on the desktop. Run with `npm run test:compendium:ui` after `npm run build`.
 process.env.FOUR_E_HIDDEN_WINDOWS = '1'
-// Published traps from the parser, not a content repo on this machine.
-process.env.CONTENT_REPO = '/nonexistent-content-repo'
 const { app, BrowserWindow } = require('electron')
 const { mkdtempSync, mkdirSync, writeFileSync } = require('fs')
 const { tmpdir } = require('os')
@@ -12,8 +10,8 @@ const root = mkdtempSync(join(tmpdir(), '4e-compendium-ui-'))
 app.setPath('appData', root)
 mkdirSync(join(root, 'user'))
 app.setPath('userData', join(root, 'user'))
-// The checkout's content/, read in place (no shared symlink, so concurrent runs are independent).
-process.env.FOUR_E_CONTENT_DIR = resolve(__dirname, '../../content')
+// Published content: the content repo with the test fixtures over it (test-content.cjs), never the DM's install.
+process.env.FOUR_E_CONTENT_DIR = require('./test-content.cjs').testContentDir()
 // The build to test: $FOUR_E_OUT_DIR (`npm run test:ui` builds a private one per run), else out/.
 require(join(process.env.FOUR_E_OUT_DIR || resolve(__dirname, '../../out'), 'main/index.js'))
 const sleep = ms => new Promise(r => setTimeout(r, ms))

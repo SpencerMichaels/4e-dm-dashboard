@@ -2,6 +2,7 @@ import { useCampaignStore } from './campaign-store'
 import { useLibraryStore } from './library-store'
 import { useCombatStore } from './combat-store'
 import { useUiStore } from './ui-store'
+import { loadContentState } from './content-store'
 import { initThemeSync } from '../theme'
 
 declare global {
@@ -54,6 +55,13 @@ export function initSyncListeners(): () => void {
   const applyAgent = (s: { agentConnection: boolean }) => useUiStore.setState({ agentConnection: s.agentConnection })
   void window.api.settings.get().then(applyAgent)
   unsubscribers.push(window.api.on.appSettings(applyAgent))
+
+  // The content pack: its version and templates and themes; after an import, the rules too (condition text)
+  void window.api.content.state().then(s => loadContentState(s.version))
+  unsubscribers.push(window.api.on.contentState(s => {
+    void loadContentState(s.version)
+    void window.api.system.getRules().then(useUiStore.getState().setSystemPlugin)
+  }))
 
   // Load annotations on init
   window.api.annotation.getAll().then(annotations => {

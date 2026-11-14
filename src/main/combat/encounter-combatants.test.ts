@@ -5,14 +5,13 @@ import type { Monster, Trap } from '@kit'
 import type { CreatureRecord, Encounter } from '@common/types'
 import { legacyCreatureToRecord } from '../data/legacy-creatures'
 import { scaffold } from '@common/authoring/core'
-import { convertTemplate } from '../../../tools/content/convert/template'
-import { MONSTER_TEMPLATES } from '../../renderer/components/creature/monster-templates'
+import type { MonsterTemplate } from '@kit'
 import { encounterCombatants, resolveRow, type EncounterSources } from './encounter-combatants'
 
-const ctx = { provenance: { origin: 'parser' as const, at: '', by: 'test' } }
 const published = { ...(scaffold('monster', 'Goblin Cutter', 3, 'skirmisher') as Monster), id: 'monster1' }
 const custom: CreatureRecord = legacyCreatureToRecord({ id: 'c1', name: 'Captain', hp: 60, maxHp: 60, imageId: 'img', createdAt: '', updatedAt: '', statBlock: { level: 5, role: 'soldier', creatureType: 'humanoid', origin: 'natural', ac: 21, defenses: { fortitude: 18, reflex: 17, will: 16 }, abilities: { con: 14 }, actions: [] } })
-const champion = convertTemplate(MONSTER_TEMPLATES.find(t => t.name === 'Battle Champion')!, ctx)
+// An invented elite template for humanoids (published ones come from the content pack).
+const champion: MonsterTemplate = { ...(scaffold('template', 'Test Champion') as MonsterTemplate), role: 'soldier', prerequisite: { text: 'Humanoid', check: { kind: 'type', any: ['humanoid'] } }, defenses: { ac: 2 }, hpPerLevel: 8, savingThrows: 2, actionPoints: 1 }
 const sources: EncounterSources = {
   creatures: [custom], published: id => id === 'monster1' ? structuredClone(published) : null,
   templates: [{ ref: champion.name, template: champion }], themes: [],
@@ -25,7 +24,7 @@ describe('encounter combatants', () => {
   it('builds kit combatants with the row adjustments, names, counts, and images', () => {
     const encounter = { id: 'e', name: 'E', tags: [], createdAt: '', updatedAt: '', creatures: [
       { compendiumId: 'monster1', count: 3, isMinion: true },
-      { creatureId: 'c1', count: 1, monsterTemplates: ['Battle Champion'], overrideName: 'The Captain', levelAdjust: 1 },
+      { creatureId: 'c1', count: 1, monsterTemplates: ['Test Champion'], overrideName: 'The Captain', levelAdjust: 1 },
       { compendiumId: 'missing', count: 2 },
     ] } as Encounter
     const combatants = encounterCombatants(encounter, sources)
@@ -36,14 +35,14 @@ describe('encounter combatants', () => {
     expect(new Set(combatants.slice(0, 3).map(c => c.initiativeGroupId)).size).toBe(1)
     expect(captain).toMatchObject({ name: 'The Captain', imageId: 'img', entityId: 'c1', initiativeGroupId: undefined })
     expect(captain.content).toMatchObject({ rank: 'elite', level: 6, role: 'soldier' })
-    expect(captain.attribution!.diffs.map(d => d.source)).toContain('Battle Champion')
+    expect(captain.attribution!.diffs.map(d => d.source)).toContain('Test Champion')
     expect(captain.hp).toBe((captain.content as Monster).hp)
   })
 
   it('previews a row and lists the templates its creature qualifies for', () => {
     const row = resolveRow({ creatureId: 'c1', count: 1 }, sources)!
     expect(row.baseRank).toBe('standard')
-    expect(row.eligible).toEqual(['Battle Champion'])
+    expect(row.eligible).toEqual(['Test Champion'])
     expect(resolveRow({ creatureId: 'nope', count: 1 }, sources)).toBeNull()
   })
 })

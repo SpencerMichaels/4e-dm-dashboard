@@ -8,13 +8,13 @@ import { findDiseaseMentions, type DiseaseName } from '@common/rules/diseases'
 import { diseaseKey, pcDiseases } from '@common/rules/pc-conditions'
 import { useCampaignStore } from '../../stores/campaign-store'
 import { useLibraryStore } from '../../stores/library-store'
+import { cachedPerVersion, useContentStore } from '../../stores/content-store'
 import { DiseaseStatblock } from './DiseaseStatblock'
 import { Icon } from '../shared/Icon'
 
 export { diseaseKey } from '@common/rules/pc-conditions'
 
-let publishedIndex: Promise<DiseaseIndexEntry[]> | null = null
-const loadIndex = () => publishedIndex ??= window.api.compendium.diseaseIndex()
+const loadIndex = cachedPerVersion<DiseaseIndexEntry[]>(() => window.api.compendium.diseaseIndex())
 
 /**
  * Every disease the campaign knows: its own records first, then the Library's, then published ones; an
@@ -24,7 +24,8 @@ export function useDiseaseNames(): DiseaseName<DiseaseRef>[] {
   const records = useCampaignStore(s => s.diseases)
   const library = useLibraryStore(s => s.diseases)
   const [index, setIndex] = useState<DiseaseIndexEntry[]>([])
-  useEffect(() => { void loadIndex().then(setIndex) }, [])
+  const version = useContentStore(s => s.version)
+  useEffect(() => { void loadIndex(version).then(setIndex) }, [version])
   return useMemo(() => {
     const names = new Set<string>()
     const unseen = (name: string) => !names.has(name.toLowerCase()) && !!names.add(name.toLowerCase())

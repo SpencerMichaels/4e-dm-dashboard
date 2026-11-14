@@ -140,14 +140,19 @@ const api = {
   compendium: {
     index: () => ipcRenderer.invoke(CMD.COMPENDIUM_INDEX),
     itemIndex: () => ipcRenderer.invoke(CMD.COMPENDIUM_ITEM_INDEX),
-    itemGet: (itemId: string) => ipcRenderer.invoke(CMD.COMPENDIUM_ITEM_GET, itemId),
     glossary: () => ipcRenderer.invoke(CMD.COMPENDIUM_GLOSSARY),
     trapIndex: () => ipcRenderer.invoke(CMD.COMPENDIUM_TRAP_INDEX),
-    trapGet: (trapId: string) => ipcRenderer.invoke(CMD.COMPENDIUM_TRAP_GET, trapId),
     diseaseIndex: () => ipcRenderer.invoke(CMD.COMPENDIUM_DISEASE_INDEX),
-    diseaseGet: (diseaseId: string) => ipcRenderer.invoke(CMD.COMPENDIUM_DISEASE_GET, diseaseId),
     kitGet: (kind: 'monster' | 'item' | 'trap' | 'disease' | 'template' | 'theme', id: string) => ipcRenderer.invoke(CMD.COMPENDIUM_KIT_GET, kind, id),
     kitIndex: (kind: 'template' | 'theme') => ipcRenderer.invoke(CMD.COMPENDIUM_KIT_INDEX, kind),
+    kitList: (kind: 'template' | 'theme') => ipcRenderer.invoke(CMD.COMPENDIUM_KIT_LIST, kind),
+  },
+
+  // Content pack
+  content: {
+    state: () => ipcRenderer.invoke(CMD.CONTENT_STATE) as Promise<{ version: string | null }>,
+    /** Pick and install a pack (or the file at `path`, for tests): the new version, an error message, or null when cancelled. */
+    import: (path?: string) => ipcRenderer.invoke(CMD.CONTENT_IMPORT, path) as Promise<{ version: string } | { error: string } | null>,
   },
 
   // Scene
@@ -191,6 +196,11 @@ const api = {
       const handler = (_event: Electron.IpcRendererEvent, settings: AppSettings) => callback(settings)
       ipcRenderer.on(SYNC.APP_SETTINGS, handler)
       return () => ipcRenderer.removeListener(SYNC.APP_SETTINGS, handler)
+    },
+    contentState: (callback: (state: { version: string | null }) => void) => {
+      const handler = (_event: Electron.IpcRendererEvent, state: { version: string | null }) => callback(state)
+      ipcRenderer.on(SYNC.CONTENT_STATE, handler)
+      return () => ipcRenderer.removeListener(SYNC.CONTENT_STATE, handler)
     },
     annotations: (callback: (annotations: Record<string, CompendiumAnnotation>) => void) => {
       const handler = (_event: Electron.IpcRendererEvent, annotations: Record<string, CompendiumAnnotation>) => callback(annotations)

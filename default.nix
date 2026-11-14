@@ -53,9 +53,7 @@ pkgs.buildNpmPackage rec {
     # Copy only runtime node_modules (nanoid is the sole external require)
     cp -r node_modules/nanoid $out/lib/${pname}/node_modules/
 
-    # 4e compendium data — loaded at runtime via readFileSync relative to app.getAppPath()
-    mkdir -p $out/lib/${pname}/content
-    cp -r content/parsed $out/lib/${pname}/content/
+    # No 4e compendium data: the DM imports a content pack (docs/content-pack-plan.md).
 
     # Wrapper: runs system electron pointed at our app directory.
     # ''${NIXOS_OZONE_WL} expands at runtime to --ozone-platform=wayland on

@@ -3,6 +3,8 @@ import { useSettingsStore } from '../../stores/settings-store'
 import { Modal } from '../shared/Modal'
 import { CopyConnectionPath, CopyMcpSetup, WorkshopIntro } from '../authoring/EntryEditor'
 import type { SystemSettingDef } from '@common/types/system-plugin'
+import { ImportContentButton } from '../content/ContentPack'
+import { useContentStore } from '../../stores/content-store'
 import { THEME_PREFERENCES, THEME_PREFERENCE_LABELS, type ThemePreference } from '@kit/theme'
 
 // Rules settings stay under systems['dnd-4e'] in localStorage for compatibility.
@@ -19,6 +21,7 @@ export function SettingsModal({ onClose }: Props) {
   const agentConnection = useUiStore((s) => s.agentConnection)
   const setAgentConnection = useUiStore((s) => s.setAgentConnection)
   const settings = useSettingsStore()
+  const contentVersion = useContentStore((s) => s.version)
 
   const systemDefs: SystemSettingDef[] = systemPlugin?.settings ?? []
 
@@ -36,6 +39,20 @@ export function SettingsModal({ onClose }: Props) {
               {THEME_PREFERENCES.map((p) => <option key={p} value={p}>{THEME_PREFERENCE_LABELS[p]}</option>)}
             </select>
           </label>
+        </SettingsSection>
+
+        <SettingsSection title="Content">
+          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', padding: '4px 0' }}>
+            <span style={{ flex: 1 }}>
+              <span style={{ display: 'block', fontSize: 'var(--font-size-sm)', fontWeight: 500 }}>
+                {contentVersion ? `Content pack ${contentVersion}` : contentVersion === null ? 'No content pack installed' : '\u00A0'}
+              </span>
+              <span style={{ display: 'block', fontSize: 'var(--font-size-xs)', color: 'var(--muted)' }}>
+                Published monsters, items, traps, diseases, templates, themes, and the glossary. Importing a pack replaces the installed one.
+              </span>
+            </span>
+            <ImportContentButton />
+          </div>
         </SettingsSection>
 
         {systemPlugin && (

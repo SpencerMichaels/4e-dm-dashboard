@@ -79,16 +79,19 @@ export const CMD = {
   // Compendium
   COMPENDIUM_INDEX: 'compendium:index',
   COMPENDIUM_ITEM_INDEX: 'compendium:item-index',
-  COMPENDIUM_ITEM_GET: 'compendium:item-get',
   COMPENDIUM_GLOSSARY: 'compendium:glossary',
   COMPENDIUM_TRAP_INDEX: 'compendium:trap-index',
-  COMPENDIUM_TRAP_GET: 'compendium:trap-get',
   COMPENDIUM_DISEASE_INDEX: 'compendium:disease-index',
-  COMPENDIUM_DISEASE_GET: 'compendium:disease-get',
-  /** A published entry converted to the kit schema (traps, diseases, templates, themes). */
+  /** A published entry from the content pack (kit schema). */
   COMPENDIUM_KIT_GET: 'compendium:kit-get',
-  /** Index rows for kinds without a parsed index (templates, themes). */
+  /** Index rows for kinds without an index type of their own (templates, themes). */
   COMPENDIUM_KIT_INDEX: 'compendium:kit-index',
+  /** Every published template or theme, whole (the encounter editor's catalog). */
+  COMPENDIUM_KIT_LIST: 'compendium:kit-list',
+  /** The installed content pack's version, or null (docs/content-pack-plan.md). */
+  CONTENT_STATE: 'content:state',
+  /** Pick a content pack file, verify it, and install it; returns the new state, or null when cancelled. */
+  CONTENT_IMPORT: 'content:import',
 
   // Player
   PLAYER_READY: 'player:ready',
@@ -110,4 +113,6 @@ export const SYNC = {
   SCENE_STATE: 'sync:scene-state',
   ANNOTATIONS: 'sync:annotations',
   APP_SETTINGS: 'sync:app-settings',
+  /** A content pack was installed: { version }. Published indexes and entries changed. */
+  CONTENT_STATE: 'sync:content-state',
 } as const

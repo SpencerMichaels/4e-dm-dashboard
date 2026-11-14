@@ -27,7 +27,8 @@
     "content:agent:apply-all": "tsx --tsconfig tsconfig.node.json tools/content/agent/apply-all.ts",
     "content:patch-defenses-if": "tsx --tsconfig tsconfig.node.json tools/content/agent/patch-defenses-if.ts",
     "content:cb-items": "tsx --tsconfig tsconfig.node.json tools/content/cb-items.ts",
-    "content:patch-companions": "tsx --tsconfig tsconfig.node.json tools/content/agent/patch-companions.ts"
+    "content:patch-companions": "tsx --tsconfig tsconfig.node.json tools/content/agent/patch-companions.ts",
+    "content:pack": "tsx --tsconfig tsconfig.node.json tools/content/pack.ts"
   },
   "dependencies": {
     "@fontsource/eb-garamond": "^5.3.0",

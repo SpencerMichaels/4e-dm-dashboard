@@ -2,7 +2,7 @@
 import { PowerCardView } from './PowerCardView'
 import { extractLevelScaling } from './dnd4e-utils'
 import './statblock.css'
-import type { MonsterTemplate } from './monster-templates'
+import type { MonsterTemplate } from './template-types'
 
 
 export function TemplateViewer({ template: t }: { template: MonsterTemplate }) {

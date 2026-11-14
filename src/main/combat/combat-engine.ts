@@ -4,6 +4,7 @@ import { generateId } from '@common/utils/id'
 import { resolveHpDescriptor } from '@common/utils/hp'
 import { rollD6, rollD20 } from '@common/utils/dice'
 import dnd4e from '../../common/rules/dnd4e'
+import { withConditionText } from '@common/rules/condition-text'
 import * as facts from '@common/combat/facts'
 
 // ──────────────────────────────────────────────────
@@ -13,7 +14,7 @@ import * as facts from '@common/combat/facts'
 /** Look up a 4e condition definition by id. Returns undefined when no matching
  *  def exists (custom/ad-hoc conditions). */
 function getConditionDef(condId: string): ConditionDef | undefined {
-  return dnd4e.conditions.find(d => d.id === condId)
+  return withConditionText(dnd4e.conditions.find(d => d.id === condId))
 }
 
 /** Check whether any of the given damage types match a resistance/immunity/

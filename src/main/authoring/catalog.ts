@@ -1,40 +1,33 @@
-import { stat } from 'fs/promises'
+import { readdir, readFile } from 'fs/promises'
 import { join } from 'path'
-import { PUBLISHED_FILES, publishedEntries, type PublishedKind } from '../../../tools/content/convert/published'
 import type { Content, SearchEntry } from '../../common/authoring/types'
-import { getKitEntry, getKitIndex } from '../compendium/kit'
+import { PACK_DIRS, type PackDir, type PackManifest } from '../content/pack'
 
 /**
- * Published content for search and fetch, converted like the content repo
- * (tools/content/convert/published.ts), so monsters keep their printed
- * hit/miss/effect text. `contentRoot` holds `raw/` and `parsed/`.
+ * Published content for search and fetch: the entries of the content pack installed in
+ * `contentDir` (src/main/content/store.ts), as the pack has them. Empty when none is installed.
+ * Reads the folder directly, without Electron, so the CLI's `search-local` can use it too.
  */
 export class Catalog {
-  private cache = new Map<PublishedKind, { stamp: string; entries: SearchEntry[] }>()
-  constructor(readonly contentRoot: string) {}
+  private cache: { content: string; entries: SearchEntry[] } | null = null
+  constructor(readonly contentDir: string) {}
   async entries(): Promise<SearchEntry[]> {
+    let manifest: PackManifest
+    try { manifest = JSON.parse(await readFile(join(this.contentDir, 'manifest.json'), 'utf-8')) } catch { return [] }
+    if (this.cache?.content === manifest.content) return this.cache.entries
     const entries: SearchEntry[] = []
-    for (const kind of Object.keys(PUBLISHED_FILES) as PublishedKind[]) {
-      // Missing optional files count as part of the stamp, so adding one rebuilds.
-      const times = await Promise.all(PUBLISHED_FILES[kind].map(f => stat(join(this.contentRoot, f)).then(s => s.mtimeMs, () => null)))
-      if (times[0] === null) continue
-      const stamp = times.join(',')
-      const cached = this.cache.get(kind)
-      if (cached?.stamp === stamp) { entries.push(...cached.entries); continue }
-      const at = new Date(times[0]).toISOString()
-      const converted: SearchEntry[] = []
-      for (const [id, convert] of await publishedEntries(this.contentRoot, kind, { provenance: { origin: 'parser', at, by: 'legacy-compendium-adapter' } })) {
+    for (const dir of Object.keys(PACK_DIRS) as PackDir[]) {
+      const kind = PACK_DIRS[dir]
+      let files: string[]
+      try { files = (await readdir(join(this.contentDir, dir))).filter(f => f.endsWith('.json')).sort() } catch { continue }
+      for (const f of files) {
         let content: Content
-        try { content = convert() } catch { continue } // the content repo writer reports conversion failures
-        converted.push({ key: `published/${kind}/${id}`, kind, content, source: `Legacy compendium (${at}); ${content.sources.map(s => s.book).join('; ')}` })
+        try { content = JSON.parse(await readFile(join(this.contentDir, dir, f), 'utf-8')) } catch { continue }
+        const books = (content.sources ?? []).map(s => s.book).filter(Boolean).join('; ')
+        entries.push({ key: `published/${kind}/${f.slice(0, -5)}`, kind, content, source: `Content pack ${manifest.content}${books ? `; ${books}` : ''}` })
       }
-      this.cache.set(kind, { stamp, entries: converted }); entries.push(...converted)
     }
-    // Templates and themes are built-in data, converted like the parsed kinds.
-    for (const kind of ['template', 'theme'] as const) for (const row of getKitIndex(kind)) {
-      const content = getKitEntry(kind, row.id) as Content
-      entries.push({ key: `published/${kind}/${row.id}`, kind, content, source: `Built-in; ${content.sources.map(s => s.book).filter(Boolean).join('; ')}` })
-    }
+    this.cache = { content: manifest.content, entries }
     return entries
   }
 }

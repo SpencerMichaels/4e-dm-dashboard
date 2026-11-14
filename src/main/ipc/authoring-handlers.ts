@@ -1,4 +1,4 @@
-import { contentRoot } from '../content-root'
+import { contentDir } from '../content/store'
 import { app, ipcMain } from 'electron'
 import { existsSync } from 'fs'
 import { join } from 'path'
@@ -27,7 +27,7 @@ export let setAgentConnection: (on: boolean) => Promise<void> = async () => {}
 
 export async function registerAuthoringHandlers() {
   const connectionFile = join(app.getPath('userData'), 'authoring', 'connection.json')
-  const service = new AuthoringService(app.getPath('userData'), contentRoot(),
+  const service = new AuthoringService(app.getPath('userData'), contentDir(),
     d => broadcastToDm(SYNC.AUTHORING, { draft: d }),
     (home, kind) => {
       invalidateCreatureIndex()

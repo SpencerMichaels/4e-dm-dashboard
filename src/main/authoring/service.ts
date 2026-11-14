@@ -12,8 +12,8 @@ import { itemBenchmarks } from '../../common/rules/items'
 export class AuthoringService {
   readonly drafts: DraftStore
   readonly catalog: Catalog
-  constructor(readonly userData: string, contentRoot: string, changed: ConstructorParameters<typeof DraftStore>[2] = () => {}, private published: (campaignId: string, kind: ContentKind) => void = () => {}) {
-    this.catalog = new Catalog(contentRoot)
+  constructor(readonly userData: string, contentDir: string, changed: ConstructorParameters<typeof DraftStore>[2] = () => {}, private published: (campaignId: string, kind: ContentKind) => void = () => {}) {
+    this.catalog = new Catalog(contentDir)
     this.drafts = new DraftStore(join(userData, 'authoring', 'drafts'), {
       // The Library always exists; a campaign must still be on disk.
       check: async d => {

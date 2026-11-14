@@ -1,6 +1,7 @@
 import { ipcMain } from 'electron'
 import { CMD, SYNC } from '@common/ipc-channels'
 import dnd4e from '../../common/rules/dnd4e'
+import { withConditionText } from '@common/rules/condition-text'
 import { broadcastToAll, getPlayerWindow, createPlayerWindow } from '../windows'
 import type { SceneState } from '@common/types'
 
@@ -13,7 +14,7 @@ export function registerSystemHandlers(): void {
       id: dnd4e.id,
       name: dnd4e.name,
       version: dnd4e.version,
-      conditions: dnd4e.conditions,
+      conditions: dnd4e.conditions.map(withConditionText),
       hpDescriptors: dnd4e.hpDescriptors,
       creatureBuilder: dnd4e.creatureBuilder,
       settings: dnd4e.settings,

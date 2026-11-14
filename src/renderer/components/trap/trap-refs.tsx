@@ -7,11 +7,11 @@ import type { Trap } from '@kit'
 import type { TrapIndexEntry, TrapRef } from '@common/types'
 import { useCampaignStore } from '../../stores/campaign-store'
 import { useLibraryStore } from '../../stores/library-store'
+import { cachedPerVersion, useContentStore } from '../../stores/content-store'
 
 export const trapKey = (ref: TrapRef) => ref.trapId ? `trap:${ref.trapId}` : ref.libraryId ? `library:${ref.libraryId}` : `published:${ref.compendiumId}`
 
-let publishedIndex: Promise<TrapIndexEntry[]> | null = null
-const loadIndex = () => publishedIndex ??= window.api.compendium.trapIndex()
+const loadIndex = cachedPerVersion<TrapIndexEntry[]>(() => window.api.compendium.trapIndex())
 
 type TrapRecords = { id: string; content: Trap }[]
 
@@ -20,7 +20,8 @@ export function useTrapSources() {
   const records = useCampaignStore(s => s.traps)
   const library = useLibraryStore(s => s.traps)
   const [index, setIndex] = useState<TrapIndexEntry[]>([])
-  useEffect(() => { void loadIndex().then(setIndex) }, [])
+  const version = useContentStore(s => s.version)
+  useEffect(() => { void loadIndex(version).then(setIndex) }, [version])
   return { records, library, index }
 }
 

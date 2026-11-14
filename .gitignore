@@ -28,3 +28,9 @@ images/
 
 # Private UI test builds and their screenshots (npm run test:ui)
 .ui-test-builds/
+
+# Content packs (WotC-derived; npm run content:pack)
+4e-content-*.zip
+
+# The scraped compendium (WotC-derived): local input for the content pipeline, never committed
+/content/

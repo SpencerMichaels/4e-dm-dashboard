@@ -97,7 +97,7 @@ Covers monsters (5,326; 24,950 actions, of which 9,305 have their mechanics in p
   - Monster re-clean of the 246 in `rerun-after-v15.json` (with the RE-CLEAN instruction), 56 agents, ~6.3M tokens. 246/246 passed, 2 low confidence (monster3683, monster5896); structured 2662 -> 2911, unparsed 855 -> 658; audit of 14: 10 ok, 4 minor, 0 major
   - `content:validate`: 0 errors in all kinds (`reports/validation.json`)
 - [ ] Trap and template edge cases from the v15 runs (no schema pass planned): the trap parser drops all but the last of several "Attack" blocks and loses a second trigger (agents rebuilt them: trap49, trap56, trap72, trap112-114, ...); the template converter cuts "recharges when ..." to "s when ..." (vampire-lord, vampire-thrall); detect lines cannot say a skill cannot detect the trap (`dc: null` means no check needed) and hold one DC (no ranges); traps have no top-level special or extra lines and one trigger; a part's resistances inside a countermeasure; conditional DCs ("DC 10 without a running start"); lose-resistance `typeChoice`; superior cover; amounts based on another creature's level or a fraction of maximum hit points; level amounts for ongoing damage and resistances; forced-move `byLevel`; themes have no trait or aura fields; template source text lacks stat lines (role, defenses), so those fields are unverified; a designer-picked choice ("The glyph is designed with one of the following effects") has no chooser value
-- [ ] App side for v15 (merged into `roadmap` 2026-11-14): new clause kinds and fields above; `DamageAmount` and heal/temp-hp amounts may be `level`/`half-level`. Done 2026-11-14: trap `countermeasure` clauses drive the combat panel and the Triggered traps strip (checks, action, attackable part; Disable/Destroy/Delay; skill challenges count to their complexity), with published traps read from the content repo when present (decided 2026-11-14: a bridge until section 8). Open: `turns` clauses as extra initiative entries
+- [ ] App side for v15 (merged into `roadmap` 2026-11-14): new clause kinds and fields above; `DamageAmount` and heal/temp-hp amounts may be `level`/`half-level`. Done 2026-11-14: trap `countermeasure` clauses drive the combat panel and the Triggered traps strip (checks, action, attackable part; Disable/Destroy/Delay; skill challenges count to their complexity), with published traps read from the content repo when present (decided 2026-11-14: a bridge until section 8; replaced by the content pack 2026-11-14). Open: `turns` clauses as extra initiative entries
 - [ ] Monster edge cases after v15 (no further schema passes planned): turns set by another creature's count ("acts on Balcoth's initiative -5", 'acts immediately after'), healing-surge sharing, recharge changes, ongoing damage with a non-numeric amount, level-relative DCs ("DC equal to 10 + this creature's level")
 - [ ] Open suggestions not in v15: polymorph into another creature and Change Shape disguises, transferring an effect to another creature, delayed death ("does not die until the end of its next turn"), auras or marks that make moving or shifting provoke, granted cover, standing up as an effect, losing hit points (not damage), redirected marks, failed-save and aftereffect lines on powers with no attack (now `extraLines`), appended disease blocks (no Monster field), use-power and summon counts that change ("twice, or three times while bloodied"), attack bonuses that scale per creature, observers with exceptions ("invisible to every enemy but the target"), positional or either-or recipients ("X or one ally"), hidden/Stealth states, movement cost, miss-chance, extra saves at the start of a turn, compelled attacks, "N/day" uses, ongoing damage "of the same type", several sustain lines, losing a speed mode, conditions repeating each turn, attacks against the lower of two defenses, disarm, temp-hp with a duration, `'unknown'` for required numbers, "standard or opportunity" actions. Parser: triggered powers with a usage but no action type default to `free` (agents set `no-action`), five dragon powers parsed as auras, "1/round" repeated as a requirement line
 
@@ -127,27 +127,32 @@ Must be done before the repo gets a public remote. Steps 8.1–8.3 are ordinary 
 | Scraped compendium (raw and parsed, about 55 MB) | `content/raw/`, `content/parsed/`, and before 2026-11-12 `plugins/dnd-4e/data/raw/`, `plugins/dnd-4e/data/parsed/` | 21 |
 | Rulebook PDFs (PHB, DMG) | `docs/*.pdf` | initial commit only |
 | Proprietary fonts (Mentor, DnDVecna) | `src/renderer/fonts/` | several |
-| Book text transcribed into source | `monster-templates.ts` (DMG), `monster-themes.ts` (DMG2), condition descriptions in `src/common/rules/dnd4e.ts` (formerly `plugins/dnd-4e/index.ts`); `monster-templates.ts` and `monster-themes.ts` were in `src/renderer/plugins/dnd-4e/` before 2026-11-12 | several |
+| Book text transcribed into source | `monster-templates.ts` (DMG), `monster-themes.ts` (DMG2), condition descriptions in `src/common/rules/dnd4e.ts` (formerly `plugins/dnd-4e/index.ts`); `monster-templates.ts` and `monster-themes.ts` were in `src/renderer/plugins/dnd-4e/` before 2026-11-12, and `src/renderer/components/creature/` until 2026-11-14 | several |
+| Template and theme text in a test snapshot | `src/main/combat/__snapshots__/encounter-adjustments.test.ts.snap` (power and trait text until 2026-11-14; it now holds hashes). Purge the history of this path, the current file has no book text | several |
+| Book text in test fixtures | short monster stat block excerpts in `tools/content/html-parser.test.ts`, `tools/content/convert/*.test.ts` and others (copied from `content/raw`); decide whether to replace them with invented text before publishing | several |
 
 **8.1 Content pack format**
-- [ ] Built from the section 5 content repo: a zip of the JSON plus `manifest.json` (format version, content version, per-file sha256)
-- [ ] Move the template, theme, glossary, and condition text into the pack. Keep the types and logic in source under new file names, so the old data files can be purged from history by path.
-- [ ] Hosting: the user's own server; the app's download URL points there
+Design: `docs/content-pack-plan.md`.
+- [x] Built from the section 5 content repo: a zip of the JSON plus `manifest.json` (format version, content version, per-file sha256) (2026-11-14, `npm run content:pack`, in-house zip in `src/main/content/zip.ts`)
+- [x] Move the template, theme, glossary, and condition text into the pack. Keep the types and logic in source under new file names, so the old data files can be purged from history by path. (2026-11-14: `glossary.json` and `conditions.json` in the content repo; templates and themes were already there; types in `creature/template-types.ts`, condition text through `src/common/rules/condition-text.ts`)
+- [ ] Hosting: the user's own server; the app's download URL points there (hosting TBD)
 
 **8.2 App-side loading**
-- [ ] `compendium.ts` reads from `<userData>/content/` instead of `app.getAppPath()/content/parsed`; remove the content repo bridge for published traps in `src/main/compendium/kit.ts` (`repoTrap`) and the `CONTENT_REPO` lines in the UI smoke tests
-- [ ] First run with no pack: prompt to download, or to import a pack file (offline path). Verify the sha256 values before installing.
-- [ ] The app must run with an empty compendium; no crashes on missing data
-- [ ] "Check for content update" in Settings
+- [x] `compendium.ts` reads from `<userData>/content/` instead of `app.getAppPath()/content/parsed`; remove the content repo bridge for published traps in `src/main/compendium/kit.ts` (`repoTrap`) and the `CONTENT_REPO` lines in the UI smoke tests (2026-11-14: `src/main/content/store.ts`; the UI suites install the content repo plus fixtures, `tools/ui-smoke/test-content.cjs`)
+- [x] First run with no pack: import a pack file (offline path), from Settings › Content or the empty published lists. Verify the sha256 values before installing. (2026-11-14)
+- [ ] First run with no pack: prompt to download (hosting TBD)
+- [x] The app must run with an empty compendium; no crashes on missing data (2026-11-14)
+- [ ] "Check for content update" in Settings (hosting TBD)
+- [ ] UI suites on an invented fixture pack, so they run without the private content repo (CI, a public checkout)
 
 **8.3 Clean the tree**
-- [ ] `git rm -r --cached` the data dirs and gitignore them; the fonts are already removed in section 4
-- [ ] Confirm that `npm run build` produces an app with no bundled content
+- [x] `git rm -r --cached` the data dirs and gitignore them; the fonts are already removed in section 4 (2026-11-14: `content/`; checking out an older commit and back deletes the local files, and so does merging this into a branch that still tracks them, e.g. `content-v6`: back them up first)
+- [x] Confirm that `npm run build` produces an app with no bundled content (2026-11-14; `default.nix` no longer copies `content/parsed`)
 
 **8.4 Rewrite history (destructive, needs explicit go-ahead)**
 - [ ] Back up: `git clone --mirror` to a dated folder outside the repo, plus a tarball of `.git`
 - [x] Install `git-filter-repo` (in the Nix shell, `flake.nix`)
-- [ ] Run `git filter-repo --invert-paths` with `--path` for each inventory path. Use `--path-glob 'docs/*.pdf'` for the PDFs, and give the old template/theme data files by name.
+- [ ] Run `git filter-repo --invert-paths` with `--path` for each inventory path. Use `--path-glob 'docs/*.pdf'` for the PDFs, and give the old template/theme data files by name. The snapshot file's current version has no book text: purge it from history, then restore it (or let the tests rewrite it).
 - [ ] Verify:
   - `git log --all -- <each path>` is empty
   - `git rev-list --objects --all` shows no blob over 500 KB except `resources/icon.png`
@@ -187,7 +192,8 @@ Implementation plan: [Agent-assisted content authoring](docs/agent-content-autho
   - [x] Traps noted on locations (2026-11-13): `Location.traps`, statblocks on the location page and the map sidebar
   - [x] Legacy template/theme appliers deleted (2026-11-13); snapshot tests pin the kit results, which matched them
 - [x] Replace remaining complex JSON controls with dedicated editors; add named/semantic revision diffs. Done 2026-11-13: the numeric recipe is a form (`RecipeEditor.tsx`) and its preview a list of field changes, protected fields and damage guidance; History shows named before → after changes. JSON remains only under **History › Raw fields (advanced)**, the deliberate escape hatch for data no statblock shows
-- [ ] Switch authoring search to the cleaned/versioned content pack when section 8 lands; add synonym expansion if actual queries need it
+- [x] Switch authoring search to the cleaned/versioned content pack when section 8 lands (2026-11-14: the catalog lists the installed pack)
+- [ ] Add synonym expansion to authoring search if actual queries need it
 - [x] Repair legacy authoring catalog conversion dropping attack damage/hit/effect text (Shadow test: monster5053, monster80, monster115916). Done 2026-11-13: the catalog re-parses monsters and traps from `content/raw` like the content repo writer (shared `tools/content/convert/published.ts`).
 - [x] The Workshop as an overlay on the compendium pages (user direction 2026-11-13): every campaign entry is viewed and edited through one working copy shared with the agent, with the compendium's usual preview/Edit and comment markers (no AI mode or panel; the agent uses `current_entry` / `edit_entry`; whole-entry comments under the stat block; history and restore are agent-only; Settings › AI agent, off by default, opens the connection and shows the markers); edits go live into the entry, outside changes fold into the working copy (no accept/discard; undo through the agent's `restore_draft`); the agent's new content goes straight into the open campaign; one `compendium` view per kind (`draftId` for `open_review`); no separate page, no "draft" vocabulary in the UI, no sidebar counts.
 - [x] Removed the approval path (`DraftStore.approve`, the `save.json` journal, `abandonSave`, `saveStatus`, the `approve`/`abandon_save` IPC); live sync replaced it. Old drafts' `receipt` and "saved" history entries still load and display.

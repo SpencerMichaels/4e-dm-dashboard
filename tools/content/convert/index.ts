@@ -5,7 +5,9 @@
 //   (CONTENT_REV overrides the git short hash recorded in provenance.by)
 //
 // Each kind's inputs are in published.ts (monsters and traps re-parsed from
-// content/raw, items and diseases from content/parsed). Files whose
+// content/raw, items and diseases from content/parsed); the glossary is copied
+// from content/parsed. Templates and themes are not converted any more: the
+// repo's agent-cleaned files are their only source. Files whose
 // provenance.origin is not 'parser' (agent or human edits) are never
 // overwritten.
 
@@ -13,11 +15,8 @@ import { execSync } from 'child_process'
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs'
 import { join } from 'path'
 import type { Provenance } from '@kit'
-import { MONSTER_TEMPLATES } from '../../../src/renderer/components/creature/monster-templates'
-import { MONSTER_THEMES } from '../../../src/renderer/components/creature/monster-themes'
 import type { ConvertContext } from './common'
 import { publishedEntries } from './published'
-import { convertTemplate, convertTheme } from './template'
 
 const ROOT = join(__dirname, '..', '..', '..')
 const CONTENT = join(ROOT, 'content')
@@ -78,8 +77,12 @@ async function main() {
   run('items', await publishedEntries(CONTENT, 'item', ctx))
   run('traps', await publishedEntries(CONTENT, 'trap', ctx))
   run('diseases', await publishedEntries(CONTENT, 'disease', ctx))
-  run('templates', MONSTER_TEMPLATES.map(t => [convertTemplate(t, ctx).id, () => convertTemplate(t, ctx)]))
-  run('themes', MONSTER_THEMES.map(t => [convertTheme(t, ctx).id, () => convertTheme(t, ctx)]))
+  // Templates and themes live only in the content repo now (agent-cleaned from their printed lines).
+
+  // The glossary goes into the content pack as is (built by content:build from content/raw).
+  const glossary = join(CONTENT, 'parsed', 'glossary.json')
+  if (existsSync(glossary)) writeFileSync(join(repo, 'glossary.json'), toJson(JSON.parse(readFileSync(glossary, 'utf-8'))))
+  else console.log('glossary: content/parsed/glossary.json missing (run content:build), not written')
 
   for (const [dir, s] of Object.entries(summary)) {
     console.log(`${dir}: ${s.converted} written, ${s.skipped} kept (agent/human), ${s.failed.length} failed`)

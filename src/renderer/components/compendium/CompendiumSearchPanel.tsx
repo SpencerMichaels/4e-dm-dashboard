@@ -10,6 +10,7 @@ import { Icon } from '../shared/Icon'
 import { CreatureCompendiumList } from './CreatureCompendiumList'
 import { xpForCreature } from '../creature/dnd4e-utils'
 import type { useCompendium } from './use-compendium'
+import { NoContentNotice, useNoContent } from '../content/ContentPack'
 
 interface Props {
   comp: ReturnType<typeof useCompendium>
@@ -23,6 +24,7 @@ interface Props {
 }
 
 export function CompendiumSearchPanel({ comp, onSelect, onActivate, selectedId, maxCreatureXP, tooltip: tip }: Props) {
+  const noContent = useNoContent()
   const { filters, filtered: allFiltered, filterOptions, updateFilter, resetFilters, hasActiveFilters, searchRef, totalCount, loading, filtering } = comp
   const tooltip = tip ?? (() => '')
 
@@ -90,6 +92,8 @@ export function CompendiumSearchPanel({ comp, onSelect, onActivate, selectedId, 
         <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--muted)' }}>
           Loading...
         </div>
+      ) : noContent && filtered.length === 0 ? (
+        <NoContentNotice />
       ) : (
         <CreatureCompendiumList items={filtered} onSelect={onSelect} onActivate={onActivate} selectedId={selectedId} />
       )}

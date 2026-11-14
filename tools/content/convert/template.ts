@@ -8,9 +8,9 @@ import {
 } from '@kit'
 import type {
   MonsterTemplate as AppTemplate, TemplatePower,
-} from '../../../src/renderer/components/creature/monster-templates'
-import type { MonsterTheme as AppTheme, ThemePower as AppThemePower } from '../../../src/renderer/components/creature/monster-themes'
-import { parseSkillModifications } from '../../../src/renderer/components/creature/monster-themes'
+} from '../../../src/renderer/components/creature/template-types'
+import type { MonsterTheme as AppTheme, ThemePower as AppThemePower } from '../../../src/renderer/components/creature/template-types'
+import { parseSkillModifications } from '../../../src/renderer/components/creature/template-types'
 import {
   Notes, compact, kebab, line, normText, optLine, provenanceFor, toActionType, toDefense, toRange, toRecharge,
   type ConvertContext,
@@ -251,9 +251,10 @@ export function convertTheme(t: AppTheme, ctx: ConvertContext): MonsterTheme {
   const powers: ThemePower[] = []
   for (const p of t.powers as AppThemePower[]) {
     const r = convertTemplatePower(p, notes)
-    // Theme traits and auras are still menu entries: keep them as no-action powers.
+    // Theme traits and auras are still menu entries: keep them as no-action powers (an aura with its range, as the content repo has them).
     const base: Power = r.power ?? {
-      name: p.name, action: 'no-action', usage: 'at-will', keywords: (r.trait ?? r.aura)!.keywords, attacks: [],
+      name: p.name, action: 'no-action', usage: 'at-will', keywords: (r.trait ?? r.aura)!.keywords,
+      ...(r.aura ? { range: { kind: 'aura' as const, size: r.aura.range } } : {}), attacks: [],
       effect: r.aura ? line(`Aura ${r.aura.range}; ${r.aura.text.text}`) : r.trait!.text,
     }
     if (!r.power) notes.add(`power "${p.name}": ${r.aura ? 'aura' : 'trait'} stored as a no-action power`)

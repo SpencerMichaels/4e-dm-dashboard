@@ -7,14 +7,15 @@ import { describe, expect, it } from 'vitest'
 import type { Creature } from '@common/types'
 import type { Monster } from '@kit'
 import { adjustMonster, templateAllowed } from '@common/rules/adjust-monster'
-import { convertTemplate, convertTheme } from '../../../tools/content/convert/template'
-import { MONSTER_TEMPLATES } from '../../renderer/components/creature/monster-templates'
-import { MONSTER_THEMES } from '../../renderer/components/creature/monster-themes'
+import { createHash } from 'crypto'
+import type { MonsterTemplate, MonsterTheme } from '@kit'
+import { contentRepoDir, readRepoEntries } from '../../../tools/content/repo'
 import { creatureToMonster } from '../data/legacy-creatures'
 
-const ctx = { provenance: { origin: 'parser' as const, at: '', by: 'test' } }
-const templates = MONSTER_TEMPLATES.map(t => convertTemplate(t, ctx))
-const themes = MONSTER_THEMES.map(t => convertTheme(t, ctx))
+// Published templates and themes from the content repo; these tests skip without it.
+const templates = readRepoEntries<MonsterTemplate>('templates')
+const themes = readRepoEntries<MonsterTheme>('themes')
+const hasRepo = !!contentRepoDir()
 
 const statBlock = (level: number) => ({
   level, role: 'soldier', monsterModifier: '', hp: 80, ac: 20, defenses: { fortitude: 18, reflex: 17, will: 16 }, initiative: 5, perception: 4,
@@ -25,29 +26,32 @@ const statBlock = (level: number) => ({
 })
 const creature = (level: number): Creature => ({ id: 'c', name: 'Guard', hp: 80, maxHp: 80, createdAt: '', updatedAt: '', statBlock: statBlock(level) })
 
+/** Printed text as a short hash: the snapshot notices a change without holding book text. */
+const h = (text: string | undefined) => text ? createHash('sha256').update(text).digest('hex').slice(0, 12) : ''
+
 /** What an adjustment changes, compactly: numbers, added keywords and senses, damage modifiers, and entries with attack bonuses. */
 const summary = (m: Monster) => [
   `${m.rank} ${m.role} L${m.level} hp ${m.hp} xp ${m.xp} ac ${m.defenses.ac} f ${m.defenses.fortitude} r ${m.defenses.reflex} w ${m.defenses.will} saves ${m.savingThrowBonus} ap ${m.actionPoints} origin ${m.origin}${m.leader ? ' leader' : ''}`,
   `skills ${JSON.stringify(m.skills)} regen ${m.regeneration?.value ?? '-'} keywords ${m.keywords.join(',')} senses ${m.senses.map(s => s.kind).join(',')}`,
   `immune ${m.immune.map(i => i.type).join(',')} resist ${m.resist.map(r => `${r.type} ${r.value}`).join(',')} vulnerable ${m.vulnerable.map(r => `${r.type} ${r.value}`).join(',')}`,
-  ...m.traits.map(t => `trait ${t.name}: ${t.text.text}`), ...m.auras.map(a => `aura ${a.range} ${a.name}: ${a.text.text}`),
-  ...m.powers.map(p => `power ${p.name} (${p.action}, ${p.usage}${p.recharge ? ' ' + JSON.stringify(p.recharge) : ''}) ${p.attacks.map(a => `${a.bonus.kind === 'fixed' ? a.bonus.value : JSON.stringify(a.bonus)} vs ${a.vs}: ${a.hit?.text ?? ''}`).join(' / ')}${p.effect ? ' effect: ' + p.effect.text : ''}`),
+  ...m.traits.map(t => `trait ${t.name}: ${h(t.text.text)}`), ...m.auras.map(a => `aura ${a.range} ${a.name}: ${h(a.text.text)}`),
+  ...m.powers.map(p => `power ${p.name} (${p.action}, ${p.usage}${p.recharge ? ' ' + JSON.stringify(p.recharge) : ''}) ${p.attacks.map(a => `${a.bonus.kind === 'fixed' ? a.bonus.value : JSON.stringify(a.bonus)} vs ${a.vs}: ${h(a.hit?.text)}`).join(' / ')}${p.effect ? ' effect: ' + h(p.effect.text) : ''}`),
 ]
 
 describe('encounter adjustments on kit monsters', () => {
-  it('applies every published template', () => {
+  it.skipIf(!hasRepo)('applies every published template', () => {
     expect(Object.fromEntries(templates.flatMap(t => [3, 13, 25].map(level =>
       [`${t.name} at ${level}`, summary(adjustMonster(creatureToMonster(creature(level)), { templates: [t] }).monster)])))).toMatchSnapshot()
   })
 
-  it('applies every published theme with its first attack and utility power', () => {
+  it.skipIf(!hasRepo)('applies every published theme with its first attack and utility power', () => {
     expect(Object.fromEntries(themes.flatMap(t => [3, 13].map(level => {
       const attack = t.powers.find(p => p.category === 'attack')?.name ?? '', utility = t.powers.find(p => p.category === 'utility')?.name ?? ''
       return [`${t.name} at ${level}`, summary(adjustMonster(creatureToMonster(creature(level)), { theme: { theme: t, attack, utility, skillChoice: 0 } }).monster)]
     })))).toMatchSnapshot()
   })
 
-  it('checks template prerequisites across creature types, levels, keywords, and ranks', () => {
+  it.skipIf(!hasRepo)('checks template prerequisites across creature types, levels, keywords, and ranks', () => {
     const grid = ['humanoid', 'beast', 'magical beast', 'animate'].flatMap(creatureType => [1, 11, 21].flatMap(level =>
       [[], ['undead'], ['undead', 'zombie'], ['swarm'], ['devil'], ['dragon'], ['reptile']].flatMap(subtypes =>
         ['', 'elite', 'solo'].map(monsterModifier => creatureToMonster({ ...creature(level), statBlock: { ...statBlock(level), creatureType, subtypes, monsterModifier } })))))
@@ -55,13 +59,13 @@ describe('encounter adjustments on kit monsters', () => {
     expect(Object.fromEntries(templates.map(t => [t.name, grid.map(m => templateAllowed(m, t) ? '+' : '.').join('')]))).toMatchSnapshot()
   })
 
-  it('two templates make a solo with +5 saves', () => {
+  it.skipIf(!hasRepo)('two templates make a solo with +5 saves', () => {
     const { monster, attribution } = adjustMonster(creatureToMonster(creature(5)), { templates: [templates[0], templates[1]] })
     expect(monster).toMatchObject({ rank: 'solo', savingThrowBonus: 5 })
     expect(attribution.sources.rank).toEqual({ name: templates[1].name, index: 1 })
   })
 
-  it('a template on an elite makes a solo; Elite Dragon lowers a solo', () => {
+  it.skipIf(!hasRepo)('a template on an elite makes a solo; Elite Dragon lowers a solo', () => {
     const elite = { ...creatureToMonster(creature(5)), rank: 'elite' as const }
     expect(adjustMonster(elite, { templates: [templates[0]] }).monster.rank).toBe('solo')
     const eliteDragon = templates.find(t => t.rankChange === 'down')!

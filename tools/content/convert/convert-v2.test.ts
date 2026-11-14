@@ -1,7 +1,6 @@
 // Converter tests for the 4e-kit schema v2 and v3 fields.
 
 import { describe, expect, it } from 'vitest'
-import { MONSTER_TEMPLATES } from '../../../src/renderer/components/creature/monster-templates'
 import { auraRangeIf, parseMonsterHtml } from '../html-parser'
 import { parseTrapHtml } from '../trap-parser'
 import { Notes, damageModifier, parseSources, saveEndsClauses, splitRangePrefix, type ConvertContext } from './common'
@@ -203,19 +202,22 @@ describe('diseases', () => {
 
 describe('templates and themes', () => {
   it('expresses the not, rank and any-role templates', () => {
-    const byName = Object.fromEntries(MONSTER_TEMPLATES.map(t => [t.name, t]))
-    expect(prereqFromCheck(byName['Elite Dragon'].prereqCheck)).toEqual({
+    // As the old built-in templates checked: Elite Dragon (a solo dragon), the nondevil humanoid templates.
+    const subtypes = (sb: any): string[] => (sb.subtypes ?? []).map((s: any) => (typeof s === 'string' ? s : s?.name ?? '').toLowerCase())
+    const isHumanoid = (sb: any) => (sb.creatureType ?? '').toLowerCase() === 'humanoid'
+    const eliteDragon = { name: 'Elite Dragon', role: 'any', prerequisite: 'Solo dragon', prereqCheck: (sb: any) => subtypes(sb).includes('dragon') && sb.monsterModifier === 'solo',
+      defenses: {}, hpPerLevel: 0, savingThrows: 0, actionPoints: 0, powers: [] }
+    expect(prereqFromCheck(eliteDragon.prereqCheck)).toEqual({
       kind: 'all', of: [{ kind: 'rank', any: ['solo'] }, { kind: 'keyword', any: ['dragon'] }],
     })
-    const nondevil = MONSTER_TEMPLATES.find(t => t.prerequisite === 'Nondevil humanoid')!
-    expect(prereqFromCheck(nondevil.prereqCheck)).toEqual({
+    expect(prereqFromCheck((sb: any) => isHumanoid(sb) && !subtypes(sb).includes('devil'))).toEqual({
       kind: 'all', of: [{ kind: 'type', any: ['humanoid'] }, { kind: 'not', of: { kind: 'keyword', any: ['devil'] } }],
     })
-    const anyRole = convertTemplate(MONSTER_TEMPLATES.find(t => t.role === 'any')!, ctx)
+    const anyRole = convertTemplate({ ...eliteDragon, name: 'Any Role', prerequisite: 'Any', prereqCheck: undefined }, ctx)
     expect(anyRole.role).toBe('any')
     expect(anyRole.provenance.notes ?? []).not.toContainEqual(expect.stringMatching(/role/))
     expect(anyRole.rankChange).toBe('up')
-    expect(convertTemplate(byName['Elite Dragon'], ctx).rankChange).toBe('down')
+    expect(convertTemplate(eliteDragon, ctx).rankChange).toBe('down')
   })
 
   it('keeps theme recommendations that are not just roles', () => {

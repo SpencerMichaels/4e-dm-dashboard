@@ -9,6 +9,12 @@ const { AuthoringService } = await import('./service')
 const root = mkdtempSync(join(tmpdir(), 'authoring-service-'))
 afterAll(() => rmSync(root, { recursive: true, force: true }))
 
+// An installed content pack with one invented theme, for copying a published entry.
+const { scaffold } = await import('@common/authoring/core')
+mkdirSync(join(root, 'content', 'themes'), { recursive: true })
+writeFileSync(join(root, 'content', 'manifest.json'), JSON.stringify({ format: 1, content: 'test', schema: 15, files: {} }))
+writeFileSync(join(root, 'content', 'themes', 'lantern-keepers.json'), JSON.stringify({ ...(scaffold('theme', 'Lantern Keepers') as object), id: 'lantern-keepers' }))
+
 describe('AI sessions writing into campaigns', () => {
   it('writes every kind into the campaign as it changes; traps and friends as kit records in an envelope', async () => {
     const campaign = join(root, 'campaigns', 'c1')

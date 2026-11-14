@@ -5,8 +5,8 @@
 import { useMemo } from 'react'
 import { useCampaignStore } from '../../stores/campaign-store'
 import { useLibraryStore } from '../../stores/library-store'
-import { MONSTER_TEMPLATES, type MonsterTemplate } from './monster-templates'
-import { MONSTER_THEMES, type MonsterTheme } from './monster-themes'
+import { useContentStore } from '../../stores/content-store'
+import type { MonsterTemplate, MonsterTheme } from './template-types'
 import { kitTemplateToApp, kitThemeToApp } from './kit-templates'
 
 export type CatalogTemplate = MonsterTemplate & { ref: string; custom?: true; library?: true }
@@ -17,15 +17,22 @@ function convertAll<K, A>(records: { id: string; content: K }[], convert: (k: K)
   return records.flatMap(r => { try { return [{ ...convert(r.content), ref: `${library ? 'library' : 'campaign'}:${r.id}`, custom: true as const, ...(library ? { library: true as const } : {}) }] } catch { return [] } })
 }
 
+/** Published entries from the content pack, referred to by name. */
+function convertPublished<K, A>(entries: K[], convert: (k: K) => A): (A & { ref: string })[] {
+  return entries.flatMap(k => { try { const a = convert(k) as A & { name: string }; return [{ ...a, ref: a.name }] } catch { return [] } })
+}
+
 export function useTemplateCatalog() {
+  const published = useContentStore(s => s.templates)
+  const publishedThemes = useContentStore(s => s.themes)
   const templates = useCampaignStore(s => s.templates)
   const themes = useCampaignStore(s => s.themes)
   const libraryTemplates = useLibraryStore(s => s.templates)
   const libraryThemes = useLibraryStore(s => s.themes)
   return useMemo(() => ({
-    templates: [...MONSTER_TEMPLATES.map(t => ({ ...t, ref: t.name })), ...convertAll(templates, kitTemplateToApp), ...convertAll(libraryTemplates, kitTemplateToApp, true)] as CatalogTemplate[],
-    themes: [...MONSTER_THEMES.map(t => ({ ...t, ref: t.name })), ...convertAll(themes, kitThemeToApp), ...convertAll(libraryThemes, kitThemeToApp, true)] as CatalogTheme[],
-  }), [templates, themes, libraryTemplates, libraryThemes])
+    templates: [...convertPublished(published, kitTemplateToApp), ...convertAll(templates, kitTemplateToApp), ...convertAll(libraryTemplates, kitTemplateToApp, true)] as CatalogTemplate[],
+    themes: [...convertPublished(publishedThemes, kitThemeToApp), ...convertAll(themes, kitThemeToApp), ...convertAll(libraryThemes, kitThemeToApp, true)] as CatalogTheme[],
+  }), [published, publishedThemes, templates, themes, libraryTemplates, libraryThemes])
 }
 export type TemplateCatalog = ReturnType<typeof useTemplateCatalog>
 

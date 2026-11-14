@@ -1,19 +1,20 @@
-import { ipcMain } from 'electron'
+import { BrowserWindow, dialog, ipcMain } from 'electron'
 import { CMD, SYNC } from '@common/ipc-channels'
 import type { CompendiumEntry, CompendiumAnnotation } from '@common/types'
-import { dnd4eCompendium as compendium } from '../compendium/compendium'
 import * as store from '../data/campaign-store'
 import { listLibrary } from '../data/library-store'
 import type { Monster } from '@kit'
-import { broadcastToDm } from '../windows'
-import { getKitEntry, getKitIndex, type KitKind } from '../compendium/kit'
+import { broadcastToAll, broadcastToDm } from '../windows'
+import { getKitEntry, getKitIndex, publishedTemplateList, publishedThemeList, type KitKind } from '../compendium/kit'
+import { contentVersion, importPack, onContentChanged, publishedGlossary, publishedIndexes } from '../content/store'
+import { PackError } from '../content/pack'
 
-// Merged creature index cache (official compendium + the open campaign's creatures + the Library's)
+// Merged creature index cache (the content pack + the open campaign's creatures + the Library's)
 let mergedMonsterIndexCache: CompendiumEntry[] | null = null
 
 async function getMergedMonsterIndex(): Promise<CompendiumEntry[]> {
   if (mergedMonsterIndexCache) return mergedMonsterIndexCache
-  const official = compendium.getCreatureIndex()
+  const official = publishedIndexes().monsters
   const campaignId = store.getActiveCampaignId()
   const custom = campaignId ? await store.buildCreatureIndex(campaignId) : []
   // The Library's creatures, shared by every campaign (source "Library").
@@ -28,6 +29,30 @@ export function invalidateCreatureIndex(): void {
 }
 
 export function registerCompendiumHandlers(): void {
+  onContentChanged(invalidateCreatureIndex)
+
+  // Content pack (docs/content-pack-plan.md)
+  ipcMain.handle(CMD.CONTENT_STATE, async () => ({ version: contentVersion() }))
+
+  /** Install a pack: from `path` (UI tests), else a file the DM picks. Errors come back as { error } for the app's dialog. */
+  ipcMain.handle(CMD.CONTENT_IMPORT, async (e, path?: string) => {
+    if (!path) {
+      const win = BrowserWindow.fromWebContents(e.sender)
+      const options = { title: 'Import content pack', filters: [{ name: 'Content packs', extensions: ['zip'] }], properties: ['openFile' as const] }
+      const result = win ? await dialog.showOpenDialog(win, options) : await dialog.showOpenDialog(options)
+      if (result.canceled || result.filePaths.length === 0) return null
+      path = result.filePaths[0]
+    }
+    try {
+      const version = await importPack(path)
+      broadcastToAll(SYNC.CONTENT_STATE, { version })
+      return { version }
+    } catch (err) {
+      if (err instanceof PackError) return { error: err.message }
+      return { error: `The content pack could not be installed: ${(err as Error).message}` }
+    }
+  })
+
   // Creature index — merged (official + custom)
   ipcMain.handle(CMD.COMPENDIUM_INDEX, async () => {
     return getMergedMonsterIndex()
@@ -37,6 +62,7 @@ export function registerCompendiumHandlers(): void {
 
   ipcMain.handle(CMD.COMPENDIUM_KIT_GET, async (_e, kind: KitKind, id: string) => getKitEntry(kind, id))
   ipcMain.handle(CMD.COMPENDIUM_KIT_INDEX, async (_e, kind: 'template' | 'theme') => getKitIndex(kind))
+  ipcMain.handle(CMD.COMPENDIUM_KIT_LIST, async (_e, kind: 'template' | 'theme') => kind === 'template' ? publishedTemplateList() : publishedThemeList())
 
   // Annotations (campaign-specific)
   ipcMain.handle(CMD.ANNOTATION_GET_ALL, async () => {
@@ -55,38 +81,20 @@ export function registerCompendiumHandlers(): void {
 
   // Items
   ipcMain.handle(CMD.COMPENDIUM_ITEM_INDEX, async () => {
-    return compendium.getItemIndex?.() ?? []
+    return publishedIndexes().items
   })
 
   ipcMain.handle(CMD.COMPENDIUM_GLOSSARY, async () => {
-    return compendium.getGlossary?.() ?? {}
-  })
-
-  ipcMain.handle(CMD.COMPENDIUM_ITEM_GET, async (_e, itemId: string) => {
-    const item = compendium.getItem?.(itemId)
-    if (!item) throw new Error('Item not found: ' + itemId)
-    return item
+    return publishedGlossary()
   })
 
   // Traps
   ipcMain.handle(CMD.COMPENDIUM_TRAP_INDEX, async () => {
-    return compendium.getTrapIndex?.() ?? []
-  })
-
-  ipcMain.handle(CMD.COMPENDIUM_TRAP_GET, async (_e, trapId: string) => {
-    const trap = compendium.getTrap?.(trapId)
-    if (!trap) throw new Error('Trap not found: ' + trapId)
-    return trap
+    return publishedIndexes().traps
   })
 
   // Diseases
   ipcMain.handle(CMD.COMPENDIUM_DISEASE_INDEX, async () => {
-    return compendium.getDiseaseIndex?.() ?? []
-  })
-
-  ipcMain.handle(CMD.COMPENDIUM_DISEASE_GET, async (_e, diseaseId: string) => {
-    const disease = compendium.getDisease?.(diseaseId)
-    if (!disease) throw new Error('Disease not found: ' + diseaseId)
-    return disease
+    return publishedIndexes().diseases
   })
 }

@@ -12,7 +12,7 @@ export interface EncounterCreature {
   levelAdjust?: number         // ±1 to ±5 level adjustment (DMG p.174)
   monsterTemplates?: string[]  // functional template names, max 2 (1=elite, 2=solo)
   monsterTheme?: {
-    name: string              // theme name (lookup key into MONSTER_THEMES)
+    name: string              // theme ref: a published theme's name, campaign:<id>, or library:<id>
     attackPower: string       // selected attack power name
     utilityPower: string      // selected utility power name
     skillChoice?: number      // index into parsed skill choice groups (when theme has "X or Y" skills)

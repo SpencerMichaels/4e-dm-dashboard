@@ -16,6 +16,8 @@ import type { CampaignRecord, RecordArt } from '@common/types'
 import { LIBRARY, RECORD_STORAGE, type RecordType } from '@common/campaign-records'
 import { useCampaignStore } from '@renderer/stores/campaign-store'
 import { useLibraryStore } from '@renderer/stores/library-store'
+import { useContentStore } from '@renderer/stores/content-store'
+import { NoContentNotice, useNoContent } from '../content/ContentPack'
 import { useHotkeys } from '@renderer/hooks/use-hotkeys'
 import type { Draft } from '@common/authoring/types'
 import '../authoring/authoring.css'
@@ -105,7 +107,9 @@ export function RecordCompendium<T extends { id: string; name: string }>({ kind,
   const [poppedOut, setPoppedOut] = useState<{ key: string; initial: PaneState<T> }[]>([])
   const popCount = useRef(0)
 
-  useEffect(() => { void kind.index().then(setPublished) }, [kind])
+  const contentVersion = useContentStore(s => s.version)
+  const noContent = useNoContent()
+  useEffect(() => { void kind.index().then(setPublished) }, [kind, contentVersion])
 
   // ── Rows: published, Library, and campaign entries together; filtered (a source filter for custom content) and sorted ──
   const campaignId = useCampaignStore(s => s.campaignId)
@@ -194,6 +198,7 @@ export function RecordCompendium<T extends { id: string; name: string }>({ kind,
         {header('Name', -2)}{kind.columns.map((c, i) => <span key={c.label}>{header(c.label, i)}</span>)}{!kind.levelless && header('Level', -1)}
       </div>
       {published === null ? <div className="record-empty">Loading {kind.plural}…</div>
+        : noContent && rows.length === 0 ? <NoContentNotice />
         : <VirtualizedList items={rows} renderRow={(r: RecordRow) => {
           const active = r.id === current?.id && !!r.library === !!current?.library
           return <div className={`record-row${active ? ' active' : ''}`} style={{ gridTemplateColumns: cols }}

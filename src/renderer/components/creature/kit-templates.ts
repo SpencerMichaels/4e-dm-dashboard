@@ -4,8 +4,8 @@
 // test checks it against every published entry.
 
 import type { Aura, MonsterTemplate as KitTemplate, MonsterTheme as KitTheme, Power, Range, Trait } from '@kit'
-import type { MonsterTemplate, TemplatePower } from './monster-templates'
-import type { MonsterTheme, ThemePower } from './monster-themes'
+import type { MonsterTemplate, TemplatePower } from './template-types'
+import type { MonsterTheme, ThemePower } from './template-types'
 
 const ACTION_WORDS: Record<string, string> = {
   standard: 'standard', move: 'move', minor: 'minor', free: 'free', 'immediate-interrupt': 'immediate interrupt',
