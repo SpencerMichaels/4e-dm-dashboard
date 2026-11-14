@@ -100,13 +100,15 @@ export function CommandPalette() {
           onChange={e => setQuery(e.target.value)}
           onKeyDown={handleKeyDown}
         />
-        <div className={styles.results}>
+        <div className={styles.results} role="listbox" aria-label="Commands">
           {filtered.length === 0 ? (
             <div className={styles.empty}>No results</div>
           ) : (
             filtered.map((cmd, i) => (
               <button
                 key={cmd.id}
+                role="option"
+                aria-selected={i === selectedIndex}
                 className={`${styles.resultItem} ${i === selectedIndex ? styles.selected : ''}`}
                 onClick={() => execute(cmd)}
               >

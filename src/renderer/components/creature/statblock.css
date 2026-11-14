@@ -205,3 +205,6 @@
 .power-card .pc-adjusted { color: var(--notify); text-decoration: underline dotted; text-underline-offset: 2px; }
 /* A spent power keeps full contrast; the chip says USED and the name is struck through. */
 .power-card.spent .pc-name { text-decoration: line-through; text-decoration-thickness: 1px; }
+
+/* Buttons on the dark stat block header: outlined in the header's text color, so they read as buttons there. */
+.stat-block-4e .sb-header .btn { background: transparent; border-color: currentColor; color: inherit; }

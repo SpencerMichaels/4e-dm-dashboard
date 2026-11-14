@@ -89,7 +89,7 @@ export function Sidebar({ onShowHotkeys, onShowSettings }: SidebarProps) {
           </button>}
 
       {navSections.map((section) => (
-        <div key={section.title} className={styles.section}>
+        <nav key={section.title} className={styles.section} aria-label={section.title}>
           <div className={styles.sectionTitle}>{section.title}</div>
           {section.items.map((item) => (
             <button
@@ -103,11 +103,11 @@ export function Sidebar({ onShowHotkeys, onShowSettings }: SidebarProps) {
               {item.label}
             </button>
           ))}
-        </div>
+        </nav>
       ))}
 
       {combat && (
-        <div className={styles.section}>
+        <nav className={styles.section} aria-label="Active combat">
           <div className={styles.sectionTitle}>Active Combat</div>
           <button
             className={`${styles.item} ${view.type === 'combat' ? styles.active : ''}`}
@@ -116,12 +116,12 @@ export function Sidebar({ onShowHotkeys, onShowSettings }: SidebarProps) {
             <span className={styles.itemIcon}>⚔️</span>
             Round {combat.round} — Turn {combat.turnIndex + 1}
           </button>
-        </div>
+        </nav>
       )}
 
       {campaignId && <div className={styles.section}>
         <div className={styles.sectionTitle}>Notes</div>
-        <div className={styles.noteTree}>
+        <nav className={styles.noteTree} aria-label="Notes">
           {noteTree.map((node) => (
             <button
               key={node.id}
@@ -131,7 +131,7 @@ export function Sidebar({ onShowHotkeys, onShowSettings }: SidebarProps) {
               {node.title || 'Untitled'}
             </button>
           ))}
-        </div>
+        </nav>
         <button className={styles.addBtn} onClick={handleNewNote}>
           + New Note
         </button>
@@ -147,7 +147,7 @@ export function Sidebar({ onShowHotkeys, onShowSettings }: SidebarProps) {
 
       {campaignId && (
         <div className={styles.section}>
-          <button className={styles.item} onClick={closeCampaign} style={{ color: 'var(--muted)' }}>
+          <button className={styles.closeCampaign} onClick={closeCampaign}>
             Close Campaign
           </button>
         </div>

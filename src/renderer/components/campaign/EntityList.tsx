@@ -7,6 +7,7 @@ import { RecordCompendium } from '../compendium/RecordCompendium'
 import { RECORD_KINDS } from '../compendium/record-kinds'
 import type { EntityType } from '@common/types'
 import { ConfirmDialog } from '../shared/ConfirmDialog'
+import { Icon } from '../shared/Icon'
 import { PCListView } from './PCListView'
 
 interface Props {
@@ -97,10 +98,11 @@ export function EntityList({ entityType }: Props) {
       {entities.length === 0 ? (
         <p style={{ color: 'var(--muted)' }}>No {labels[entityType]?.toLowerCase()} yet.</p>
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
+        <div role="list" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
           {entities.map((e) => (
             <div
               key={e.id}
+              role="listitem"
               style={{
                 display: 'flex',
                 alignItems: 'center',
@@ -128,6 +130,7 @@ export function EntityList({ entityType }: Props) {
                   setPendingDelete({ id: e.id, name: e.name || e.title || 'Untitled' })
                 }}
                 title="Delete"
+                aria-label="Delete"
                 style={{
                   padding: 'var(--space-2) var(--space-3)',
                   background: 'transparent',
@@ -137,7 +140,7 @@ export function EntityList({ entityType }: Props) {
                   fontSize: 'var(--font-size-sm)',
                 }}
               >
-                x
+                <Icon name="x" />
               </button>
             </div>
           ))}

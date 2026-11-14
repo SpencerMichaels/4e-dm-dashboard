@@ -86,6 +86,17 @@ button {
   background: none;
 }
 
+/* A button must read as a button before it is hovered. One without a class of
+   its own gets a border and the raised surface; inline styles still win.
+   Icon-only buttons carry an aria-label and stay bare (the icon is the
+   affordance). `npm run test:buttons:ui` checks this across the app. */
+button:not([class]):not([aria-label]) {
+  padding: 1px var(--space-2);
+  background: var(--surface-raised);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+}
+
 /* 4ecb's hover: an inset bar along the bottom edge. Ghost buttons keep their
    own underline. */
 button:not(:disabled):not([aria-disabled="true"]):not(.ghost):hover {

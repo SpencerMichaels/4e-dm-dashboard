@@ -57,9 +57,9 @@ export function TrapSearch({ onAdd, placeholder = '+ Add a trap…', style }: { 
         onKeyDown={e => { if (e.key === 'Enter' && results[0]) add(results[0].ref); if (e.key === 'Escape') setQuery('') }}
         style={{ ...small, width: '100%' }} />
       {results.length > 0 && (
-        <div className="trap-search-results" style={{ position: 'absolute', left: 0, right: 0, top: '100%', zIndex: 20, background: 'var(--surface)', border: '1px solid var(--border)', padding: '2px 6px' }}>
+        <div className="trap-search-results" role="listbox" style={{ position: 'absolute', left: 0, right: 0, top: '100%', zIndex: 20, background: 'var(--surface)', border: '1px solid var(--border)', padding: '2px 6px' }}>
           {results.map(r => (
-            <button key={trapKey(r.ref)} onClick={() => add(r.ref)}
+            <button key={trapKey(r.ref)} role="option" aria-selected={false} onClick={() => add(r.ref)}
               style={{ ...small, display: 'flex', width: '100%', justifyContent: 'space-between', gap: 8, background: 'none', border: 'none', cursor: 'pointer', padding: '1px 0', color: 'inherit' }}>
               <span>{r.name}</span><span style={{ color: 'var(--muted)' }}>{r.label} · L{r.level}</span>
             </button>

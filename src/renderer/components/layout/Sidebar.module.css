@@ -125,8 +125,27 @@
   padding: var(--space-2) var(--space-3);
   font-size: var(--font-size-sm);
   color: var(--muted);
-  width: 100%;
+  width: calc(100% - 2 * var(--space-2));
+  margin: var(--space-1) var(--space-2) 0;
+  border: 1px dashed var(--border-strong);
   border-radius: var(--radius-sm);
+}
+
+/* An action, not a destination: bordered so it reads as a button among the nav rows. */
+.closeCampaign {
+  width: calc(100% - 2 * var(--space-2));
+  margin: 0 var(--space-2);
+  padding: var(--space-1) var(--space-3);
+  font-size: var(--font-size-sm);
+  color: var(--muted);
+  text-align: left;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+}
+
+.closeCampaign:hover {
+  background: var(--hover);
+  color: var(--text);
 }
 
 .addBtn:hover {

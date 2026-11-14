@@ -116,7 +116,7 @@ export function AttackApplyPanel({ combat, attackMode, conditionDefs, onApply, o
       )}
 
       <div className={styles.footer}>
-        <button onClick={onCancel} className={styles.cancelBtn}>Cancel</button>
+        <button onClick={onCancel} className={`btn ${styles.cancelBtn}`}>Cancel</button>
         <button onClick={handleApply} className={styles.applyBtn}>
           Apply (Space)
         </button>

@@ -530,9 +530,9 @@ function LocationSidebar({ location, locationNameRef, encounters, onNameChange, 
             Encounters
           </span>
           {linkedEncounters.length > 0 && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-1)', marginBottom: 'var(--space-2)' }}>
+            <div role="list" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-1)', marginBottom: 'var(--space-2)' }}>
               {linkedEncounters.map(enc => (
-                <div key={enc.id} style={{
+                <div key={enc.id} role="listitem" style={{
                   display: 'flex', alignItems: 'center', gap: 'var(--space-2)',
                   padding: 'var(--space-1) var(--space-2)',
                   background: 'var(--background)',
@@ -571,7 +571,7 @@ function LocationSidebar({ location, locationNameRef, encounters, onNameChange, 
                 ))
               )}
               <button onClick={() => setAddingEncounter(false)}
-                style={{ fontSize: 'var(--font-size-xs)', color: 'var(--muted)', background: 'none', border: 'none', cursor: 'pointer', padding: 'var(--space-1)' }}>
+                style={{ fontSize: 'var(--font-size-xs)', color: 'var(--muted)', background: 'transparent', border: '1px solid var(--border-strong)', borderRadius: 'var(--radius-sm)', cursor: 'pointer', padding: 'var(--space-1)' }}>
                 Cancel
               </button>
             </div>

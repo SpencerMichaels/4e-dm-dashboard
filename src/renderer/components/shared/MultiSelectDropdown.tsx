@@ -52,6 +52,8 @@ export function MultiSelectDropdown({ options, selected, onChange, placeholder =
       <button
         type="button"
         className={className}
+        aria-haspopup="listbox"
+        aria-expanded={open}
         onClick={() => setOpen(o => !o)}
         style={{ color: 'inherit', font: 'inherit', textAlign: 'left' }}
       >
@@ -105,9 +107,9 @@ export function MultiSelectDropdown({ options, selected, onChange, placeholder =
             }}>
               <button type="button" onClick={() => onChange([])}
                 style={{
-                  background: 'transparent', border: 'none', cursor: 'pointer',
+                  background: 'transparent', border: '1px solid var(--border-strong)', borderRadius: 'var(--radius)', cursor: 'pointer',
                   color: 'var(--muted)', fontSize: 'var(--font-size-xs)',
-                  padding: 0,
+                  padding: '0 6px',
                 }}>
                 Clear
               </button>

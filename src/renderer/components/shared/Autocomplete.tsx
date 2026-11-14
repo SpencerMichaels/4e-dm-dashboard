@@ -112,7 +112,7 @@ export function Autocomplete({ options, value, onChange, placeholder, style }: P
       </div>
 
       {open && filtered.length > 0 && (
-        <div style={{
+        <div role="listbox" style={{
           position: 'absolute',
           top: '100%',
           left: 0,
@@ -128,6 +128,8 @@ export function Autocomplete({ options, value, onChange, placeholder, style }: P
           {filtered.map((opt, i) => (
             <button
               key={opt.value}
+              role="option"
+              aria-selected={i === highlightIndex}
               onClick={() => select(opt)}
               style={{
                 display: 'block',

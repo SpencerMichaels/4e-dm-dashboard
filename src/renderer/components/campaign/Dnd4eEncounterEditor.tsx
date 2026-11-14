@@ -981,9 +981,8 @@ function TemplatePanel({ eligible, appliedNames, previewTemplateName, onSelect, 
     <div className="stat-block-4e" style={{ flex: '1 1 0', display: 'flex', flexDirection: 'column', minHeight: 0, fontSize: 12 }}>
       {/* Header */}
       <div className="sb-header" style={{ flexShrink: 0, marginBottom: 0, gap: 6 }}>
-        <button onClick={onExit} className="ghost"
-          title="Back to creature search"
-          style={{ color: 'inherit', font: 'inherit' }}><Icon name="arrow-left" style={{ verticalAlign: '-0.125em' }} /> creatures</button>
+        <button onClick={onExit} className="btn btn-sm"
+          title="Back to creature search"><Icon name="arrow-left" style={{ verticalAlign: '-0.125em' }} /> creatures</button>
         <input className="ghost sb-name" value={search}
           onChange={e => setSearch(e.target.value)}
           placeholder="Search templates..."
@@ -1047,7 +1046,7 @@ function TemplatePanel({ eligible, appliedNames, previewTemplateName, onSelect, 
         <span>{filtered.length.toLocaleString()} of {total.toLocaleString()}</span>
         {previewTemplateName && (
           <button onClick={() => onShowInfo(findByRef(templates, previewTemplateName ?? undefined)!)}
-            className="ghost" style={{ color: 'inherit', font: 'inherit' }}>
+            className="btn btn-sm">
             view base template
           </button>
         )}
@@ -1285,7 +1284,7 @@ function ThemePicker({ currentTheme, onApply, onRemove, onClose, onPreview }: {
         </select>
         {currentTheme && (
           <button onClick={onRemove} title="Remove theme"
-            style={{ color: 'var(--danger)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 'var(--font-size-xs)' }}>
+            style={{ color: 'var(--danger)', background: 'none', border: '1px solid var(--danger)', borderRadius: 'var(--radius-sm)', padding: '0 6px', cursor: 'pointer', fontSize: 'var(--font-size-xs)' }}>
             Remove
           </button>
         )}
@@ -1391,7 +1390,7 @@ function ThemePicker({ currentTheme, onApply, onRemove, onClose, onPreview }: {
               padding: '3px 12px', borderRadius: 'var(--radius-sm)',
               background: canApply ? THEME_COLOR : 'var(--hover)',
               color: canApply ? 'var(--on-fill)' : 'var(--muted)',
-              border: 'none', cursor: canApply ? 'pointer' : 'not-allowed',
+              border: `1px solid ${canApply ? THEME_COLOR : 'var(--border-strong)'}`, cursor: canApply ? 'pointer' : 'not-allowed',
               fontWeight: 600, fontSize: 'var(--font-size-xs)',
             }}
           >

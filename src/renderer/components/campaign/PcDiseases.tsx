@@ -50,7 +50,7 @@ function PcDiseaseRow({ pc, carried, onChange }: { pc: PlayerCharacter; carried:
     <div className="pc-disease" style={{ border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', padding: 'var(--space-2)', marginBottom: 'var(--space-2)', maxWidth: 720 }}>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 'var(--space-2)', flexWrap: 'wrap' }}>
         <b>{pc.name}</b>
-        <button onClick={() => setOpen(!open)} aria-expanded={open} style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: 'inherit', textDecoration: 'underline dotted' }}>{name}</button>
+        <button className="btn" onClick={() => setOpen(!open)} aria-expanded={open} title={open ? 'Hide the stages' : 'Show the stages'} style={{ padding: '0 6px' }}><Icon name={open ? 'chevron-down' : 'chevron-right'} />{name}</button>
         <span style={{ flex: 1, color: 'var(--muted)', fontSize: 'var(--font-size-sm)' }}>
           {carried.stage === 'exposed' ? 'Exposed' : `Stage ${carried.stage}${disease && carried.stage === finalStage(disease) ? ' (final)' : ''}`}
         </span>
@@ -104,9 +104,9 @@ function AddDisease({ pcs, onAdd }: { pcs: PlayerCharacter[]; onAdd: (pc: Player
         <input value={query} onChange={e => setQuery(e.target.value)} placeholder="+ Add a disease (stage 1)…" aria-label="Search diseases to add"
           onKeyDown={e => { if (e.key === 'Enter' && results[0] && pc) { onAdd(pc, results[0].ref); setQuery('') } }} style={{ width: 240 }} />
         {results.length > 0 && (
-          <div className="disease-search-results" style={{ position: 'absolute', left: 0, right: 0, top: '100%', zIndex: 20, background: 'var(--surface)', border: '1px solid var(--border)' }}>
+          <div className="disease-search-results" role="listbox" style={{ position: 'absolute', left: 0, right: 0, top: '100%', zIndex: 20, background: 'var(--surface)', border: '1px solid var(--border)' }}>
             {results.map(r => (
-              <button key={diseaseKey(r.ref)} onClick={() => { if (pc) onAdd(pc, r.ref); setQuery('') }}
+              <button key={diseaseKey(r.ref)} role="option" aria-selected={false} onClick={() => { if (pc) onAdd(pc, r.ref); setQuery('') }}
                 style={{ display: 'block', width: '100%', textAlign: 'left', background: 'none', border: 'none', padding: '1px 6px', cursor: 'pointer', color: 'inherit' }}>{r.name}</button>
             ))}
           </div>

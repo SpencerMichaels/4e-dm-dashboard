@@ -229,7 +229,7 @@ export function RecordCompendium<T extends { id: string; name: string }>({ kind,
   const header = (label: string, key: number) => <span style={{ cursor: 'pointer', whiteSpace: 'nowrap' }}
     onClick={() => setSort(s => ({ key, asc: s.key === key ? !s.asc : true }))}>{label}{sort.key === key && <>{' '}<Icon name={sort.asc ? 'chevron-up' : 'chevron-down'} label={sort.asc ? 'ascending' : 'descending'} style={{ verticalAlign: '-0.125em' }} /></>}</span>
   const Statblock = kind.Statblock
-  const action = (label: string, onClick: () => void, title?: string): ReactNode => <button className="ghost record-action" title={title} onClick={onClick}>{label}</button>
+  const action = (label: string, onClick: () => void, title?: string): ReactNode => <button className="btn btn-sm record-action" title={title} onClick={onClick}>{label}</button>
 
   return <div className="stat-block-4e compendium-split record-compendium">
     <div className="compendium-list">
@@ -237,7 +237,7 @@ export function RecordCompendium<T extends { id: string; name: string }>({ kind,
         <input className="ghost sb-name" value={search} placeholder="Search..." aria-label={`Search ${kind.plural}`} onChange={e => setSearch(e.target.value)} style={{ color: 'inherit', flex: 1 }} />
         <span style={{ display: 'flex', alignItems: 'baseline', gap: 4, whiteSpace: 'nowrap' }}>
           {!kind.levelless && <>Level <input className="ghost" value={levelStr} placeholder="1–30" aria-label="Level filter" onChange={e => setLevelStr(e.target.value.replace(/-/g, '–'))} style={{ width: 40, color: 'inherit', textAlign: 'center' }} /></>}
-          <button className="ghost" disabled={!campaignId} onClick={() => void startNew()} title={campaignId ? `Create a new campaign ${kind.singular}` : 'Open a campaign to add campaign entries'} style={{ color: 'inherit', font: 'inherit' }}>+ new</button>
+          <button className="btn btn-sm" disabled={!campaignId} onClick={() => void startNew()} title={campaignId ? `Create a new campaign ${kind.singular}` : 'Open a campaign to add campaign entries'} style={{ color: 'inherit', font: 'inherit' }}>+ new</button>
         </span>
       </div>
       <div className="sb-subheader" style={{ flexShrink: 0, gap: 8, justifyContent: 'flex-start' }}>
@@ -297,8 +297,8 @@ export function RecordCompendium<T extends { id: string; name: string }>({ kind,
       <Statblock value={p.content} art={p.art} />
     </FloatingPanel>)}
 
-    {menu && <div className="record-menu" style={{ left: menu.x, top: menu.y }} onMouseDown={e => e.stopPropagation()}>
-      <button onClick={() => void remove(menu.id)}>Delete</button>
+    {menu && <div className="record-menu" role="menu" style={{ left: menu.x, top: menu.y }} onMouseDown={e => e.stopPropagation()}>
+      <button role="menuitem" onClick={() => void remove(menu.id)}>Delete</button>
     </div>}
   </div>
 }

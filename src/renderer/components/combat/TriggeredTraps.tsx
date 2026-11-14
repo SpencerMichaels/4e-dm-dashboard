@@ -19,10 +19,10 @@ export function TriggeredTraps({ combat, selectedIds, onInspect, onTrigger, onTo
   if (!traps.length) return null
   const small = { fontSize: 'var(--font-size-xs)', padding: '1px 6px' }
   return (
-    <div className="triggered-traps" style={{ flexShrink: 0, border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', padding: '4px 6px' }}>
+    <div className="triggered-traps" role="list" style={{ flexShrink: 0, border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', padding: '4px 6px' }}>
       <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--muted)', marginBottom: 2 }}>Triggered traps</div>
       {traps.map(t => (
-        <div key={t.id} className="triggered-trap" style={{ display: 'flex', alignItems: 'center', gap: 6, opacity: t.dead ? 0.5 : 1 }}>
+        <div key={t.id} className="triggered-trap" role="listitem" style={{ display: 'flex', alignItems: 'center', gap: 6, opacity: t.dead ? 0.5 : 1 }}>
           <button onClick={() => onInspect(t.id)} title="Inspect"
             style={{ flex: 1, textAlign: 'left', background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontWeight: selectedIds.includes(t.id) ? 700 : 400, textDecoration: t.dead ? 'line-through' : undefined }}>
             {t.name}

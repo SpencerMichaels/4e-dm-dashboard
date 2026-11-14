@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useCampaignStore } from '../../stores/campaign-store'
 import { useUiStore } from '../../stores/ui-store'
 import { ConfirmDialog } from '../shared/ConfirmDialog'
+import { Icon } from '../shared/Icon'
 import type { Campaign } from '@common/types'
 
 export function HomeView() {
@@ -87,13 +88,14 @@ export function HomeView() {
       )}
 
       {campaigns.length > 0 && (
-        <div style={{ marginTop: 'var(--space-6)' }}>
+        <div role="list" style={{ marginTop: 'var(--space-6)' }}>
           <h2 style={{ fontSize: 'var(--font-size-lg)', marginBottom: 'var(--space-3)', color: 'var(--text-secondary)' }}>
             Recent Campaigns
           </h2>
           {campaigns.map(c => (
             <div
               key={c.id}
+              role="listitem"
               style={{
                 display: 'flex', alignItems: 'center',
                 background: 'var(--surface-raised)',
@@ -122,14 +124,16 @@ export function HomeView() {
               <button
                 onClick={(e) => { e.stopPropagation(); setConfirmDeleteId(c.id) }}
                 title="Delete campaign"
+                aria-label="Delete campaign"
                 style={{
                   padding: 'var(--space-2) var(--space-3)',
                   background: 'transparent', border: 'none',
                   cursor: 'pointer', color: 'var(--muted)',
                   fontSize: 'var(--font-size-sm)',
+                  display: 'inline-flex',
                 }}
               >
-                x
+                <Icon name="x" />
               </button>
             </div>
           ))}
