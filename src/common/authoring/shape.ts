@@ -86,7 +86,7 @@ function damageTypes(c: Checker, v: unknown, path: string): void {
 /** Fields each clause kind may have besides `at`, `if`, `unless`, `optional` and `kind`. */
 const CLAUSE_FIELDS: Record<string, string[]> = {
   'damage': ['dice', 'amount', 'plus', 'types', 'typeChoice', 'who', 'extra', 'critical', 'by', 'per', 'duration', 'saveGroup', 'byLevel', 'stacks', 'max'],
-  'damage-formula': ['text', 'types'],
+  'damage-formula': ['text', 'types', 'typeChoice', 'byLevel'],
   'half-damage': ['who', 'duration', 'saveGroup'],
   'double-damage': ['who', 'duration', 'saveGroup'],
   'max-damage': ['who', 'duration', 'saveGroup'],
@@ -222,7 +222,7 @@ export function clause(c: Checker, cl: unknown, path: string, inChoice = false):
       c.keys(x, ['level', 'value'], q)
       if (c.int(x.level, `${q}.level`, { min: 2, max: 30 }) && (x.level as number) <= last) c.fail(`${q}.level`, 'expected rising levels')
       last = typeof x.level === 'number' ? x.level : last
-      if (typeof x.value === 'string') { if (!DICE.test(x.value)) c.fail(`${q}.value`, 'expected a number or dice ("2d6")') }
+      if (typeof x.value === 'string') { if (cl.kind === 'damage-formula' ? !x.value.trim() : !DICE.test(x.value)) c.fail(`${q}.value`, cl.kind === 'damage-formula' ? 'expected the formula text' : 'expected a number or dice ("2d6")') }
       else c.int(x.value, `${q}.value`)
     })
   })
@@ -247,7 +247,7 @@ export function clause(c: Checker, cl: unknown, path: string, inChoice = false):
       if (cl.by !== undefined) who('by')
       if (cl.duration !== undefined) dur()
       break
-    case 'damage-formula': c.str(cl.text, `${path}.text`, { nonEmpty: true }); damageTypes(c, cl.types, `${path}.types`); break
+    case 'damage-formula': c.str(cl.text, `${path}.text`, { nonEmpty: true }); damageTypes(c, cl.types, `${path}.types`); typeChoice(c, cl, path); break
     case 'half-damage':
     case 'double-damage':
     case 'max-damage':
@@ -281,7 +281,8 @@ export function clause(c: Checker, cl: unknown, path: string, inChoice = false):
       who(); dur(); break
     case 'resistance':
     case 'vulnerability':
-      if (cl.type === 'choice') { if (cl.typeChoice === undefined) c.fail(`${path}.typeChoice`, 'type "choice" needs typeChoice') }
+      // 'choice' without typeChoice: any type, chosen when applied (a theme's "[damage type]").
+      if (cl.type === 'choice') { /* typeChoice optional */ }
       else if (cl.typeChoice !== undefined) c.fail(`${path}.type`, 'expected "choice" with typeChoice')
       else if (cl.type !== 'all') c.oneOf(DAMAGE_TYPES, cl.type, `${path}.type`)
       typeChoice(c, cl, path)
@@ -462,7 +463,6 @@ export function clause(c: Checker, cl: unknown, path: string, inChoice = false):
       break
     case 'damage-type':
       damageTypes(c, cl.types, `${path}.types`); typeChoice(c, cl, path); who(); dur()
-      if (Array.isArray(cl.types) && cl.types.length === 0 && cl.typeChoice === undefined) c.fail(`${path}.types`, 'expected a type, or typeChoice')
       c.optional(cl, 'from', path, (v, p) => damageTypes(c, v, p))
       c.optional(cl, 'power', path, (v, p) => c.str(v, p, { nonEmpty: true }))
       break

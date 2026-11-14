@@ -107,16 +107,17 @@ export function checkMonsterBands(m: Monster, recipe?: { hpMultiplier?: number }
 
 /**
  * Fields set to 'unknown' because the print gives no value (Attack.vs,
- * Power.usage), in any entry kind: flagged so they land in review.
+ * Power.usage), in any entry kind: flagged so they land in review. Trap
+ * powers almost never print a usage, so theirs is not flagged.
  */
-export function checkUnknowns(entry: unknown): Flag[] {
+export function checkUnknowns(entry: unknown, kind?: string): Flag[] {
   const flags: Flag[] = []
   const walk = (v: unknown, path: string) => {
     if (Array.isArray(v)) { v.forEach((x, i) => walk(x, `${path}[${i}]`)); return }
     if (typeof v !== 'object' || v === null) return
     const o = v as Record<string, unknown>
     if (o.vs === 'unknown' && 'bonus' in o) flags.push({ rule: 'unknown', path: `${path}.vs`, message: 'attack defense not printed (vs "unknown")' })
-    if (o.usage === 'unknown' && Array.isArray(o.attacks)) flags.push({ rule: 'unknown', path: `${path}.usage`, message: `${String(o.name)}: usage not printed ("unknown")` })
+    if (o.usage === 'unknown' && Array.isArray(o.attacks) && kind !== 'traps') flags.push({ rule: 'unknown', path: `${path}.usage`, message: `${String(o.name)}: usage not printed ("unknown")` })
     for (const [k, x] of Object.entries(o)) if (k !== 'provenance') walk(x, `${path}.${k}`)
   }
   walk(entry, '$')

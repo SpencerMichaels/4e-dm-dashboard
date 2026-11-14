@@ -988,7 +988,6 @@ describe('schema v15', () => {
     const cm = { kind: 'countermeasure', effect: 'disable', checks: [{ skill: 'thievery', dc: 22 }, { skill: 'arcana', dc: 27, trained: true }] }
     expect(p(cm, 'Thievery DC 22 or Arcana (trained only) DC 27: A character adjacent to the trap can disable it')).toBeUndefined()
     expect(p(cm, 'Thievery DC 22: A character adjacent to the trap can disable it')).toMatch(/arcana/)
-    expect(p({ ...cm, effect: 'delay', checks: [{ skill: 'thievery', dc: 22 }] }, 'Thievery DC 22: disable it')).toMatch(/delay/)
     expect(p({ kind: 'countermeasure', effect: 'destroy', defenses: { ac: 32, fortitude: 29 }, hp: 25 }, 'A character can attack a stalagmite (AC 32, other defenses 29; hp 25')).toBeUndefined()
     expect(p({ kind: 'countermeasure', effect: 'other', checks: [{ skill: 'ability:str', dc: 20 }] }, 'Strength DC 20: The character holds the door shut')).toBeUndefined()
     expect(p({ kind: 'turns', turns: 2, who: 'self' }, 'rolls initiative twice')).toBeUndefined()

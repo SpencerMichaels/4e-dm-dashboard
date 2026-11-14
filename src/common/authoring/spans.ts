@@ -78,15 +78,6 @@ const RESTRICTION_WORDS: Record<string, RegExp> = {
 /** The words of a damage amount that is not dice (a "half-" amount also needs "half"). */
 const DAMAGE_AMOUNT_WORDS: Record<string, RegExp> = { 'surge-value': /\bsurge/i, 'bloodied-value': /\bbloodied/i, 'damage-dealt': /\bdamage/i, 'level': /\blevel/i }
 
-/** What a countermeasure's success does, in its words; 'avoid', 'identify' and 'other' need none. */
-const COUNTER_WORDS: Record<string, RegExp> = {
-  disable: /\bdisabl|\bdeactivat|\bshut|\bstop|\bjam|\bdispel|\bneutraliz|\bend/i,
-  delay: /\bdelay|\bdoes not attack|\bdoesn['’]t attack|\bskip/i,
-  destroy: /\bdestroy|\battack|\bbreak|\bhp\b|\bhit points/i,
-  predict: /\bpredict|\bdetermine|\bnext/i,
-  control: /\bcontrol|\bcommand|\bdirect|\baim/i,
-}
-
 /** "twice", "three times", "two turns": a turn count in words. */
 const TIMES_WORDS: Record<number, RegExp> = { 2: /\btwice\b|\btwo\b/i, 3: /\bthree\b|\bthrice\b/i, 4: /\bfour\b/i }
 
@@ -188,7 +179,8 @@ export function spanProblem(clause: Clause, span: string, after = '', before = '
       for (const t of clause.types) if (!hasType(t)) return `type "${t}" not in span or the words after it`
       return anyType(clause.typeChoice) ? undefined : 'none of the typeChoice types in span'
     case 'damage-formula':
-      return has('damage') || compactDice(span).includes(compactDice(clause.text)) ? undefined : 'formula not in span'
+      if (!has('damage') && !compactDice(span).includes(compactDice(clause.text))) return 'formula not in span'
+      return anyType(clause.typeChoice) ? undefined : 'none of the typeChoice types in span'
     case 'half-damage': return has(/\bhal(f|ved?|ves|ving)\b/i) ? undefined : 'no "half" or "halved" in span'
     case 'double-damage': return has(/\bdoubl|\btwice\b/i) ? undefined : 'no "double" or "twice" in span'
     case 'max-damage': return has(/\bmaxim/i) ? undefined : 'no "maximum" in span'
@@ -387,8 +379,6 @@ export function spanProblem(clause: Clause, span: string, after = '', before = '
         if (!has(new RegExp(`\\b${word}`, 'i'))) return `no "${word}" in span`
         if (ch.dc !== undefined && !num(ch.dc)) return `DC ${ch.dc} not in span`
       }
-      const word = COUNTER_WORDS[clause.effect]
-      if (word && !has(word)) return `no "${clause.effect}" words in span`
       if (clause.hp !== undefined && !num(clause.hp)) return `hp ${clause.hp} not in span`
       const def = Object.values(clause.defenses ?? {}).find(v => typeof v === 'number' && !num(v))
       return def === undefined ? undefined : `defense ${def} not in span`

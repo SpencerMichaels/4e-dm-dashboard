@@ -181,7 +181,7 @@ The check flags these; they do not lower confidence.
 {{#traps}}
 - Aura traits ("Aura 1") go in `auras` with `range`. "At-Will Terrain" /
   "Single-Use Terrain" is `usage`. A printed "Speed 5" is `speed` (`{"walk": 5}`).
-- A power under "Triggered Actions" with no printed action type has `action: "triggered"`.
+- A power under "Triggered Actions" with no printed action type has `action: "triggered"`. A trap power that prints no usage is `usage: "unknown"` (not flagged for traps).
 - Stats printed inside a countermeasure for one part of the trap ("each
   stalagmite: AC 32, hp 25") stay in that countermeasure line; the trap-level
   `hp`/`defenses`/`resist` come only from the trap's own stat lines.
@@ -193,7 +193,7 @@ The check flags these; they do not lower confidence.
   part ("AC 32, other defenses 29; hp 25") is `destroy` with its `defenses`
   (each named one) and `hp`. The quote holds the check and what success does;
   "Failure: ..." outcomes are other clauses with `if` "Failure"; check
-  results that only give knowledge are `identify`.
+  results that only give knowledge are `identify`; an escape check is `avoid`.
 {{/traps}}
 {{#templates,themes}}
 - There is no HTML: the source text is the entry's printed lines, transcribed
@@ -204,7 +204,8 @@ The check flags these; they do not lower confidence.
   scaling words uncovered; one that changes anything else (area, condition) stays unparsed.
 - Amounts of the creature's level: "one-half its level" is `half-level`, "8 +
   this creature's level" `level` with `plus: 8` (damage: `amount`, no
-  `dice`). "2d8 + Strength modifier necrotic damage" is `damage-formula`.
+  `dice`). "2d8 + Strength modifier necrotic damage" is `damage-formula` (its `byLevel` values the formula text).
+- A theme's "[damage type]" (chosen when applied): resistance `type: "choice"`, damage and `damage-type` `types: []`, with no `typeChoice`.
 - "gains the necrotic keyword" is `keyword`; "change a power's energy keyword
   to necrotic" is `damage-type`.
 {{/templates,themes}}
@@ -407,7 +408,7 @@ never write `at`. An unparsed clause is just `{"text": "<exact printed words>"}`
 | condition-swap | the new condition and "instead" (each replaced one in its sentence) |
 | reduced-healing | "heal", "regain" or "hit points", and "half" or `value` |
 | damage-formula | "damage" |
-| countermeasure | each check's skill (or ability) and `dc`; the effect's words ("disable"/"deactivate"/"stop", "delay", "destroy"/"attack", "predict"/"determine", "control"); `hp` and each defense number |
+| countermeasure | each check's skill (or ability) and `dc`; `hp` and each defense number |
 | turns, one-of | "initiative", "turn" or "acts", `turns` ("twice", "three") and each count; "following" |
 | light | "light", "dark" or "dim", the level's word, `radius` |
 | damage-type, keyword | each type, in the quote or the words after it; the keyword |

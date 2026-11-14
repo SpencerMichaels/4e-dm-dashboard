@@ -31,7 +31,7 @@ export function validateEntry(kind: ContentKind, entry: unknown): EntryResult {
   const errors = [...c.issues, ...checkSpans(entry)]
   // Bands need a well-formed entry.
   const ok = c.issues.length === 0
-  const flags = [...(kind === 'monsters' && ok ? checkMonsterBands(entry as Monster) : []), ...(ok ? checkUnknowns(entry) : [])]
+  const flags = [...(kind === 'monsters' && ok ? checkMonsterBands(entry as Monster) : []), ...(ok ? checkUnknowns(entry, kind) : [])]
   return { errors, flags }
 }
 
