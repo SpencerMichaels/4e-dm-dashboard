@@ -12,6 +12,8 @@ import { capitalize } from '@common/utils/format'
 import { combatStatBlock } from './combat-view'
 import { normalizeStringArray } from '@common/utils/arrays'
 import { hpPercentage, hpColor, formatConditionName } from '@renderer/utils/combat-utils'
+import { useCampaignStore } from '../../stores/campaign-store'
+import { PcSheetRows, sheetSubtitle } from '../campaign/PcSheet'
 import '../creature/statblock.css'
 
 
@@ -24,6 +26,8 @@ export function Dnd4eCombatPanel({
   onPopoutStatblock, hideMainActionPowers, onToggleDisabled,
 }: PluginCombatPanelProps) {
   const sb = combatStatBlock(c)
+  // A PC's imported sheet: players track their own hit points, so the panel shows it for reference.
+  const sheet = useCampaignStore(s => c.isPC ? s.playerCharacters.find(p => p.id === c.entityId)?.sheet : undefined)
   const isTrap = c.kind === 'trap'
   const actions = Array.isArray(sb.actions) ? sb.actions as PowerEntry[] : []
   const diseaseNames = useDiseaseNames()
@@ -84,15 +88,15 @@ export function Dnd4eCombatPanel({
               }}>↗</button>
           )}
         </span>
-        <span>Level {sb.level} {(() => {
+        {c.isPC ? <span>{sheet ? sheetSubtitle(sheet) : c.playerName}</span> : <span>Level {sb.level} {(() => {
           const mod = sb.monsterModifier as string | undefined
           const role = sb.role as string | undefined
           return (mod ? capitalize(mod) + ' ' : '') + (role ? capitalize(role) : '')
-        })()}</span>
+        })()}</span>}
       </div>
 
-      {/* HP + AP line */}
-      <div style={{ padding: '4px 8px', display: 'flex', alignItems: 'center', gap: 6, borderBottom: '1px solid var(--sb-separator)' }}>
+      {/* HP + AP line (not for PCs: their players track hit points) */}
+      {!c.isPC && <div style={{ padding: '4px 8px', display: 'flex', alignItems: 'center', gap: 6, borderBottom: '1px solid var(--sb-separator)' }}>
         <b style={{ fontSize: 11 }}>HP</b>
         {sb.noHitPoints
           // Traps without hit points are stopped by countermeasures (Disable), not damage.
@@ -133,7 +137,7 @@ export function Dnd4eCombatPanel({
               title={c.dead ? 'The trap works again' : 'A countermeasure stopped the trap'}>{c.dead ? 'Re-arm' : 'Disable'}</button>
           </>
         )}
-      </div>
+      </div>}
 
       {/* Active conditions strip */}
       {c.conditions.length > 0 && (
@@ -181,7 +185,11 @@ export function Dnd4eCombatPanel({
         </div>
       )}
 
-      {/* Full stat block */}
+      {/* Full stat block; a PC shows its imported sheet instead */}
+      {c.isPC ? <div style={{ fontSize: 11 }}>
+        {sheet ? <PcSheetRows sheet={sheet} />
+          : <div className="sb-row" style={{ color: 'var(--color-text-muted)' }}>No sheet imported (Player Characters page, Import)</div>}
+      </div> : <>
       {/* Traps print only what they have: often no initiative, senses, or defenses. */}
       {isTrap ? (sb.initiative !== undefined && (
         <div className="sb-row" style={{ fontSize: 11 }}><span><b className="sb-label">Initiative</b> {sign(sb.initiative as number)}</span></div>
@@ -221,6 +229,7 @@ export function Dnd4eCombatPanel({
           <span><b className="sb-label">Saving Throws</b> +{saveBonus}</span>
         </div>
       )}
+      </>}
 
       {/* Traits and auras: the same card as powers, pinned from its header */}
       {(traitEntries.length > 0 || auraEntries.length > 0) && (

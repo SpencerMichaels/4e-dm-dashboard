@@ -4,7 +4,7 @@
 // render offscreen. Run with `npm run test:combat:ui` after `npm run build`.
 process.env.FOUR_E_HIDDEN_WINDOWS = '1'
 const { app, BrowserWindow } = require('electron')
-const { mkdtempSync, mkdirSync, writeFileSync, symlinkSync, rmSync, existsSync } = require('fs')
+const { mkdtempSync, mkdirSync, writeFileSync, readFileSync, symlinkSync, rmSync, existsSync } = require('fs')
 const { tmpdir } = require('os')
 const { join, resolve } = require('path')
 const root = mkdtempSync(join(tmpdir(), '4e-combat-ui-'))
@@ -70,6 +70,10 @@ app.whenReady().then(async () => {
     const campaignId = await js(async () => { const c = await window.api.campaign.create('Combat smoke'); await window.api.campaign.open(c.id); return c.id })
     await sleep(800)
     await js((e, h) => Promise.all([window.api.entity.save('encounter', e), window.api.entity.save('player-character', h)]), encounter, hero)
+    // The hero's sheet comes from a Character Builder save.
+    const sheetFile = { name: 'brannoc.dnd4e', text: readFileSync(resolve(__dirname, '../../src/common/character/fixtures/brannoc.dnd4e'), 'utf8') }
+    const imported = await js(f => window.api.pc.import([f], 'hero'), sheetFile)
+    if (JSON.stringify(imported) !== JSON.stringify({ created: [], updated: ['Hero'], errors: [] })) throw new Error('Sheet import failed: ' + JSON.stringify(imported))
     // The captain is a creature file from before creatures became kit records: reopening the campaign converts it.
     writeFileSync(join(root, 'user', 'campaigns', campaignId, 'creatures', 'captain.json'), JSON.stringify(captain))
     await js(id => window.api.campaign.open(id), campaignId)
@@ -167,6 +171,12 @@ app.whenReady().then(async () => {
     if (heroRecord?.diseases?.length !== 1 || heroRecord.diseases[0].stage !== 'exposed' || !heroRecord.diseases[0].compendiumId) throw new Error('Expose did not track the disease: ' + JSON.stringify(heroRecord?.diseases))
     await screenshot('out/combat-disease.png')
 
+    // The hero's imported sheet: defenses in its initiative row, the sheet in its panel.
+    if (!(await js(() => document.body.innerText.includes('AC 20 F 18 R 13 W 14')))) throw new Error('The hero row does not show its defenses')
+    await js(() => [...document.querySelectorAll('*')].find(el => el.children.length === 0 && el.textContent.trim() === 'Hero').click())
+    await until(() => document.body.innerText.includes('Level 4 Dwarf Fighter') && document.body.innerText.includes('Passive Perception 13, Insight 11'), 'the hero sheet in its panel')
+    await screenshot('out/combat-pc-sheet.png')
+
     // A used recharge power prompts a roll at the start of the captain's next turn (combat entry order).
     const sweepIndex = cap.content.traits.length + cap.content.auras.length + cap.content.powers.findIndex(p => p.name === 'Sweeping Cut')
     await js((id, i) => window.api.combat.usePower(id, i), cap.id, sweepIndex)
@@ -208,10 +218,12 @@ app.whenReady().then(async () => {
     heroRecord = await js(() => window.api.entity.get('player-character', 'hero'))
     if (heroRecord.diseases[0].stage !== 2) throw new Error('Stage not saved: ' + JSON.stringify(heroRecord.diseases))
     await screenshot('out/pc-diseases.png')
+    if (!(await js(() => document.querySelector('.pc-sheet')?.innerText.includes('Level 4 Dwarf Fighter')))) throw new Error('The PC card does not show the sheet')
+    if (heroRecord.markType !== 'combat-challenge' || heroRecord.sheetFile !== 'brannoc.dnd4e') throw new Error('Import did not fill the mark or the file name')
 
     const confirms = await js(() => window.__confirms)
     clearTimeout(timeout)
-    console.log('COMBAT_SMOKE_OK: legacy creature converted on open, encounter row preview (template, level adjustment), combat start in main with kit combatants (elite captain, troll regeneration, grouped minions), combat panel, recharge prompt, live pinned card, location trap stat blocks and search, location traps joining the encounter, encounter diseases, disease name in a power applied to a PC like a condition, PC disease stages, trap rows with XP and preview, hidden trap with initiative, triggered trap (Trigger, Disable); confirms: ' + confirms.length + '; screenshots out/combat-encounter-preview.png, out/combat-panel.png, out/combat-trap.png, out/location-traps.png, out/combat-disease.png, out/pc-diseases.png')
+    console.log('COMBAT_SMOKE_OK: legacy creature converted on open, encounter row preview (template, level adjustment), combat start in main with kit combatants (elite captain, troll regeneration, grouped minions), combat panel, recharge prompt, live pinned card, location trap stat blocks and search, location traps joining the encounter, encounter diseases, disease name in a power applied to a PC like a condition, PC disease stages, PC sheet import (row defenses, panel, PC card), trap rows with XP and preview, hidden trap with initiative, triggered trap (Trigger, Disable); confirms: ' + confirms.length + '; screenshots out/combat-encounter-preview.png, out/combat-panel.png, out/combat-trap.png, out/location-traps.png, out/combat-disease.png, out/pc-diseases.png, out/combat-pc-sheet.png')
     finish(0)
   } catch (err) {
     console.error(err)

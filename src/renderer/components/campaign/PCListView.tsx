@@ -7,6 +7,7 @@ import { CreatureImageEditor } from '../shared/CreatureImageEditor'
 import { ConfirmDialog } from '../shared/ConfirmDialog'
 import { CLASS_MARKS } from '../../../common/rules/class-marks'
 import { PcDiseases } from './PcDiseases'
+import { ImportOutcomeBanner, PcSheetRows, sheetSubtitle, useCharacterImport } from './PcSheet'
 
 export function PCListView() {
   const playerCharacters = useCampaignStore((s) => s.playerCharacters)
@@ -32,7 +33,9 @@ export function PCListView() {
     await createPC('New Character', '')
   }, [createPC])
 
-  useHotkeys([{ key: 'n', handler: handleCreate }])
+  const { pick, outcome, clear } = useCharacterImport()
+
+  useHotkeys([{ key: 'n', handler: handleCreate }, { key: 'i', handler: () => pick() }])
 
   return (
     <div>
@@ -50,6 +53,9 @@ export function PCListView() {
               style={{ width: 48, textAlign: 'center', fontWeight: 600 }}
             />
           </label>
+          <button onClick={() => pick()} title="Import characters from Character Builder (.dnd4e) or 4ecb (.4ecb) files (I)">
+            Import…
+          </button>
           <button
             onClick={handleCreate}
             style={{
@@ -64,6 +70,8 @@ export function PCListView() {
         </div>
       </div>
 
+      {outcome && <ImportOutcomeBanner outcome={outcome} onClose={clear} />}
+
       {playerCharacters.length === 0 ? (
         <p style={{ color: 'var(--color-text-muted)' }}>No player characters yet.</p>
       ) : (
@@ -74,7 +82,7 @@ export function PCListView() {
           alignItems: 'flex-start',
         }}>
           {playerCharacters.map((pc) => (
-            <PCCard key={pc.id} pc={pc} onSave={savePC} onDelete={deletePC} />
+            <PCCard key={pc.id} pc={pc} onSave={savePC} onDelete={deletePC} onImport={() => pick(pc.id)} />
           ))}
         </div>
       )}
@@ -88,9 +96,10 @@ interface PCCardProps {
   pc: PlayerCharacter
   onSave: (pc: PlayerCharacter) => void
   onDelete: (id: string) => void
+  onImport: () => void
 }
 
-function PCCard({ pc, onSave, onDelete }: PCCardProps) {
+function PCCard({ pc, onSave, onDelete, onImport }: PCCardProps) {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const update = (patch: Partial<PlayerCharacter>) => onSave({ ...pc, ...patch })
   const isActive = pc.active !== false
@@ -159,6 +168,14 @@ function PCCard({ pc, onSave, onDelete }: PCCardProps) {
             minWidth: 0,
           }}
         />
+        <button
+          onClick={onImport}
+          title={pc.sheet ? `Update the sheet from a .dnd4e or .4ecb file (last: ${pc.sheetFile ?? 'unknown'})` : 'Import a sheet from a .dnd4e or .4ecb file'}
+          style={{
+            background: 'transparent', border: 'none', cursor: 'pointer', padding: 0,
+            fontSize: 13, lineHeight: 1, color: 'inherit', flexShrink: 0,
+          }}
+        >⤓</button>
         <button
           onClick={() => setShowDeleteConfirm(true)}
           title="Delete character"
@@ -240,9 +257,9 @@ function PCCard({ pc, onSave, onDelete }: PCCardProps) {
         </select>
       </div>
 
-      {/* Body: image only — fixed height so the contained image can never overflow the card */}
-      <div style={{ padding: 6 }}>
-        <div style={{ width: 180, height: 200, display: 'flex' }}>
+      {/* Body: image (fixed height so it can never overflow the card), then the imported sheet */}
+      <div style={{ padding: 6, display: 'flex', gap: 8, alignItems: 'flex-start' }}>
+        <div style={{ width: 180, height: 200, display: 'flex', flexShrink: 0 }}>
           <CreatureImageEditor
             imageId={pc.imageId}
             tokenImageId={pc.tokenImageId}
@@ -251,6 +268,12 @@ function PCCard({ pc, onSave, onDelete }: PCCardProps) {
             onTokenChange={(tokenImageId, crop) => update({ tokenImageId, tokenCrop: crop })}
           />
         </div>
+        {pc.sheet && (
+          <div className="stat-block-4e pc-sheet" style={{ width: 260, fontSize: 11 }}>
+            <div className="sb-row" style={{ fontWeight: 700 }}>{sheetSubtitle(pc.sheet)}</div>
+            <PcSheetRows sheet={pc.sheet} />
+          </div>
+        )}
       </div>
 
       {showDeleteConfirm && (

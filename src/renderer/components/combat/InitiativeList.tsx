@@ -2,7 +2,7 @@ import { useRef, useState, useLayoutEffect, useEffect, useCallback } from 'react
 import type { CombatState, CombatNotification } from '@common/types'
 import { CombatToken } from './CombatToken'
 import type { ConditionDef } from '@common/types/system-plugin'
-import { defense, defenses, isDefeated } from '@common/combat/facts'
+import { defenses, isDefeated } from '@common/combat/facts'
 import type { AttackMode } from './CombatView'
 import { getConditionStyle } from './condition-styles'
 import { ConditionPill, buildConditionLabel } from './ConditionPill'
@@ -12,6 +12,8 @@ import { PowerCardView } from '../creature/PowerCardView'
 import { Icon } from '../shared/Icon'
 import { getCreatureReactions, triggerMatchesNotification, toggleReaction, type CreatureReaction } from './reaction-utils'
 import { hpColor, hpPercentage, formatConditionName } from '../../utils/combat-utils'
+import { useCampaignStore } from '../../stores/campaign-store'
+import { defenseLine } from '../campaign/PcSheet'
 
 interface Props {
   combat: CombatState
@@ -30,6 +32,10 @@ interface Props {
 }
 
 export function InitiativeList({ combat, currentId, selectedIds, onSelect, onContextMenu, attackMode, conditionDefs = [], notifications = [], onUndelay, onResolveReady, onCancelReady, reorderMode, onReorder }: Props) {
+  // PCs have no kit content: their defenses come from the imported sheet.
+  const playerCharacters = useCampaignStore(s => s.playerCharacters)
+  const sheetOf = (c: { isPC: boolean; entityId?: string }) => c.isPC ? playerCharacters.find(p => p.id === c.entityId)?.sheet : undefined
+  const defensesOf = (c: Parameters<typeof defenses>[0] & { isPC: boolean; entityId?: string }) => sheetOf(c)?.defenses ?? defenses(c)
   const containerRef = useRef<HTMLDivElement>(null)
   const posCache = useRef<Map<string, number>>(new Map())
 
@@ -274,7 +280,7 @@ export function InitiativeList({ combat, currentId, selectedIds, onSelect, onCon
 
         // Defense value for resolve phase
         const defenseValue = isAttackCurrent && attackMode?.defense
-          ? defense(c, attackMode.defense) ?? null
+          ? defensesOf(c)[attackMode.defense.toLowerCase() as 'ac'] ?? null
           : null
 
         return (
@@ -344,7 +350,12 @@ export function InitiativeList({ combat, currentId, selectedIds, onSelect, onCon
                   </span>
                 )}
               </div>
-              {c.color && (
+              {c.isPC && sheetOf(c) && (
+                <div style={{ fontSize: 9, lineHeight: 1.2, marginTop: 2, opacity: 0.75, whiteSpace: 'nowrap' }} title="Defenses from the imported sheet">
+                  {defenseLine(sheetOf(c)!)}
+                </div>
+              )}
+              {c.color && !(c.isPC && sheetOf(c)) && (
                 <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginTop: 2 }}>
                   <div
                     role="meter"
@@ -458,10 +469,10 @@ export function InitiativeList({ combat, currentId, selectedIds, onSelect, onCon
               border: '1px solid rgba(92,124,250,0.3)', borderTop: 'none',
               fontSize: 11, fontWeight: 600,
             }}>
-              <span><b style={{ color: 'var(--color-text-muted)' }}>AC</b> {defenses(c).ac ?? '—'}</span>
-              <span><b style={{ color: 'var(--color-text-muted)' }}>Fort</b> {defenses(c).fortitude ?? '—'}</span>
-              <span><b style={{ color: 'var(--color-text-muted)' }}>Ref</b> {defenses(c).reflex ?? '—'}</span>
-              <span><b style={{ color: 'var(--color-text-muted)' }}>Will</b> {defenses(c).will ?? '—'}</span>
+              <span><b style={{ color: 'var(--color-text-muted)' }}>AC</b> {defensesOf(c).ac ?? '—'}</span>
+              <span><b style={{ color: 'var(--color-text-muted)' }}>Fort</b> {defensesOf(c).fortitude ?? '—'}</span>
+              <span><b style={{ color: 'var(--color-text-muted)' }}>Ref</b> {defensesOf(c).reflex ?? '—'}</span>
+              <span><b style={{ color: 'var(--color-text-muted)' }}>Will</b> {defensesOf(c).will ?? '—'}</span>
             </div>
           )}
 

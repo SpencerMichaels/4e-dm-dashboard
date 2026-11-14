@@ -43,6 +43,13 @@ const api = {
     list: (entityType: EntityType) => ipcRenderer.invoke(CMD.ENTITY_LIST, entityType),
   },
 
+  // Player characters
+  pc: {
+    /** Imports .dnd4e / .4ecb files: new PCs, or updates (`targetId`: that PC). */
+    import: (files: { name: string; text: string }[], targetId?: string): Promise<{ created: string[]; updated: string[]; errors: string[] }> =>
+      ipcRenderer.invoke(CMD.PC_IMPORT, files, targetId),
+  },
+
   // Notes (save/delete/get route through entity CRUD)
   note: {
     save: (note: Note) => ipcRenderer.invoke(CMD.ENTITY_SAVE, 'note', note),

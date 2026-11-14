@@ -9,6 +9,10 @@ export interface PlayerCharacter {
   active?: boolean                // Whether this PC counts toward the active party (default true)
   markType?: string               // Class mark id (e.g. 'hunter-quarry') — see src/common/rules/class-marks.ts
   diseases?: PcDisease[]          // Diseases the PC is exposed to or carries, with the current stage
+  /** Final numbers imported from a Character Builder .dnd4e or a 4ecb .4ecb file (src/common/character/character-import.ts). */
+  sheet?: import('@kit').CharacterSnapshot
+  /** The file the sheet came from, for the DM's reference. */
+  sheetFile?: string
   createdAt: string
   updatedAt: string
 }

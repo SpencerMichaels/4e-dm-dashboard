@@ -88,8 +88,9 @@ Covers monsters (5,326; 24,950 actions, of which 9,305 have their mechanics in p
 - [ ] Combat log window; then the encounter editor and creature list panels
 
 ## 7. Character import
-- [ ] `.dnd4e` (Character Builder saves): first check that real files carry computed stats
-- [ ] `.4ecb`: 4ecb embeds an evaluated snapshot in its export; import it here
+- [x] `.dnd4e` (Character Builder saves): all 59 samples in `../4ecb/sample-chars/` carry the computed `<CharacterSheet>`; they import as a kit `CharacterSnapshot` on `PlayerCharacter.sheet` (stats only; players keep tracking HP). Run the sample check with `FOUR_E_SAMPLE_CHARS=<dir> npm test` (the devcontainer cannot see `../4ecb`; `docker cp` the folder in).
+- [ ] `.4ecb`: the reader is done (`snapshots` in the backup, see `snapshotsFrom4ecb`); waiting on 4ecb to write snapshots into its export (handed off 2026-11-13). Then check a real export and drop this item.
+- [ ] PC powers: not imported (decided 2026-11-13). The .dnd4e has per-power attack and damage numbers, and `content/raw/power.json` has the text by `ID_FMP_POWER_<n>` = `power<n>`, if cards are wanted later.
 
 ## 8. Content packs and history cleanup
 Must be done before the repo gets a public remote. Steps 8.1–8.3 are ordinary commits. Step 8.4 rewrites history; get explicit confirmation before running it.

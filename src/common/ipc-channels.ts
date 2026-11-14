@@ -16,6 +16,9 @@ export const CMD = {
   ENTITY_GET: 'entity:get',
   ENTITY_LIST: 'entity:list',
 
+  // Player characters: import .dnd4e / .4ecb sheets
+  PC_IMPORT: 'pc:import',
+
   // Notes (tree structure)
   NOTE_TREE_GET: 'note:tree:get',
   NOTE_TREE_SAVE: 'note:tree:save',

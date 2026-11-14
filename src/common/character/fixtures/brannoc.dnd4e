@@ -1,0 +1,37 @@
+﻿<D20Character game-system="D&amp;D4E" Version="0.07a" legality="rules-legal" >
+  <!-- Dungeons and Dragons Insider: Character Builder character save file -->
+  <CharacterSheet>
+    <Details>
+      <name> Brannoc &amp; Sons </name>
+      <Level> 4 </Level>
+      <Player> Jo </Player>
+    </Details>
+    <StatBlock>
+      <Stat value="18" ><alias name="Strength" /><alias name="str" /><statadd value="18" /></Stat><Stat value="14" ><alias name="Constitution" /><alias name="con" /><statadd value="14" /></Stat><Stat value="12" ><alias name="Dexterity" /><alias name="dex" /><statadd value="12" /></Stat>
+      <Stat value="10" ><alias name="Intelligence" /><alias name="int" /><statadd value="10" /></Stat><Stat value="13" ><alias name="Wisdom" /><alias name="wis" /><statadd value="13" /></Stat><Stat value="8" ><alias name="Charisma" /><alias name="cha" /><statadd value="8" /></Stat>
+      <Stat value="4" ><alias name="Strength modifier" /><statadd value="4" /></Stat><Stat value="2" ><alias name="Constitution modifier" /><statadd value="2" /></Stat><Stat value="1" ><alias name="Dexterity modifier" /><statadd value="1" /></Stat>
+      <Stat value="0" ><alias name="Intelligence modifier" /><statadd value="0" /></Stat><Stat value="1" ><alias name="Wisdom modifier" /><statadd value="1" /></Stat><Stat value="-1" ><alias name="Charisma modifier" /><statadd value="-1" /></Stat>
+      <Stat value="20" ><alias name="AC" /><alias name="Armor Class" /><statadd value="20" /></Stat><Stat value="18" ><alias name="Fortitude Defense" /><alias name="Fortitude" /><statadd value="18" /></Stat><Stat value="13" ><alias name="Reflex Defense" /><alias name="Reflex" /><statadd value="13" /></Stat>
+      <Stat value="14" ><alias name="Will Defense" /><alias name="Will" /><statadd value="14" /></Stat><Stat value="4" ><alias name="Level" /><statadd value="4" /></Stat><Stat value="45" ><alias name="Hit Points" /><statadd value="45" /></Stat><Stat value="11" ><alias name="Healing Surges" /><statadd value="11" /></Stat>
+      <Stat value="2" ><alias name="HALF-LEVEL" /><statadd value="2" /></Stat><Stat value="3" ><alias name="Initiative" /><statadd value="3" /></Stat><Stat value="5" ><alias name="Speed" /><statadd value="5" /></Stat><Stat value="13" ><alias name="Passive Perception" /><statadd value="13" /></Stat>
+      <Stat value="11" ><alias name="Passive Insight" /><statadd value="11" /></Stat><Stat value="1" ><alias name="_BaseActionPoints" /><statadd value="1" /></Stat><Stat value="1" ><alias name="Healing Surge Value" /><statadd value="1" /></Stat>
+      <Stat value="5" ><alias name="resist:fire" /><statadd value="5" /></Stat><Stat value="0" ><alias name="resist:cold" /><statadd value="0" /></Stat>
+      <Stat value="3" ><alias name="Acrobatics" /><statadd value="3" /></Stat><Stat value="0" ><alias name="Acrobatics Trained" /><statadd value="0" /></Stat><Stat value="3" ><alias name="Arcana" /><statadd value="3" /></Stat><Stat value="0" ><alias name="Arcana Trained" /><statadd value="0" /></Stat><Stat value="11" ><alias name="Athletics" /><statadd value="11" /></Stat><Stat value="5" ><alias name="Athletics Trained" /><statadd value="5" /></Stat><Stat value="3" ><alias name="Bluff" /><statadd value="3" /></Stat><Stat value="0" ><alias name="Bluff Trained" /><statadd value="0" /></Stat><Stat value="3" ><alias name="Diplomacy" /><statadd value="3" /></Stat><Stat value="0" ><alias name="Diplomacy Trained" /><statadd value="0" /></Stat><Stat value="3" ><alias name="Dungeoneering" /><statadd value="3" /></Stat><Stat value="0" ><alias name="Dungeoneering Trained" /><statadd value="0" /></Stat><Stat value="3" ><alias name="Endurance" /><statadd value="3" /></Stat><Stat value="0" ><alias name="Endurance Trained" /><statadd value="0" /></Stat><Stat value="3" ><alias name="Heal" /><statadd value="3" /></Stat><Stat value="0" ><alias name="Heal Trained" /><statadd value="0" /></Stat><Stat value="3" ><alias name="History" /><statadd value="3" /></Stat><Stat value="0" ><alias name="History Trained" /><statadd value="0" /></Stat><Stat value="3" ><alias name="Insight" /><statadd value="3" /></Stat><Stat value="0" ><alias name="Insight Trained" /><statadd value="0" /></Stat><Stat value="3" ><alias name="Intimidate" /><statadd value="3" /></Stat><Stat value="0" ><alias name="Intimidate Trained" /><statadd value="0" /></Stat><Stat value="3" ><alias name="Nature" /><statadd value="3" /></Stat><Stat value="0" ><alias name="Nature Trained" /><statadd value="0" /></Stat><Stat value="3" ><alias name="Perception" /><statadd value="3" /></Stat><Stat value="0" ><alias name="Perception Trained" /><statadd value="0" /></Stat><Stat value="3" ><alias name="Religion" /><statadd value="3" /></Stat><Stat value="0" ><alias name="Religion Trained" /><statadd value="0" /></Stat><Stat value="3" ><alias name="Stealth" /><statadd value="3" /></Stat><Stat value="0" ><alias name="Stealth Trained" /><statadd value="0" /></Stat><Stat value="3" ><alias name="Streetwise" /><statadd value="3" /></Stat><Stat value="0" ><alias name="Streetwise Trained" /><statadd value="0" /></Stat><Stat value="3" ><alias name="Thievery" /><statadd value="3" /></Stat><Stat value="0" ><alias name="Thievery Trained" /><statadd value="0" /></Stat>
+      
+    </StatBlock>
+    <RulesElementTally>
+      <RulesElement name="Dwarf" type="Race" internal-id="ID_FMP_RACE_1" />
+      <RulesElement name="Fighter" type="Class" internal-id="ID_FMP_CLASS_4" />
+      <RulesElement name="Combat Challenge" type="Class Feature" internal-id="ID_FMP_CLASS_FEATURE_1" />
+    </RulesElementTally>
+    <LootTally>
+      <loot count="1" equip-count="1" ShowPowerCard="1" >
+        <RulesElement name="Scale Armor" type="Armor" internal-id="ID_FMP_ARMOR_6" ></RulesElement>
+        <RulesElement name="Dwarven Armor +1" type="Magic Item" internal-id="ID_FMP_MAGIC_ITEM_1" ></RulesElement>
+      </loot>
+      <loot count="1" equip-count="0" ><RulesElement name="Adventurer's Kit" type="Gear" /></loot>
+      <loot count="0" equip-count="0" ><RulesElement name="Sold Sword" type="Weapon" /></loot>
+    </LootTally>
+  </CharacterSheet>
+  <Level><RulesElement name="1" type="Level" /></Level>
+</D20Character>

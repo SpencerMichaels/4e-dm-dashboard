@@ -1,6 +1,8 @@
 import { ipcMain, dialog, BrowserWindow } from 'electron'
 import { CMD, SYNC } from '@common/ipc-channels'
-import type { EntityType } from '@common/types'
+import type { EntityType, PlayerCharacter } from '@common/types'
+import { applySnapshots, type ImportedFile, type ImportResult } from '@common/character/character-import'
+import { generateId } from '@common/utils/id'
 import { RECORD_STORAGE, RECORD_TYPES, type RecordType } from '@common/campaign-records'
 import * as store from '../data/campaign-store'
 import { broadcastToDm } from '../windows'
@@ -45,6 +47,14 @@ export function registerCampaignHandlers(): void {
     await store.deleteEntity(entityType, entityId)
     if (entityType === 'creature') invalidateCreatureIndex()
     broadcastEntityUpdate(entityType)
+  })
+
+  ipcMain.handle(CMD.PC_IMPORT, async (_e, files: ImportedFile[], targetId?: string): Promise<ImportResult> => {
+    const pcs = await store.listEntities('player-character') as PlayerCharacter[]
+    const { save, result } = applySnapshots(pcs, files, { targetId, newId: generateId })
+    for (const pc of save) await store.saveEntity('player-character', pc)
+    if (save.length) broadcastEntityUpdate('player-character')
+    return result
   })
 
   ipcMain.handle(CMD.ENTITY_GET, async (_e, entityType: EntityType, entityId: string) => {
