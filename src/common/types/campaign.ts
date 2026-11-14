@@ -7,9 +7,11 @@ export interface Campaign {
   partyLevel?: number     // Whole-party level (PCs always level together)
 }
 
-/** A trap by reference: a campaign trap record or a published trap. */
+/** A trap by reference: a campaign trap record, a Library one, or a published trap. */
 export interface TrapRef {
   trapId?: string
+  /** A Library entry (shared by every campaign), used live like a published one. */
+  libraryId?: string
   compendiumId?: string
 }
 

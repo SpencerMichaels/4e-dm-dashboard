@@ -1,43 +1,54 @@
-// Diseases by reference (a campaign disease record or a published disease): the names to look for in
-// power text, a loader for the kit disease, and chips that show a mentioned disease.
+// Diseases by reference (a campaign disease record, a Library one, or a published disease): the names to look
+// for in power text, a loader for the kit disease, and chips that show a mentioned disease.
 
 import { useEffect, useMemo, useState } from 'react'
 import type { Disease } from '@kit'
 import type { DiseaseIndexEntry, DiseaseRef, PcDisease } from '@common/types'
 import { findDiseaseMentions, type DiseaseName } from '@common/rules/diseases'
 import { useCampaignStore } from '../../stores/campaign-store'
+import { useLibraryStore } from '../../stores/library-store'
 import { DiseaseStatblock } from './DiseaseStatblock'
 import { Icon } from '../shared/Icon'
 
-export const diseaseKey = (ref: DiseaseRef) => ref.diseaseId ? `disease:${ref.diseaseId}` : `published:${ref.compendiumId}`
+export const diseaseKey = (ref: DiseaseRef) => ref.diseaseId ? `disease:${ref.diseaseId}` : ref.libraryId ? `library:${ref.libraryId}` : `published:${ref.compendiumId}`
 
 let publishedIndex: Promise<DiseaseIndexEntry[]> | null = null
 const loadIndex = () => publishedIndex ??= window.api.compendium.diseaseIndex()
 
-/** Every disease the campaign knows: Custom records first (they win over a published one of the same name), then published. */
+/**
+ * Every disease the campaign knows: its own records first, then the Library's, then published ones; an
+ * earlier one wins over a later one of the same name.
+ */
 export function useDiseaseNames(): DiseaseName<DiseaseRef>[] {
   const records = useCampaignStore(s => s.diseases)
+  const library = useLibraryStore(s => s.diseases)
   const [index, setIndex] = useState<DiseaseIndexEntry[]>([])
   useEffect(() => { void loadIndex().then(setIndex) }, [])
   return useMemo(() => {
-    const custom = records.map(r => ({ ref: { diseaseId: r.id }, name: r.content.name }))
-    const names = new Set(custom.map(c => c.name.toLowerCase()))
-    return [...custom, ...index.filter(e => !names.has(e.name.toLowerCase())).map(e => ({ ref: { compendiumId: e.id }, name: e.name }))]
-  }, [records, index])
+    const names = new Set<string>()
+    const unseen = (name: string) => !names.has(name.toLowerCase()) && !!names.add(name.toLowerCase())
+    return [
+      ...records.filter(r => unseen(r.content.name)).map(r => ({ ref: { diseaseId: r.id }, name: r.content.name })),
+      ...library.filter(r => unseen(r.content.name)).map(r => ({ ref: { libraryId: r.id }, name: r.content.name })),
+      ...index.filter(e => unseen(e.name)).map(e => ({ ref: { compendiumId: e.id }, name: e.name })),
+    ]
+  }, [records, library, index])
 }
 
 /** The kit disease for a reference: undefined while loading, null when it no longer exists. */
 export function useDisease(ref: DiseaseRef | undefined): Disease | null | undefined {
   const records = useCampaignStore(s => s.diseases)
+  const library = useLibraryStore(s => s.diseases)
   const [disease, setDisease] = useState<Disease | null | undefined>(undefined)
   useEffect(() => {
     let cancelled = false
     setDisease(undefined)
     if (!ref) return
     if (ref.diseaseId) setDisease(records.find(r => r.id === ref.diseaseId)?.content ?? null)
+    else if (ref.libraryId) setDisease(library.find(r => r.id === ref.libraryId)?.content ?? null)
     else if (ref.compendiumId) void window.api.compendium.kitGet('disease', ref.compendiumId).then((d: Disease | null) => { if (!cancelled) setDisease(d) })
     return () => { cancelled = true }
-  }, [ref?.diseaseId, ref?.compendiumId, records])
+  }, [ref?.diseaseId, ref?.libraryId, ref?.compendiumId, records, library])
   return disease
 }
 

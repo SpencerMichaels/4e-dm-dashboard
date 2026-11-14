@@ -4,7 +4,7 @@
 import { useMemo } from 'react'
 import type { EncounterTrap, TrapRef } from '@common/types'
 import { Icon } from '../shared/Icon'
-import { TrapSearch, trapKey, useTrapSources } from '../trap/trap-refs'
+import { customTrap, TrapSearch, trapKey, useTrapSources } from '../trap/trap-refs'
 
 export interface TrapRowInfo { key: string; name: string; level: number; role: string; kind: string; xp: number }
 
@@ -13,15 +13,15 @@ const cap = (s: string) => s ? s[0].toUpperCase() + s.slice(1) : s
 
 /** Level, role, and XP for each trap row (XP counts toward the encounter like a monster's). */
 export function useTrapRows(traps: EncounterTrap[]): TrapRowInfo[] {
-  const { records, index } = useTrapSources()
+  const { records, library, index } = useTrapSources()
   return useMemo(() => traps.flatMap(et => {
-    if (et.trapId) {
-      const t = records.find(r => r.id === et.trapId)?.content
+    if (et.trapId || et.libraryId) {
+      const t = customTrap(et, records, library)
       return t ? [{ key: trapKey(et), name: et.overrideName || t.name, level: t.level, role: cap(t.role), kind: cap(t.kind), xp: t.xp }] : []
     }
     const e = index.find(x => x.id === et.compendiumId)
     return e ? [{ key: trapKey(et), name: et.overrideName || e.name, level: e.level, role: e.role, kind: e.trapType, xp: e.xp }] : []
-  }), [traps, records, index])
+  }), [traps, records, library, index])
 }
 
 interface Props {

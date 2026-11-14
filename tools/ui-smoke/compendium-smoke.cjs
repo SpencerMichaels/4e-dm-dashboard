@@ -35,6 +35,23 @@ app.whenReady().then(async () => {
     const records = type => js(t => window.api.entity.list(t), type)
 
     await js(() => { window.__confirms = []; window.confirm = m => { window.__confirms.push(m); return true } })
+    // ── The Library: custom entries outside every campaign. With none open, + New makes one there. ──
+    const library = type => js(async key => (await window.api.library.state())[key] ?? [], { trap: 'traps', creature: 'creatures' }[type])
+    const search = text => js(t => { const i = document.querySelector('.record-compendium input.sb-name'); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(i, t); i.dispatchEvent(new Event('input', { bubbles: true })) }, text)
+    await js(() => [...document.querySelectorAll('button')].find(b => b.textContent.trim().endsWith('Traps')).click())
+    await until(() => document.querySelectorAll('.record-row').length > 10, 'the trap list without a campaign')
+    await js(() => [...document.querySelectorAll('.record-compendium button')].find(b => b.textContent.trim() === '+ New in Library').click())
+    await until(() => !!document.querySelector('.compendium-preview input.sb-name'), 'the new Library trap editor')
+    if (!(await js(() => document.querySelector('.record-editbar').textContent.includes('New entry in the Library')))) throw new Error('A new entry without a campaign does not say it goes into the Library')
+    await typeInto('.compendium-preview input.sb-name', 'Shared Snare')
+    let shared
+    for (let i = 0; i < 30 && !(shared = (await library('trap')).find(r => r.content.name === 'Shared Snare')); i++) await sleep(100)
+    if (!shared) throw new Error('The new Library trap was not saved to the Library')
+    await js(() => [...document.querySelectorAll('.record-editbar button')].find(b => b.textContent.includes('Back')).click())
+    await search('Shared Snare')
+    await until(() => [...document.querySelectorAll('.record-row')].some(r => r.textContent.includes('Shared Snare') && r.querySelector('.record-custom')?.textContent === 'Library'), 'the Library row')
+    await search('')
+
     await js(async () => { const c = await window.api.campaign.create('Compendium smoke'); await window.api.campaign.open(c.id) })
     await sleep(800)
 
@@ -50,7 +67,7 @@ app.whenReady().then(async () => {
     if (await js(() => !!document.querySelector('.compendium-preview input'))) throw new Error('Published preview is editable')
     await js(() => [...document.querySelectorAll('.record-action')].find(b => b.textContent === 'Copy to campaign').click())
     await until(() => !!document.querySelector('.compendium-preview input.sb-name'), 'the editor')
-    if (!(await js(() => document.querySelector('.record-editbar').textContent.includes('New entry: your first change adds it')))) throw new Error('Clone is not marked as an unsaved draft')
+    if (!(await js(() => document.querySelector('.record-editbar').textContent.includes('New entry in Compendium smoke: your first change adds it')))) throw new Error('Clone is not marked as an unsaved draft')
     if ((await records('trap')).length) throw new Error('Cloning saved before any edit')
     await typeInto('.compendium-preview input.sb-name', 'Collapsing Vault')
     await sleep(900)
@@ -73,10 +90,10 @@ app.whenReady().then(async () => {
     if (!(await js(() => document.querySelector('.record-editbar').textContent.includes('Saved at')))) throw new Error('No saved indicator')
     await screenshot('out/compendium-trap-edit.png')
 
-    // Back to the preview: the copy is listed as Custom; delete it from the context menu.
+    // Back to the preview: the copy is listed as a campaign entry; delete it from the context menu.
     await js(() => [...document.querySelectorAll('.record-editbar button')].find(b => b.textContent.includes('Back')).click())
     await js(() => { const i = document.querySelector('.record-compendium input.sb-name'); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(i, 'Collapsing'); i.dispatchEvent(new Event('input', { bubbles: true })) })
-    await until(() => [...document.querySelectorAll('.record-row')].some(r => r.textContent.includes('Collapsing Vault') && r.textContent.includes('Custom')), 'the Custom row')
+    await until(() => [...document.querySelectorAll('.record-row')].some(r => r.textContent.includes('Collapsing Vault') && r.querySelector('.record-custom')?.textContent === 'Campaign'), 'the Custom row')
     await js(() => { const r = [...document.querySelectorAll('.record-row')].find(r => r.textContent.includes('Collapsing Vault')); r.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, clientX: 300, clientY: 300 })) })
     await until(() => !!document.querySelector('.record-menu'), 'the context menu')
     await js(() => document.querySelector('.record-menu button').click())
@@ -84,7 +101,7 @@ app.whenReady().then(async () => {
     if ((await records('trap')).length) throw new Error('Delete did not remove the record')
 
     // New trap: blank until the first edit, then saved.
-    await js(() => [...document.querySelectorAll('.record-compendium button')].find(b => b.textContent.trim() === '+ new').click())
+    await js(() => [...document.querySelectorAll('.record-compendium button')].find(b => b.textContent.trim().startsWith('+ New in')).click())
     await until(() => !!document.querySelector('.compendium-preview input.sb-name'), 'the new trap editor')
     if ((await records('trap')).length) throw new Error('New trap saved before any edit')
     await typeInto('.compendium-preview input.sb-name', 'Spiked Pit')
@@ -92,10 +109,47 @@ app.whenReady().then(async () => {
     for (let i = 0; i < 30 && (saved = await records('trap')).length !== 1; i++) await sleep(100)
     if (saved.length !== 1 || saved[0].content.name !== 'Spiked Pit' || saved[0].basedOn) throw new Error('New trap was not saved by its first edit')
 
+    // The Library's entries show in the campaign too. Copy to campaign makes a campaign version based on it;
+    // Copy to library makes a Library entry from a campaign one; deleting a Library entry asks first.
+    await js(() => [...document.querySelectorAll('.record-editbar button')].find(b => b.textContent.includes('Back')).click())
+    await search('Shared Snare')
+    await until(() => [...document.querySelectorAll('.record-row')].some(r => r.querySelector('.record-custom')?.textContent === 'Library'), 'the Library row in the campaign')
+    await js(() => [...document.querySelectorAll('.record-row')].find(r => r.querySelector('.record-custom')?.textContent === 'Library').click())
+    await until(() => document.querySelector('.record-actions')?.textContent.includes('In the Library'), 'the Library entry preview')
+    await js(() => [...document.querySelectorAll('.record-action')].find(b => b.textContent === 'Copy to campaign').click())
+    await until(() => document.querySelector('.compendium-preview input.sb-name')?.value === 'Shared Snare', 'the copy editor')
+    await typeInto('.compendium-preview input.sb-name', 'Local Snare')
+    let local
+    for (let i = 0; i < 30 && !(local = (await records('trap')).find(r => r.content.name === 'Local Snare')); i++) await sleep(100)
+    if (!local || local.basedOn !== `library/trap/${shared.id}`) throw new Error('Copy to campaign did not record its Library source: ' + JSON.stringify(local?.basedOn))
+    if ((await library('trap')).find(r => r.id === shared.id)?.content.name !== 'Shared Snare') throw new Error('Copy to campaign changed the Library entry')
+    await js(() => [...document.querySelectorAll('.record-editbar button')].find(b => b.textContent.includes('Back')).click())
+    await search('Snare')
+    await until(() => document.querySelectorAll('.record-row .record-custom').length === 2, 'the Library entry and its campaign copy')
+    await sleep(500); await screenshot('out/compendium-library.png')
+    await search('Spiked Pit')
+    await until(() => [...document.querySelectorAll('.record-row')].some(r => r.querySelector('.record-custom')?.textContent === 'Campaign'), 'the campaign trap row')
+    await js(() => [...document.querySelectorAll('.record-row')].find(r => r.querySelector('.record-custom')?.textContent === 'Campaign').click())
+    await until(() => [...document.querySelectorAll('.record-action')].some(b => b.textContent === 'Copy to library'), 'Copy to library on a campaign entry')
+    await js(() => [...document.querySelectorAll('.record-action')].find(b => b.textContent === 'Copy to library').click())
+    await until(() => document.querySelector('.record-editbar')?.textContent.includes('New entry in the Library'), 'the Library copy editor')
+    await typeInto('.compendium-preview input.sb-name', 'Shared Pit')
+    let sharedPit
+    for (let i = 0; i < 30 && !(sharedPit = (await library('trap')).find(r => r.content.name === 'Shared Pit')); i++) await sleep(100)
+    if (!sharedPit) throw new Error('Copy to library did not save to the Library')
+    if ((await records('trap')).find(r => r.content.name === 'Spiked Pit') === undefined) throw new Error('Copy to library moved the campaign entry')
+    await js(() => [...document.querySelectorAll('.record-editbar button')].find(b => b.textContent.includes('Back')).click())
+    await until(() => document.querySelector('.record-actions')?.textContent.includes('In the Library'), 'the new Library entry preview')
+    await js(() => [...document.querySelectorAll('.record-action')].find(b => b.textContent === 'Delete').click())
+    for (let i = 0; i < 30 && (await library('trap')).some(r => r.id === sharedPit.id); i++) await sleep(100)
+    if ((await library('trap')).some(r => r.id === sharedPit.id)) throw new Error('Deleting a Library entry did not remove it')
+    if (!(await js(() => window.__confirms.some(m => m.includes('from the Library'))))) throw new Error('Deleting a Library entry did not warn about campaigns using it')
+    await js(() => { window.__confirms = [] })
+
     // ── Diseases: new disease, add a stage, set the DCs ──
     await js(() => [...document.querySelectorAll('button')].find(b => b.textContent.trim().endsWith('Diseases')).click())
     await until(() => document.querySelectorAll('.record-row').length > 10, 'the disease list')
-    await js(() => [...document.querySelectorAll('.record-compendium button')].find(b => b.textContent.trim() === '+ new').click())
+    await js(() => [...document.querySelectorAll('.record-compendium button')].find(b => b.textContent.trim().startsWith('+ New in')).click())
     await until(() => !!document.querySelector('.compendium-preview input.sb-name'), 'the new disease editor')
     await typeInto('.compendium-preview input.sb-name', 'Grave Cough')
     await js(() => [...document.querySelectorAll('.compendium-preview .sb-add')].find(b => b.textContent.includes('stage')).click())
@@ -139,7 +193,7 @@ app.whenReady().then(async () => {
     await screenshot('out/compendium-template-edit.png')
     await js(() => [...document.querySelectorAll('button')].find(b => b.textContent.trim().endsWith('Themes')).click())
     await until(() => document.querySelectorAll('.record-row').length > 5, 'the theme list')
-    await js(() => [...document.querySelectorAll('.record-compendium button')].find(b => b.textContent.trim() === '+ new').click())
+    await js(() => [...document.querySelectorAll('.record-compendium button')].find(b => b.textContent.trim().startsWith('+ New in')).click())
     await until(() => !!document.querySelector('.compendium-preview input.sb-name'), 'the new theme editor')
     await typeInto('.compendium-preview input.sb-name', 'Ashen Court')
     await sleep(900)
@@ -170,7 +224,7 @@ app.whenReady().then(async () => {
     if (JSON.stringify(sewer.content.powers) !== JSON.stringify(direRat.powers) || sewer.content.hp !== direRat.hp) throw new Error('Creature copy was not lossless')
     await screenshot('out/compendium-creature-edit.png')
     // A new creature is saved by its first edit.
-    await js(() => [...document.querySelectorAll('.record-compendium button')].find(b => b.textContent.trim() === '+ new').click())
+    await js(() => [...document.querySelectorAll('.record-compendium button')].find(b => b.textContent.trim().startsWith('+ New in')).click())
     await until(() => document.querySelector('.compendium-preview input.sb-name')?.value === 'New Creature', 'the new creature editor')
     await typeInto('.compendium-preview input.sb-name', 'Bog Thing')
     let bog
@@ -198,7 +252,7 @@ app.whenReady().then(async () => {
     await until(() => document.querySelector('.compendium-preview')?.innerText.includes('Bog Horror'), 'the agent edit in the preview')
     const confirms = await js(() => window.__confirms)
     if (confirms.length) throw new Error('Unexpected confirmation prompts: ' + JSON.stringify(confirms))
-    console.log('COMPENDIUM_SMOKE_OK: the open creature as current_entry with agent edits reaching the open editor, the entry, and the preview (with comment markers), published trap preview, clone on first edit (lossless, focus kept), in-place edits with autosave, Custom listing, delete, new trap and disease saved by their first edit, item clone with typed edits, template clone and new theme, creatures (published preview, pop-out, art carried into a lossless copy, new creature); screenshots out/compendium-trap-edit.png, out/compendium-disease-edit.png')
+    console.log('COMPENDIUM_SMOKE_OK: the Library (new entry with no campaign open, listed in a campaign, Copy to campaign with its source, Copy to library, delete with a warning), the open creature as current_entry with agent edits reaching the open editor, the entry, and the preview (with comment markers), published trap preview, clone on first edit (lossless, focus kept), in-place edits with autosave, Custom listing, delete, new trap and disease saved by their first edit, item clone with typed edits, template clone and new theme, creatures (published preview, pop-out, art carried into a lossless copy, new creature); screenshots out/compendium-trap-edit.png, out/compendium-disease-edit.png')
     clearTimeout(timeout); finish(0)
   } catch (e) { console.error(e); clearTimeout(timeout); finish(1) }
 })

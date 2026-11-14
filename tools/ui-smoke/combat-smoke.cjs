@@ -82,6 +82,15 @@ app.whenReady().then(async () => {
     if (!migrated?.content || migrated.content.name !== 'Smoke Captain' || migrated.statBlock || migrated.content.powers.length !== 2) throw new Error('The legacy captain was not converted: ' + JSON.stringify(migrated).slice(0, 300))
     if (!existsSync(join(root, 'user', 'campaigns', campaignId, 'creatures', '_legacy-captain.json'))) throw new Error('The legacy captain was not kept')
 
+    // A Library creature (shared by every campaign) resolves live in an encounter row, by libraryId.
+    const shade = { id: 'shared-shade', createdAt: now, updatedAt: now, content: { ...migrated.content, id: 'shared-shade', name: 'Shared Shade' } }
+    await js(r => window.api.entity.save('creature', r, 'library'), shade)
+    const libraryRow = await js(() => window.api.combat.previewRow({ libraryId: 'shared-shade', count: 1, levelAdjust: 1 }))
+    if (libraryRow?.monster.name !== 'Shared Shade' || libraryRow.monster.level !== migrated.content.level + 1) throw new Error('A Library creature does not resolve in an encounter row: ' + JSON.stringify(libraryRow?.monster.name))
+    await js(r => window.api.entity.save('creature', { ...r, content: { ...r.content, name: 'Shared Shade, renamed' } }, 'library'), shade)
+    if ((await js(() => window.api.combat.previewRow({ libraryId: 'shared-shade', count: 1 })))?.monster.name !== 'Shared Shade, renamed') throw new Error('A Library edit does not reach the encounter row')
+    await js(() => window.api.entity.delete('creature', 'shared-shade', 'library'))
+
     // ── A location notes its traps as stat blocks; the search adds another ──
     await js(l => window.api.entity.save('location', l), { id: 'vault', name: 'Smoke Vault', description: '', tags: [], createdAt: now, updatedAt: now, traps: [{ compendiumId: 'trap41' }, { compendiumId: 'trap300' }], encounterIds: ['smoke-fight'] })
     await sleep(300)
@@ -240,7 +249,7 @@ app.whenReady().then(async () => {
 
     const confirms = await js(() => window.__confirms)
     clearTimeout(timeout)
-    console.log('COMBAT_SMOKE_OK: legacy creature converted on open, encounter row preview (template, level adjustment), combat start in main with kit combatants (elite captain, troll regeneration, grouped minions), combat panel, recharge prompt, live pinned card, location trap stat blocks and search, location traps joining the encounter, encounter diseases, disease name in a power applied to a PC like a condition, PC disease stages, PC sheet import (row defenses, panel, PC card), pinned cards popped out to an OS window and back, trap rows with XP and preview, hidden trap with initiative, triggered trap (Trigger, Disable); confirms: ' + confirms.length + '; screenshots out/combat-encounter-preview.png, out/combat-panel.png, out/combat-trap.png, out/location-traps.png, out/combat-disease.png, out/pc-diseases.png, out/combat-pc-sheet.png, out/popout-pinned.png')
+    console.log('COMBAT_SMOKE_OK: a Library creature resolving live in an encounter row, legacy creature converted on open, encounter row preview (template, level adjustment), combat start in main with kit combatants (elite captain, troll regeneration, grouped minions), combat panel, recharge prompt, live pinned card, location trap stat blocks and search, location traps joining the encounter, encounter diseases, disease name in a power applied to a PC like a condition, PC disease stages, PC sheet import (row defenses, panel, PC card), pinned cards popped out to an OS window and back, trap rows with XP and preview, hidden trap with initiative, triggered trap (Trigger, Disable); confirms: ' + confirms.length + '; screenshots out/combat-encounter-preview.png, out/combat-panel.png, out/combat-trap.png, out/location-traps.png, out/combat-disease.png, out/pc-diseases.png, out/combat-pc-sheet.png, out/popout-pinned.png')
     finish(0)
   } catch (err) {
     console.error(err)

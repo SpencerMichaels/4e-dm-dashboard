@@ -3,10 +3,12 @@ import { CMD, SYNC } from '@common/ipc-channels'
 import type { CompendiumEntry, CompendiumAnnotation } from '@common/types'
 import { dnd4eCompendium as compendium } from '../compendium/compendium'
 import * as store from '../data/campaign-store'
+import { listLibrary } from '../data/library-store'
+import type { Monster } from '@kit'
 import { broadcastToDm } from '../windows'
 import { getKitEntry, getKitIndex, type KitKind } from '../compendium/kit'
 
-// Merged creature index cache (official compendium + custom campaign creatures)
+// Merged creature index cache (official compendium + the open campaign's creatures + the Library's)
 let mergedMonsterIndexCache: CompendiumEntry[] | null = null
 
 async function getMergedMonsterIndex(): Promise<CompendiumEntry[]> {
@@ -14,7 +16,9 @@ async function getMergedMonsterIndex(): Promise<CompendiumEntry[]> {
   const official = compendium.getCreatureIndex()
   const campaignId = store.getActiveCampaignId()
   const custom = campaignId ? await store.buildCreatureIndex(campaignId) : []
-  mergedMonsterIndexCache = [...official, ...custom]
+  // The Library's creatures, shared by every campaign (source "Library").
+  const library = store.creatureIndexEntries(await listLibrary<Monster>('creature'), 'Library')
+  mergedMonsterIndexCache = [...official, ...custom, ...library]
   return mergedMonsterIndexCache
 }
 

@@ -75,7 +75,7 @@ export function applyPatch(current: Draft, patch: Patch, actor: Actor, newId: ()
       }
       continue
     }
-    if (!['content', 'intent', 'decisions', 'destinations', 'recipe'].includes(keys[0])) throw new Error('Field is not editable')
+    if (!['content', 'intent', 'decisions', 'recipe'].includes(keys[0])) throw new Error(keys[0] === 'destinations' ? 'A working copy stays in its campaign or the Library; copy the entry to put it elsewhere' : 'Field is not editable')
     if (keys[0] === 'content' && (keys.length < 2 || ['id', 'provenance'].includes(group) || (d.nodes[group] && keys.length === 2))) throw new Error('Edit individual content fields/nodes')
     if (keys[0] !== 'content' && keys.length !== 1) throw new Error('Replace this field as a whole')
     if (['intent', 'decisions'].includes(keys[0]) && typeof change.value !== 'string') throw new Error('Expected text')

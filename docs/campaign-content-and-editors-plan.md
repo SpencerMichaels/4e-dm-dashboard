@@ -8,7 +8,7 @@ The DM can make and change any 4e content kind the same way: in its compendium p
 
 DM decisions (2026-11-12):
 
-1. **Campaign records, not libraries.** Custom content for every kind lives in the campaign, layered over the published compendium like custom creatures are now. The homebrew-library concept goes away.
+1. **Campaign records, not libraries.** Custom content for every kind lives in the campaign, layered over the published compendium like custom creatures are now. The homebrew-library concept goes away. (Superseded 2026-11-14 by a shared Library alongside campaign records: [shared-library-plan.md](shared-library-plan.md).)
 2. **All six kinds.** Creatures, items, traps, diseases, templates, and themes. "Creatures" is the user-facing name; `monster` stays the internal kit kind.
 3. **Editable statblocks everywhere.** Every kind gets an editor that looks like its printed statblock (ghost inputs in place, like the creature editor). No generic field trees in normal use.
 4. **Compendium edit semantics for every kind**, matching the Creatures page: published entries are read-only and clone into a custom copy on edit; custom entries edit in place and autosave; new entries are saved by their first edit.

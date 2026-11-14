@@ -46,8 +46,6 @@ interface Props {
   config: CreatureBuilderConfig
   compact?: boolean
   showImages?: boolean
-  /** The Workshop shows the description in its own notes section. */
-  showDescription?: boolean
 }
 
 /** Clickable benchmark hint — shows expected value when actual differs */
@@ -75,7 +73,7 @@ function tierTooltip(table: { [level: number]: Record<string, string | number> }
   return parts.join('\n')
 }
 
-export function Dnd4eCreatureDetails({ creature, onSave: save, config, compact, showImages = true, showDescription = true }: Props) {
+export function Dnd4eCreatureDetails({ creature, onSave: save, config, compact, showImages = true }: Props) {
   // Subscribe to power clipboard changes so the paste button re-renders
   const clipboardName = useSyncExternalStore(onClipboardChange, getClipboardPowerName)
 
@@ -534,10 +532,10 @@ export function Dnd4eCreatureDetails({ creature, onSave: save, config, compact, 
 
       {/* Description + Source at bottom */}
       <div style={{ padding: '4px 8px', fontSize: '11px' }}>
-        {showDescription && <textarea className="ghost" value={(sb.description as string) ?? ''}
+        <textarea className="ghost" value={(sb.description as string) ?? ''}
           onChange={e => u('description', e.target.value)}
           placeholder="Description..."
-          style={{ width: '100%', fontStyle: 'italic', fontSize: '11px', color: 'var(--text-secondary)' }} />}
+          style={{ width: '100%', fontStyle: 'italic', fontSize: '11px', color: 'var(--text-secondary)' }} />
         <div style={{ color: 'var(--muted)', fontStyle: 'italic', marginTop: 2 }}>
           <input className="ghost" value={(sb.source as string) ?? ''}
             onChange={e => u('source', e.target.value)}

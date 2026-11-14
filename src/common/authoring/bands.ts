@@ -8,7 +8,7 @@ import * as bench from '../rules/benchmarks'
 import { MAGIC_ITEM_VALUE, enhancementForLevel, hasEnhancement, priceFollowsTable } from '../rules/items'
 
 export interface Flag {
-  rule: 'xp' | 'hp' | 'initiative' | 'ac' | 'defense' | 'attack' | 'damage' | 'unknown' | 'price' | 'enhancement'
+  rule: 'xp' | 'hp' | 'initiative' | 'ac' | 'defense' | 'attack' | 'damage' | 'unknown' | 'price' | 'enhancement' | 'text'
   path: string
   message: string
 }

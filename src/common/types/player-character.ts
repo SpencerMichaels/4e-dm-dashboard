@@ -17,9 +17,11 @@ export interface PlayerCharacter {
   updatedAt: string
 }
 
-/** A disease by reference: a campaign disease record or a published disease. */
+/** A disease by reference: a campaign disease record, a Library one, or a published disease. */
 export interface DiseaseRef {
   diseaseId?: string
+  /** A Library entry (shared by every campaign), used live like a published one. */
+  libraryId?: string
   compendiumId?: string
 }
 

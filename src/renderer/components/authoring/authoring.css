@@ -73,11 +73,6 @@ button.annotation-link, button.rail-link { display: inline-flex; align-items: ce
 .authoring-notes h3 { position: relative; font-size: 1rem; margin: 0 0 4px; border-bottom: 1px solid var(--border); }
 .authoring-notes textarea { display: block; width: 100%; box-sizing: border-box; padding: 8px; font: inherit; resize: vertical; border: 1px solid var(--border); background: var(--surface); color: var(--text); }
 .authoring-notes-extra { color: var(--muted); font-size: 13px; padding-left: 18px; }
-.authoring-markdown { font-size: 14px; line-height: 1.5; max-width: 75ch; }
-.authoring-markdown h3 { font-size: 1.05rem; margin: 12px 0 4px; border: 0; }
-.authoring-markdown h4 { font-size: 0.95rem; margin: 10px 0 2px; }
-.authoring-markdown p { margin: 4px 0 8px; }
-.authoring-markdown ul { margin: 4px 0 8px; padding-left: 20px; }
 
 @media (max-width: 800px) {
   .authoring { padding: 12px; }
@@ -98,7 +93,6 @@ button.annotation-link, button.rail-link { display: inline-flex; align-items: ce
 .annotation-flag { color: var(--accent); }
 
 .annotation-actions > button:last-child:not(.annotation-link) { margin-left: auto; }
-.authoring-markdown h4 { font-family: var(--font-display); }
 
 .authoring-intro { display: flex; gap: 16px; align-items: flex-start; padding: 12px 16px; margin-bottom: 16px; border: 1px solid var(--border); border-left: 3px solid var(--accent); border-radius: var(--radius); background: var(--surface); max-width: 80ch; }
 .authoring-intro h2 { font-size: 1.1rem; margin: 0 0 6px; }

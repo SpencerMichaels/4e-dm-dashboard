@@ -8,6 +8,7 @@ import {
   getEntityPath,
   getAnnotationsPath,
   getAssetsDir,
+  getLibraryAssetsDir,
 } from './paths'
 import { atomicWriteJson, readJson, deleteFile, listJsonFiles, ensureDir, copyFile, deleteDir } from './file-io'
 import { generateId } from '@common/utils/id'
@@ -16,7 +17,7 @@ import { readdir } from 'fs/promises'
 import { withWriteLock } from './write-lock'
 import { migrateLegacyItems } from './legacy-items'
 import { migrateLegacyCreatures } from './legacy-creatures'
-import { RECORD_STORAGE, checkRecord, isRecordType } from '@common/campaign-records'
+import { RECORD_STORAGE, checkRecord, isLibrary, isRecordType } from '@common/campaign-records'
 
 let activeCampaignId: string | null = null
 
@@ -133,8 +134,11 @@ export async function listEntities<T>(entityType: EntityType): Promise<T[]> {
   return entities
 }
 
-// Images
-export async function importImage(campaignId: string, sourcePath: string): Promise<string> {
+// Images: a campaign's in its assets folder, a Library entry's in the Library's.
+const assetsDir = (home: string) => isLibrary(home) ? getLibraryAssetsDir() : getAssetsDir(home)
+
+export async function importImage(home: string, sourcePath: string): Promise<string> {
+  await ensureDir(assetsDir(home))
   const imageId = generateId()
   const srcExt = extname(sourcePath).toLowerCase()
   // For PNGs (and other alpha-bearing formats), trim transparent borders so the
@@ -143,14 +147,14 @@ export async function importImage(campaignId: string, sourcePath: string): Promi
   if (trimmable) {
     const trimmed = await trimTransparentBorders(sourcePath)
     if (trimmed) {
-      const destPath = join(getAssetsDir(campaignId), `${imageId}.png`)
+      const destPath = join(assetsDir(home), `${imageId}.png`)
       const { writeFile } = await import('fs/promises')
       await writeFile(destPath, trimmed)
       return imageId + '.png'
     }
   }
   // Fallback (or non-alpha format): just copy as-is
-  const destPath = join(getAssetsDir(campaignId), `${imageId}${srcExt}`)
+  const destPath = join(assetsDir(home), `${imageId}${srcExt}`)
   await copyFile(sourcePath, destPath)
   return imageId + srcExt
 }
@@ -193,8 +197,8 @@ async function trimTransparentBorders(sourcePath: string): Promise<Buffer | null
   return cropped.toPNG()
 }
 
-export async function getImagePath(campaignId: string, imageId: string): Promise<string> {
-  return join(getAssetsDir(campaignId), imageId)
+export async function getImagePath(home: string, imageId: string): Promise<string> {
+  return join(assetsDir(home), imageId)
 }
 
 // Annotations
@@ -215,8 +219,12 @@ export async function saveAnnotation(campaignId: string, compendiumId: string, a
 
 // Custom creature index — builds CompendiumEntry[] from campaign creatures
 export async function buildCreatureIndex(campaignId: string): Promise<CompendiumEntry[]> {
+  return creatureIndexEntries(await listEntities<CreatureRecord>('creature'), 'Custom')
+}
+
+/** Index rows for custom creature records: the open campaign's ("Custom") or the Library's ("Library"). */
+export function creatureIndexEntries(creatures: CreatureRecord[], source: 'Custom' | 'Library'): CompendiumEntry[] {
   const cap = (s: string | null | undefined) => s ? s[0].toUpperCase() + s.slice(1) : ''
-  const creatures = await listEntities<CreatureRecord>('creature')
   return creatures.filter(r => r.content).map(({ id, content: m }) => ({
     id,
     name: m.name,
@@ -229,6 +237,6 @@ export async function buildCreatureIndex(campaignId: string): Promise<Compendium
     origin: m.origin ?? '',
     alignment: m.alignment ?? '',
     xp: m.xp ?? 0,
-    source: 'Custom',
+    source,
   }))
 }

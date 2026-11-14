@@ -2,6 +2,7 @@ import type { TrapRef } from './campaign'
 
 export interface EncounterCreature {
   creatureId?: string            // Campaign creature ID (custom or cloned)
+  libraryId?: string             // Library creature ID: shared by every campaign, used live like a published one
   compendiumId?: string          // Official compendium entry ID (no import needed)
   count: number
   overrideName?: string       // optional rename for this encounter only

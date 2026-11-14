@@ -5,8 +5,8 @@ export const CONTENT_KINDS: readonly ContentKind[] = ['monster', 'item', 'trap',
 export type Content = Monster | Item | Trap | Disease | MonsterTemplate | MonsterTheme
 export type Actor = 'dm' | 'agent'
 export interface Destination {
-  // Homebrew libraries were removed (2026-11-13); every kind saves to a campaign.
-  type: 'campaign'
+  /** A campaign (`id`: its id), or the Library (`id`: "library"): custom entries shared by every campaign. */
+  type: 'campaign' | 'library'
   id: string
   /** Omit to create a copy; updates require a matching hash. */
   entityId?: string

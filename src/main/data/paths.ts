@@ -35,3 +35,12 @@ export function getAnnotationsPath(campaignId: string): string {
 export function getAssetsDir(campaignId: string): string {
   return join(getCampaignDir(campaignId), 'assets', 'images')
 }
+
+/** The Library: custom entries shared by every campaign, outside any of them (`library/<kind dir>/<id>.json`). */
+export function getLibraryDir(): string {
+  return join(app.getPath('userData'), 'library')
+}
+
+export function getLibraryAssetsDir(): string {
+  return join(getLibraryDir(), 'assets', 'images')
+}

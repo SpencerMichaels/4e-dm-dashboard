@@ -1,4 +1,5 @@
 import { useCampaignStore } from './campaign-store'
+import { useLibraryStore } from './library-store'
 import { useCombatStore } from './combat-store'
 import { useUiStore } from './ui-store'
 import { initThemeSync } from '../theme'
@@ -24,6 +25,10 @@ export function initSyncListeners(): () => void {
       useCampaignStore.getState().setCampaignState({ [update.key]: update.data })
     })
   )
+
+  // The Library is there with or without a campaign: load it, then follow its changes.
+  unsubscribers.push(window.api.on.libraryUpdate(update => useLibraryStore.getState().set({ [update.key]: update.data })))
+  void window.api.library.state().then(state => useLibraryStore.getState().set(state as Partial<ReturnType<typeof useLibraryStore.getState>>))
 
   unsubscribers.push(
     window.api.on.combatState((state) => {

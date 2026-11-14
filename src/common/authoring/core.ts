@@ -50,6 +50,9 @@ export function scaffold(kind: ContentKind, name: string, level = 1, role: Role 
   throw new Error('Unknown content kind')
 }
 
+/** Headings, bullets, numbered lists, bold or links: Markdown that a plain-text description would show literally. Not "* ": printed descriptions use it for footnotes. */
+const MARKDOWN = /^#{1,6} |^\s*[-+] |^\s*\d+\. |\*\*[^*\n]+\*\*|\[[^\]\n]+\]\([^)\n]+\)/m
+
 /** `recipe` lets the HP band honor a recorded hpMultiplier (a deliberate, explained HP choice). */
 export function validate(kind: ContentKind, content: unknown, recipe?: { hpMultiplier?: number }): Validation {
   const c = new Checker()
@@ -64,6 +67,9 @@ export function validate(kind: ContentKind, content: unknown, recipe?: { hpMulti
   if (kind === 'monster' && !errors.length && !supported) {
     flags.push({ rule: 'hp', path: '$.level', message: 'Outside levels 1–30; benchmark comparisons are unsupported.' })
   }
+  // Descriptions are plain text, like every published one: Markdown would show as literal marks.
+  const description = (content as { description?: unknown })?.description
+  if (typeof description === 'string' && MARKDOWN.test(description)) flags.push({ rule: 'text', path: '$.description', message: 'The description is plain text (no Markdown): write paragraphs separated by blank lines, without headings, bullets or bold.' })
   return { errors, flags }
 }
 

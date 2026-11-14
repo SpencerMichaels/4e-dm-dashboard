@@ -1,6 +1,7 @@
 import { useCallback, useState } from 'react'
 import { useImage } from '../../hooks/use-image'
 import { TokenCropOverlay, type CropRegion } from './TokenCropOverlay'
+import { useRecordHome } from './record-home'
 
 interface Props {
   imageId?: string
@@ -14,19 +15,20 @@ export function CreatureImageEditor({ imageId, tokenImageId, tokenCrop, onImageC
   const imageUrl = useImage(imageId)
   const tokenUrl = useImage(tokenImageId)
   const [cropping, setCropping] = useState(false)
+  const home = useRecordHome()
 
   const handleUpload = useCallback(async () => {
-    const newImageId = await window.api.image.importDialog()
+    const newImageId = await window.api.image.importDialog(home)
     if (newImageId) onImageChange(newImageId)
-  }, [onImageChange])
+  }, [onImageChange, home])
 
   const handleCropDone = useCallback(async (crop: CropRegion, tokenDataUrl: string) => {
     if (!onTokenChange) return
     // Extract base64 data from data URL
     const base64 = tokenDataUrl.split(',')[1]
-    const newTokenId = await window.api.image.saveData(base64, 'png')
+    const newTokenId = await window.api.image.saveData(base64, 'png', home)
     onTokenChange(newTokenId, crop)
-  }, [onTokenChange])
+  }, [onTokenChange, home])
 
   return (
     <div style={{ position: 'relative', width: '100%', height: '100%', display: 'flex' }}>

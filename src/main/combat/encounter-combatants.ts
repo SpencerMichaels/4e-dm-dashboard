@@ -1,6 +1,7 @@
 // An encounter's creatures as combatants: each row resolved to a kit monster (a campaign creature
-// record or the published entry; a clone never stands in for its original) with the row's templates, theme,
-// level adjustment, and minion setting applied.
+// record, a Library one, or the published entry; a clone never stands in for its original) with the row's
+// templates, theme, level adjustment, and minion setting applied. Library entries are used live, like
+// published ones: an edit to one shows in every campaign's encounters (combat keeps what it started with).
 
 import type { Monster, MonsterTemplate, MonsterTheme, Trap } from '@kit'
 import type { CampaignRecord, CombatantState, CompendiumAnnotation, CreatureRecord, Encounter, EncounterCreature, EncounterRowPreview, EncounterTrap, Location, TrapRef } from '@common/types'
@@ -8,9 +9,12 @@ import { generateId } from '@common/utils/id'
 import { adjustMonster, templateAllowed } from '@common/rules/adjust-monster'
 import { getKitEntry, publishedTemplateList, publishedThemeList } from '../compendium/kit'
 import { getActiveCampaignId, getEntity, listEntities, loadAnnotations } from '../data/campaign-store'
+import { listLibrary } from '../data/library-store'
 
 export interface EncounterSources {
   creatures: CreatureRecord[]
+  /** The Library's creatures and traps (referenced by `libraryId`). */
+  library?: { creatures: CreatureRecord[]; traps: CampaignRecord<Trap>[] }
   published: (id: string) => Monster | null
   templates: { ref: string; template: MonsterTemplate }[]
   themes: { ref: string; theme: MonsterTheme }[]
@@ -21,7 +25,7 @@ export interface EncounterSources {
   locationTraps?: TrapRef[]
 }
 
-/** By ref ("campaign:<id>" or a published name), falling back to the name (older encounters). */
+/** By ref ("campaign:<id>", "library:<id>", or a published name), falling back to the name (older encounters). */
 function byRef<T extends { ref: string }>(list: T[], ref: string, name: (t: T) => string): T | undefined {
   return list.find(t => t.ref === ref) ?? list.find(t => name(t) === ref)
 }
@@ -30,8 +34,8 @@ type RowBase = { monster: Monster; entityId?: string; imageId?: string; tokenIma
 
 /** The row's creature before adjustments, with the images combat shows for it. */
 function rowBase(ec: EncounterCreature, s: EncounterSources): RowBase | null {
-  if (ec.creatureId) {
-    const r = s.creatures.find(x => x.id === ec.creatureId)
+  if (ec.creatureId || ec.libraryId) {
+    const r = ec.creatureId ? s.creatures.find(x => x.id === ec.creatureId) : s.library?.creatures.find(x => x.id === ec.libraryId)
     return r ? { monster: structuredClone(r.content), entityId: r.id, imageId: r.art?.imageId, tokenImageId: r.art?.tokenImageId } : null
   }
   if (!ec.compendiumId) return null
@@ -79,17 +83,21 @@ function creatureCombatants(encounter: Encounter, s: EncounterSources): Combatan
   })
 }
 
-/** A trap row's trap: a campaign record or a published trap. */
+/** A trap row's trap: a campaign record, a Library one, or a published trap. */
 export function rowTrap(et: EncounterTrap, s: EncounterSources): Trap | null {
   if (et.trapId) return s.traps.find(t => t.id === et.trapId) ?? null
+  if (et.libraryId) return s.library?.traps.find(r => r.id === et.libraryId)?.content ?? null
   return et.compendiumId ? s.publishedTrap(et.compendiumId) : null
 }
+
+/** A trap reference's identity, the same in main and the renderer (`trap-refs.tsx`). */
+export const trapRefKey = (r: TrapRef) => r.trapId ? `trap:${r.trapId}` : r.libraryId ? `library:${r.libraryId}` : `published:${r.compendiumId}`
 
 /** Traps join hidden from the Player window unless their row says otherwise. HP-less traps have 0 HP; combat reads that from the content. */
 /** The encounter's traps plus those noted on its location (once each; the encounter's own row wins). */
 export function encounterTrapRows(encounter: Encounter, locationTraps: TrapRef[]): EncounterTrap[] {
   const own = encounter.traps ?? []
-  const key = (r: TrapRef) => r.trapId ? `trap:${r.trapId}` : `published:${r.compendiumId}`
+  const key = trapRefKey
   return [...own, ...locationTraps.filter(r => !own.some(t => key(t) === key(r))).map(r => ({ ...r, count: 1 }))]
 }
 
@@ -101,28 +109,33 @@ function trapCombatants(encounter: Encounter, s: EncounterSources): CombatantSta
     const initiativeGroupId = et.count > 1 ? generateId() : undefined
     return Array.from({ length: et.count }, () => ({
       id: generateId(), name, baseName: name, isPC: false, hp: trap.hp ?? 0, maxHp: trap.hp ?? 0, tempHp: 0,
-      kind: 'trap' as const, content: trap, hidden: !et.visible, entityId: et.trapId ?? et.compendiumId, initiativeGroupId,
+      kind: 'trap' as const, content: trap, hidden: !et.visible, entityId: et.trapId ?? et.libraryId ?? et.compendiumId, initiativeGroupId,
       conditions: [], effects: [], usedPowers: {}, usedActionPoints: 0,
     }))
   })
 }
 
-/** The active campaign's creatures, templates, themes, traps, and compendium annotations, and the traps on `locationId`. */
+/** The active campaign's creatures, templates, themes, traps, and compendium annotations, the Library's, and the traps on `locationId`. */
 export async function campaignSources(locationId?: string): Promise<EncounterSources> {
   const campaignId = getActiveCampaignId()
-  const [creatures, templates, themes, annotations, traps] = await Promise.all([
+  const [creatures, templates, themes, annotations, traps, libCreatures, libTemplates, libThemes, libTraps] = await Promise.all([
     listEntities<CreatureRecord>('creature'),
     listEntities<CampaignRecord<MonsterTemplate>>('template'),
     listEntities<CampaignRecord<MonsterTheme>>('theme'),
     campaignId ? loadAnnotations(campaignId) : Promise.resolve({}),
     listEntities<CampaignRecord<Trap>>('trap'),
+    listLibrary<Monster>('creature'),
+    listLibrary<MonsterTemplate>('template'),
+    listLibrary<MonsterTheme>('theme'),
+    listLibrary<Trap>('trap'),
   ])
   const location = locationId ? await getEntity<Location>('location', locationId) : null
   return {
     creatures,
+    library: { creatures: libCreatures, traps: libTraps },
     published: id => getKitEntry('monster', id) as Monster | null,
-    templates: [...publishedTemplateList().map(t => ({ ref: t.name, template: t })), ...templates.map(r => ({ ref: `campaign:${r.id}`, template: r.content }))],
-    themes: [...publishedThemeList().map(t => ({ ref: t.name, theme: t })), ...themes.map(r => ({ ref: `campaign:${r.id}`, theme: r.content }))],
+    templates: [...publishedTemplateList().map(t => ({ ref: t.name, template: t })), ...templates.map(r => ({ ref: `campaign:${r.id}`, template: r.content })), ...libTemplates.map(r => ({ ref: `library:${r.id}`, template: r.content }))],
+    themes: [...publishedThemeList().map(t => ({ ref: t.name, theme: t })), ...themes.map(r => ({ ref: `campaign:${r.id}`, theme: r.content })), ...libThemes.map(r => ({ ref: `library:${r.id}`, theme: r.content }))],
     annotations,
     traps: traps.map(r => r.content),
     publishedTrap: id => getKitEntry('trap', id) as Trap | null,

@@ -48,6 +48,15 @@ describe('authoring calculations and schema', () => {
     normalized.powers[0].attacks[0].hit!.text = 'Nothing happens.'
     expect(validate('monster', normalized).errors.length).toBeGreaterThan(0)
   })
+  it('flags Markdown in a plain-text description', () => {
+    const m = scaffold('monster', 'Test', 7) as Monster
+    m.description = 'It hunts from dim light.\n\nBright light drives it off; 2 * 3 is not bold.'
+    expect(validate('monster', m).flags.some(f => f.path === '$.description')).toBe(false)
+    for (const md of ['## Tactics\n\nIt hides.', 'It hides.\n- Flank first', 'Use **Shadow Touch** first.']) {
+      m.description = md
+      expect(validate('monster', m).flags.some(f => f.path === '$.description')).toBe(true)
+    }
+  })
   it('separates numeric warnings from malformed data and avoids out-of-range bands', () => {
     const m = scaffold('monster', 'Test', 7) as Monster
     m.hp = 900

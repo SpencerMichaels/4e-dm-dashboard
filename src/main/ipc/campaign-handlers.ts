@@ -3,9 +3,11 @@ import { CMD, SYNC } from '@common/ipc-channels'
 import type { EntityType, PlayerCharacter } from '@common/types'
 import { applySnapshots, type ImportedFile, type ImportResult } from '@common/character/character-import'
 import { generateId } from '@common/utils/id'
-import { isRecordType, RECORD_STORAGE, RECORD_TYPES, type RecordType } from '@common/campaign-records'
-import { authoringEntryChanged, authoringEntryDeleted } from './authoring-handlers'
+import { dirname } from 'path'
+import { isLibrary, isRecordType, LIBRARY, RECORD_STORAGE, RECORD_TYPES, type Home, type RecordType } from '@common/campaign-records'
+import { authoringCampaignDeleted, authoringCampaignOpened, authoringEntryChanged, authoringEntryDeleted } from './authoring-handlers'
 import * as store from '../data/campaign-store'
+import * as library from '../data/library-store'
 import { broadcastToDm } from '../windows'
 import { invalidateCreatureIndex } from './compendium-handlers'
 
@@ -18,12 +20,14 @@ export function registerCampaignHandlers(): void {
 
   ipcMain.handle(CMD.CAMPAIGN_OPEN, async (_e, campaignId: string) => {
     const campaign = await store.openCampaign(campaignId)
+    authoringCampaignOpened(campaignId)
     broadcastCampaignState()
     return campaign
   })
 
   ipcMain.handle(CMD.CAMPAIGN_DELETE, async (_e, campaignId: string) => {
     await store.deleteCampaign(campaignId)
+    await authoringCampaignDeleted(campaignId)
     broadcastCampaignState()
   })
 
@@ -37,7 +41,16 @@ export function registerCampaignHandlers(): void {
     return updated
   })
 
-  ipcMain.handle(CMD.ENTITY_SAVE, async (_e, entityType: EntityType, entity: { id: string }) => {
+  // `home`: LIBRARY for a Library entry; otherwise the open campaign.
+  ipcMain.handle(CMD.ENTITY_SAVE, async (_e, entityType: EntityType, entity: { id: string }, home?: Home) => {
+    if (isLibrary(home)) {
+      if (!isRecordType(entityType)) throw new Error(`The Library holds no ${entityType}`)
+      await library.saveLibraryRecord(entityType, entity)
+      if (entityType === 'creature') invalidateCreatureIndex()
+      authoringEntryChanged(LIBRARY, entity.id)
+      await broadcastLibraryUpdate(entityType)
+      return entity
+    }
     await store.saveEntity(entityType, entity)
     const campaignId = store.getActiveCampaignId()
     if (campaignId && isRecordType(entityType)) authoringEntryChanged(campaignId, entity.id)
@@ -46,13 +59,28 @@ export function registerCampaignHandlers(): void {
     return entity
   })
 
-  ipcMain.handle(CMD.ENTITY_DELETE, async (_e, entityType: EntityType, entityId: string) => {
+  ipcMain.handle(CMD.ENTITY_DELETE, async (_e, entityType: EntityType, entityId: string, home?: Home) => {
+    if (isLibrary(home)) {
+      if (!isRecordType(entityType)) throw new Error(`The Library holds no ${entityType}`)
+      await library.deleteLibraryRecord(entityType, entityId)
+      if (entityType === 'creature') invalidateCreatureIndex()
+      authoringEntryDeleted(LIBRARY, entityId)
+      await broadcastLibraryUpdate(entityType)
+      return
+    }
     await store.deleteEntity(entityType, entityId)
     const campaign = store.getActiveCampaignId()
     if (campaign && isRecordType(entityType)) authoringEntryDeleted(campaign, entityId)
     if (entityType === 'creature') invalidateCreatureIndex()
     broadcastEntityUpdate(entityType)
   })
+
+  ipcMain.handle(CMD.LIBRARY_STATE, async () => {
+    await library.ensureLibrary()
+    return library.libraryState()
+  })
+
+  ipcMain.handle(CMD.LIBRARY_USAGE, async (_e, entityType: EntityType, id: string) => isRecordType(entityType) ? library.libraryUsage(entityType, id) : [])
 
   ipcMain.handle(CMD.PC_IMPORT, async (_e, files: ImportedFile[], targetId?: string): Promise<ImportResult> => {
     const pcs = await store.listEntities('player-character') as PlayerCharacter[]
@@ -71,13 +99,19 @@ export function registerCampaignHandlers(): void {
   })
 
   // Images
-  ipcMain.handle(CMD.IMAGE_IMPORT, async (_e, sourcePath: string) => {
+  // Images go into the open campaign, or into the Library for a Library entry's art (`home`).
+  const imageHome = (home?: Home) => {
+    if (isLibrary(home)) return LIBRARY
     const campaignId = store.getActiveCampaignId()
     if (!campaignId) throw new Error('No active campaign')
-    return store.importImage(campaignId, sourcePath)
+    return campaignId
+  }
+  ipcMain.handle(CMD.IMAGE_IMPORT, async (_e, sourcePath: string, home?: Home) => {
+    return store.importImage(imageHome(home), sourcePath)
   })
 
-  ipcMain.handle(CMD.IMAGE_IMPORT_DIALOG, async (e) => {
+  ipcMain.handle(CMD.IMAGE_IMPORT_DIALOG, async (e, home?: Home) => {
+    const target = imageHome(home)
     const win = BrowserWindow.fromWebContents(e.sender) ?? undefined
     const result = await dialog.showOpenDialog({
       ...(win ? { parentWindow: win } : {}),
@@ -85,28 +119,27 @@ export function registerCampaignHandlers(): void {
       properties: ['openFile'],
     } as any)
     if (result.canceled || result.filePaths.length === 0) return null
-    const campaignId = store.getActiveCampaignId()
-    if (!campaignId) throw new Error('No active campaign')
-    return store.importImage(campaignId, result.filePaths[0])
+    return store.importImage(target, result.filePaths[0])
   })
 
-  ipcMain.handle(CMD.IMAGE_SAVE_DATA, async (_e, base64Data: string, ext: string) => {
-    const campaignId = store.getActiveCampaignId()
-    if (!campaignId) throw new Error('No active campaign')
-    const { writeFileSync } = await import('fs')
+  ipcMain.handle(CMD.IMAGE_SAVE_DATA, async (_e, base64Data: string, ext: string, home?: Home) => {
+    const target = imageHome(home)
+    const { writeFileSync, mkdirSync } = await import('fs')
     const imageId = (await import('@common/utils/id')).generateId() + '.' + ext
-    const path = await store.getImagePath(campaignId, imageId)
+    const path = await store.getImagePath(target, imageId)
+    mkdirSync(dirname(path), { recursive: true })
     writeFileSync(path, Buffer.from(base64Data, 'base64'))
     return imageId
   })
 
+  // An image id names a file in the open campaign's assets or the Library's (ids are random, so they never
+  // clash): a Library entry's art shows in every campaign, in combat, and in the Player window.
   ipcMain.handle(CMD.IMAGE_GET, async (_e, imageId: string) => {
+    const { readFileSync, existsSync } = await import('fs')
     const campaignId = store.getActiveCampaignId()
-    if (!campaignId) return null
-    const path = await store.getImagePath(campaignId, imageId)
-    if (!path) return null
+    const inCampaign = campaignId ? await store.getImagePath(campaignId, imageId) : null
+    const path = inCampaign && existsSync(inCampaign) ? inCampaign : await store.getImagePath(LIBRARY, imageId)
     try {
-      const { readFileSync } = await import('fs')
       const data = readFileSync(path)
       const ext = imageId.split('.').pop()?.toLowerCase() ?? 'png'
       const mime = ext === 'jpg' || ext === 'jpeg' ? 'image/jpeg' : ext === 'gif' ? 'image/gif' : ext === 'webp' ? 'image/webp' : 'image/png'
@@ -165,4 +198,9 @@ async function broadcastCampaignState(): Promise<void> {
     annotations,
     ...Object.fromEntries(RECORD_TYPES.map((type, i) => [RECORD_STORAGE[type].storeKey, records[i]])),
   })
+}
+
+/** A Library record type changed: the DM window's Library store gets that type's entries. */
+export async function broadcastLibraryUpdate(entityType: RecordType): Promise<void> {
+  broadcastToDm(SYNC.LIBRARY_UPDATE, { entityType, key: RECORD_STORAGE[entityType].storeKey, data: await library.listLibrary(entityType) })
 }

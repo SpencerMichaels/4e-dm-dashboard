@@ -71,3 +71,17 @@ describe('location traps', () => {
     expect(traps.map(t => [t.name, t.hidden])).toEqual([['Pyrotechnics Trap', false], ['Spiked Pit', true]])
   })
 })
+
+describe('Library entries', () => {
+  it('resolve live by libraryId: creatures, traps, and templates', () => {
+    const shared: CreatureRecord = { id: 'lib1', createdAt: '', updatedAt: '', content: { ...(scaffold('monster', 'Shared Shade', 6, 'lurker') as Monster), id: 'lib1' }, art: { imageId: 'shade-art' } }
+    const snare = { id: 'lib2', createdAt: '', updatedAt: '', content: { ...(scaffold('trap', 'Shared Snare', 2) as Trap), id: 'lib2' } }
+    const s: EncounterSources = { ...sources, library: { creatures: [shared], traps: [snare] }, templates: [...sources.templates, { ref: 'library:t1', template: { ...champion, name: 'Shared Champion' } }] }
+    const encounter = { id: 'e', name: 'E', tags: [], createdAt: '', updatedAt: '', creatures: [{ libraryId: 'lib1', count: 1, monsterTemplates: ['library:t1'] }, { libraryId: 'gone', count: 1 }], traps: [{ libraryId: 'lib2', count: 1 }] } as Encounter
+    const [shade, trap, ...rest] = encounterCombatants(encounter, s)
+    expect(rest).toHaveLength(0)
+    expect(shade).toMatchObject({ name: 'Shared Shade', imageId: 'shade-art', entityId: 'lib1' })
+    expect(shade.content).toMatchObject({ rank: 'elite' })
+    expect(trap).toMatchObject({ kind: 'trap', name: 'Shared Snare', entityId: 'lib2' })
+  })
+})

@@ -61,3 +61,11 @@ export const ENTITY_DIRS: Record<EntityType, string> = {
 export const contentKindFor = (type: RecordType) => type === 'creature' ? 'monster' : type
 /** The record type a content kind is stored as: a Workshop "monster" is a campaign creature. */
 export const recordTypeFor = (kind: string): RecordType => kind === 'monster' ? 'creature' : kind as RecordType
+
+/**
+ * Where a custom entry lives: a campaign (its id) or the Library, custom entries shared by every
+ * campaign. Campaign ids are random 12-character ids, so they never equal `LIBRARY`.
+ */
+export const LIBRARY = 'library'
+export type Home = string
+export const isLibrary = (home: Home | null | undefined) => home === LIBRARY
