@@ -166,3 +166,15 @@ function imageFile(id: string) {
   if (!/^[\w-]+\.\w+$/.test(id)) throw new Error('Invalid image id')
   return id
 }
+
+/**
+ * Where an agent's new content goes (create_draft without destinations): the campaign open in the dashboard,
+ * or the Library when it asks for it (`destination: "library"`) or no campaign is open. Edits are written
+ * into it as they land.
+ */
+export function agentHome(method: string, args: any, campaignId: string | null) {
+  if (method !== 'create_draft' || !args || typeof args !== 'object' || Array.isArray(args) || args.destinations?.length) return args
+  const { destination, ...rest } = args
+  const home = destination === LIBRARY || !campaignId ? { type: 'library', id: LIBRARY } : { type: 'campaign', id: campaignId }
+  return { ...rest, destinations: [home] }
+}

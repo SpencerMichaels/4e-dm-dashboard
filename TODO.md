@@ -194,7 +194,7 @@ Plan: [docs/shared-library-plan.md](docs/shared-library-plan.md) (2026-11-14). A
 - [x] Library storage in main (`<userData>/library/`, art included), loaded and broadcast with or without an open campaign (2026-11-14)
 - [x] Compendium pages: Library badge and filter, home labels, "+ New in ...", Copy to library / Copy to campaign, delete with a warning (2026-11-14; naming the campaigns that use it comes with live references)
 - [x] Live references: `libraryId` in encounter rows, encounter/location traps and PC diseases; `library:<id>` templates and themes; pickers and search; the Library delete confirm names the campaigns that use the entry (2026-11-14)
-- [ ] Agent: Library destination, `current_entry`/`edit_entry`/`from` for Library entries, skills and `docs/AUTHORING.md`
+- [x] Agent: Library destination, `current_entry`/`edit_entry`/`from` for Library entries, skills and `docs/AUTHORING.md` (2026-11-14)
 - [ ] Campaign export (later): bundle referenced Library entries and their art; on import they become entries of the imported campaign (references rewritten to campaign ids), never of the importing DM's Library (handling of entries their Library already has: TBD, see the plan)
 
 ## UI

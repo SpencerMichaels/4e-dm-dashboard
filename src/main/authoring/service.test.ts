@@ -81,3 +81,16 @@ describe('AI sessions writing into campaigns', () => {
     expect(readFileSync(join(root, 'library', 'assets', 'images', 'hound.png'), 'utf8')).toBe('png')
   })
 })
+
+describe('where an agent\'s new content goes', () => {
+  it('the open campaign, or the Library when asked or when no campaign is open', async () => {
+    const { agentHome } = await import('./service')
+    expect(agentHome('create_draft', { kind: 'trap' }, 'c1')).toEqual({ kind: 'trap', destinations: [{ type: 'campaign', id: 'c1' }] })
+    expect(agentHome('create_draft', { kind: 'trap', destination: 'library' }, 'c1')).toEqual({ kind: 'trap', destinations: [{ type: 'library', id: 'library' }] })
+    expect(agentHome('create_draft', { kind: 'trap' }, null)).toEqual({ kind: 'trap', destinations: [{ type: 'library', id: 'library' }] })
+    // Explicit destinations, and other calls, pass through.
+    const explicit = { kind: 'trap', destinations: [{ type: 'campaign', id: 'c2' }] }
+    expect(agentHome('create_draft', explicit, 'c1')).toBe(explicit)
+    expect(agentHome('patch_draft', { id: 'x' }, 'c1')).toEqual({ id: 'x' })
+  })
+})

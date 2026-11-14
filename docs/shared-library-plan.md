@@ -1,6 +1,6 @@
 # Shared Library: custom content outside campaigns
 
-Status: planned 2026-11-14. This is the durable plan for the work below; update the checkboxes and the "Decisions" section as it lands. TODO.md section 11 links here.
+Status: implemented 2026-11-14 (phases 1-6; export is later). This is the durable plan for the work below; update the checkboxes and the "Decisions" section as it lands. TODO.md section 11 links here.
 
 ## Goal
 
@@ -91,5 +91,5 @@ An exported campaign is self-contained:
 - [x] 2. Library storage in main: `library/` folders, load and broadcast, art storage, CRUD through the same entity handlers with a home parameter. Done 2026-11-14: `src/main/data/library-store.ts`, `ENTITY_SAVE`/`ENTITY_DELETE`/image commands take `home` ("library"), `CMD.LIBRARY_STATE` and `SYNC.LIBRARY_UPDATE` feed `stores/library-store.ts`, `IMAGE_GET` falls back to the Library's assets, authoring destinations `{ type: "library", id: "library" }` and `from` keys `library/<kind>/<id>` and `campaign/<campaignId>/<kind>/<id>` (`customCopy`, which copies art files into the Library).
 - [x] 3. Compendium pages: the Library section, home labels, "+ New in ...", Copy to library / Copy to campaign from Library, delete with usage warning. Compendium UI smoke test extended. Done 2026-11-14 in `RecordCompendium`: the list is virtualized with uniform rows, so instead of section headers every custom row carries a **Campaign** or **Library** badge (sorted campaign, Library, published) and the source filter offers the campaign, Library, and Published; the Library entry's preview says "In the Library". Library art goes to the Library through `RecordHomeContext` (`shared/record-home.ts`). The delete warning names no campaigns yet: usage comes with phase 4.
 - [x] 4. References: `libraryId` on encounter creature rows, encounter and location traps, PC diseases; `library:<id>` templates/themes; main resolution in encounter combatants and previews; pickers and search include Library entries. Combat UI smoke test with a Library creature in an encounter. Done 2026-11-14: `encounter-combatants.ts` (`EncounterSources.library`, `trapRefKey`), the merged creature index lists Library creatures as source "Library" (and the encounter editor reloads it when creatures change), `trap-refs.tsx`, `disease-refs.tsx` (campaign, then Library, then published by name), `template-catalog.ts`; `CMD.LIBRARY_USAGE` (`libraryUsage`) names the campaigns that use an entry in the delete confirm. A Library creature's art is edited on its compendium page, not from an encounter row.
-- [ ] 5. Agent: library destination, `current_entry`/`edit_entry`/`from` for Library entries, skills and `docs/AUTHORING.md`.
-- [ ] 6. Docs: AGENTS.md architecture and status, TESTING.md checklist.
+- [x] 5. Agent: library destination, `current_entry`/`edit_entry`/`from` for Library entries, skills and `docs/AUTHORING.md`. Done 2026-11-14: `agentHome` (service.ts), tool descriptions, the 4e-author-content skill, and `docs/AUTHORING.md`.
+- [x] 6. Docs: AGENTS.md architecture and status, TESTING.md checklist. Done 2026-11-14.

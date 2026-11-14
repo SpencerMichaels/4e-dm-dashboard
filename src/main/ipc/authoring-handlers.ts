@@ -1,6 +1,6 @@
 import { app, ipcMain } from 'electron'
 import { join } from 'path'
-import { AuthoringService } from '../authoring/service'
+import { agentHome, AuthoringService } from '../authoring/service'
 import { startBridge } from '../authoring/bridge'
 import { getDmWindow, broadcastToDm } from '../windows'
 import { getActiveCampaignId } from '../data/campaign-store'
@@ -8,7 +8,7 @@ import { getAppSettings } from '../data/app-settings-store'
 import { broadcastEntityUpdate, broadcastLibraryUpdate } from './campaign-handlers'
 import { invalidateCreatureIndex } from './compendium-handlers'
 import { CMD, SYNC } from '../../common/ipc-channels'
-import { entityTypeForKind, isLibrary, LIBRARY, recordTypeFor } from '../../common/campaign-records'
+import { entityTypeForKind, isLibrary, recordTypeFor } from '../../common/campaign-records'
 
 /** Campaign entries changed or deleted outside the authoring service: their working copies follow (set once the service starts). */
 export let authoringEntryChanged: (campaignId: string, entityId: string) => void = () => {}
@@ -40,15 +40,8 @@ export async function registerAuthoringHandlers() {
     broadcastToDm(SYNC.AUTHORING, { open: id ?? '' })
     return { opened: true }
   }
-  // An agent's new content goes into the open campaign, or into the Library when it asks for it
-  // (`destination: "library"`) or no campaign is open; edits are written into it as they land.
-  const withCampaign = (method: string, args: any) => {
-    if (method !== 'create_draft' || !args || typeof args !== 'object' || args.destinations?.length) return args
-    const { destination, ...rest } = args
-    const campaignId = getActiveCampaignId()
-    const home = destination === LIBRARY || !campaignId ? { type: 'library', id: LIBRARY } : { type: 'campaign', id: campaignId }
-    return { ...rest, destinations: [home] }
-  }
+  // An agent's new content goes into the open campaign, or the Library (agentHome).
+  const withCampaign = (method: string, args: any) => agentHome(method, args, getActiveCampaignId())
   // The local agent connection: a socket and connection.json, only while the setting is on (off by default).
   let bridge: Awaited<ReturnType<typeof startBridge>> | null = null
   setAgentConnection = async on => {
