@@ -211,6 +211,4 @@
 /* Where custom entries live: the open campaign's, or the Library's (shared by every campaign) */
 .record-compendium .record-custom.library { background: color-mix(in srgb, var(--accent) 16%, transparent); color: var(--text); }
 .record-compendium .record-home { margin-right: auto; align-self: center; color: var(--muted); font-style: italic; }
-.record-compendium .record-new { display: inline-flex; gap: 2px; }
 .record-menu button.neutral { color: var(--text); }
-.record-compendium .record-new > button:first-child { max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

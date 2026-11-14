@@ -18,7 +18,7 @@ This reverses decision 1 of [campaign-content-and-editors-plan.md](campaign-cont
 
 4. **Deleting a Library entry in use: warn, then allow.** The confirm names the campaigns that use it; afterwards their references show as missing, like a deleted campaign entry.
 5. **Copy only.** Copy to library makes an independent Library entry; the campaign entry and its references are unchanged. No Move for now.
-6. **+ New defaults to the open campaign** ("+ New in <campaign>", with a menu for the Library); with no campaign open it goes to the Library.
+6. **New asks where** while a campaign is open (a menu: In this campaign, In the Library); with no campaign open it goes to the Library.
 
 ## Why it was needed
 
@@ -56,7 +56,7 @@ Combat is unaffected by live edits once started: combatants already snapshot the
 
 Each kind's page (`RecordCompendium`) lists three labelled sections: **Published**, **Library**, and **Campaign · <name>** (only while a campaign is open). Every custom row shows its home.
 
-- **+ new** names where it goes: "+ New in <campaign>" while a campaign is open (a small menu on it offers the Library), otherwise "+ New in Library".
+- **New** (no "+", 2026-11-14) is one button. While a campaign is open it opens a menu, **In this campaign** or **In the Library** (2026-11-14: a long campaign name made "+ New in <campaign>" plus a one-item menu cluttered the header); with none open it makes a Library entry directly (its tooltip says so).
 - **Copy to campaign** on published and Library entries; **Copy to library** on campaign entries. `basedOn` only ever names a published or Library source, never a campaign, so it still resolves after the content leaves the campaign. A campaign entry copied to the Library keeps its own `basedOn`, if it has one.
 - Viewing and editing are identical for all homes: the same stat block, editor, working copy, comment markers, art panel, delete, and pop-outs.
 - Search and pickers that choose content (encounter creature/trap search, location traps, template/theme pickers, the command palette) include Library entries, labelled.

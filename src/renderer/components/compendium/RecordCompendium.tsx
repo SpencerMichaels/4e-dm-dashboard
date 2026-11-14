@@ -143,8 +143,8 @@ export function RecordCompendium<T extends { id: string; name: string }>({ kind,
 
   // ── A custom entry's working copy: the draft both the DM and an AI agent edit. Main writes each version
   // straight into the entry, so the preview and the editor show the agent's changes as they land, and comment
-  // markers anchor to the working copy's lines. New entries (+ new, Copy to ...) are working copies their
-  // first edit creates. ──
+  // markers anchor to the working copy's lines. New entries (New, Edit on a published entry) are working
+  // copies their first edit creates; Copy to ... creates its entry at once. ──
   const agent = useUiStore(s => s.agentConnection)
   const [copyId, setCopyId] = useState<string | null>(null)
   const [edit, setEdit] = useState<Edit | null>(null)
@@ -177,15 +177,25 @@ export function RecordCompendium<T extends { id: string; name: string }>({ kind,
       if (id) { setCopyId(id); setEdit({ copy: true }) }
       return
     }
-    await copyTo(row, campaignId ?? LIBRARY)
+    const content = await kind.get(row.id)
+    if (!content) return
+    setCopyId(null)
+    setEdit({ fresh: unsavedDraft(contentKind, content as unknown as Content), key: `new-${Date.now()}`, home: campaignId ?? LIBRARY, from: keyOf(row) })
   }
-  /** Copy to campaign / Copy to library: a new entry in `home`, made by the first edit; main gives it the source and art. */
+  /** Copy to campaign / Copy to library: the new entry in `home` at once (main gives it the source and art), shown selected. */
   const copyTo = async (row: RecordRow, home: string) => {
     if (!leaveEdit()) return
     const content = row.custom ? recordOf(row)?.content : await kind.get(row.id)
     if (!content) return
-    setCopyId(null)
-    setEdit({ fresh: unsavedDraft(contentKind, content as unknown as Content), key: `new-${Date.now()}`, home, from: keyOf(row) })
+    const d: Draft = await window.api.authoring.call('create_draft', {
+      kind: contentKind, content, from: keyOf(row),
+      destinations: [home === LIBRARY ? { type: 'library', id: LIBRARY } : { type: 'campaign', id: home }],
+    })
+    useAuthoringStore.getState().receive(d)
+    void useAuthoringStore.getState().refreshList()
+    // The record arrives by broadcast; until then the preview shows the copy's content.
+    setEdit(null); setSelected(entryRow(d)); setPreview(d.content as unknown as T); setCopyId(d.id)
+    previewRef.current?.scrollTo(0, 0)
   }
   const startNew = async (home: string) => {
     setMenu(null)
@@ -274,12 +284,12 @@ export function RecordCompendium<T extends { id: string; name: string }>({ kind,
         <input className="ghost sb-name" value={search} placeholder="Search..." aria-label={`Search ${kind.plural}`} onChange={e => setSearch(e.target.value)} style={{ color: 'inherit', flex: 1 }} />
         <span style={{ display: 'flex', alignItems: 'baseline', gap: 4, whiteSpace: 'nowrap' }}>
           {!kind.levelless && <>Level <input className="ghost" value={levelStr} placeholder="1–30" aria-label="Level filter" onChange={e => setLevelStr(e.target.value.replace(/-/g, '–'))} style={{ width: 40, color: 'inherit', textAlign: 'center' }} /></>}
-          <span className="record-new">
-            <button className="btn btn-sm" onClick={() => void startNew(newHome)} style={{ color: 'inherit', font: 'inherit' }}
-              title={campaignId ? `Create a new ${kind.singular} in ${campaignName}` : `Create a new ${kind.singular} in the Library, shared by every campaign`}>+ New in {campaignId ? campaignName : 'Library'}</button>
-            {campaignId && <button className="btn btn-sm" aria-label="Create it elsewhere" title="Create it in the Library instead"
-              onClick={e => { const r = e.currentTarget.getBoundingClientRect(); setMenu({ x: r.left, y: r.bottom }) }} onMouseDown={e => e.stopPropagation()}><Icon name="chevron-down" /></button>}
-          </span>
+          {/* With a campaign open, New asks where: the campaign or the Library. Without one, the Library is the only home. */}
+          {campaignId
+            ? <button className="btn btn-sm" aria-haspopup="menu" title={`Create a new ${kind.singular} in ${campaignName} or in the Library`} style={{ color: 'inherit', font: 'inherit' }}
+              onClick={e => { const r = e.currentTarget.getBoundingClientRect(); setMenu({ x: r.left, y: r.bottom }) }} onMouseDown={e => e.stopPropagation()}>New <Icon name="chevron-down" style={{ verticalAlign: '-0.125em' }} /></button>
+            : <button className="btn btn-sm" onClick={() => void startNew(LIBRARY)} style={{ color: 'inherit', font: 'inherit' }}
+              title={`Create a new ${kind.singular} in the Library, shared by every campaign`}>New</button>}
         </span>
       </div>
       <div className="sb-subheader" style={{ flexShrink: 0, gap: 8, justifyContent: 'flex-start' }}>
@@ -326,9 +336,9 @@ export function RecordCompendium<T extends { id: string; name: string }>({ kind,
               {selected.library && <span className="record-home" title="Shared by every campaign: changes show wherever it is used">In the Library</span>}
               {selected.custom
                 ? action('Edit', () => void startEdit(selected), selected.library ? 'Edit this Library entry (e); it changes in every campaign that uses it' : 'Edit this campaign entry (e)')
-                : action(campaignId ? 'Copy to campaign' : 'Copy to library', () => void startEdit(selected), `Make an editable copy in ${campaignId ? campaignName : 'the Library'} (e); your first edit adds it`)}
-              {selected.library && campaignId && action('Copy to campaign', () => void copyTo(selected, campaignId), `Make a ${campaignName} version of this Library entry; your first edit adds it`)}
-              {(selected.custom ? !selected.library : !!campaignId) && action('Copy to library', () => void copyTo(selected, LIBRARY), 'Make an editable copy in the Library, shared by every campaign; your first edit adds it')}
+                : action(campaignId ? 'Copy to campaign' : 'Copy to library', () => void copyTo(selected, newHome), `Add an editable copy to ${campaignId ? campaignName : 'the Library'} (e edits a copy that your first change adds)`)}
+              {selected.library && campaignId && action('Copy to campaign', () => void copyTo(selected, campaignId), `Add a ${campaignName} version of this Library entry`)}
+              {(selected.custom ? !selected.library : !!campaignId) && action('Copy to library', () => void copyTo(selected, LIBRARY), 'Add an editable copy to the Library, shared by every campaign')}
               {selected.custom && action('Delete', () => void remove(selected))}
             </div>
             {/* One stat block for every entry; with the agent connection on, the working copy adds comment markers. */}
@@ -347,7 +357,10 @@ export function RecordCompendium<T extends { id: string; name: string }>({ kind,
     {menu && <div className="record-menu" role="menu" style={{ left: menu.x, top: menu.y }} onMouseDown={e => e.stopPropagation()}>
       {menu.row
         ? <button role="menuitem" onClick={() => void remove(menu.row!)}>Delete</button>
-        : <button role="menuitem" className="neutral" onClick={() => void startNew(LIBRARY)}>New {kind.singular} in the Library</button>}
+        : <>
+          <button role="menuitem" className="neutral" title={`Only in ${campaignName}`} onClick={() => void startNew(campaignId!)}>In this campaign</button>
+          <button role="menuitem" className="neutral" title="Shared by every campaign" onClick={() => void startNew(LIBRARY)}>In the Library</button>
+        </>}
     </div>}
   </div>
 }
