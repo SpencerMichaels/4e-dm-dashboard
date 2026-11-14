@@ -17,6 +17,7 @@ import { readdir } from 'fs/promises'
 import { withWriteLock } from './write-lock'
 import { migrateLegacyItems } from './legacy-items'
 import { migrateLegacyCreatures } from './legacy-creatures'
+import { migratePartyLevel } from './legacy-party-level'
 import { RECORD_STORAGE, checkRecord, isLibrary, isRecordType } from '@common/campaign-records'
 
 let activeCampaignId: string | null = null
@@ -65,12 +66,15 @@ export async function createCampaign(name: string): Promise<Campaign> {
 }
 
 export async function openCampaign(campaignId: string): Promise<Campaign | null> {
-  const meta = await readJson<Campaign>(getCampaignMetaPath(campaignId))
+  const meta = await readJson<Campaign & { partyLevel?: number }>(getCampaignMetaPath(campaignId))
   if (!meta) return null
   // Items and creatures became kit records (2026-11-13); convert any legacy files once.
+  // The campaign-wide party level became each PC's own level (2026-11-14).
   await withWriteLock(getCampaignMetaPath(campaignId), async () => {
     await migrateLegacyItems(getEntityDir(campaignId, 'item'))
     await migrateLegacyCreatures(getEntityDir(campaignId, 'creature'))
+    if (meta.partyLevel != null) await migratePartyLevel(getEntityDir(campaignId, 'player-character'), meta.partyLevel)
+    delete meta.partyLevel
   })
 
   meta.lastOpenedAt = new Date().toISOString()

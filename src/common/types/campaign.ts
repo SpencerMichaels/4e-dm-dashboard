@@ -4,7 +4,6 @@ export interface Campaign {
   systemId: string
   createdAt: string       // ISO 8601
   lastOpenedAt: string
-  partyLevel?: number     // Whole-party level (PCs always level together)
 }
 
 /** A trap by reference: a campaign trap record, a Library one, or a published trap. */

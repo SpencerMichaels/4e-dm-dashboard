@@ -10,18 +10,13 @@ import { PcDiseases } from './PcDiseases'
 import { Icon } from '../shared/Icon'
 import { withAlpha } from '../../utils/color'
 import { ImportOutcomeBanner, PcSheetRows, sheetSubtitle, useCharacterImport } from './PcSheet'
+import { partyLevel } from '@common/rules/party'
+import { PartyLevelWarning, PcLevelWarning } from './level-warnings'
 
 export function PCListView() {
   const playerCharacters = useCampaignStore((s) => s.playerCharacters)
-  const campaign = useCampaignStore((s) => s.campaign)
   const { createPC } = useCampaignActions()
-
-  const partyLevel = campaign?.partyLevel ?? 1
-
-  const updatePartyLevel = useCallback(async (level: number) => {
-    if (!Number.isFinite(level) || level < 1) return
-    await window.api.campaign.update({ partyLevel: level })
-  }, [])
+  const level = partyLevel(playerCharacters)
 
   const savePC = useCallback(async (pc: PlayerCharacter) => {
     await window.api.entity.save('player-character', { ...pc, updatedAt: new Date().toISOString() })
@@ -44,17 +39,12 @@ export function PCListView() {
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 'var(--space-4)' }}>
         <h1 style={{ fontSize: 'var(--font-size-2xl)' }}>Player Characters</h1>
         <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
-          <label style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', fontSize: 'var(--font-size-sm)', color: 'var(--text-secondary)' }}>
-            Party Level
-            <input
-              type="number"
-              min={1}
-              max={30}
-              value={partyLevel}
-              onChange={(e) => updatePartyLevel(Number(e.target.value))}
-              style={{ width: 48, textAlign: 'center', fontWeight: 600 }}
-            />
-          </label>
+          {level != null && (
+            <span title="The most common level among the active PCs (the higher on a tie)" style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 'var(--font-size-sm)', color: 'var(--text-secondary)' }}>
+              Party level <b>{level}</b>
+              <PartyLevelWarning pcs={playerCharacters} />
+            </span>
+          )}
           <button className="btn" onClick={() => pick()} title="Import characters from Character Builder (.dnd4e) or 4ecb (.4ecb) files (I)">
             Import…
           </button>
@@ -79,7 +69,7 @@ export function PCListView() {
           alignItems: 'flex-start',
         }}>
           {playerCharacters.map((pc) => (
-            <PCCard key={pc.id} pc={pc} onSave={savePC} onDelete={deletePC} onImport={() => pick(pc.id)} />
+            <PCCard key={pc.id} pc={pc} partyLevel={level} onSave={savePC} onDelete={deletePC} onImport={() => pick(pc.id)} />
           ))}
         </div>
       )}
@@ -91,12 +81,13 @@ export function PCListView() {
 
 interface PCCardProps {
   pc: PlayerCharacter
+  partyLevel: number | undefined
   onSave: (pc: PlayerCharacter) => void
   onDelete: (id: string) => void
   onImport: () => void
 }
 
-function PCCard({ pc, onSave, onDelete, onImport }: PCCardProps) {
+function PCCard({ pc, partyLevel, onSave, onDelete, onImport }: PCCardProps) {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const update = (patch: Partial<PlayerCharacter>) => onSave({ ...pc, ...patch })
   const isActive = pc.active !== false
@@ -267,11 +258,21 @@ function PCCard({ pc, onSave, onDelete, onImport }: PCCardProps) {
             onTokenChange={(tokenImageId, crop) => update({ tokenImageId, tokenCrop: crop })}
           />
         </div>
-        {pc.sheet && (
+        {pc.sheet ? (
           <div className="stat-block-4e pc-sheet" style={{ width: 260, fontSize: 11 }}>
-            <div className="sb-row" style={{ fontWeight: 700 }}>{sheetSubtitle(pc.sheet)}</div>
+            <div className="sb-row" style={{ fontWeight: 700, display: 'flex', alignItems: 'center', gap: 4 }}>{sheetSubtitle(pc.sheet)}<PcLevelWarning pc={pc} partyLevel={partyLevel} /></div>
             <PcSheetRows sheet={pc.sheet} />
           </div>
+        ) : (
+          <label className="pc-level" title="This PC's level, until a sheet is imported (the sheet's level then counts)" style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', fontSize: 'var(--font-size-sm)' }}>
+            Level
+            <input
+              type="number" min={1} max={30} value={pc.level ?? ''}
+              onChange={(e) => { const level = Number(e.target.value); update({ level: Number.isInteger(level) && level >= 1 ? level : undefined }) }}
+              style={{ width: 48, textAlign: 'center', fontWeight: 600 }}
+            />
+            <PcLevelWarning pc={pc} partyLevel={partyLevel} />
+          </label>
         )}
       </div>
 

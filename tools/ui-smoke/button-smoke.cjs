@@ -70,7 +70,7 @@ app.whenReady().then(async () => {
     await sleep(300)
 
     await clickButton('Home')
-    await until(() => document.body.innerText.includes('Locations'), 'home')
+    await until(() => !!document.querySelector('.home-party'), 'home')
     await audit('home')
     // Settings, then again with the agent connection on (it shows Copy connection path).
     await openDialog('Settings', 'settings')
@@ -85,7 +85,7 @@ app.whenReady().then(async () => {
     await openDialog('Keyboard shortcuts', 'keyboard shortcuts')
     await openDialog('Command palette', 'command palette')
 
-    await clickText('Locations')
+    await js(() => [...document.querySelectorAll('nav button')].find(b => b.textContent.trim().endsWith('Locations')).click())
     await until(() => document.body.innerText.includes('Smoke Vault'), 'the location list')
     await audit('location list')
     await clickText('Smoke Vault')

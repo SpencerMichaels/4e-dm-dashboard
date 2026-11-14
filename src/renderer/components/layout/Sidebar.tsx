@@ -19,6 +19,7 @@ const navSections: { title: string; campaign?: true; items: NavItem[] }[] = [
     items: [
       { icon: '🏠', label: 'Home', view: { type: 'home' } },
       { icon: '⚔️', label: 'Encounters', view: { type: 'entity-list', entityType: 'encounter' } },
+      { icon: '📍', label: 'Locations', view: { type: 'entity-list', entityType: 'location' } },
       { icon: '🗺️', label: 'Maps', view: { type: 'entity-list', entityType: 'map' } },
       { icon: '🧑', label: 'PCs', view: { type: 'entity-list', entityType: 'player-character' } },
     ],

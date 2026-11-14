@@ -7,6 +7,7 @@ export interface PlayerCharacter {
   tokenCrop?: { x: number; y: number; size: number }  // Last crop region used to generate the token
   color?: string                  // Characteristic chip color (CSS color string)
   active?: boolean                // Whether this PC counts toward the active party (default true)
+  level?: number                  // The PC's level when no sheet is imported (a sheet's level wins; see pcLevel in src/common/rules/party.ts)
   markType?: string               // Class mark id (e.g. 'hunter-quarry') — see src/common/rules/class-marks.ts
   diseases?: PcDisease[]          // Diseases the PC is exposed to or carries, with the current stage
   /** Final numbers imported from a Character Builder .dnd4e or a 4ecb .4ecb file (src/common/character/character-import.ts). */

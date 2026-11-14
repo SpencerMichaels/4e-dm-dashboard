@@ -93,10 +93,24 @@ app.whenReady().then(async () => {
 
     // ── A location notes its traps as stat blocks; the search adds another ──
     await js(l => window.api.entity.save('location', l), { id: 'vault', name: 'Smoke Vault', description: '', tags: [], createdAt: now, updatedAt: now, traps: [{ compendiumId: 'trap41' }, { compendiumId: 'trap300' }], encounterIds: ['smoke-fight'] })
+    // A second PC without a sheet, two levels below the hero: the party level stays the hero's (the higher on a tie) and both pages flag it.
+    await js(p => window.api.entity.save('player-character', p), { id: 'squire', name: 'Squire', playerName: 'Guest', level: 2, createdAt: now, updatedAt: now })
     await sleep(300)
     await js(() => [...document.querySelectorAll('button')].find(b => b.textContent.trim().endsWith('Home')).click())
-    await until(() => [...document.querySelectorAll('*')].some(el => el.children.length === 0 && el.textContent.trim() === 'Locations'), 'the Locations card')
-    await js(() => [...document.querySelectorAll('*')].find(el => el.children.length === 0 && el.textContent.trim() === 'Locations').click())
+    await until(() => document.querySelectorAll('.home-party .level-warning svg').length === 2, 'the session board with level warnings')
+    if (!await js(() => document.querySelector('.home-party .sb-name').textContent === 'Party (Level 4)')) throw new Error('The party heading does not show the party level')
+    await screenshot('out/home.png')
+    // The session board is one page: its scroll container (the main area) never scrolls.
+    if (await js(() => { const main = document.querySelector('.home-party').parentElement.parentElement; return main.scrollHeight > main.clientHeight })) throw new Error('The session board scrolls')
+    // Recently changed fills the rest of the page: its panels reach the bottom of the main area.
+    if (await js(() => { const main = document.querySelector('.home-party').parentElement.parentElement; const kind = document.querySelector('.home-recent-kind'); return main.getBoundingClientRect().bottom - kind.getBoundingClientRect().bottom > 48 })) throw new Error('Recently changed does not fill the page')
+    await js(() => [...document.querySelectorAll('nav button')].find(b => b.textContent.trim().endsWith('PCs')).click())
+    await until(() => document.querySelector('h1')?.textContent === 'Player Characters' && document.querySelectorAll('.level-warning svg').length === 2, 'the PCs page level warnings')
+    await sleep(500) // let the page paint before the frame is taken
+    await screenshot('out/pcs-levels.png')
+    await js(() => window.api.entity.delete('player-character', 'squire'))
+    await sleep(300)
+    await js(() => [...document.querySelectorAll('nav button')].find(b => b.textContent.trim().endsWith('Locations')).click())
     await until(() => [...document.querySelectorAll('*')].some(el => el.children.length === 0 && el.textContent.trim() === 'Smoke Vault'), 'the location list')
     await js(() => [...document.querySelectorAll('*')].find(el => el.children.length === 0 && el.textContent.trim() === 'Smoke Vault').click())
     await until(() => document.querySelector('.location-trap')?.innerText.includes('Countermeasures'), 'the location trap stat block')
@@ -249,7 +263,7 @@ app.whenReady().then(async () => {
 
     const confirms = await js(() => window.__confirms)
     clearTimeout(timeout)
-    console.log('COMBAT_SMOKE_OK: a Library creature resolving live in an encounter row, legacy creature converted on open, encounter row preview (template, level adjustment), combat start in main with kit combatants (elite captain, troll regeneration, grouped minions), combat panel, recharge prompt, live pinned card, location trap stat blocks and search, location traps joining the encounter, encounter diseases, disease name in a power applied to a PC like a condition, PC disease stages, PC sheet import (row defenses, panel, PC card), pinned cards popped out to an OS window and back, trap rows with XP and preview, hidden trap with initiative, triggered trap (Trigger, Disable); confirms: ' + confirms.length + '; screenshots out/combat-encounter-preview.png, out/combat-panel.png, out/combat-trap.png, out/location-traps.png, out/combat-disease.png, out/pc-diseases.png, out/combat-pc-sheet.png, out/popout-pinned.png')
+    console.log('COMBAT_SMOKE_OK: a Library creature resolving live in an encounter row, legacy creature converted on open, encounter row preview (template, level adjustment), the session board and level warnings, combat start in main with kit combatants (elite captain, troll regeneration, grouped minions), combat panel, recharge prompt, live pinned card, location trap stat blocks and search, location traps joining the encounter, encounter diseases, disease name in a power applied to a PC like a condition, PC disease stages, PC sheet import (row defenses, panel, PC card), pinned cards popped out to an OS window and back, trap rows with XP and preview, hidden trap with initiative, triggered trap (Trigger, Disable); confirms: ' + confirms.length + '; screenshots out/home.png, out/pcs-levels.png, out/combat-encounter-preview.png, out/combat-panel.png, out/combat-trap.png, out/location-traps.png, out/combat-disease.png, out/pc-diseases.png, out/combat-pc-sheet.png, out/popout-pinned.png')
     finish(0)
   } catch (err) {
     console.error(err)

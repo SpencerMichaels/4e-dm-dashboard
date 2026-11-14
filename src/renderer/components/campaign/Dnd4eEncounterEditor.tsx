@@ -27,6 +27,7 @@ import { useUiStore } from '@renderer/stores/ui-store'
 import { useCampaignStore } from '@renderer/stores/campaign-store'
 import { useLibraryStore } from '@renderer/stores/library-store'
 import { capitalize } from '@common/utils/format'
+import { isActivePc, partyLevel as derivePartyLevel } from '@common/rules/party'
 import '../creature/statblock.css'
 
 
@@ -117,13 +118,12 @@ export function Dnd4eEncounterEditor({ encounter, onSave, creatures, onNavigate 
   // Encounter row selection (click a row in the encounter list to preview it on the right)
   const [selectedRowKey, setSelectedRowKey] = useState<string | null>(null)
 
-  // Party size and level are derived from active PCs and the campaign-wide level
   // The Library's creatures (shared by every campaign): rows use them by libraryId, live.
   const libraryCreatures = useLibraryStore(s => s.creatures)
+  // Party size and level are derived from the active PCs (party level: their most common level).
   const playerCharacters = useCampaignStore(s => s.playerCharacters)
-  const campaign = useCampaignStore(s => s.campaign)
-  const partySize = playerCharacters.filter(pc => pc.active !== false).length
-  const partyLevel = campaign?.partyLevel
+  const partySize = playerCharacters.filter(isActivePc).length
+  const partyLevel = derivePartyLevel(playerCharacters)
   const partyReady = partySize > 0 && partyLevel != null && partyLevel > 0
 
   const save = (patch: Partial<Encounter>) => {
@@ -446,7 +446,7 @@ export function Dnd4eEncounterEditor({ encounter, onSave, creatures, onNavigate 
           <span style={{ display: 'flex', alignItems: 'baseline', gap: 4 }}>
             {partyReady
               ? <>Party of <b>{partySize}</b> at level <b>{partyLevel}</b></>
-              : <span style={{ fontStyle: 'italic', opacity: 0.7 }}>Set party level &amp; mark active PCs on the PCs page</span>}
+              : <span style={{ fontStyle: 'italic', opacity: 0.7 }}>Mark active PCs and give them levels on the PCs page</span>}
           </span>
           {totalXP > 0 && (
             <span style={{ whiteSpace: 'nowrap' }}>

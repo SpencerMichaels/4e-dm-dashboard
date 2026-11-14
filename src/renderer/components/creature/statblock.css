@@ -166,7 +166,7 @@
 .stat-block-4e .sb-check-table td { padding: 1px 6px; vertical-align: top; }
 
 /* RecordCompendium: list rows, actions, and the edit bar */
-.record-compendium .record-columns { display: grid; gap: var(--space-2); padding: 2px var(--space-2); border-bottom: 1px solid var(--sb-separator, var(--border)); flex-shrink: 0; color: var(--muted); font-weight: 600; font-size: var(--font-size-xs); user-select: none; }
+.record-compendium .record-columns, .stat-block-4e .sb-columns { display: grid; gap: var(--space-2); padding: 2px var(--space-2); border-bottom: 1px solid var(--sb-separator, var(--border)); flex-shrink: 0; color: var(--muted); font-weight: 600; font-size: var(--font-size-xs); user-select: none; }
 .record-compendium .record-row { display: grid; gap: var(--space-2); align-items: center; height: 100%; padding: 0 var(--space-2); cursor: pointer; font-size: var(--font-size-xs); }
 .record-compendium .record-row.active { background: var(--active); font-weight: 600; }
 .record-compendium .record-row > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -180,6 +180,11 @@
 .record-compendium .record-empty { display: flex; align-items: center; justify-content: center; height: 100%; color: var(--muted); font-size: var(--font-size-sm); }
 .record-menu { position: fixed; z-index: 1000; background: var(--background); border: 1px solid var(--border); border-radius: var(--radius-sm); box-shadow: var(--shadow-md); padding: var(--space-1) 0; min-width: 140px; }
 .record-menu button { display: block; width: 100%; text-align: left; padding: 4px 12px; background: none; border: 0; color: var(--danger, var(--danger)); cursor: pointer; }
+
+/* Lists in a stat block panel outside the compendium (the Home board), styled like its lists:
+   .sb-columns is the column-heading row, .sb-list-row a row (striped by a .striped-rows parent). */
+.stat-block-4e .sb-list-row { display: grid; gap: var(--space-2); align-items: center; padding: 0 var(--space-2); font-size: var(--font-size-xs); }
+.stat-block-4e .sb-list-row > * { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 /* Power cards (PowerCardView): header in the usage tone, a lighter attack line, then the printed
    lines in book order, grouped by spacing rather than rules. */
