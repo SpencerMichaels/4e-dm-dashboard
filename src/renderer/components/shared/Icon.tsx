@@ -4,7 +4,7 @@
 
 import type { LucideIcon, LucideProps } from 'lucide-react'
 import { icons } from 'lucide-react'
-import { ACTION_TYPE_ICON, RANGE_KIND_ICON } from '@common/rules/power-card'
+import { ACTION_TYPE_ICON } from '@common/rules/power-card'
 
 const pascal = (name: string) => name.replace(/(^|-)([a-z0-9])/g, (_, __, c: string) => c.toUpperCase())
 
@@ -33,13 +33,8 @@ const ACTION_WORDS: Record<string, string> = {
   'no-action': 'No action', triggered: 'Triggered action',
 }
 
-/** The action type's icon (a filled circle for standard actions, as the book prints it). */
+/** The action type's icon, as 4ecb draws it (a filled circle for standard actions, as the book prints it). */
 export function ActionTypeIcon({ action }: { action?: string }) {
   if (!action || !ACTION_TYPE_ICON[action]) return null
-  return <Icon name={ACTION_TYPE_ICON[action]} label={ACTION_WORDS[action] ?? action} fill={action === 'standard' ? 'currentColor' : 'none'} />
-}
-
-export function RangeKindIcon({ kind }: { kind?: string }) {
-  if (!kind || !RANGE_KIND_ICON[kind]) return null
-  return <Icon name={RANGE_KIND_ICON[kind]} label={kind.replace(/-/g, ' ')} />
+  return <Icon name={ACTION_TYPE_ICON[action]} label={ACTION_WORDS[action] ?? action} className="action-type-icon" fill={action === 'standard' ? 'currentColor' : 'none'} />
 }

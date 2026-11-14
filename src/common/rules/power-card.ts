@@ -1,32 +1,24 @@
-// What a monster power card shows, independent of how it is drawn: icon names for action types and
-// range kinds, the usage chip's label, the attack line's short defense names, and the body's lines in
+// What a monster power card shows, independent of how it is drawn: icon names for action types, the
+// usage chip's label, the attack line's short defense names, and the body's lines in
 // book order, grouped. Pure TypeScript; the card component draws it. These belong in 4e-kit (see the
 // "Monster Power Cards: Proposal"); they live here until the kit can take them without disturbing the
 // content run that commits schema changes there.
 
-/** Icon names (Lucide, kebab-case) per action type: one arrow each for interrupt, reaction, and opportunity. */
+/**
+ * Icon names (Lucide, kebab-case) per action type: the ones 4ecb's power cards draw (its ActionTypeIcon),
+ * the kit's symbols as icons. Standard is free's circle, filled; minor's pie has its slice filled (the
+ * `.action-type-icon` CSS). Triggered shares the reaction's icon, as it shares its symbol.
+ */
 export const ACTION_TYPE_ICON: Record<string, string> = {
   standard: 'circle',
-  move: 'footprints',
-  minor: 'contrast',
-  free: 'circle-dashed',
-  'immediate-interrupt': 'undo-2',
+  move: 'chevrons-right',
+  minor: 'chart-pie',
+  free: 'circle',
+  'immediate-interrupt': 'trending-up',
   'immediate-reaction': 'redo-2',
-  opportunity: 'zap',
+  opportunity: 'redo-dot',
   'no-action': 'minus',
-  triggered: 'zap',
-}
-
-/** Icon names per range kind. */
-export const RANGE_KIND_ICON: Record<string, string> = {
-  melee: 'sword',
-  ranged: 'move-up-right',
-  'close-burst': 'circle-dot',
-  'close-blast': 'triangle-right',
-  'area-burst': 'bomb',
-  'area-wall': 'brick-wall',
-  aura: 'sun',
-  personal: 'user',
+  triggered: 'redo-2',
 }
 
 const DEFENSE_SHORT: Record<string, string> = { ac: 'AC', fortitude: 'Fort', reflex: 'Ref', will: 'Will' }

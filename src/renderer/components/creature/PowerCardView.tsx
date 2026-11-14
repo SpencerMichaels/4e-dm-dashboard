@@ -13,7 +13,7 @@ import { tint } from '../../utils/color'
 import type { DetectedCondition } from '../combat/condition-detection'
 import { splitTextWithHighlights } from '../combat/condition-detection'
 import { useSystemSetting } from '../../stores/settings-store'
-import { ActionTypeIcon, Icon, RangeKindIcon } from '../shared/Icon'
+import { ActionTypeIcon, Icon } from '../shared/Icon'
 import './statblock.css'
 
 /** An encounter level adjustment, shown on the attack bonus and the damage. */
@@ -72,6 +72,9 @@ interface Props {
   /** The engine is waiting on this power's recharge roll: a dice icon in the chip. */
   rechargeQueued?: boolean
 }
+
+/** The range and target fields' icons, as 4ecb draws them: a figure instead when the value is personal. */
+const isPersonal = (value: string) => /^\s*personal\s*$/i.test(value)
 
 export function PowerCardView({ entry: e, selectedLevel, detectedConditions, onConditionClick, uses, onUse, onRestore, pinned, onPin, collapsed, marker, rechargeQueued }: Props) {
   const hideActionTypeText = useSystemSetting<boolean>('dnd-4e', 'hideActionTypeText', false)
@@ -151,8 +154,8 @@ export function PowerCardView({ entry: e, selectedLevel, detectedConditions, onC
       </div>
       {showBody && kind === 'power' && (hasAttack || (e.rangeType && e.rangeValue)) && (
         <div className="pc-attack">
-          {e.rangeType && <span><RangeKindIcon kind={e.rangeType} /> {e.rangeType.replace(/-/g, ' ')}{e.rangeValue && ` ${e.rangeValue}`}</span>}
-          {e.target && <span><Icon name="target" label="Target" /> {e.target}</span>}
+          {e.rangeType && <span><Icon name={isPersonal(e.rangeType) ? 'user-round' : 'sword'} label="Range" /> {e.rangeType.replace(/-/g, ' ')}{e.rangeValue && ` ${e.rangeValue}`}</span>}
+          {e.target && <span><Icon name={isPersonal(e.target) ? 'user-round' : 'crosshair'} label="Target" /> {e.target}</span>}
           {e.defense && <span className="pc-roll"><Icon name="dices" label="Attack" /> <b>
             {e.attackNotes && /level/i.test(e.attackNotes) ? e.attackNotes : adjusted(e._levelAdjust?.attackDelta ?? 0, 'to attack', sign(e.attackBonus!))} vs {abbreviateDefense(e.defense)}
           </b></span>}

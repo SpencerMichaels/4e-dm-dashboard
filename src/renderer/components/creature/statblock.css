@@ -193,6 +193,8 @@
 .power-card:focus-visible { outline: 3px solid var(--focus); outline-offset: 1px; }
 .power-card .pc-header { display: flex; align-items: center; gap: 6px; padding: 2px 8px; background: var(--pc-fill); color: var(--pc-text); }
 .power-card .pc-header > svg { flex-shrink: 0; }
+/* Minor action: the pie with its slice filled, like the kit's ◔ (as 4ecb draws it). */
+.action-type-icon.lucide-chart-pie path:first-child { fill: currentColor; }
 .power-card .pc-title { flex: 1; min-width: 0; }
 .power-card .pc-dim { opacity: 0.75; }
 .power-card .pc-chip { flex-shrink: 0; padding: 0 6px; border-radius: 999px; font-size: 10px; font-weight: 700; letter-spacing: 0.02em; white-space: nowrap;
