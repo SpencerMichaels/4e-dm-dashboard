@@ -1,16 +1,15 @@
 import { readFile } from 'fs/promises'
-import { homedir } from 'os'
 import { dirname, join } from 'path'
 import { bridgeCall } from '../../src/main/authoring/bridge'
+import { defaultConnectionFile } from '../../src/main/authoring/connection'
 import { benchmarks, scaffold, validate, normalizeContent, search } from '../../src/common/authoring/core'
 import { itemBenchmarks } from '../../src/common/rules/items'
-import { Catalog } from '../../src/main/authoring/catalog'
 import { AUTHORING_TOOLS } from './tools'
 
 async function main() {
   const args = process.argv.slice(2)
   const c = args.indexOf('--connection')
-  const connection = c >= 0 ? args.splice(c, 2)[1] : process.env.FOUR_E_AUTHORING_CONNECTION ?? join(homedir(), '.config', '4e-dm-dashboard', 'authoring', 'connection.json')
+  const connection = c >= 0 ? args.splice(c, 2)[1] : process.env.FOUR_E_AUTHORING_CONNECTION || defaultConnectionFile()
   const command = args.shift() ?? 'help'
   if (command === 'help') {
     console.log('4e authoring: <operation> [arguments.json|-] [--connection path]\nUse --mcp for stdio MCP. Standalone: scaffold, benchmarks, validate, search-local. Live operations: ' + AUTHORING_TOOLS.map(t => t.name).join(', '))
@@ -42,7 +41,11 @@ async function main() {
     if (method === 'benchmarks') return a.kind === 'item' ? itemBenchmarks(a.level) : benchmarks(a.level, a.role, a.rank, a.abilities)
     if (method === 'scaffold') return scaffold(a.kind ?? 'monster', a.name, a.level, a.role, a.rank)
     if (method === 'validate') return validate(a.kind, normalizeContent(a.content), a.recipe)
-    if (method === 'search-local') return search(await new Catalog(a.contentRoot ?? (a.parsedRoot ? dirname(a.parsedRoot) : join(process.cwd(), 'content'))).entries(), a)
+    if (method === 'search-local') {
+      // Loaded on demand: the catalog's compendium module needs Electron, which the installed server runs without.
+      const { Catalog } = await import('../../src/main/authoring/catalog')
+      return search(await new Catalog(a.contentRoot ?? (a.parsedRoot ? dirname(a.parsedRoot) : join(process.cwd(), 'content'))).entries(), a)
+    }
     return bridgeCall(connection, method, a)
   }
 }

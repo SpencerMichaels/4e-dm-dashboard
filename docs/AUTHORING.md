@@ -17,9 +17,33 @@ A working copy belongs to exactly one campaign or Library entry, fixed when it i
 
 ## Agent connection
 
-The app starts a local authenticated socket bridge. The CLI automatically uses `~/.config/4e-dm-dashboard/authoring/connection.json`, so normal use requires no copied path. **Copy connection path**, in Settings › Editing with AI, copies the connection-file path for custom setups. The file contains a credential; supply its path to the CLI, not its contents to a model/chat. No network listener is opened.
+The app starts a local authenticated socket bridge while Settings › AI agent › **Let a local AI agent connect** is on. It writes the connection file to `<userData>/authoring/connection.json` (`~/.config/4e-dm-dashboard/authoring/connection.json`, or under `$XDG_CONFIG_HOME` when that is set), where the CLI and MCP server find it on their own. The file contains a credential; supply its path to the CLI, not its contents to a model/chat. No network listener is opened.
 
-Run commands from the repository in the Nix shell (`nix develop -c ...`), as the user running the app:
+### Connecting an MCP client
+
+The installed app (`./install.sh`, `default.nix`) includes the MCP server as the command `4e-dm-dashboard-mcp`: the bundled `tools/authoring/cli.ts` (`out/main/authoring-cli.js`) run by the app's own Electron as plain Node (`ELECTRON_RUN_AS_NODE`), with no window, repository, or Nix shell. Each MCP client needs it registered once. **Copy setup for Claude Code** in Settings › AI agent copies the line to run in a terminal (then restart Claude Code and check with `/mcp`):
+
+```sh
+claude mcp add 4e-dashboard -- 4e-dm-dashboard-mcp --mcp
+```
+
+Other clients take the same command in their stdio server settings:
+
+```json
+{ "command": "4e-dm-dashboard-mcp", "args": ["--mcp"] }
+```
+
+When the dashboard runs from a source checkout (`./launch.sh`), the copied setup runs the server from source in the Nix shell instead (`nix develop` must run in the repository, not with `path:.`; `--silent` keeps npm banners out of the protocol):
+
+```sh
+claude mcp add 4e-dashboard -- bash -c 'cd /path/to/tabletop-dashboard && exec nix develop --quiet -c npm run --silent authoring -- --mcp'
+```
+
+The server uses the SDK's stdio protocol and advertises only authoring tools; approval and arbitrary file/code operations are absent. It is local tooling, not a remotely hosted MCP service. Adapter source: `tools/authoring/cli.ts`; tool schemas: `tools/authoring/tools.ts`.
+
+### The CLI
+
+The same command runs single operations: `4e-dm-dashboard-mcp <operation> [arguments.json|-]`, or from the repository in the Nix shell (`nix develop -c ...`), as the user running the app:
 
 ```sh
 npm run --silent authoring -- list_drafts
@@ -27,19 +51,7 @@ npm run --silent authoring -- create_draft request.json
 npm run --silent authoring -- get_draft request.json
 ```
 
-Arguments are a JSON object read from a file or `-` for stdin. For a custom user-data location, use `--connection /path/to/connection.json` or `FOUR_E_AUTHORING_CONNECTION` (the flag takes precedence). If automatic discovery fails, check that the dashboard and CLI run as the same user, then use the path from **Copy connection path** in Settings. `scaffold`, `benchmarks`, `validate`, and `search-local` work without the running app. `search-local` accepts a `contentRoot` path (the directory holding `raw/` and `parsed/`; the older `parsedRoot` still works); its default is `content` under the working directory. Monsters and traps are re-parsed from `raw/` with their printed hit, miss, and effect text, as in the content repo.
-
-For an MCP client, configure a stdio server using the official SDK adapter. **Use `--silent` with npm so npm banners do not corrupt the protocol.** Example command/arguments (the client starts it in the Nix shell; `nix develop` must run in the repository, not with `path:.`):
-
-```json
-{
-  "command": "nix",
-  "args": ["develop", "--quiet", "-c", "npm", "run", "--silent", "authoring", "--", "--mcp"],
-  "cwd": "/path/to/tabletop-dashboard"
-}
-```
-
-The socket and connection file stay in the user's own config directory. The server uses the SDK's stdio protocol and advertises only authoring tools; approval and arbitrary file/code operations are absent. It is local tooling, not a remotely hosted MCP service. Adapter source: `tools/authoring/cli.ts`; tool schemas: `tools/authoring/tools.ts`.
+Arguments are a JSON object read from a file or `-` for stdin. For a custom user-data location, use `--connection /path/to/connection.json` or `FOUR_E_AUTHORING_CONNECTION` (the flag takes precedence); **Copy connection path** in Settings › AI agent copies it, and the copied MCP setup includes it when it is not the default. If automatic discovery fails, check that the dashboard and CLI run as the same user. `scaffold`, `benchmarks`, `validate`, and `search-local` work without the running app. `search-local` needs a source checkout: it accepts a `contentRoot` path (the directory holding `raw/` and `parsed/`; the older `parsedRoot` still works); its default is `content` under the working directory. Monsters and traps are re-parsed from `raw/` with their printed hit, miss, and effect text, as in the content repo. With the app running, the live `search` covers the same content.
 
 The three repository-owned skills are in `skills/4e-author-content`, `skills/4e-find-precedents`, and `skills/4e-review-balance`. Copy or symlink these into your agent's skill directory, or invoke them by their repository paths. They are ordinary Markdown and refer to this repository for tool/schema details. Installation is intentionally not automatic.
 

@@ -1,7 +1,7 @@
 import { useUiStore } from '../../stores/ui-store'
 import { useSettingsStore } from '../../stores/settings-store'
 import { Modal } from '../shared/Modal'
-import { CopyConnectionPath, WorkshopIntro } from '../authoring/EntryEditor'
+import { CopyConnectionPath, CopyMcpSetup, WorkshopIntro } from '../authoring/EntryEditor'
 import type { SystemSettingDef } from '@common/types/system-plugin'
 import { THEME_PREFERENCES, THEME_PREFERENCE_LABELS, type ThemePreference } from '@kit/theme'
 
@@ -67,7 +67,7 @@ export function SettingsModal({ onClose }: Props) {
           </label>
           {agentConnection && <>
             <div className="authoring"><WorkshopIntro /></div>
-            <div style={{ fontSize: 'var(--font-size-sm)' }}><CopyConnectionPath /></div>
+            <div style={{ fontSize: 'var(--font-size-sm)', display: 'flex', gap: 'var(--space-2)', flexWrap: 'wrap' }}><CopyMcpSetup /><CopyConnectionPath /></div>
           </>}
         </SettingsSection>
       </div>

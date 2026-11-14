@@ -1,7 +1,9 @@
 import { app, ipcMain } from 'electron'
+import { existsSync } from 'fs'
 import { join } from 'path'
 import { agentHome, AuthoringService } from '../authoring/service'
 import { startBridge } from '../authoring/bridge'
+import { mcpSetupCommand } from '../authoring/connection'
 import { getDmWindow, broadcastToDm } from '../windows'
 import { getActiveCampaignId } from '../data/campaign-store'
 import { getAppSettings } from '../data/app-settings-store'
@@ -55,7 +57,11 @@ export async function registerAuthoringHandlers() {
   app.once('before-quit', () => { void bridge?.close() })
   ipcMain.handle(CMD.AUTHORING_CALL, async (event, method: string, args: any) => {
     if (event.sender !== getDmWindow()?.webContents || event.senderFrame !== event.sender.mainFrame) throw new Error('DM window required')
-    if (method === 'connection') return { connectionFile }
+    if (method === 'connection') {
+      // From a source checkout (dev), the MCP server runs from source in the Nix shell; installed, it is 4e-dm-dashboard-mcp.
+      const sourceRoot = existsSync(join(app.getAppPath(), 'tools', 'authoring', 'cli.ts')) ? app.getAppPath() : null
+      return { connectionFile, mcpSetup: mcpSetupCommand(sourceRoot, connectionFile) }
+    }
     // What the DM has open, for the agent's current_entry (only the dashboard sets it).
     if (method === 'focus') { service.focus = args.kind ? args : null; return null }
     // Replacing an out-of-date AI session (Edit with AI after the entry changed elsewhere) is the DM's alone.

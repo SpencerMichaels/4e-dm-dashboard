@@ -65,6 +65,12 @@ pkgs.buildNpmPackage rec {
       --add-flags "''${NIXOS_OZONE_WL}" \
       --add-flags "$out/lib/${pname}"
 
+    # The authoring CLI and MCP server (`4e-dm-dashboard-mcp --mcp`): the bundled
+    # tools/authoring/cli.ts run by the same Electron as plain Node, with no window.
+    makeWrapper ${electron}/bin/electron $out/bin/${pname}-mcp \
+      --set ELECTRON_RUN_AS_NODE 1 \
+      --add-flags "$out/lib/${pname}/out/main/authoring-cli.js"
+
     # .desktop file for Tofi/Rofi
     mkdir -p $out/share/applications
     cp ${pname}.desktop $out/share/applications/

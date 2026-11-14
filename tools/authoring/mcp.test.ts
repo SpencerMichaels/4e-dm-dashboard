@@ -1,6 +1,7 @@
 import { it, expect } from 'vitest'
 import { Client } from '@modelcontextprotocol/sdk/client/index.js'
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js'
+import { existsSync } from 'fs'
 import { mkdir, mkdtemp, rm, writeFile } from 'fs/promises'
 import { tmpdir } from 'os'
 import { join } from 'path'
@@ -42,5 +43,27 @@ it('negotiates MCP and completes draft/feedback tools without exposing approval'
     const wrong = join(root, 'wrong.json')
     await writeFile(wrong, JSON.stringify({ ...await readJson<any>(connection), token: 'incorrect' }))
     await expect(bridgeCall(wrong, 'list_drafts', {})).rejects.toThrow('Unauthorized')
+  } finally { await client.close(); await bridge.close(); await rm(root, { recursive: true, force: true }) }
+}, 20000)
+
+// The installed server (`4e-dm-dashboard-mcp`, default.nix) is the bundled CLI run by Electron as Node.
+// Needs `npm run build`; uses the Nix shell's Electron when present, else Node.
+const built = join(process.cwd(), 'out/main/authoring-cli.js')
+const electron = process.env.ELECTRON_OVERRIDE_DIST_PATH ? join(process.env.ELECTRON_OVERRIDE_DIST_PATH, 'electron') : null
+it.skipIf(!existsSync(built))('serves MCP from the built bundle', async () => {
+  const root = await mkdtemp(join(tmpdir(), '4e-mcp-built-'))
+  const service = new AuthoringService(root, join(root, 'empty-compendium'))
+  const connection = join(root, 'connection.json')
+  const bridge = await startBridge(connection, (method, args) => service.call(method, args, 'agent'))
+  const client = new Client({ name: 'test-client', version: '1' })
+  try {
+    await client.connect(new StdioClientTransport({
+      command: electron ?? process.execPath, args: [built, '--mcp', '--connection', connection], cwd: root,
+      env: { ...process.env as Record<string, string>, ELECTRON_RUN_AS_NODE: '1' },
+    }))
+    expect((await client.listTools()).tools.some(t => t.name === 'current_entry')).toBe(true)
+    const result = await client.callTool({ name: 'current_entry', arguments: {} })
+    expect(result.isError).toBeFalsy()
+    expect(JSON.parse((result.content as { text: string }[])[0].text)).toEqual({ open: null })
   } finally { await client.close(); await bridge.close(); await rm(root, { recursive: true, force: true }) }
 }, 20000)

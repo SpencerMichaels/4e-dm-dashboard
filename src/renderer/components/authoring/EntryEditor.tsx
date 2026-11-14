@@ -10,11 +10,23 @@ import { DraftAnnotations } from './DraftAnnotations'
 import type { EditStatus } from './live-edits'
 import './authoring.css'
 
+type Connection = { connectionFile: string; mcpSetup: string }
+function CopyConnectionInfo({ label, title, pick }: { label: string; title: string; pick: (c: Connection) => string }) {
+  const [copied, setCopied] = useState(false)
+  return <button className="btn" title={title}
+    onClick={() => void window.api.authoring.call('connection').then((c: Connection) => navigator.clipboard.writeText(pick(c))).then(() => { setCopied(true); setTimeout(() => setCopied(false), 1200) })}>{copied ? 'Copied' : label}</button>
+}
+
+/** Copies the `claude mcp add` line that registers the dashboard's MCP server (main picks the installed or source command). */
+export function CopyMcpSetup() {
+  return <CopyConnectionInfo label="Copy setup for Claude Code" pick={c => c.mcpSetup}
+    title="A command to run once in a terminal; then restart Claude Code. Other MCP clients take the same command (after the --) in their server settings." />
+}
+
 /** Copies the authoring connection file's path (it holds a credential: share the path, never the contents). */
 export function CopyConnectionPath() {
-  const [copied, setCopied] = useState(false)
-  return <button className="btn" title="For a custom setup, pass this file to the authoring CLI with --connection. It holds a credential: share the path, never the contents."
-    onClick={() => void window.api.authoring.call('connection').then((c: { connectionFile: string }) => navigator.clipboard.writeText(c.connectionFile)).then(() => { setCopied(true); setTimeout(() => setCopied(false), 1200) })}>{copied ? 'Copied' : 'Copy connection path'}</button>
+  return <CopyConnectionInfo label="Copy connection path" pick={c => c.connectionFile}
+    title="For a custom setup, pass this file to the authoring CLI with --connection. It holds a credential: share the path, never the contents." />
 }
 
 /** How working with an AI agent goes, for Settings. */
@@ -28,7 +40,7 @@ export function WorkshopIntro() {
         <li><b>Its changes appear as it makes them</b>, in the stat block and in the editor, alongside your own edits. Comment on a line with the marker at its edge; the agent reads comments and replies there.</li>
         <li>Changes go straight into the entry. To undo one, ask the agent: it keeps every earlier version and can restore any of them.</li>
       </ol>
-      <p className="authoring-notice">Setup is in <code>docs/AUTHORING.md</code>.</p>
+      <p className="authoring-notice">To connect Claude Code, copy its setup below, run it once in a terminal, and restart Claude Code. Other agents: see <code>docs/AUTHORING.md</code>.</p>
     </div>
   </aside>
 }

@@ -45,7 +45,7 @@ export async function startBridge(connectionFile: string, call: (method: string,
 
 export async function bridgeCall(connectionFile: string, method: string, args: unknown): Promise<unknown> {
   const info = await readJson<ConnectionInfo>(connectionFile)
-  if (!info || info.version !== 1) throw new Error('Dashboard is unavailable. Start it and use the connection-file path shown in Authoring.')
+  if (!info || info.version !== 1) throw new Error('Dashboard is unavailable. Start it and turn on Settings › AI agent (for a custom user-data folder, pass the path from Copy connection path with --connection).')
   const message = JSON.stringify({ token: info.token, method, args }) + '\n'
   if (Buffer.byteLength(message) > MAX_BYTES) throw new Error('Request exceeds 2 MiB')
   return new Promise((resolve, reject) => {

@@ -4,10 +4,15 @@ import react from '@vitejs/plugin-react'
 
 export default defineConfig({
   main: {
-    plugins: [externalizeDepsPlugin()],
+    // The MCP SDK is bundled: only the authoring CLI uses it, and the installed app ships no node_modules for it.
+    plugins: [externalizeDepsPlugin({ exclude: ['@modelcontextprotocol/sdk'] })],
     build: {
       rollupOptions: {
-        input: resolve(__dirname, 'src/main/index.ts')
+        input: {
+          index: resolve(__dirname, 'src/main/index.ts'),
+          // The authoring CLI and MCP server, run as `4e-dm-dashboard-mcp` (default.nix) with ELECTRON_RUN_AS_NODE.
+          'authoring-cli': resolve(__dirname, 'tools/authoring/cli.ts')
+        }
       }
     },
     resolve: {
