@@ -405,7 +405,7 @@ export function Dnd4eCreatureViewer({ creature, tooltip: tip, compendiumId: comp
 
       {/* Description */}
       {(sb.description as string) && (
-        <div style={{ padding: '4px 8px', fontStyle: 'italic', fontSize: 11, color: 'var(--text-secondary)' }}>
+        <div style={{ padding: '4px 8px', fontStyle: 'italic', fontSize: 11, whiteSpace: 'pre-line', color: 'var(--text-secondary)' }}>
           {sb.description as string}
         </div>
       )}
