@@ -194,13 +194,23 @@ The check flags these; they do not lower confidence.
   (each named one) and `hp`. The quote holds the check and what success does;
   "Failure: ..." outcomes are other clauses with `if` "Failure"; check
   results that only give knowledge are `identify`; an escape check is `avoid`.
+  "other defenses 29" sets each named defense. A line with no check takes the
+  nearest effect without `checks`, or another kind when one fits better ("+5
+  bonus to AC": modifier). "Failure: N successes" with no failure count is
+  `complexity` without `failures`.
+- Terrain "Check:", "Success:" and "Failure:" lines go in `extraLines` with
+  those labels; their clauses take the label as `if` ("Success"). A single-use
+  terrain power's `usage` is "unknown". A second printed trigger goes on its
+  own power's `trigger`. "Area special", a room or a path with no size is
+  area-burst (close-burst for "Close") with no size, the words in `range.note`.
+- "1d8 + one-half its level" is two damage clauses: the dice, and `half-level`.
 {{/traps}}
 {{#templates,themes}}
 - There is no HTML: the source text is the entry's printed lines, transcribed
   from the books, and it is the authority.
 - Level scaling ("Increase to 2d6 at 11th level and 3d6 at 21st level",
   "Level 11: Ongoing 10 damage.") is `byLevel` on the clause it scales
-  (`[{"level": 11, "value": "2d6"}, {"level": 21, "value": "3d6"}]`), the
+  (`[{"level": 11, "value": "2d6"}, {"level": 21, "value": "3d6"}]`; a flat amount is a number: `10`), the
   scaling words uncovered; one that changes anything else (area, condition, plain to ongoing damage) stays unparsed.
 - Amounts of the creature's level: "one-half its level" is `half-level`, "8 +
   this creature's level" `level` with `plus: 8` (damage: `amount`, no

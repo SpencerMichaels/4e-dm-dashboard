@@ -436,7 +436,7 @@ export function clause(c: Checker, cl: unknown, path: string, inChoice = false):
       c.optional(cl, 'complexity', path, (v, p) => {
         if (!c.obj(v, p)) return
         c.keys(v, ['successes', 'failures'], p)
-        c.int(v.successes, `${p}.successes`, { min: 1 }); c.int(v.failures, `${p}.failures`, { min: 1 })
+        c.int(v.successes, `${p}.successes`, { min: 1 }); c.optional(v, 'failures', p, (x, q) => c.int(x, q, { min: 1 }))
       })
       c.optional(cl, 'defenses', path, (v, p) => {
         if (!c.obj(v, p)) return

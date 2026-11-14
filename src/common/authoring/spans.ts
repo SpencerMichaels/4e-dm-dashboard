@@ -156,7 +156,7 @@ export function spanProblem(clause: Clause, span: string, after = '', before = '
   if (typeof saveModifier === 'number') {
     const sentence = span + after.split(/(?<=[.!?])\s/)[0]
     // The older "(save at -2 ends)" wording also states it.
-    const older = new RegExp(`\\bsave at [-–−+]?${Math.abs(saveModifier)} ends`, 'i').test(sentence)
+    const older = new RegExp(`\\bsave at [-–−+]?${Math.abs(saveModifier)}( penalty)? ends`, 'i').test(sentence)
     if (!older && (!/saving throw/i.test(sentence) || !new RegExp(`(?<!\\d)${Math.abs(saveModifier)}\\s+(penalty|bonus)`, 'i').test(sentence))) {
       return `no "${Math.abs(saveModifier)} ${saveModifier < 0 ? 'penalty' : 'bonus'} to the saving throw" for saveModifier in the span or the rest of its sentence`
     }
