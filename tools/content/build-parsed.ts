@@ -65,7 +65,8 @@ function main() {
     const sb = entry.statBlock
     return {
       id, name: entry.name ?? 'Unknown',
-      level: sb?.level ?? 1, role: sb?.role ?? '', modifier: sb?.monsterModifier ?? '',
+      // A companion or NPC block's class role ("Level 4 Defender") stands in for the monster role.
+      level: sb?.level ?? 1, role: sb?.role || sb?.classRole || '', modifier: sb?.monsterModifier ?? '',
       size: sb?.size ?? 'Medium', origin: sb?.origin ?? '', type: sb?.creatureType ?? '',
       alignment: sb?.alignment ?? '', xp: sb?.xp ?? 0,
       source: extractFirstBook(sb?.source ?? ''),

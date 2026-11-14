@@ -86,7 +86,7 @@ export const MONSTER_KIND: RecordKind<Monster> = {
   index: async () => (await window.api.compendium.index() as CompendiumEntry[]).filter(e => e.source !== 'Custom' && e.source !== 'Library').map(e => ({
     id: e.id, name: e.name, level: e.level, book: e.source, cells: [typeLabel(e.type), cap(e.role)], facets: [cap(rankOf(e)), cap(e.size), cap(e.origin)],
   })),
-  row: m => ({ name: m.name, level: m.level, cells: [typeLabel(m.type), cap(m.role ?? '')], facets: [cap(m.rank), cap(m.size), cap(m.origin ?? '')] }),
+  row: m => ({ name: m.name, level: m.level, cells: [typeLabel(m.type), cap(m.role ?? m.classRole ?? '')], facets: [cap(m.rank), cap(m.size), cap(m.origin ?? '')] }),
   get: id => window.api.compendium.kitGet('monster', id),
   blank: () => scaffold('monster', 'New Creature', 1) as Monster,
   Statblock: props => <MonsterStatblock {...props} />,
