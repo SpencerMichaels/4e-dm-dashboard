@@ -2,6 +2,7 @@ import { useState, useRef, useEffect, useMemo } from 'react'
 import { THEME_PREFERENCES, THEME_PREFERENCE_LABELS } from '@kit/theme'
 import { useUiStore } from '../../stores/ui-store'
 import { useCampaignStore } from '../../stores/campaign-store'
+import { useLibraryStore } from '../../stores/library-store'
 import { useCampaignActions } from '../../hooks/use-campaign'
 import { Glyph } from '../shared/Icon'
 import styles from './CommandPalette.module.css'
@@ -20,6 +21,7 @@ export function CommandPalette() {
   const inputRef = useRef<HTMLInputElement>(null)
   const { setView, setCommandPaletteOpen, toggleTheme, setThemePreference, toggleSidebar } = useUiStore()
   const { creatures, encounters, locations, items, playerCharacters } = useCampaignStore()
+  const library = useLibraryStore()
   const { createCreature, createEncounter, createLocation, createItem } = useCampaignActions()
 
   useEffect(() => {
@@ -48,10 +50,13 @@ export function CommandPalette() {
       ...encounters.map(e => ({ id: `encounter-${e.id}`, icon: '⚔️', label: e.name, hint: 'Encounter', action: () => nav({ type: 'encounter', encounterId: e.id }) })),
       ...locations.map(l => ({ id: `location-${l.id}`, icon: '📍', label: l.name, hint: 'Location', action: () => nav({ type: 'location', locationId: l.id }) })),
       ...items.map(i => ({ id: `item-${i.id}`, icon: '🎒', label: i.content.name, hint: 'Item', action: () => nav({ type: 'compendium', kind: 'item', id: i.id }) })),
+      // The Library's entries, shared by every campaign
+      ...library.creatures.map(c => ({ id: `library-creature-${c.id}`, icon: '👹', label: c.content.name, hint: 'Library creature', action: () => nav({ type: 'compendium', kind: 'creature', id: c.id }) })),
+      ...library.items.map(i => ({ id: `library-item-${i.id}`, icon: '🎒', label: i.content.name, hint: 'Library item', action: () => nav({ type: 'compendium', kind: 'item', id: i.id }) })),
       ...playerCharacters.map(p => ({ id: `pc-${p.id}`, icon: '🧑', label: p.name || 'Unnamed Character', hint: 'PC', action: () => nav({ type: 'entity-list', entityType: 'player-character' }) })),
     ]
     return cmds
-  }, [creatures, encounters, locations, items, playerCharacters])
+  }, [creatures, encounters, locations, items, playerCharacters, library.creatures, library.items])
 
   const filtered = useMemo(() => {
     if (!query) return commands.slice(0, 20)
