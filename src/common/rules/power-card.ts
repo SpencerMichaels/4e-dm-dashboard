@@ -88,7 +88,7 @@ export interface CardLine {
 export interface CardLines {
   /** Lines in book order, in groups drawn with a small gap between them. */
   groups: CardLine[][]
-  /** "Basic melee attack" / "Basic ranged attack" lines become a header marker. */
+  /** "Melee basic attack" / "Ranged basic attack" lines become a header marker. */
   basic?: 'melee' | 'ranged'
 }
 
@@ -124,8 +124,8 @@ export function groupLines(e: LineInput): CardLines {
   let basic: CardLines['basic']
   const failedSaves: CardLine[] = [], secondary: CardLine[] = [], other: CardLine[] = []
   for (const line of extra) {
-    const b = line.match(/^basic (melee|ranged) attack$/i)
-    if (b) { basic = b[1].toLowerCase() as 'melee' | 'ranged'; continue }
+    const b = line.match(/^(?:(melee|ranged) basic|basic (melee|ranged)) attack$/i)
+    if (b) { basic = (b[1] ?? b[2]).toLowerCase() as 'melee' | 'ranged'; continue }
     // The usage chip shows uses per encounter and round.
     if (/^uses per (encounter|round):/i.test(line)) continue
     const labelled = line.match(/^([^:]{1,40}):\s*([\s\S]*)$/)

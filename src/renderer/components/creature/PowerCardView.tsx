@@ -28,7 +28,7 @@ export interface PowerCardEntry {
   rechargeValue?: number       // recharge threshold: 4 means "recharge 4+" (roll 4-6 on d6)
   rechargeCondition?: string   // e.g., "when first bloodied"
   encounterUses?: number       // "2/Encounter"
-  /** A basic attack (also read from a "Basic melee attack" line). */
+  /** A basic attack (also read from a "Melee basic attack" line). */
   basic?: 'melee' | 'ranged'
   keywords?: string[]
   rangeType?: string
@@ -144,7 +144,7 @@ export function PowerCardView({ entry: e, selectedLevel, detectedConditions, onC
           {e.keywords && e.keywords.length > 0 && <span className="pc-dim"> ({e.keywords.join(', ')})</span>}
           {!hideActionTypeText && !collapsed && actionLabel && kind === 'power' && <span className="pc-dim"> · {actionLabel}</span>}
         </span>
-        {basic && <span className="pc-basic" title={`Basic ${basic} attack`}>Basic</span>}
+        {basic && <span className="pc-basic">{basic === 'melee' ? 'Melee' : 'Ranged'} basic attack</span>}
         {chip && <span className="pc-chip" title={rechargeQueued ? 'Recharge roll pending this turn' : undefined}>{rechargeQueued && <Icon name="dices" label="Recharge roll pending" />}{rechargeQueued ? ' ' : ''}{chip}</span>}
         {onPin && <button type="button" className="pc-pin" onClick={ev => { ev.stopPropagation(); onPin() }}
           title={pinned ? 'Unpin' : 'Pin to the overlay'} aria-pressed={pinned}><Icon name={pinned ? 'pin-off' : 'pin'} /></button>}

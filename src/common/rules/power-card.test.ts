@@ -37,7 +37,7 @@ describe('power card lines', () => {
     const { groups, basic } = groupLines({
       attack: true, requirement: 'The dragon is bloodied.', hit: '3d10+8 fire damage.', miss: 'Half damage.', effect: 'The dragon shifts 2 squares.',
       sustain: 'minor: The blast persists.', special: 'Usable while flying.',
-      text: 'Failed save 1: The target is stunned.\nBasic melee attack\nUses per encounter: 2\nsecondary attack (hit): melee 1; one creature; +12 vs Reflex.\nhit: The target is knocked prone.',
+      text: 'Failed save 1: The target is stunned.\nMelee basic attack\nUses per encounter: 2\nsecondary attack (hit): melee 1; one creature; +12 vs Reflex.\nhit: The target is knocked prone.',
     })
     expect(basic).toBe('melee')
     expect(groups.map(g => g.map(l => l.label))).toEqual([
