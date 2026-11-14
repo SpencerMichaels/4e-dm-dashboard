@@ -52,6 +52,11 @@ const STATUS_WORDS: Record<string, RegExp> = {
   'no-stand': /\bstand/i,
   'ignore-cover': /\bcover/i,
   'ignore-concealment': /\bconceal/i,
+  'no-flank': /\bflank/i,
+  'move-through': /\bthrough\b|\benter/i,
+  // "pulls the grabbed creature with it", "grabbed creatures move with it".
+  'carry-grabbed': /\bpull|\bdrag|\bcarr(y|ies)|\bwith (it|him|her|them)\b|\balong\b/i,
+  'no-temp-hp': /\btemporary/i,
 }
 
 const SENSE_WORDS: Record<string, RegExp> = {
@@ -66,8 +71,11 @@ const RESTRICTION_WORDS: Record<string, RegExp> = {
   standard: /\bstandard/i, move: /\bmove/i, minor: /\bminor/i, immediate: /\bimmediate/i, opportunity: /\bopportunit/i,
   shift: /\bshift/i, teleport: /\bteleport/i, charge: /\bcharg/i, fly: /\bfl(y|ies|ying|ight)\b/i,
   // "can make only basic attacks", "can use only at-will powers"
-  'non-basic': /\bbasic/i, 'non-at-will': /\bat-will/i,
+  basic: /\bbasic/i, 'non-basic': /\bbasic/i, 'non-at-will': /\bat-will/i,
 }
+
+/** The words of a damage amount that is not dice (a "half-" amount also needs "half"). */
+const DAMAGE_AMOUNT_WORDS: Record<string, RegExp> = { 'surge-value': /\bsurge/i, 'bloodied-value': /\bbloodied/i, 'damage-dealt': /\bdamage/i }
 
 const AUTOMATIC_WORDS: Record<string, RegExp> = { hit: /\bhit/i, miss: /\bmiss/i, critical: /\bcrit/i, save: /\bsav(e|es|ing)\b|\bsucceed/i }
 
@@ -87,7 +95,7 @@ function checkStatWords(stat: string): RegExp | undefined {
   if (stat === 'roll') return /\broll/i
   if (stat === 'initiative') return /\binitiative/i
   // "moves 1 square fewer than the effect specifies", "reduces any forced movement by 1 square"
-  if (stat === 'forced-movement') return /\bfewer\b|\bless\b|\bforced\b|\breduc/i
+  if (stat === 'forced-movement') return /\bfewer\b|\bless\b|\bforced\b|\breduc|\bextra squares?\b/i
   if (stat === 'recharge') return /\brecharg/i
   return undefined
 }
@@ -154,7 +162,12 @@ export function spanProblem(clause: Clause, span: string, after = '', before = '
       // The dice (or flat number) only, not the word "damage": in "2d8+10 plus
       // 2d6 lightning damage" the word belongs to the second part, so the first
       // quote is "2d8+10" (untyped). Inline crits ("(crit 2d8 + 11)") need "crit".
-      if (!hasDice(span, clause.dice)) return `dice "${clause.dice}" not in span`
+      // An amount that is not dice ("half its bloodied value") needs its words.
+      if (clause.amount !== undefined) {
+        const word = DAMAGE_AMOUNT_WORDS[clause.amount.replace(/^half-/, '')]
+        if (word && !has(word)) return `no "${word.source.replace(/\\b/g, '')}" in span for amount "${clause.amount}"`
+        if (clause.amount.startsWith('half-') && !has(/\bhal(f|ved?)\b/i)) return `no "half" in span for amount "${clause.amount}"`
+      } else if (!hasDice(span, clause.dice ?? '')) return `dice "${clause.dice}" not in span`
       // "crit" in the quote or its sentence: "(crit 4d8+23 damage plus 8 thunder damage)" (both
       // parts), "If the titan scores a critical hit, the damage is 4d8 + 39".
       if (clause.critical && !has('crit') && !/crit/i.test(sentenceOf(span, before, after))) return 'no "crit" in span or its sentence'
@@ -163,6 +176,8 @@ export function spanProblem(clause: Clause, span: string, after = '', before = '
     case 'damage-formula':
       return has('damage') || compactDice(span).includes(compactDice(clause.text)) ? undefined : 'formula not in span'
     case 'half-damage': return has(/\bhal(f|ved?|ves|ving)\b/i) ? undefined : 'no "half" or "halved" in span'
+    case 'double-damage': return has(/\bdoubl|\btwice\b/i) ? undefined : 'no "double" or "twice" in span'
+    case 'max-damage': return has(/\bmaxim/i) ? undefined : 'no "maximum" in span'
     case 'ongoing-damage':
       // An increase ("If the target is already taking ongoing fire damage, that damage
       // increases by 5"): "increase" in the quote, "ongoing" in the quote or earlier in its sentence.
@@ -247,7 +262,8 @@ export function spanProblem(clause: Clause, span: string, after = '', before = '
       const missing = what.find(w => w !== 'named' && !has(RESTRICTION_WORDS[w] ?? w))
       if (missing) return `no "${missing}" in span`
       // 'named': each printed power name ("cannot use its shadow cloak power").
-      const name = what.includes('named') ? (clause.powers ?? []).find(p => !s.includes(p.toLowerCase())) : undefined
+      // except: each name left out ("cannot use any power except claw").
+      const name = [...(what.includes('named') ? clause.powers ?? [] : []), ...clause.except ?? []].find(p => !s.includes(p.toLowerCase()))
       return name ? `power "${name}" not in span` : undefined
     }
     case 'status': return has(STATUS_WORDS[clause.status] ?? clause.status) ? undefined : `no "${clause.status}" in span`
@@ -260,8 +276,8 @@ export function spanProblem(clause: Clause, span: string, after = '', before = '
       if (!s.replace(/\s+/g, ' ').replace(/[‘’]/g, "'").includes(name.replace(/[‘’]/g, "'"))) return `disease "${clause.disease}" not in span`
       return clause.stage === undefined || (has('stage') && num(clause.stage)) ? undefined : `no "stage ${clause.stage}" in span`
     }
-    // Also "must make a second attack roll", "make two attack rolls and use the lower", "roll twice".
-    case 'reroll': return has(/\bre-?roll|\broll(s|ing)?\b[^.;]{0,30}?\bagain|\b(second|new|another) (attack roll|saving throw|roll)|\btwo (attack rolls|saving throws)|\broll(s|ing)? (saving throws |attack rolls )?twice/i) ? undefined : 'no "reroll" in span'
+    // Also "must make a second attack roll", "make two attack rolls and use the lower", "rolls the attack twice", "makes the saving throw again".
+    case 'reroll': return has(/\bre-?roll|\b(roll|make)(s|ing)?\b[^.;]{0,30}?\b(again|twice)\b|\b(second|new|another) (attack roll|saving throw|roll)|\btwo (attack rolls|saving throws)/i) ? undefined : 'no "reroll" in span'
     case 'action-point':
       if (!has(/\baction points?\b/i)) return 'no "action point" in span'
       return num(clause.amount) || (clause.amount === 1 && has(/\ban? (spent )?action point/i)) ? undefined : `amount ${clause.amount} not in span`
@@ -286,8 +302,10 @@ export function spanProblem(clause: Clause, span: string, after = '', before = '
       return has(/\b(or|either)\b|\bone of the following/i) ? undefined : 'no "or", "either" or "one of the following" in span'
     }
     case 'automatic':
-      // "is treated as a critical hit", "becomes a critical hit" need no "automatic".
-      if (!has(/\bautomatic/i) && !(clause.what === 'critical' && has(/\b(is|becomes?|treated as|counts as) a critical hit/i))) return 'no "automatically" in span'
+      // "is treated as a critical hit", "becomes a critical hit", "the attack instead hits", and a
+      // plain "the attack misses" (its roll is `if`) need no "automatic".
+      if (!has(/\bautomatic|\binstead\b/i) && !(clause.what === 'critical' && has(/\b(is|becomes?|treated as|counts as|considered( to be)?) a critical hit/i))
+        && !(clause.what === 'miss' && has(/\bmiss(es)?\b/i))) return 'no "automatically" or "instead" in span'
       return has(AUTOMATIC_WORDS[clause.what] ?? clause.what) ? undefined : `no "${clause.what}" in span`
     case 'lose-resistance':
       // what: the resistance, vulnerability or immunity words ("loses vulnerability to radiant").
@@ -298,7 +316,8 @@ export function spanProblem(clause: Clause, span: string, after = '', before = '
       return clause.value === undefined || num(clause.value) ? undefined : `value ${clause.value} not in span`
     // "cannot be knocked prone", "can't be marked" also state an immunity.
     case 'immunity': return has(/\bimmun|\bcan ?not be\b|\bcan[’']t be\b/i) ? undefined : 'no "immune" or "cannot be" in span'
-    case 'end-effect': return has(/\bend(s|ed|ing)?\b|\bno longer\b|\bremov|\brid of\b/i) ? undefined : 'no "ends", "no longer" or "removes" in span'
+    // "reappears in an unoccupied square" ends removed-from-play.
+    case 'end-effect': return has(/\bend(s|ed|ing)?\b|\bno longer\b|\bremov|\brid of\b|\b(re)?appears?\b/i) ? undefined : 'no "end(s)", "no longer", "removes" or "reappears" in span'
     case 'extra-action': {
       // The action's name: "move action", "standard action", "immediate reaction".
       const word = clause.action === 'no-action' ? 'action' : clause.action.split('-').pop()!
@@ -328,6 +347,24 @@ export function spanProblem(clause: Clause, span: string, after = '', before = '
       if (clause.size !== undefined && !has(new RegExp(`\\b${clause.size}`, 'i'))) return `size "${clause.size}" not in span`
       if (clause.reach !== undefined && !(has(/\breach/i) && num(clause.reach))) return `no "reach ${clause.reach}" in span`
       return undefined
+    case 'set-hp': return has(/\bhit points?\b/i) && num(Math.abs(clause.hp)) ? undefined : `no "${clause.hp} hit point(s)" in span`
+    case 'condition-swap': {
+      // "it is dazed instead": the new condition and "instead" in the quote; each replaced one in its sentence.
+      const word = (c: string) => CONDITION_WORDS[c] ?? new RegExp(c, 'i')
+      if (!has(word(clause.to))) return `condition "${clause.to}" not in span`
+      const sentence = sentenceOf(span, before, after)
+      if (!/\binstead\b/i.test(sentence)) return 'no "instead" in span or its sentence'
+      const from = (clause.from ?? []).find(c => !word(c).test(sentence))
+      return from === undefined ? undefined : `condition "${from}" not in span or its sentence`
+    }
+    case 'move-zone':
+      if (!has(/\bmov/i)) return 'no "move" in span'
+      return clause.squares === undefined || num(clause.squares) ? undefined : `${clause.squares} squares not in span`
+    case 'state': return findFragment(span, clause.name).length > 0 ? undefined : `state "${clause.name}" not in span`
+    case 'reduced-healing':
+      if (!has(/\bheal|\bregain|\bhit points\b/i)) return 'no "healing", "regains" or "hit points" in span'
+      if (clause.half && !has(/\bhalf\b/i)) return 'no "half" in span'
+      return clause.value === undefined || num(clause.value) ? undefined : `value ${clause.value} not in span`
     case 'unparsed':
       return span.replace(/\s+/g, ' ').trim() === clause.text.replace(/\s+/g, ' ').trim() ? undefined : 'unparsed text differs from span'
   }
@@ -357,7 +394,9 @@ const ELLIPSIS = /…|\.\.\./
 
 /**
  * Problems with the clause's `if` and `unless` fragments: each must be an exact
- * printed fragment of the line, outside the clause's own span [a, b). A split
+ * printed fragment of the line, outside the clause's own span [a, b) (for a
+ * forced move or move, also strictly inside it: "slides any enemy that ends its
+ * turn in the aura 2 squares"). A split
  * condition is a list of fragments, never one string joined with " ... "; an
  * inverted condition is `unless`, never a "not:" prefix. A fragment may also
  * come from `name`, the owning trait's, aura's or power's printed name.
@@ -382,7 +421,11 @@ export function fragmentProblems(cl: Clause, text: string, a: number, b: number,
           : `${key} "${f}" is not in the line text (copy the printed words exactly)`)
         continue
       }
-      if (found.every(([s, e]) => s < b && e > a)) {
+      // A (forced) move's condition printed between its verb and its squares, with quoted words on
+      // both sides ("slides any enemy that ends its turn in the aura 2 squares"), may lie inside.
+      const inside = (s: number, e: number) => (cl.kind === 'forced-move' || cl.kind === 'move')
+        && s > a && e < b && /\w/.test(text.substring(a, s)) && /\w/.test(text.substring(e, b))
+      if (found.every(([s, e]) => s < b && e > a && !inside(s, e))) {
         const hint = key === 'if' && /\bcan\b/i.test(f) ? ' (an option is "optional": true, never if)' : ''
         out.push(`${key} "${f}" overlaps the clause's own quote "${text.substring(a, b)}": the quote holds the effect, the condition goes only in ${key}${hint}`)
       }

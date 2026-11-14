@@ -23,7 +23,8 @@
     "content:agent:apply": "tsx --tsconfig tsconfig.node.json tools/content/agent/apply.ts",
     "content:agent:briefs": "tsx --tsconfig tsconfig.node.json tools/content/agent/briefs.ts",
     "content:agent:apply-all": "tsx --tsconfig tsconfig.node.json tools/content/agent/apply-all.ts",
-    "content:patch-defenses-if": "tsx --tsconfig tsconfig.node.json tools/content/agent/patch-defenses-if.ts"
+    "content:patch-defenses-if": "tsx --tsconfig tsconfig.node.json tools/content/agent/patch-defenses-if.ts",
+    "content:patch-companions": "tsx --tsconfig tsconfig.node.json tools/content/agent/patch-companions.ts"
   },
   "dependencies": {
     "@fontsource/eb-garamond": "^5.3.0",

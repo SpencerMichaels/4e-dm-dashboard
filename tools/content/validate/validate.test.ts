@@ -451,7 +451,7 @@ describe('schema v7', () => {
     m.powers[0].attacks[0].hit = { text: '2d8 + 4 damage.', clauses: [cl({ who: [] }), cl({ who: ['self', 'self'] }), cl({ who: ['self', 'foe'] }), cl({ escapeDc: 12 })] }
     m.auras = [{ name: 'A', keywords: [], range: 2, rangeIf: [{ value: 3 }, { value: 3, if: [] }], text: { text: '', clauses: [] } } as any]
     const paths = validateEntry('monsters', m).errors.map(e => e.path)
-    for (const p of ['clauses[0].who', 'clauses[1].who', 'clauses[2].who[1]', 'clauses[3].escapeDc']) expect(paths).toContain(`$.powers[0].attacks[0].hit.${p}`)
+    for (const p of ['clauses[0].who', 'clauses[1].who', 'clauses[2].who[1]']) expect(paths).toContain(`$.powers[0].attacks[0].hit.${p}`)
     expect(paths).toEqual(expect.arrayContaining(['$.auras[0].rangeIf[0].if', '$.auras[0].rangeIf[1].if']))
   })
 })
@@ -756,7 +756,7 @@ describe('schema v12', () => {
     expect(p({ kind: 'lose-resistance', types: ['fire'], who: 'target', duration: d }, "the target's fire vulnerability")).toMatch(/resist/)
     expect(p({ kind: 'immunity', to: ['all'], who: 'self', duration: d }, 'is immune to all damage')).toBeUndefined()
     expect(p({ kind: 'end-effect', conditions: ['marked'], who: 'self' }, 'is no longer marked')).toBeUndefined()
-    expect(p({ kind: 'end-effect', who: 'self' }, 'is marked')).toMatch(/ends/)
+    expect(p({ kind: 'end-effect', who: 'self' }, 'is marked')).toMatch(/end\(s\)/)
     expect(p({ kind: 'extra-action', action: 'move', who: 'ally' }, 'can take an extra move action')).toBeUndefined()
     expect(p({ kind: 'extra-action', action: 'minor', who: 'ally' }, 'can take an extra move action')).toMatch(/minor/)
     const text = 'The target loses resist fire and is immune to fear. It is no longer dazed.'
@@ -887,5 +887,88 @@ describe('schema v13', () => {
     expect(validateEntry('monsters', monster({ hp: 0, hpText: 'The colossus has infinite hit points', immune: [{ type: 'fear', note: 'while bloodied only' }] })).errors).toEqual([])
     expect(validateEntry('monsters', monster({ hp: 0 })).errors.map(e => e.path)).toEqual(['$.hp'])
     expect(validateEntry('monsters', monster({ immune: [{ type: 'fear', when: 'x' }] as any })).errors.map(e => e.path)).toEqual(['$.immune[0].when'])
+  })
+})
+
+describe('schema v14', () => {
+  const p = (cl: unknown, span: string, after = '', before = '') => spanProblem(cl as any, span, after, before)
+  const at = (q: string, text: string) => { const i = text.indexOf(q); return [i, i + q.length] }
+  const errors = (clauses: unknown[], text: string) => {
+    const m = monster()
+    m.powers[0].effect = { text, clauses } as any
+    return validateEntry('monsters', m).errors.map(e => e.message)
+  }
+  const se = { kind: 'save-ends' }
+  const perm = { kind: 'permanent' }
+
+  it('checks the new clause kinds', () => {
+    expect(p({ kind: 'double-damage', who: 'self' }, 'deals double damage')).toBeUndefined()
+    expect(p({ kind: 'max-damage', who: 'self' }, 'The attack deals maximum damage')).toBeUndefined()
+    expect(p({ kind: 'max-damage', who: 'self' }, 'deals double damage')).toMatch(/maximum/)
+    expect(p({ kind: 'set-hp', hp: 1, who: 'self' }, 'is instead reduced to 1 hit point')).toBeUndefined()
+    expect(p({ kind: 'set-hp', hp: 1, who: 'self' }, 'is instead reduced to 0')).toMatch(/hit point/)
+    const swap = { kind: 'condition-swap', from: ['dominated', 'stunned'], to: 'dazed', who: 'self' }
+    expect(p(swap, 'he is instead dazed', ' for the same duration.', 'If Torg would be dominated or stunned, ')).toBeUndefined()
+    expect(p(swap, 'it is dazed', '.', 'If it would be dominated or stunned, ')).toMatch(/instead/)
+    expect(p({ ...swap, from: ['slowed'] }, 'he is instead dazed', '.', 'If dominated, ')).toMatch(/slowed/)
+    expect(p({ kind: 'move-zone', squares: 5 }, 'can move the zone up to 5 squares')).toBeUndefined()
+    expect(p({ kind: 'state', name: 'grief-stricken', who: 'target', duration: se }, 'is grief-stricken (save ends)')).toBeUndefined()
+    expect(p({ kind: 'state', name: 'cursed', who: 'target', duration: se }, 'is hexed (save ends)')).toMatch(/cursed/)
+    const heal = { kind: 'reduced-healing', who: 'enemies-in-area', duration: { kind: 'while-in-aura' } }
+    expect(p({ ...heal, half: true }, 'regain only half the normal hit points from healing effects')).toBeUndefined()
+    expect(p({ ...heal, value: 10 }, 'regains 10 fewer hit points')).toBeUndefined()
+    expect(p({ kind: 'damage', amount: 'half-bloodied-value', types: [], who: 'target' }, 'takes damage equal to half its bloodied value')).toBeUndefined()
+    expect(p({ kind: 'damage', amount: 'surge-value', types: [], who: 'self' }, 'takes damage equal to half its bloodied value')).toMatch(/surge/)
+    expect(p({ kind: 'damage', amount: 'half-damage-dealt', types: ['fire'], who: 'other' }, 'takes fire damage equal to the damage dealt')).toMatch(/half/)
+  })
+
+  it('accepts the new values and wordings', () => {
+    for (const [status, words] of [['no-flank', "Enemies can't gain combat advantage by flanking"], ['move-through', "can move through enemies' spaces"],
+      ['carry-grabbed', 'pulls the grabbed creature with it'], ['no-temp-hp', 'cannot gain temporary hit points']]) {
+      expect(p({ kind: 'status', status, who: 'self', duration: perm }, words)).toBeUndefined()
+    }
+    const restrict = { kind: 'power-restriction', who: 'target', duration: se }
+    expect(p({ ...restrict, what: 'basic' }, 'cannot make basic attacks')).toBeUndefined()
+    expect(p({ ...restrict, what: 'all', except: ['thundering claws'] }, 'cannot use any power except thundering claws')).toBeUndefined()
+    expect(p({ ...restrict, what: 'all', except: ['bite'] }, 'cannot use any power except thundering claws')).toMatch(/bite/)
+    expect(p({ kind: 'reroll', what: 'attack', keep: 'higher', who: 'self' }, 'rolls the attack twice and uses the higher result')).toBeUndefined()
+    expect(p({ kind: 'reroll', what: 'save', who: 'target' }, 'makes the saving throw again')).toBeUndefined()
+    expect(p({ kind: 'automatic', what: 'hit', who: 'self', duration: { kind: 'instant' } }, 'The attack instead hits')).toBeUndefined()
+    expect(p({ kind: 'automatic', what: 'miss', who: 'other', duration: { kind: 'instant' } }, 'the attack misses')).toBeUndefined()
+    expect(p({ kind: 'automatic', what: 'critical', who: 'self', duration: { kind: 'instant' } }, 'the hit is considered to be a critical hit')).toBeUndefined()
+    expect(p({ kind: 'end-effect', conditions: ['removed-from-play'], who: 'self' }, 'reappears in an unoccupied square')).toBeUndefined()
+    expect(p({ kind: 'end-effect', who: 'self' }, 'All effects on the siphon end')).toBeUndefined()
+    expect(p({ kind: 'modifier', stat: 'forced-movement', value: 1, who: 'self', duration: perm }, 'can push or slide enemies in the aura 1 extra square')).toBeUndefined()
+    const text = 'The target is restrained (escape DC 25). Its attacks deal half its bloodied value; it rolls twice and uses the lower result (save ends).'
+    expect(errors([
+      { at: at('restrained (escape DC 25)', text), kind: 'condition', condition: 'restrained', who: 'target', duration: { kind: 'indefinite' }, escapeDc: 25 },
+      { at: at('rolls twice and uses the lower result (save ends)', text), kind: 'reroll', what: 'attack', keep: 'lower', who: 'target', duration: se, saveGroup: 'a' },
+    ], text)).toEqual([])
+    expect(errors([{ at: at('half its bloodied value', text), kind: 'damage', dice: '2d6', amount: 'half-bloodied-value', types: [], who: 'target' }], text).join('\n')).toMatch(/not both/)
+    expect(errors([{ at: at('half its bloodied value', text), kind: 'reduced-healing', half: true, value: 5, who: 'target', duration: se }], text).join('\n')).toMatch(/half or value/)
+  })
+
+  it('lets a forced move hold its condition between the verb and the squares', () => {
+    const text = 'The dragon slides any enemy that ends its turn in the aura 2 squares. Any enemy that starts its turn in the aura takes 5 damage.'
+    const slide = { at: at('slides any enemy that ends its turn in the aura 2 squares', text), kind: 'forced-move', move: 'slide', squares: 2, who: 'enemies-in-area', if: 'any enemy that ends its turn in the aura' }
+    expect(errors([slide], text)).toEqual([])
+    // Other kinds, and a condition at the quote's edge, still may not overlap.
+    expect(errors([{ ...slide, at: at('slides any enemy that ends its turn in the aura', text), squares: undefined, squaresText: 'any' }], text).join('\n')).toMatch(/overlaps/)
+    const dmg = { at: at('Any enemy that starts its turn in the aura takes 5 damage', text), kind: 'damage', dice: '5', types: [], who: 'enemies-in-area', if: 'that starts its turn in the aura' }
+    expect(errors([dmg], text).join('\n')).toMatch(/overlaps/)
+  })
+
+  it('accepts companion fields and skips their XP and rider damage flags', () => {
+    const companion = monster({ role: null, classRole: 'defender', xp: 0, healingSurges: 11, surgeValue: 12, abilities: { str: 18, con: 14, dex: 12, int: 0, wis: 10, cha: 10 } })
+    expect(validateEntry('monsters', companion).errors).toEqual([])
+    expect(checkMonsterBands(companion).filter(f => f.rule === 'xp')).toEqual([])
+    expect(validateEntry('monsters', monster({ classRole: 'defender' })).errors.map(e => e.path)).toEqual(['$.classRole'])
+    const m = monster()
+    m.powers[0].attacks[0].hit = { text: '1d8 + 1 damage plus 1d8 + 2 fire damage, and 10 damage if bloodied.', clauses: [
+      { at: [0, 7], kind: 'damage', dice: '1d8+1', types: [], who: 'target' },
+      { at: [20, 41], kind: 'damage', dice: '1d8+2', types: ['fire'], who: 'target' },
+      { at: [47, 49], kind: 'damage', dice: '10', types: [], who: 'target', if: 'if bloodied' },
+    ] } as any
+    expect(checkMonsterBands(m).filter(f => f.rule === 'damage')).toEqual([])
   })
 })

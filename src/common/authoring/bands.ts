@@ -43,7 +43,8 @@ export function checkMonsterBands(m: Monster, recipe?: { hpMultiplier?: number }
   const level = Math.min(Math.max(m.level, 1), 30)
 
   const xp = monsterXp(m.level, m.rank)
-  if (m.xp !== xp) flags.push({ rule: 'xp', path: '$.xp', message: `XP ${m.xp}, expected ${xp} for level ${m.level} ${m.rank}` })
+  // Companion and NPC blocks with a class role print no XP.
+  if (m.xp !== xp && !(m.classRole && m.xp === 0)) flags.push({ rule: 'xp', path: '$.xp', message: `XP ${m.xp}, expected ${xp} for level ${m.level} ${m.rank}` })
 
   if (m.rank === 'minion') {
     if (m.hp !== 1) flags.push({ rule: 'hp', path: '$.hp', message: `minion HP ${m.hp}, expected 1` })
@@ -89,12 +90,16 @@ export function checkMonsterBands(m: Monster, recipe?: { hpMultiplier?: number }
     }
     // Minions deal fixed damage on a separate scale; secondary attacks are often small riders.
     if (m.rank === 'minion' || a.label !== 'primary') return
-    const dmg = a.hit?.clauses.find(c => c.kind === 'damage')
-    if (!dmg || dmg.kind !== 'damage') return
-    const avg = diceAverage(dmg.dice)
-    if (avg === undefined) return
+    // The hit's unconditional damage on a hit: every plain part ("1d6 + 4 plus 1d8 fire"), not
+    // conditional, extra, critical, lingering or per-turn parts (riders a band does not cover).
+    const parts = (a.hit?.clauses ?? []).filter(c => c.kind === 'damage' && c.dice && !c.if && !c.unless && !c.extra && !c.critical && !c.by
+      && (!c.duration || c.duration.kind === 'instant'))
+    const avgs = parts.map(c => c.kind === 'damage' ? diceAverage(c.dice ?? '') : undefined)
+    if (parts.length === 0 || avgs.some(x => x === undefined)) return
+    const avg = avgs.reduce((s, x) => s! + x!, 0)!
+    const dice = parts.map(c => c.kind === 'damage' ? c.dice : '').join(' + ')
     if (avg < low || avg > high) {
-      flags.push({ rule: 'damage', path: `${path}.hit`, message: `${p.name}: ${dmg.dice} (avg ${avg}) outside ${low.toFixed(1)}-${high.toFixed(1)} for level ${level}` })
+      flags.push({ rule: 'damage', path: `${path}.hit`, message: `${p.name}: ${dice} (avg ${avg}) outside ${low.toFixed(1)}-${high.toFixed(1)} for level ${level}` })
     }
   }))
   return flags

@@ -4,7 +4,7 @@
 
 import {
   ABILITIES, ACTION_TYPES, CONDITION_IDS, CREATURE_TYPES, DAMAGE_TYPES, DEFENSES, ORIGINS, RANGE_KINDS,
-  RANKS, ROLES, SENSE_KINDS, SIZES, SKILLS, STATUS_IDS, USAGES, isOneOf,
+  CLASS_ROLES, RANKS, ROLES, SENSE_KINDS, SIZES, SKILLS, STATUS_IDS, USAGES, isOneOf,
 } from '@kit'
 
 export interface Issue {
@@ -85,9 +85,11 @@ function damageTypes(c: Checker, v: unknown, path: string): void {
 
 /** Fields each clause kind may have besides `at`, `if`, `unless`, `optional` and `kind`. */
 const CLAUSE_FIELDS: Record<string, string[]> = {
-  'damage': ['dice', 'types', 'typeChoice', 'who', 'extra', 'critical', 'by', 'per', 'duration', 'saveGroup'],
+  'damage': ['dice', 'amount', 'types', 'typeChoice', 'who', 'extra', 'critical', 'by', 'per', 'duration', 'saveGroup'],
   'damage-formula': ['text', 'types'],
   'half-damage': ['who', 'duration', 'saveGroup'],
+  'double-damage': ['who', 'duration', 'saveGroup'],
+  'max-damage': ['who', 'duration', 'saveGroup'],
   'no-damage': ['who', 'duration', 'saveGroup'],
   'ongoing-damage': ['amount', 'types', 'typeChoice', 'who', 'duration', 'saveGroup', 'saveModifier', 'increase'],
   'condition': ['condition', 'who', 'duration', 'saveGroup', 'escapeDc', 'saveModifier', 'observer'],
@@ -110,13 +112,13 @@ const CLAUSE_FIELDS: Record<string, string[]> = {
   'summon': ['creature', 'count'],
   'redirect-attack': ['who'],
   'crit-range': ['min', 'who', 'duration', 'saveGroup'],
-  'power-restriction': ['what', 'powers', 'who', 'duration', 'saveGroup'],
+  'power-restriction': ['what', 'powers', 'except', 'who', 'duration', 'saveGroup'],
   'status': ['status', 'who', 'duration', 'saveGroup'],
   'opportunity-reach': ['who'],
   'difficult-terrain': ['who', 'duration', 'saveGroup'],
   'charge': ['who'],
   'disease': ['disease', 'diseaseId', 'stage', 'who'],
-  'reroll': ['what', 'keep', 'who'],
+  'reroll': ['what', 'keep', 'who', 'duration', 'saveGroup'],
   'action-point': ['amount', 'who'],
   'sense': ['sense', 'range', 'who', 'duration', 'saveGroup'],
   'speed': ['mode', 'value', 'change', 'hover', 'who', 'duration', 'saveGroup'],
@@ -132,12 +134,18 @@ const CLAUSE_FIELDS: Record<string, string[]> = {
   'share-damage': ['part', 'transfer', 'who', 'duration'],
   'aura-size': ['aura', 'value', 'change', 'duration'],
   'size-change': ['size', 'reach', 'who', 'duration', 'saveGroup'],
+  'set-hp': ['hp', 'who'],
+  'condition-swap': ['from', 'to', 'who'],
+  'move-zone': ['squares'],
+  'state': ['name', 'who', 'duration', 'saveGroup'],
+  'reduced-healing': ['half', 'value', 'who', 'duration', 'saveGroup'],
   'unparsed': ['text'],
 }
 
 const RESTRICTIONS = [
-  'encounter', 'daily', 'attack', 'all', 'standard', 'move', 'minor', 'immediate', 'opportunity', 'shift', 'teleport', 'charge', 'fly', 'non-basic', 'non-at-will', 'named',
+  'encounter', 'daily', 'attack', 'all', 'standard', 'move', 'minor', 'immediate', 'opportunity', 'shift', 'teleport', 'charge', 'fly', 'basic', 'non-basic', 'non-at-will', 'named',
 ]
+const DAMAGE_AMOUNTS = ['surge-value', 'half-surge-value', 'bloodied-value', 'half-bloodied-value', 'damage-dealt', 'half-damage-dealt']
 const REROLL_WHAT = ['attack', 'save', 'damage', 'check']
 const SPEED_MODES = ['walk', 'fly', 'climb', 'swim', 'burrow', 'teleport', 'overland-flight']
 
@@ -198,19 +206,26 @@ export function clause(c: Checker, cl: unknown, path: string, inChoice = false):
   c.optional(cl, 'saveModifier', path, (v, p) => { if (c.int(v, p) && v === 0) c.fail(p, 'expected a non-zero modifier') })
   switch (cl.kind) {
     case 'damage':
-      c.str(cl.dice, `${path}.dice`, { nonEmpty: true }); damageTypes(c, cl.types, `${path}.types`); typeChoice(c, cl, path); who(); flag('extra'); flag('critical')
+      // dice, or amount for a printed amount that is not dice ("half its bloodied value").
+      if (cl.amount !== undefined) {
+        c.oneOf(DAMAGE_AMOUNTS, cl.amount, `${path}.amount`)
+        if (cl.dice !== undefined) c.fail(`${path}.dice`, 'expected dice or amount, not both')
+      } else c.str(cl.dice, `${path}.dice`, { nonEmpty: true })
+      damageTypes(c, cl.types, `${path}.types`); typeChoice(c, cl, path); who(); flag('extra'); flag('critical')
       if (cl.by !== undefined) who('by')
       if (cl.duration !== undefined) dur()
       break
     case 'damage-formula': c.str(cl.text, `${path}.text`, { nonEmpty: true }); damageTypes(c, cl.types, `${path}.types`); break
     case 'half-damage':
+    case 'double-damage':
+    case 'max-damage':
     case 'no-damage': if (cl.who !== undefined) who(); if (cl.duration !== undefined) dur(); break
     case 'ongoing-damage':
       c.int(cl.amount, `${path}.amount`, { min: 1 }); damageTypes(c, cl.types, `${path}.types`); typeChoice(c, cl, path); who(); dur(); flag('increase'); break
     case 'condition':
       c.oneOf(CONDITION_IDS, cl.condition, `${path}.condition`); who(); dur()
+      // escapeDc on any condition: "grabbed (escape DC 20)", "restrained (escape DC 25)" (spans.ts checks the words).
       c.optional(cl, 'escapeDc', path, (v, p) => c.int(v, p, { min: 1 }))
-      if (cl.escapeDc !== undefined && cl.condition !== 'grabbed') c.fail(`${path}.escapeDc`, 'escapeDc only on a grabbed condition')
       observer()
       break
     case 'grants-ca': c.oneOf(['all', 'source', 'source-allies', 'rider', 'mount', 'ally'], cl.to, `${path}.to`); who(); dur(); break
@@ -266,6 +281,8 @@ export function clause(c: Checker, cl: unknown, path: string, inChoice = false):
       // 'named' lists the printed power names in `powers`.
       if ((Array.isArray(cl.what) ? cl.what : [cl.what]).includes('named')) names('powers')
       else if (cl.powers !== undefined) c.fail(`${path}.powers`, 'powers only with what "named"')
+      // except: printed power names the restriction leaves out ("cannot use any power except claw").
+      if (cl.except !== undefined) names('except')
       who(); dur(); break
     case 'status': c.oneOf(STATUS_IDS, cl.status, `${path}.status`); who(); dur(); break
     case 'opportunity-reach': who(); break
@@ -283,6 +300,8 @@ export function clause(c: Checker, cl: unknown, path: string, inChoice = false):
       } else c.oneOf(REROLL_WHAT, cl.what, `${path}.what`)
       who()
       c.optional(cl, 'keep', path, (v, p) => c.oneOf(['new', 'higher', 'lower'], v, p))
+      // A lasting reroll ("rolls twice and uses the lower result (save ends)") has a duration.
+      if (cl.duration !== undefined) dur()
       break
     case 'action-point': c.int(cl.amount, `${path}.amount`, { min: 1 }); who(); break
     case 'sense':
@@ -350,6 +369,18 @@ export function clause(c: Checker, cl: unknown, path: string, inChoice = false):
       c.optional(cl, 'size', path, (v, p) => c.oneOf(SIZES, v, p))
       c.optional(cl, 'reach', path, (v, p) => c.int(v, p, { min: 0 }))
       if (cl.size === undefined && cl.reach === undefined) c.fail(`${path}.size`, 'expected size or reach')
+      who(); dur(); break
+    case 'set-hp': c.int(cl.hp, `${path}.hp`); who(); break
+    case 'condition-swap':
+      list(c, cl.from, `${path}.from`, (x, q) => c.oneOf(CONDITION_IDS, x, q))
+      if (Array.isArray(cl.from) && cl.from.length === 0) c.fail(`${path}.from`, 'expected at least one condition')
+      c.oneOf(CONDITION_IDS, cl.to, `${path}.to`); who(); break
+    case 'move-zone': c.optional(cl, 'squares', path, (v, p) => c.int(v, p, { min: 1 })); break
+    case 'state': c.str(cl.name, `${path}.name`, { nonEmpty: true }); who(); dur(); break
+    case 'reduced-healing':
+      // half ("only half the normal hit points") or value ("10 fewer hit points").
+      flag('half'); c.optional(cl, 'value', path, (v, p) => c.int(v, p, { min: 1 }))
+      if ((cl.half === undefined) === (cl.value === undefined)) c.fail(`${path}.half`, 'expected half or value')
       who(); dur(); break
     case 'unparsed': c.str(cl.text, `${path}.text`, { nonEmpty: true }); break
   }
@@ -548,7 +579,8 @@ export function monsterShape(c: Checker, m: unknown): void {
     } else c.str(x.if, `${p}.if`, { nonEmpty: true })
     return true
   }
-  c.keys(m, ['id', 'name', 'level', 'role', 'rank', 'leader', 'size', 'origin', 'type', 'keywords', 'xp', 'hp', 'hpText', 'hpIf', 'initiative',
+  c.keys(m, ['id', 'name', 'level', 'role', 'classRole', 'rank', 'leader', 'size', 'origin', 'type', 'keywords', 'xp', 'hp', 'hpText', 'hpIf',
+    'healingSurges', 'surgeValue', 'initiative',
     'perception', 'senses', 'speed', 'defenses', 'defensesIf', 'savingThrowBonus', 'savingThrowNotes', 'actionPoints', 'immune', 'resist', 'vulnerable',
     'regeneration', 'abilities', 'skills', 'skillNotes', 'alignment', 'languages', 'equipment', 'traits', 'auras', 'powers', 'description',
     'sources', 'provenance'], path)
@@ -556,6 +588,8 @@ export function monsterShape(c: Checker, m: unknown): void {
   c.str(m.name, '$.name', { nonEmpty: true })
   c.int(m.level, '$.level', { min: 0, max: 40 })
   c.oneOf(ROLES, m.role, '$.role', { nullable: true })
+  // classRole: a PC class role printed for a companion or NPC ("Level 4 Defender"); role is then null.
+  c.optional(m, 'classRole', '$', (v, p) => { c.oneOf(CLASS_ROLES, v, p); if (m.role !== null) c.fail(p, 'expected role null with classRole') })
   c.oneOf(RANKS, m.rank, '$.rank')
   if (m.leader !== undefined && m.leader !== true) c.fail('$.leader', 'expected true or absent')
   c.oneOf(SIZES, m.size, '$.size')
@@ -567,6 +601,8 @@ export function monsterShape(c: Checker, m: unknown): void {
   c.int(m.hp, '$.hp', { min: m.hpText === undefined ? 1 : 0 })
   c.optional(m, 'hpText', '$', (v, p) => c.str(v, p, { nonEmpty: true }))
   c.optional(m, 'hpIf', '$', (v, q) => list(c, v, q, (x, p) => conditionalValue(x, p)))
+  // Companion and NPC blocks: "Healing Surges 11; Surge Value 12".
+  for (const k of ['healingSurges', 'surgeValue']) c.optional(m, k, '$', (v, p) => c.int(v, p, { min: 0 }))
   c.int(m.initiative, '$.initiative')
   c.int(m.perception, '$.perception')
   list(c, m.senses, '$.senses', (s, p) => {
@@ -598,7 +634,7 @@ export function monsterShape(c: Checker, m: unknown): void {
     c.optional(r, 'suppressedText', p, (v, q) => c.str(v, q, { nonEmpty: true }))
     c.str(r.text, `${p}.text`)
   })
-  if (c.obj(m.abilities, '$.abilities')) for (const a of ABILITIES) c.int(m.abilities[a], `$.abilities.${a}`, { min: 1 })
+  if (c.obj(m.abilities, '$.abilities')) for (const a of ABILITIES) c.int(m.abilities[a], `$.abilities.${a}`, { min: 0 })
   if (c.obj(m.skills, '$.skills')) {
     for (const [k, v] of Object.entries(m.skills)) { c.oneOf(SKILLS, k, `$.skills.${k}`); c.int(v, `$.skills.${k}`) }
   }
