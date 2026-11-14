@@ -6,6 +6,7 @@ import type { Actor, Content, ContentKind, Destination, Draft, DraftAction, Draf
 import { POLICY, normalizeContent, validate } from '../../common/authoring/core'
 import { applyPatch, NODE_GROUPS } from '../../common/authoring/patch'
 import { describeDraftChanges } from '../../common/authoring/diff'
+import { allAnchorPaths, within } from '../../common/authoring/anchors'
 
 export const digest = (value: unknown) => createHash('sha256').update(JSON.stringify(value) ?? 'undefined').digest('hex')
 /** The kit content of a campaign record (or the value itself, for publishers that store content bare). */
@@ -303,7 +304,11 @@ export class DraftStore {
         if (resolve && actor !== 'dm' && c.author === 'dm') throw new Error('Only the DM resolves feedback')
         if (resolve && actor !== 'dm' && !text.trim()) throw new Error('Resolving needs a reply stating the answer or why the question no longer applies')
         if (resolve) c.resolved = true
-      } else d.comments.push({ id: randomUUID(), target, text, author: actor, revision: d.revision, at, question, resolved: false, replies: [] })
+      } else {
+        // A comment the stat block cannot show would go unseen: the entry as a whole is for chat with the agent.
+        if (!within(target, allAnchorPaths(d))) throw new Error(`Comments anchor to a stat block line (a power, trait, or aura node, or a stat field such as /content/hp); ${target || 'no target'} is not one. Ask about the entry as a whole in chat.`)
+        d.comments.push({ id: randomUUID(), target, text, author: actor, revision: d.revision, at, question, resolved: false, replies: [] })
+      }
       return this.persist(d, actor, 'commented')
     })
   }

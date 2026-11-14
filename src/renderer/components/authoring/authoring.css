@@ -59,7 +59,7 @@
 .authoring .annotation-thread label { display: inline-flex; align-items: center; margin: 0; flex: 1; font-size: 12px; }
 .annotation-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 4px; }
 /* Small secondary buttons in comment threads and History: bordered, so they read as buttons before hover. */
-button.annotation-link, button.rail-link { display: inline-flex; align-items: center; gap: 4px; padding: 0 6px; margin: 0; background: var(--surface-raised); border: 1px solid var(--border-strong); border-radius: var(--radius); color: var(--text); cursor: pointer; text-align: left; font: inherit; }
+button.annotation-link { display: inline-flex; align-items: center; gap: 4px; padding: 0 6px; margin: 0; background: var(--surface-raised); border: 1px solid var(--border-strong); border-radius: var(--radius); color: var(--text); cursor: pointer; text-align: left; font: inherit; }
 .authoring .annotation-thread details, .authoring .authoring-rail details details { margin: 4px 0; padding: 0; border: 0; }
 .annotation-finding { border-left: 3px solid var(--muted); padding-left: 6px !important; }
 .annotation-finding.severity-concern { border-left-color: var(--severity-concern); }

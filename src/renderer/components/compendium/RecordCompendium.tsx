@@ -16,7 +16,7 @@ import { useHotkeys } from '@renderer/hooks/use-hotkeys'
 import { useUiStore } from '@renderer/stores/ui-store'
 import { useAuthoringStore } from '@renderer/stores/authoring-store'
 import type { Draft } from '@common/authoring/types'
-import { EntryDiscussion, EntryEditor } from '../authoring/EntryEditor'
+import { EntryEditor } from '../authoring/EntryEditor'
 import { DraftAnnotations } from '../authoring/DraftAnnotations'
 import { unsavedDraft } from '@common/authoring/unsaved'
 import type { Content } from '@common/authoring/types'
@@ -343,7 +343,6 @@ export function RecordCompendium<T extends { id: string; name: string }>({ kind,
             </div>
             {/* One stat block for every entry; with the agent connection on, the working copy adds comment markers. */}
             {agent && copy ? <DraftAnnotations draft={copy} enabled>{previewBlock}</DraftAnnotations> : previewBlock}
-            {agent && copy && <EntryDiscussion draft={copy} />}
           </>
           : <div className="record-empty">Click a {kind.singular} to preview</div>}
       </div>

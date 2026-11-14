@@ -6,10 +6,8 @@ import { useAuthoringStore } from '../../stores/authoring-store'
 import { useUiStore } from '../../stores/ui-store'
 import { NativeCreatureDraftEditor } from './NativeCreatureDraftEditor'
 import { isKitNative, ItemDraftEditor, KitDraftEditor } from './KitDraftEditor'
-import { DraftAnnotations, Thread } from './DraftAnnotations'
+import { DraftAnnotations } from './DraftAnnotations'
 import type { EditStatus } from './live-edits'
-import { allAnchorPaths, within } from '@common/authoring/anchors'
-import { Icon } from '../shared/Icon'
 import './authoring.css'
 
 /** Copies the authoring connection file's path (it holds a credential: share the path, never the contents). */
@@ -35,25 +33,11 @@ export function WorkshopIntro() {
   </aside>
 }
 
-/** Comments on the whole entry (or on a field the stat block has no marker for), under the stat block. */
-export function EntryDiscussion({ draft: d }: { draft: Draft }) {
-  const paths = allAnchorPaths(d)
-  const general = d.comments.filter(c => !within(c.target, paths))
-  const [open, setOpen] = useState(false)
-  const unresolved = general.filter(c => !c.resolved).length
-  return <div className="entry-discussion">
-    <button className="rail-link" aria-expanded={open || unresolved > 0} onClick={() => setOpen(!open)}>
-      <Icon name={open || unresolved ? 'chevron-down' : 'chevron-right'} style={{ verticalAlign: '-0.125em' }} /> Comments on the whole {d.kind === 'monster' ? 'creature' : d.kind}{general.length ? ` (${unresolved ? `${unresolved} open` : general.length})` : ''}
-    </button>
-    {(open || unresolved > 0) && <Thread draft={d} anchor={{ target: '/', label: 'Whole entry', paths: [] }} comments={general} findings={[]} />}
-  </div>
-}
-
 /**
  * The editor for a campaign entry: the kind's usual editor on the entry's working copy (a draft the AI agent
  * also edits; main writes each version straight into the entry), so the DM's and the agent's edits merge as
- * they land. With the AI agent connection on (Settings), comment markers sit on the stat block's lines and
- * whole-entry comments are below it. A new entry's working copy is unsaved until its first edit creates it (`create`, `onCreated`).
+ * they land. With the AI agent connection on (Settings), comment markers sit on the stat block's lines
+ * (talk about the entry as a whole in chat with the agent). A new entry's working copy is unsaved until its first edit creates it (`create`, `onCreated`).
  */
 export function EntryEditor({ draft: d, create, onCreated, art, onArtChange }: {
   draft: Draft
@@ -104,7 +88,6 @@ export function EntryEditor({ draft: d, create, onCreated, art, onArtChange }: {
       {isKitNative(d.kind) && <KitDraftEditor draft={d} status={editorStatus} apply={patch} />}
       {d.kind === 'item' && <ItemDraftEditor draft={d} status={editorStatus} apply={patch} />}
     </DraftAnnotations>
-    {!unsaved && agent && <EntryDiscussion draft={d} />}
   </>
 }
 

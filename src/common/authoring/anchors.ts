@@ -71,7 +71,7 @@ export function entryAnchorTarget(d: Draft, entry: { entryType?: string; name?: 
 
 export const within = (target: string, paths: string[]) => paths.some(p => target === p || target.startsWith(p + '/'))
 
-/** Every anchor a stat block can show, so leftovers (whole-draft, removed nodes, unanchored fields) can be listed elsewhere. */
+/** Every anchor a stat block can show; new comments must fall within one of them. */
 export function allAnchorPaths(d: Draft): string[] {
   // Creature rows have bare keys; other kinds' sections are prefixed with their kind ("trap-detect").
   const prefix = d.kind === 'monster' ? '' : d.kind + '-'

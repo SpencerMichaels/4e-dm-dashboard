@@ -16,7 +16,7 @@ function content() { const m = scaffold('monster', 'Synthetic shade', 7, 'lurker
 describe('draft collaboration', () => {
   it('survives restart and preserves comments across independent content revisions', async () => {
     const s = new DraftStore(root); const d = await s.create('monster', content(), '', home())
-    await s.comment(d.id, 'Make it faster', '/', 'dm')
+    await s.comment(d.id, 'Make it faster', '/content/speed', 'dm')
     const next = await s.patch({ id: d.id, revision: 1, changes: [{ path: '/content/speed/walk', value: 8 }] }, 'agent')
     expect(next.comments).toHaveLength(1)
     expect((await new DraftStore(root).get(d.id)).content).toEqual(next.content)
@@ -52,17 +52,21 @@ describe('draft collaboration', () => {
   })
   it('lets the agent close only its own threads, and only with a reply; DM feedback stays DM-resolved', async () => {
     const s = new DraftStore(root); const d = await s.create('monster', content(), '', home())
-    const q = await s.comment(d.id, 'When does it act?', '/', 'agent', true)
-    await expect(s.comment(d.id, '', '/', 'agent', false, q.comments[0].id, true)).rejects.toThrow('Resolving needs a reply')
-    const answered = await s.comment(d.id, 'DM answer in chat: right after its creator.', '/', 'agent', false, q.comments[0].id, true)
+    const q = await s.comment(d.id, 'When does it act?', '/content/initiative', 'agent', true)
+    await expect(s.comment(d.id, '', '', 'agent', false, q.comments[0].id, true)).rejects.toThrow('Resolving needs a reply')
+    const answered = await s.comment(d.id, 'DM answer in chat: right after its creator.', '', 'agent', false, q.comments[0].id, true)
     expect(answered.comments[0].resolved).toBe(true)
     expect(answered.comments[0].replies.at(-1)!.author).toBe('agent')
-    const feedback = await s.comment(d.id, 'Make it faster', '/', 'dm')
+    const feedback = await s.comment(d.id, 'Make it faster', '/content/speed', 'dm')
     const dmThread = feedback.comments[1].id
-    await expect(s.comment(d.id, 'Done in revision 2', '/', 'agent', false, dmThread, true)).rejects.toThrow('Only the DM')
-    const reply = await s.comment(d.id, 'Done in revision 2', '/', 'agent', false, dmThread)
+    await expect(s.comment(d.id, 'Done in revision 2', '', 'agent', false, dmThread, true)).rejects.toThrow('Only the DM')
+    const reply = await s.comment(d.id, 'Done in revision 2', '', 'agent', false, dmThread)
     expect(reply.comments[1].resolved).toBe(false)
-    expect((await s.comment(d.id, '', '/', 'dm', false, dmThread, true)).comments[1].resolved).toBe(true)
+    expect((await s.comment(d.id, '', '', 'dm', false, dmThread, true)).comments[1].resolved).toBe(true)
+  })
+  it('refuses new comments that no stat block line shows; the whole entry is for chat', async () => {
+    const s = new DraftStore(root); const d = await s.create('monster', content(), '', home())
+    for (const target of ['/', '', '/content/sources', '/content/powers/@gone']) await expect(s.comment(d.id, 'Overall too easy?', target, 'agent', true)).rejects.toThrow('as a whole in chat')
   })
   it('opens drafts from compatible older kit schemas and still rejects incompatible ones', async () => {
     const s = new DraftStore(root); const d = await s.create('monster', content(), '', home())

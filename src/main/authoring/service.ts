@@ -154,7 +154,7 @@ export class AuthoringService {
       // Undo: an earlier version becomes the newest one (and goes into the entry).
       case 'restore_draft': return this.drafts.restore(a.id, a.revision, a.event, actor)
       case 'patch_draft': return this.drafts.patch(a, actor)
-      case 'comment': return this.drafts.comment(a.id, a.text, a.target ?? '/', actor, a.question, a.replyTo, a.resolve)
+      case 'comment': return this.drafts.comment(a.id, a.text, a.target ?? '', actor, a.question, a.replyTo, a.resolve)
       case 'review': return this.drafts.review(a.id, a.revision, a.assumptions, a.findings, actor)
       default: throw new Error(`Unknown authoring operation: ${method}`)
     }
