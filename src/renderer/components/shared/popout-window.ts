@@ -24,10 +24,20 @@ function saveBounds(key: string, w: Window) {
 
 /** Copies stylesheets (and later ones: Vite injects styles in dev) and the theme attribute into the child. */
 function mirrorDocument(child: Document): () => void {
+  // A <link> cloned into the fresh child sometimes never loads (seen with Electron 43), so the child gets the
+  // rules this window already parsed, with the file's URL as base so the fonts' relative urls still resolve.
+  const adopt = (link: HTMLLinkElement) => {
+    const rules = link.sheet?.cssRules
+    if (!rules) return void link.addEventListener('load', () => adopt(link), { once: true })
+    const View = child.defaultView as (Window & typeof globalThis) | null
+    if (!View) return
+    const sheet = new View.CSSStyleSheet({ baseURL: link.href })
+    sheet.replaceSync([...rules].map(r => r.cssText).join('\n'))
+    child.adoptedStyleSheets = [...child.adoptedStyleSheets, sheet]
+  }
   const copy = (node: Node) => {
-    if (node instanceof HTMLStyleElement || (node instanceof HTMLLinkElement && node.rel === 'stylesheet')) {
-      child.head.appendChild(child.importNode(node, true))
-    }
+    if (node instanceof HTMLStyleElement) child.head.appendChild(child.importNode(node, true))
+    else if (node instanceof HTMLLinkElement && node.rel === 'stylesheet') adopt(node)
   }
   document.head.childNodes.forEach(copy)
   const headObserver = new MutationObserver(records => records.forEach(r => r.addedNodes.forEach(copy)))
