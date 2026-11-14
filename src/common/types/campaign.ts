@@ -7,21 +7,6 @@ export interface Campaign {
   partyLevel?: number     // Whole-party level (PCs always level together)
 }
 
-export interface NoteTreeNode {
-  id: string
-  title: string
-  children: NoteTreeNode[]
-}
-
-export interface Note {
-  id: string
-  title: string
-  content: string         // TipTap JSON serialized as string
-  tags: string[]
-  createdAt: string
-  updatedAt: string
-}
-
 /** A trap by reference: a campaign trap record or a published trap. */
 export interface TrapRef {
   trapId?: string
@@ -61,7 +46,6 @@ export interface MapPin {
 }
 
 export type EntityType =
-  | 'note'
   | 'creature'
   | 'encounter'
   | 'location'
@@ -73,14 +57,3 @@ export type EntityType =
   | 'disease'
   | 'template'
   | 'theme'
-
-export interface LinkEntry {
-  sourceType: EntityType
-  sourceId: string
-  targetType: EntityType
-  targetId: string
-}
-
-export interface LinkIndex {
-  links: LinkEntry[]
-}

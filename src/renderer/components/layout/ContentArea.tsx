@@ -1,7 +1,6 @@
 import { useUiStore } from '../../stores/ui-store'
 import { useCampaignStore } from '../../stores/campaign-store'
 import { HomeView } from '../campaign/HomeView'
-import { NoteEditor } from '../campaign/NoteEditor'
 import { EncounterEditor } from '../campaign/EncounterEditor'
 import { LocationEditor } from '../campaign/LocationEditor'
 import { MapEditor } from '../campaign/MapEditor'
@@ -25,8 +24,6 @@ export function ContentArea() {
   switch (view.type) {
     case 'home':
       return <HomeView />
-    case 'note':
-      return <NoteEditor noteId={view.noteId} key={view.noteId} />
     case 'encounter':
       return <EncounterEditor encounterId={view.encounterId} key={view.encounterId} />
     case 'location':

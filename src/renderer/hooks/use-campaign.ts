@@ -1,5 +1,5 @@
 import { useCallback } from 'react'
-import type { EntityType, Note, CreatureRecord, Encounter, Location, ItemRecord, PlayerCharacter, MapData } from '@common/types'
+import type { EntityType, CreatureRecord, Encounter, Location, ItemRecord, PlayerCharacter, MapData } from '@common/types'
 import type { Item as KitItem, Monster } from '@kit'
 import { newRecord } from '@common/campaign-records'
 import { scaffold } from '@common/authoring/core'
@@ -14,20 +14,6 @@ export function useCampaignActions() {
 
   const deleteEntity = useCallback(async (entityType: EntityType, entityId: string) => {
     return window.api.entity.delete(entityType, entityId)
-  }, [])
-
-  const createNote = useCallback(async (title: string): Promise<Note> => {
-    const now = new Date().toISOString()
-    const note: Note = {
-      id: generateId(),
-      title,
-      content: '',
-      tags: [],
-      createdAt: now,
-      updatedAt: now,
-    }
-    await window.api.note.save(note)
-    return note
   }, [])
 
   const createCreature = useCallback(async (name: string): Promise<CreatureRecord> => {
@@ -101,7 +87,6 @@ export function useCampaignActions() {
   return {
     saveEntity,
     deleteEntity,
-    createNote,
     createCreature,
     createEncounter,
     createLocation,

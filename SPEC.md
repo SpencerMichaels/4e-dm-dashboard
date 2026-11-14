@@ -1,6 +1,6 @@
 # 4e DM Dashboard — Specification
 
-> **Scope note (2026-11):** The app is now D&D 4e only. Pathfinder 2e, Delta Green, user plugins, the system picker, URL import (aonprd.com), and plugin turn hooks have been removed. Sections below that describe multi-system plugins or those features are historical; see `AGENTS.md` and `TODO.md` for the current architecture and plan.
+> **Scope note (2026-11):** The app is now D&D 4e only. Pathfinder 2e, Delta Green, user plugins, the system picker, URL import (aonprd.com), and plugin turn hooks have been removed. Notes (the story tree, the note editor, and bi-directional links) were removed 2026-11-14: the DM keeps notes in an external tool such as Obsidian. Sections below that describe multi-system plugins or those features are historical; see `AGENTS.md` and `TODO.md` for the current architecture and plan.
 
 This document specifies **4e DM Dashboard** (formerly Tabletop Dashboard), a virtual-tabletop companion application for pen-and-paper TTRPG games played at a physical table. It is not for tracking token positions on a grid map, but rather for things like initiative order, monster HP, status effects, scene presentation, and campaign organization.
 

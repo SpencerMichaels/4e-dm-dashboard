@@ -2,7 +2,6 @@ import { THEME_PREFERENCE_LABELS } from '@kit/theme'
 import { useUiStore, type ViewMode } from '../../stores/ui-store'
 import { useCampaignStore } from '../../stores/campaign-store'
 import { useCombatStore } from '../../stores/combat-store'
-import { useCampaignActions } from '../../hooks/use-campaign'
 import styles from './Sidebar.module.css'
 
 interface NavItem {
@@ -18,7 +17,6 @@ const navSections: { title: string; items: NavItem[] }[] = [
     title: 'Campaign',
     items: [
       { icon: '🏠', label: 'Home', view: { type: 'home' }, global: true },
-      { icon: '📝', label: 'Notes', view: { type: 'entity-list', entityType: 'note' } },
       { icon: '⚔️', label: 'Encounters', view: { type: 'entity-list', entityType: 'encounter' } },
       { icon: '🗺️', label: 'Maps', view: { type: 'entity-list', entityType: 'map' } },
       { icon: '🧑', label: 'PCs', view: { type: 'entity-list', entityType: 'player-character' } },
@@ -45,9 +43,6 @@ interface SidebarProps {
 export function Sidebar({ onShowHotkeys, onShowSettings }: SidebarProps) {
   const { view, setView, toggleTheme, themePreference, setCommandPaletteOpen } = useUiStore()
   const combat = useCombatStore((s) => s.combat)
-  const noteTree = useCampaignStore((s) => s.noteTree)
-  const notes = useCampaignStore((s) => s.notes)
-  const { createNote } = useCampaignActions()
 
   const isActive = (navView: ViewMode) => {
     if (navView.type === view.type) {
@@ -58,14 +53,6 @@ export function Sidebar({ onShowHotkeys, onShowSettings }: SidebarProps) {
       return true
     }
     return false
-  }
-
-  const handleNewNote = async () => {
-    const note = await createNote('Untitled')
-    // Add to tree
-    const tree = [...noteTree, { id: note.id, title: note.title, children: [] }]
-    await window.api.note.treeSave(tree)
-    setView({ type: 'note', noteId: note.id })
   }
 
   const campaignId = useCampaignStore((s) => s.campaignId)
@@ -118,24 +105,6 @@ export function Sidebar({ onShowHotkeys, onShowSettings }: SidebarProps) {
           </button>
         </nav>
       )}
-
-      {campaignId && <div className={styles.section}>
-        <div className={styles.sectionTitle}>Notes</div>
-        <nav className={styles.noteTree} aria-label="Notes">
-          {noteTree.map((node) => (
-            <button
-              key={node.id}
-              className={`${styles.treeNode} ${view.type === 'note' && view.noteId === node.id ? styles.active : ''}`}
-              onClick={() => setView({ type: 'note', noteId: node.id })}
-            >
-              {node.title || 'Untitled'}
-            </button>
-          ))}
-        </nav>
-        <button className={styles.addBtn} onClick={handleNewNote}>
-          + New Note
-        </button>
-      </div>}
 
       <div className={styles.actionRow} style={{ marginTop: 'auto' }}>
         <button className={styles.iconBtn} onClick={() => window.api.playerWindow.show()} title="Show player window">👁</button>

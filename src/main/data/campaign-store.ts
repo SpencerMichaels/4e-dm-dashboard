@@ -1,4 +1,4 @@
-import type { Campaign, EntityType, NoteTreeNode, LinkIndex, LinkEntry } from '@common/types'
+import type { Campaign, EntityType } from '@common/types'
 import type { CompendiumAnnotation, CompendiumEntry, CreatureRecord } from '@common/types'
 import {
   getCampaignsRoot,
@@ -6,14 +6,11 @@ import {
   getCampaignMetaPath,
   getEntityDir,
   getEntityPath,
-  getNoteTreePath,
-  getLinksPath,
   getAnnotationsPath,
   getAssetsDir,
 } from './paths'
 import { atomicWriteJson, readJson, deleteFile, listJsonFiles, ensureDir, copyFile, deleteDir } from './file-io'
 import { generateId } from '@common/utils/id'
-import { extractLinks } from '@common/utils/links'
 import { join, extname } from 'path'
 import { readdir } from 'fs/promises'
 import { withWriteLock } from './write-lock'
@@ -22,7 +19,6 @@ import { migrateLegacyCreatures } from './legacy-creatures'
 import { RECORD_STORAGE, checkRecord, isRecordType } from '@common/campaign-records'
 
 let activeCampaignId: string | null = null
-let linkDebounceTimer: ReturnType<typeof setTimeout> | null = null
 
 export function getActiveCampaignId(): string | null {
   return activeCampaignId
@@ -52,7 +48,6 @@ export async function createCampaign(name: string): Promise<Campaign> {
 
   const dir = getCampaignDir(id)
   await ensureDir(dir)
-  await ensureDir(join(dir, 'story', 'notes'))
   await ensureDir(join(dir, 'creatures'))
   await ensureDir(join(dir, 'encounters'))
   await ensureDir(join(dir, 'locations'))
@@ -63,8 +58,6 @@ export async function createCampaign(name: string): Promise<Campaign> {
   await ensureDir(join(dir, 'assets', 'images'))
 
   await atomicWriteJson(getCampaignMetaPath(id), campaign)
-  await atomicWriteJson(getNoteTreePath(id), [])
-  await atomicWriteJson(getLinksPath(id), { links: [] })
 
   activeCampaignId = id
   return campaign
@@ -115,16 +108,12 @@ export async function saveEntity<T extends { id: string }>(entityType: EntityTyp
     if (!await readJson(getCampaignMetaPath(campaignId))) throw new Error('Campaign no longer exists')
     await withWriteLock(path, () => atomicWriteJson(path, entity))
   })
-
-  // Schedule link index rebuild
-  scheduleLinkRebuild()
 }
 
 export async function deleteEntity(entityType: EntityType, entityId: string): Promise<void> {
   if (!activeCampaignId) throw new Error('No active campaign')
   const path = getEntityPath(activeCampaignId, entityType, entityId)
   await withWriteLock(path, () => deleteFile(path))
-  scheduleLinkRebuild()
 }
 
 export async function getEntity<T>(entityType: EntityType, entityId: string): Promise<T | null> {
@@ -142,48 +131,6 @@ export async function listEntities<T>(entityType: EntityType): Promise<T[]> {
     if (entity) entities.push(entity)
   }
   return entities
-}
-
-// Note tree
-export async function getNoteTree(): Promise<NoteTreeNode[]> {
-  if (!activeCampaignId) return []
-  return (await readJson<NoteTreeNode[]>(getNoteTreePath(activeCampaignId))) || []
-}
-
-export async function saveNoteTree(tree: NoteTreeNode[]): Promise<void> {
-  if (!activeCampaignId) throw new Error('No active campaign')
-  await atomicWriteJson(getNoteTreePath(activeCampaignId), tree)
-}
-
-// Links
-export async function getLinks(): Promise<LinkIndex> {
-  if (!activeCampaignId) return { links: [] }
-  return (await readJson<LinkIndex>(getLinksPath(activeCampaignId))) || { links: [] }
-}
-
-function scheduleLinkRebuild(): void {
-  if (linkDebounceTimer) clearTimeout(linkDebounceTimer)
-  linkDebounceTimer = setTimeout(() => rebuildLinkIndex(), 1000)
-}
-
-async function rebuildLinkIndex(): Promise<void> {
-  if (!activeCampaignId) return
-
-  const allLinks: LinkEntry[] = []
-  const entityTypes: EntityType[] = ['note', 'creature', 'encounter', 'location', 'item', 'player-character']
-
-  for (const entityType of entityTypes) {
-    const entities = await listEntities<{ id: string; content?: unknown; description?: unknown }>(entityType)
-    for (const entity of entities) {
-      // Notes keep text in `content`; kit records keep an object there, so only strings are scanned.
-      const text = typeof entity.content === 'string' ? entity.content : typeof entity.description === 'string' ? entity.description : ''
-      if (text) {
-        allLinks.push(...extractLinks(entityType, entity.id, text))
-      }
-    }
-  }
-
-  await atomicWriteJson(getLinksPath(activeCampaignId), { links: allLinks })
 }
 
 // Images

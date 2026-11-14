@@ -70,25 +70,6 @@ export function registerCampaignHandlers(): void {
     return store.listEntities(entityType)
   })
 
-  // Note tree
-  ipcMain.handle(CMD.NOTE_TREE_GET, async () => {
-    return store.getNoteTree()
-  })
-
-  ipcMain.handle(CMD.NOTE_TREE_SAVE, async (_e, tree: unknown) => {
-    await store.saveNoteTree(tree as any)
-    broadcastToDm(SYNC.CAMPAIGN_ENTITY_UPDATE, {
-      entityType: 'noteTree',
-      key: 'noteTree',
-      data: tree,
-    })
-  })
-
-  // Links
-  ipcMain.handle(CMD.LINKS_GET, async () => {
-    return store.getLinks()
-  })
-
   // Images
   ipcMain.handle(CMD.IMAGE_IMPORT, async (_e, sourcePath: string) => {
     const campaignId = store.getActiveCampaignId()
@@ -137,7 +118,6 @@ export function registerCampaignHandlers(): void {
 // Maps EntityType to the key used in the renderer campaign store
 const entityTypeToStoreKey: Record<EntityType, string> = {
   encounter: 'encounters',
-  note: 'notes',
   location: 'locations',
   'player-character': 'playerCharacters',
   map: 'maps',
@@ -163,16 +143,13 @@ async function broadcastCampaignState(): Promise<void> {
   if (!campaignId) return
 
   // Broadcast a summary of current state to DM renderer
-  const [campaign, creatures, encounters, locations, maps, pcs, notes, noteTree, links, annotations, ...records] = await Promise.all([
+  const [campaign, creatures, encounters, locations, maps, pcs, annotations, ...records] = await Promise.all([
     store.getActiveCampaign(),
     store.listEntities('creature'),
     store.listEntities('encounter'),
     store.listEntities('location'),
     store.listEntities('map'),
     store.listEntities('player-character'),
-    store.listEntities('note'),
-    store.getNoteTree(),
-    store.getLinks(),
     store.loadAnnotations(campaignId),
     ...RECORD_TYPES.map(type => store.listEntities(type)),
   ])
@@ -185,9 +162,6 @@ async function broadcastCampaignState(): Promise<void> {
     locations,
     maps,
     playerCharacters: pcs,
-    notes,
-    noteTree,
-    links,
     annotations,
     ...Object.fromEntries(RECORD_TYPES.map((type, i) => [RECORD_STORAGE[type].storeKey, records[i]])),
   })

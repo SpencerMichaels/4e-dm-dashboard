@@ -45,7 +45,6 @@ export function entityTypeForKind(kind: string): EntityType {
 
 /** Each entity type's folder inside a campaign directory. */
 export const ENTITY_DIRS: Record<EntityType, string> = {
-  note: 'story/notes',
   creature: RECORD_STORAGE.creature.dir,
   encounter: 'encounters',
   location: 'locations',

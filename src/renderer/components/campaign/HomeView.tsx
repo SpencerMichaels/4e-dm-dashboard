@@ -51,7 +51,7 @@ export function HomeView() {
         4e DM Dashboard
       </h1>
       <p style={{ color: 'var(--text-secondary)', marginBottom: 'var(--space-4)' }}>
-        No campaign is open. {campaigns.length > 0 ? 'Open one below or create a new one' : 'Create one to start'}: notes, encounters, the compendium pages and Workshop saves all belong to a campaign.
+        No campaign is open. {campaigns.length > 0 ? 'Open one below or create a new one' : 'Create one to start'}: encounters, the compendium pages and Workshop saves all belong to a campaign.
       </p>
 
       {creating ? (
@@ -159,11 +159,10 @@ export function HomeView() {
 }
 
 function CampaignHome() {
-  const { creatures, encounters, locations, notes, playerCharacters, items } = useCampaignStore()
+  const { creatures, encounters, locations, playerCharacters, items } = useCampaignStore()
   const { setView } = useUiStore()
 
   const stats = [
-    { label: 'Notes', count: notes.length, action: () => setView({ type: 'entity-list', entityType: 'note' }) },
     { label: 'Creatures', count: creatures.length, action: () => setView({ type: 'entity-list', entityType: 'creature' }) },
     { label: 'Encounters', count: encounters.length, action: () => setView({ type: 'entity-list', entityType: 'encounter' }) },
     { label: 'Locations', count: locations.length, action: () => setView({ type: 'entity-list', entityType: 'location' }) },

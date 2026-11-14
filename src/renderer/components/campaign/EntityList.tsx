@@ -15,7 +15,6 @@ interface Props {
 }
 
 const labels: Record<string, string> = {
-  note: 'Notes',
   creature: 'Creatures',
   encounter: 'Encounters',
   location: 'Locations',
@@ -26,12 +25,11 @@ const labels: Record<string, string> = {
 
 export function EntityList({ entityType }: Props) {
   const { setView } = useUiStore()
-  const { creatures, encounters, locations, maps, items, playerCharacters, notes } = useCampaignStore()
-  const { createNote, createEncounter, createLocation, createPC, createMap } = useCampaignActions()
+  const { creatures, encounters, locations, maps, items, playerCharacters } = useCampaignStore()
+  const { createEncounter, createLocation, createPC, createMap } = useCampaignActions()
   const [pendingDelete, setPendingDelete] = useState<{ id: string; name: string } | null>(null)
 
-  const entitiesMap: Record<string, { id: string; name?: string; title?: string }[]> = {
-    note: notes,
+  const entitiesMap: Record<string, { id: string; name?: string }[]> = {
     creature: creatures,
     encounter: encounters,
     location: locations,
@@ -48,7 +46,6 @@ export function EntityList({ entityType }: Props) {
 
   const handleCreate = async () => {
     switch (entityType) {
-      case 'note': { const n = await createNote('Untitled'); setView({ type: 'note', noteId: n.id }); break }
       case 'encounter': { const e = await createEncounter('New Encounter'); setView({ type: 'encounter', encounterId: e.id }); break }
       case 'location': { const l = await createLocation('New Location'); setView({ type: 'location', locationId: l.id }); break }
       case 'map': {
@@ -65,7 +62,6 @@ export function EntityList({ entityType }: Props) {
 
   const navigateTo = (id: string) => {
     switch (entityType) {
-      case 'note': setView({ type: 'note', noteId: id }); break
       case 'creature': case 'item': setView({ type: 'compendium', kind: entityType, id }); break
       case 'encounter': setView({ type: 'encounter', encounterId: id }); break
       case 'location': setView({ type: 'location', locationId: id }); break
@@ -122,12 +118,12 @@ export function EntityList({ entityType }: Props) {
                   cursor: 'pointer',
                 }}
               >
-                {e.name || e.title || 'Untitled'}
+                {e.name || 'Untitled'}
               </button>
               <button
                 onClick={(ev) => {
                   ev.stopPropagation()
-                  setPendingDelete({ id: e.id, name: e.name || e.title || 'Untitled' })
+                  setPendingDelete({ id: e.id, name: e.name || 'Untitled' })
                 }}
                 title="Delete"
                 aria-label="Delete"

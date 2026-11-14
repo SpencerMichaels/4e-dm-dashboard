@@ -88,49 +88,6 @@
   flex-shrink: 0;
 }
 
-.noteTree {
-  flex: 1;
-  overflow: auto;
-}
-
-.treeNode {
-  display: flex;
-  align-items: center;
-  gap: var(--space-1);
-  padding: var(--space-1) var(--space-2);
-  padding-left: var(--space-4);
-  font-size: var(--font-size-sm);
-  color: var(--text-secondary);
-  cursor: pointer;
-  border-radius: var(--radius-sm);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.treeNode:hover {
-  background: var(--hover);
-  color: var(--text);
-}
-
-.treeNode.active {
-  background: var(--active);
-  color: var(--text);
-}
-
-.addBtn {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  padding: var(--space-2) var(--space-3);
-  font-size: var(--font-size-sm);
-  color: var(--muted);
-  width: calc(100% - 2 * var(--space-2));
-  margin: var(--space-1) var(--space-2) 0;
-  border: 1px dashed var(--border-strong);
-  border-radius: var(--radius-sm);
-}
-
 /* An action, not a destination: bordered so it reads as a button among the nav rows. */
 .closeCampaign {
   width: calc(100% - 2 * var(--space-2));
@@ -144,11 +101,6 @@
 }
 
 .closeCampaign:hover {
-  background: var(--hover);
-  color: var(--text);
-}
-
-.addBtn:hover {
   background: var(--hover);
   color: var(--text);
 }

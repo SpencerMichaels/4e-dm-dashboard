@@ -19,10 +19,6 @@ export const CMD = {
   // Player characters: import .dnd4e / .4ecb sheets
   PC_IMPORT: 'pc:import',
 
-  // Notes (tree structure)
-  NOTE_TREE_GET: 'note:tree:get',
-  NOTE_TREE_SAVE: 'note:tree:save',
-
   // Combat
   COMBAT_INIT: 'combat:init',
   COMBAT_START: 'combat:start',
@@ -63,7 +59,6 @@ export const CMD = {
   SETTINGS_SET_AGENT_CONNECTION: 'settings:set-agent-connection',
 
   // Links
-  LINKS_GET: 'links:get',
 
   // Images
   IMAGE_IMPORT: 'image:import',

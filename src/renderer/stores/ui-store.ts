@@ -6,7 +6,6 @@ import { DEFAULT_THEME_PREFERENCE, nextThemePreference, type ResolvedTheme, type
 
 export type ViewMode =
   | { type: 'home' }
-  | { type: 'note'; noteId: string }
   | { type: 'encounter'; encounterId?: string }
   | { type: 'location'; locationId?: string }
   | { type: 'map'; mapId?: string }

@@ -1,4 +1,4 @@
-// Button affordance smoke test: tours the DM window (home, settings, notes, encounters, combat, PCs,
+// Button affordance smoke test: tours the DM window (home, settings, encounters, combat, PCs,
 // locations, maps, every compendium page in preview and edit) and fails if any button with text reads as
 // plain text before it is hovered (see button-audit.cjs). Windows are hidden and render offscreen.
 // Run with `npm run test:buttons:ui` after `npm run build`.
@@ -28,7 +28,6 @@ const encounter = {
 }
 const hero = { id: 'hero', name: 'Hero', playerName: 'Player', active: true, createdAt: now, updatedAt: now, diseases: [{ diseaseId: 'disease1', stage: 'exposed', since: now }] }
 const vault = { id: 'vault', name: 'Smoke Vault', description: '', tags: [], createdAt: now, updatedAt: now, traps: [{ compendiumId: 'trap41' }], encounterIds: ['smoke-fight'] }
-const note = { id: 'smoke-note', title: 'Smoke Note', content: '', tags: [], createdAt: now, updatedAt: now }
 
 app.whenReady().then(async () => {
   try {
@@ -67,7 +66,7 @@ app.whenReady().then(async () => {
     await audit('home without a campaign')
     await js(async () => { const c = await window.api.campaign.create('Button smoke'); await window.api.campaign.open(c.id) })
     await sleep(800)
-    await js((e, h, l, n) => Promise.all([window.api.entity.save('encounter', e), window.api.entity.save('player-character', h), window.api.entity.save('location', l), window.api.entity.save('note', n)]), encounter, hero, vault, note)
+    await js((e, h, l) => Promise.all([window.api.entity.save('encounter', e), window.api.entity.save('player-character', h), window.api.entity.save('location', l)]), encounter, hero, vault)
     await sleep(300)
 
     await clickButton('Home')
@@ -92,10 +91,6 @@ app.whenReady().then(async () => {
     await clickText('Smoke Vault')
     await until(() => !!document.querySelector('.location-trap'), 'the location page')
     await audit('location page')
-
-    await clickButton('Notes')
-    await sleep(300)
-    await audit('notes')
 
     await clickButton('Maps')
     await sleep(300)
@@ -130,6 +125,11 @@ app.whenReady().then(async () => {
       await clickButton(kind)
       await until(() => document.querySelectorAll('.record-row').length > 0, `the ${kind} list`)
       await js(() => document.querySelector('.record-row').click())
+      await sleep(400)
+      await audit(`${kind} preview`)
+      await js(() => document.querySelector('.record-row').dispatchEvent(new MouseEvent('dblclick', { bubbles: true })))
+      await sleep(600)
+      await audit(`${kind} editor`)
       if (kind !== 'Traps') continue
       // A first edit adds the campaign copy; its right-click menu holds plain menu items.
       await js(() => { const el = document.querySelector('.compendium-preview input.sb-name'); el.focus(); el.select() })
@@ -142,11 +142,6 @@ app.whenReady().then(async () => {
       await audit('compendium right-click menu')
       await escape()
       await js(() => document.body.dispatchEvent(new MouseEvent('mousedown', { bubbles: true })))
-      await sleep(400)
-      await audit(`${kind} preview`)
-      await js(() => document.querySelector('.record-row').dispatchEvent(new MouseEvent('dblclick', { bubbles: true })))
-      await sleep(600)
-      await audit(`${kind} editor`)
     }
 
     clearTimeout(timeout)
