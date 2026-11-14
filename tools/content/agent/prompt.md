@@ -201,7 +201,7 @@ The check flags these; they do not lower confidence.
 - Level scaling ("Increase to 2d6 at 11th level and 3d6 at 21st level",
   "Level 11: Ongoing 10 damage.") is `byLevel` on the clause it scales
   (`[{"level": 11, "value": "2d6"}, {"level": 21, "value": "3d6"}]`), the
-  scaling words uncovered; one that changes anything else (area, condition) stays unparsed.
+  scaling words uncovered; one that changes anything else (area, condition, plain to ongoing damage) stays unparsed.
 - Amounts of the creature's level: "one-half its level" is `half-level`, "8 +
   this creature's level" `level` with `plus: 8` (damage: `amount`, no
   `dice`). "2d8 + Strength modifier necrotic damage" is `damage-formula` (its `byLevel` values the formula text).
