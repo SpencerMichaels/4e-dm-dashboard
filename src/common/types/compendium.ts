@@ -43,4 +43,16 @@ export interface ItemIndexEntry {
   price: string
   slot: string
   source: string
+  /** Lowest version's price in gp; null when none is printed ("Special", "Priceless", artifacts, sets). */
+  priceGp: number | null
+  /** Subtype Consumable or Ammunition, or a power with usage 'consumable'. */
+  consumable: boolean
+  /** Kit Item.subtype: "Consumable", "Ammunition", "Divine Boon", "Artifact", ... */
+  subtype?: string
+  /** Tier-only items (artifacts, boons). */
+  tier?: 'heroic' | 'paragon' | 'epic'
+  /** Lowest version's enhancement bonus. */
+  enhancement?: number
+  /** Kit Item.enhancementTargets: what the enhancement bonus applies to. */
+  enhancementTargets?: ('attack' | 'damage' | 'ac' | 'fortitude' | 'reflex' | 'will')[]
 }

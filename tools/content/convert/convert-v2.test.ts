@@ -6,7 +6,8 @@ import { auraRangeIf, parseMonsterHtml } from '../html-parser'
 import { parseTrapHtml } from '../trap-parser'
 import { Notes, damageModifier, parseSources, saveEndsClauses, splitRangePrefix, type ConvertContext } from './common'
 import { checkFrom, enduranceFrom } from './disease'
-import { armorFrom, cleanWeight, parsePrice, tierOf } from './item'
+import { parseItemHtml } from '../item-parser'
+import { armorFrom, cleanWeight, convertItem, enhancementTargetsOf, parsePrice, tierOf } from './item'
 import { convertMonster, convertPower } from './monster'
 import { convertTemplate, convertTheme, prereqFromCheck } from './template'
 import { convertTrap, isSkillHeading, parseTrapSpeed } from './trap'
@@ -109,6 +110,25 @@ describe('items', () => {
     expect(armorFrom('Masterwork mail.\nAC Bonus: +8\nMinimum Enhancement Value: +3\nCheck: -1\nSpeed: -1\nWeight: 40 lb.\nType: Chainmail')).toEqual({
       armor: { category: 'Chainmail', acBonus: 8, check: -1, speed: -1, minEnhancement: 3 }, rest: 'Masterwork mail.\nWeight: 40 lb.',
     })
+  })
+
+  // Trimmed from content/raw/item.json (item587, item588): a single version prints its price on the slot line.
+  it('reads the price of a single-version item from its slot line', () => {
+    const head = (name: string, line: string) => `<h1 class=mihead>${name}<span class=milevel id=headerlevel>Level 5 Uncommon</span></h1><p class=mistat><b>Wondrous Item</b>        ${line}</p><h2 class=mihead>Property</h2><p class=mistat>It holds things.<br></p>`
+    const bag = convertItem('item587', parseItemHtml(head('Bag of Holding', '1,000 gp'), 'item'), ctx)
+    expect(bag.levels).toEqual([{ level: 5, price: 1000 }])
+    expect(bag.slot).toBe('wondrous')
+    expect(bag.itemType).toBeUndefined()
+    const canaries = convertItem('item588', parseItemHtml(head('Canaries', 'Priceless'), 'item'), ctx)
+    expect(canaries.levels).toEqual([{ level: 5, price: null, priceText: 'Priceless' }])
+  })
+
+  it('reads what the enhancement bonus applies to', () => {
+    expect(enhancementTargetsOf('+3 to attack rolls and damage rolls', false, 'weapon', 'weapon')).toEqual(['attack', 'damage'])
+    expect(enhancementTargetsOf('Fortitude, Reflex, and Will', true, 'item', 'neck')).toEqual(['fortitude', 'reflex', 'will'])
+    expect(enhancementTargetsOf('+1 to all defenses', true, 'item', 'arms')).toEqual(['ac', 'fortitude', 'reflex', 'will'])
+    expect(enhancementTargetsOf(undefined, true, 'armor', 'body')).toEqual(['ac'])
+    expect(enhancementTargetsOf(undefined, false, 'weapon', 'weapon')).toBeUndefined()
   })
 })
 

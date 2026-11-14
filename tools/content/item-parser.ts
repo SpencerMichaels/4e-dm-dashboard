@@ -130,7 +130,7 @@ function parseMagicalItem(html: string, category: ParsedItem['category']): Parse
       if (lvl > 0 || price) levels.push({ level: lvl, enhancement: enh || undefined, price })
     }
   }
-  const price = levels.length > 0 ? levels[0].price : ''
+  let price = levels.length > 0 ? levels[0].price : ''
 
   // Slot + itemType from first <p class=mistat> with bold label
   // e.g. <b>Armor:</b> Cloth, leather or hide → slot="Armor", itemType="Cloth, leather or hide"
@@ -151,11 +151,13 @@ function parseMagicalItem(html: string, category: ParsedItem['category']): Parse
   if (slotMatch) {
     const rawSlot = slotMatch[1].replace(/:?\s*$/, '').replace(/\s+Slot$/, '').trim()
     const rawType = slotMatch[2].trim()
-    const cleanType = rawType.replace(/\s*\d[\d,]*\s*gp\s*/g, '').trim()
+    const cleanType = rawType.replace(/\s*\d[\d,]*\s*gp\s*|\s*\b(?:Priceless|Special)$/g, '').trim()
     if (KNOWN_SLOTS.has(rawSlot)) {
       slot = rawSlot
       itemType = cleanType
     }
+    // A single-version item prints its price on the slot line ("Wondrous Item 1,000 gp").
+    if (!price) price = rawType.match(/\d[\d,]*\s*gp\b|\b(?:Priceless|Special)$/)?.[0] ?? ''
   }
 
   // Enhancement

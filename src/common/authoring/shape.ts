@@ -649,8 +649,8 @@ export function monsterShape(c: Checker, m: unknown): void {
 
 export function itemShape(c: Checker, it: unknown): void {
   if (!c.obj(it, '$')) return
-  c.keys(it, ['id', 'name', 'category', 'level', 'rarity', 'tier', 'levels', 'slot', 'subtype', 'itemType', 'critical', 'properties',
-    'propertyLevelSteps', 'special', 'requirement', 'weight', 'powers', 'weapon', 'armor', 'ritual', 'alchemical', 'itemSet', 'flavor', 'description', 'sources', 'provenance'], '$')
+  c.keys(it, ['id', 'name', 'category', 'level', 'rarity', 'tier', 'levels', 'enhancementTargets', 'slot', 'subtype', 'itemType', 'critical',
+    'properties', 'propertyLevelSteps', 'special', 'requirement', 'weight', 'powers', 'weapon', 'armor', 'ritual', 'alchemical', 'itemSet', 'flavor', 'description', 'sources', 'provenance'], '$')
   c.str(it.id, '$.id', { nonEmpty: true })
   c.str(it.name, '$.name', { nonEmpty: true })
   c.oneOf(['item', 'weapon', 'armor', 'implement', 'ritual', 'alchemical', 'set'], it.category, '$.category')
@@ -665,6 +665,7 @@ export function itemShape(c: Checker, it: unknown): void {
     if (l.price !== null) c.num(l.price, `${p}.price`, { min: 0 })
     c.optional(l, 'priceText', p, (v, q) => c.str(v, q, { nonEmpty: true }))
   })
+  c.optional(it, 'enhancementTargets', '$', (v, p) => list(c, v, p, (t, q) => c.oneOf(['attack', 'damage', 'ac', 'fortitude', 'reflex', 'will'], t, q)))
   c.optional(it, 'slot', '$', (v, p) => c.oneOf(['head', 'neck', 'arms', 'hands', 'waist', 'feet', 'ring', 'body', 'weapon',
     'implement', 'tattoo', 'wondrous', 'mount', 'ki-focus'], v, p))
   c.optional(it, 'subtype', '$', (v, p) => c.str(v, p, { nonEmpty: true }))

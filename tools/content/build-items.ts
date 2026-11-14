@@ -8,6 +8,7 @@ import { join } from 'path'
 const CONTENT_DIR = join(__dirname, '..', '..', 'content')
 import { parseItemHtml, type ParsedItem } from './item-parser'
 import { extractFirstBook } from './build-utils'
+import { convertItem } from './convert/item'
 
 const RAW_DIR = join(CONTENT_DIR, 'raw')
 const OUT_DIR = join(CONTENT_DIR, 'parsed')
@@ -27,6 +28,7 @@ function main() {
   let total = 0, success = 0
   const warnings: string[] = []
   const byCat: Record<string, number> = {}
+  const rawHtml: Record<string, string> = {}
 
   for (const { file, category } of CATEGORIES) {
     const path = join(RAW_DIR, file)
@@ -43,6 +45,7 @@ function main() {
       try {
         const item = parseItemHtml(html, category)
         parsed[id] = item
+        rawHtml[id] = html
         success++
         catCount++
       } catch (e: any) {
@@ -158,16 +161,25 @@ function main() {
   writeFileSync(outPath, json)
   console.log(`\nWrote ${outPath} (${(json.length / 1024 / 1024).toFixed(1)} MB)`)
 
-  // Build compact index for fast compendium browsing
+  // Build compact index for fast compendium browsing; the numbers come from the kit Item.
+  const ctx = { provenance: { origin: 'parser' as const, by: 'tools/content', at: '' } }
   const indexEntries = Object.entries(parsed).map(([id, item]) => {
     const maxLevel = item.levels && item.levels.length > 1
       ? Math.max(...item.levels.map(l => l.level)) : undefined
+    const kit = convertItem(id, item, ctx, rawHtml[id])
+    const lowest = kit.levels.reduce((a, b) => (b.level < a.level ? b : a), kit.levels[0])
     return {
       id, name: item.name,
       category: item.category, level: item.level,
       maxLevel,
       rarity: item.rarity, price: item.price, slot: item.slot,
       source: extractFirstBook(item.source ?? ''),
+      priceGp: lowest?.price ?? null,
+      consumable: /^(consumable|ammunition)$/i.test(kit.subtype ?? '') || kit.powers.some(p => p.usage === 'consumable'),
+      subtype: kit.subtype,
+      tier: kit.tier,
+      enhancement: lowest?.enhancement,
+      enhancementTargets: kit.enhancementTargets,
     }
   }).sort((a, b) => a.name.localeCompare(b.name))
 

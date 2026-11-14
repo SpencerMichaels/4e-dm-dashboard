@@ -6,6 +6,7 @@ import {
   Notes, compact, hitLine, line, normText, optLine, parseAttackLine, parseSources, provenanceFor,
   toActionType, toUsage, type ConvertContext,
 } from './common'
+import { enhancementForLevel } from '../../../src/common/rules/items'
 
 const SLOT_MAP: Record<string, ItemSlot> = {
   'head': 'head', 'neck': 'neck', 'arms': 'arms', 'hands': 'hands', 'waist': 'waist', 'feet': 'feet',
@@ -64,6 +65,34 @@ export function armorFrom(description: string): { armor: NonNullable<Item['armor
   return { armor, rest }
 }
 
+type EnhancementTarget = NonNullable<Item['enhancementTargets']>[number]
+
+/**
+ * What an enhancement bonus applies to, from the printed line ("+2 to attack rolls and
+ * damage rolls", "AC", "Fortitude, Reflex, and Will", "+1 to all defenses"); with no line,
+ * from the category or slot (weapons and implements: attack and damage, armor: AC, neck:
+ * Fortitude, Reflex and Will). Undefined when there is no enhancement bonus.
+ */
+export function enhancementTargetsOf(text: string | undefined, hasBonus: boolean, category: Item['category'], slot: ItemSlot | undefined): EnhancementTarget[] | undefined {
+  const t = normText(text ?? '').toLowerCase()
+  if (t) {
+    const all = /\ball defenses\b/.test(t)
+    const out: EnhancementTarget[] = []
+    if (/\battack\b/.test(t)) out.push('attack')
+    if (/\bdamage\b/.test(t)) out.push('damage')
+    if (all || /\bac\b/.test(t)) out.push('ac')
+    if (all || /\bfortitude\b/.test(t)) out.push('fortitude')
+    if (all || /\breflex\b/.test(t)) out.push('reflex')
+    if (all || /\bwill\b/.test(t)) out.push('will')
+    if (out.length > 0) return out
+  }
+  if (!hasBonus) return undefined
+  if (category === 'weapon' || category === 'implement') return ['attack', 'damage']
+  if (category === 'armor') return ['ac']
+  if (slot === 'neck') return ['fortitude', 'reflex', 'will']
+  return undefined
+}
+
 /** The slot heading when it names a kind of item rather than a body slot ("Consumable", "Divine Boon"). */
 function subtypeOf(it: ParsedItem, slot: ItemSlot | undefined): string | undefined {
   if (/group set/i.test(it.rarity ?? '')) return 'Group Set'
@@ -102,10 +131,17 @@ export function convertItem(id: string, it: ParsedItem, ctx: ConvertContext, raw
   const subtype = subtypeOf(it, slot)
   if (rarity && !['common', 'uncommon', 'rare'].includes(rarity) && !tier) notes.add(`rarity "${it.rarity}" is not common/uncommon/rare`)
   const armor = category === 'armor' && !it.descriptionParts ? armorFrom(it.description ?? '') : undefined
-  // The usual enhancement targets follow from the slot; only note unusual ones.
-  if (it.enhancement && !/^(attack rolls and damage rolls|ac|fortitude, reflex, and will)\.?$/i.test(it.enhancement.trim())) {
-    notes.add(`enhancement applies to: ${it.enhancement}`)
+  // A tier-only item prints its bonus on the line ("+3 to attack rolls and damage rolls").
+  const lineBonus = it.enhancement?.match(/^\s*\+(\d)\b/)?.[1]
+  // A single version with an unnumbered line ("Enhancement: attack rolls and damage rolls")
+  // has the bonus of its level (PHB p. 225).
+  const bonus = lineBonus ? parseInt(lineBonus) : it.enhancement && levels[0]?.level > 0 ? enhancementForLevel(levels[0].level) : undefined
+  if (bonus !== undefined && levels.length === 1 && levels[0].enhancement === undefined) {
+    levels[0] = compact({ level: levels[0].level, enhancement: bonus, price: levels[0].price, priceText: levels[0].priceText })
   }
+  const enhancementTargets = enhancementTargetsOf(it.enhancement, levels.some(l => l.enhancement !== undefined), category, slot)
+  if (it.enhancement && !enhancementTargets) notes.add(`enhancement applies to: ${it.enhancement}`)
+  if (it.enhancement && /\bor\b|\bif\b|\bwhile\b/i.test(it.enhancement)) notes.add(`enhancement applies to: ${it.enhancement}`)
 
   const isWeapon = it.category === 'weapon' && (it.damage || it.proficiency)
   const isRitual = it.category === 'ritual' || !!it.keySkill
@@ -118,6 +154,7 @@ export function convertItem(id: string, it: ParsedItem, ctx: ConvertContext, raw
     rarity: rarity === 'common' || rarity === 'uncommon' || rarity === 'rare' ? rarity : null,
     tier,
     levels,
+    enhancementTargets,
     slot,
     subtype,
     itemType: it.itemType || undefined,
