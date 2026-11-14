@@ -6,7 +6,7 @@
 // in its chip.
 
 import { useState, type KeyboardEvent, type MouseEvent } from 'react'
-import { abbreviateDefense, groupLines, textAtLevel, usageChipLabel, usedChipLabel, type CardLine } from '@common/rules/power-card'
+import { abbreviateDefense, groupLines, textAtLevel, usageChipLabel, usedChipLabel, type CardLine } from '@kit'
 import { DiseaseChips } from '../disease/disease-refs'
 import { usageTone, DND4E_ACTION_TYPES, sign, normalizeDamage, type DamagePart } from './dnd4e-utils'
 import { tint } from '../../utils/color'

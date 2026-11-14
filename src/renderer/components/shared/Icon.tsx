@@ -1,10 +1,10 @@
 // Lucide icons by name (kebab case, as lucide.dev lists them: "app-window", "flame"). Names also come from
-// shared tables (src/common/rules/power-card.ts, condition and damage-type styles) so the app and 4ecb agree
+// shared tables (the kit's power-card.ts, condition and damage-type styles) so the app and 4ecb agree
 // on what each action, range, and condition shows. A desktop app, so the whole icon set is bundled.
 
 import type { LucideIcon, LucideProps } from 'lucide-react'
 import { icons } from 'lucide-react'
-import { ACTION_TYPE_ICON } from '@common/rules/power-card'
+import { ACTION_TYPES, ACTION_TYPE_ICON, isOneOf } from '@kit'
 
 const pascal = (name: string) => name.replace(/(^|-)([a-z0-9])/g, (_, __, c: string) => c.toUpperCase())
 
@@ -35,6 +35,6 @@ const ACTION_WORDS: Record<string, string> = {
 
 /** The action type's icon, as 4ecb draws it (a filled circle for standard actions, as the book prints it). */
 export function ActionTypeIcon({ action }: { action?: string }) {
-  if (!action || !ACTION_TYPE_ICON[action]) return null
+  if (!isOneOf(ACTION_TYPES, action)) return null
   return <Icon name={ACTION_TYPE_ICON[action]} label={ACTION_WORDS[action] ?? action} className="action-type-icon" fill={action === 'standard' ? 'currentColor' : 'none'} />
 }
