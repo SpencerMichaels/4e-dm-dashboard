@@ -130,6 +130,18 @@ app.whenReady().then(async () => {
       await clickButton(kind)
       await until(() => document.querySelectorAll('.record-row').length > 0, `the ${kind} list`)
       await js(() => document.querySelector('.record-row').click())
+      if (kind !== 'Traps') continue
+      // A first edit adds the campaign copy; its right-click menu holds plain menu items.
+      await js(() => { const el = document.querySelector('.compendium-preview input.sb-name'); el.focus(); el.select() })
+      await wc.insertText('Button Smoke Trap')
+      await until(async () => (await window.api.entity.list('trap')).length > 0, 'the campaign trap')
+      await clickButton('Back')
+      await until(() => [...document.querySelectorAll('.record-row')].some(r => r.textContent.includes('Button Smoke Trap')), 'the campaign trap row')
+      await js(() => { const r = [...document.querySelectorAll('.record-row')].find(r => r.textContent.includes('Button Smoke Trap')); r.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, clientX: 300, clientY: 300 })) })
+      await until(() => !!document.querySelector('.record-menu'), 'the right-click menu')
+      await audit('compendium right-click menu')
+      await escape()
+      await js(() => document.body.dispatchEvent(new MouseEvent('mousedown', { bubbles: true })))
       await sleep(400)
       await audit(`${kind} preview`)
       await js(() => document.querySelector('.record-row').dispatchEvent(new MouseEvent('dblclick', { bubbles: true })))
