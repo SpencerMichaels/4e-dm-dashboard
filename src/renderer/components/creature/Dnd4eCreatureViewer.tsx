@@ -91,7 +91,8 @@ export function Dnd4eCreatureViewer({ creature, tooltip: tip, compendiumId: comp
   const imageUrl = useImage(effectiveImageId)
   const showImageEditor = !!onImageChange
   const level = (sb.level as number) ?? 1
-  const role = (sb.role as string) ?? ''
+  // A companion or NPC block has a class role ("Level 4 Defender") and no XP.
+  const role = ((sb.role ?? sb.classRole) as string) ?? ''
   const modifier = (sb.monsterModifier as string) ?? ''
   const halfLvl = Math.floor(level / 2)
   const roleLabel = (modifier ? capitalize(modifier) + ' ' : '') + (role ? capitalize(role) : '')
@@ -103,11 +104,13 @@ export function Dnd4eCreatureViewer({ creature, tooltip: tip, compendiumId: comp
     return arr.map((x: any) => typeof x === 'string' ? { name: x } : { name: x?.name ?? '', _templateSource: x?._templateSource, _templateSourceIndex: x?._templateSourceIndex })
   }
   const subtypes = normalizeNamed(sb.subtypes)
+  // "HP 66 (99 if in a possessed body)"
+  const hpIf = ((sb.hpIf ?? []) as { value: number; if: string | string[] }[]).map(h => `${h.value} ${([] as string[]).concat(h.if).join(' ')}`)
   const abilities = (sb.abilities as Record<string, number>) ?? {}
   const defs = (sb.defenses as Record<string, number>) ?? {}
   const skills = (sb.skills as Record<string, number>) ?? {}
   const speeds = (sb.speeds as Record<string, number>) ?? {}
-  const immunities = Array.isArray(sb.immunities) ? sb.immunities as { type: string; _templateSource?: string; _templateSourceIndex?: number }[] : []
+  const immunities = Array.isArray(sb.immunities) ? sb.immunities as { type: string; note?: string; _templateSource?: string; _templateSourceIndex?: number }[] : []
   const resistances = Array.isArray(sb.resistances) ? sb.resistances as { type: string; value?: number; _templateSource?: string; _templateSourceIndex?: number }[] : []
   const weaknesses = Array.isArray(sb.weaknesses) ? sb.weaknesses as { type: string; value?: number; _templateSource?: string; _templateSourceIndex?: number }[] : []
   const actions = Array.isArray(sb.actions) ? sb.actions as PowerEntry[] : []
@@ -213,7 +216,7 @@ export function Dnd4eCreatureViewer({ creature, tooltip: tip, compendiumId: comp
             <span key={s.name + i}>{i > 0 && ', '}<span style={templateItemStyle(s)} title={templateItemTitle(s, tooltip(s.name))}>{s.name}</span></span>
           ))})</>}
         </span>
-        <span>XP {xpForCreature(level, modifier)}</span>
+        {!sb.classRole && <span>XP {sb.xp === 0 ? 0 : xpForCreature(level, modifier)}</span>}
       </div>
 
       {/* Stats + image side by side */}
@@ -251,7 +254,12 @@ export function Dnd4eCreatureViewer({ creature, tooltip: tip, compendiumId: comp
       {/* Group 2: HP, AC, Defenses, Immune/Resist/Vulnerable */}
       <div className="sb-row">
         <Annotation anchor={stat('hp')} />
-        <span><b className="sb-label">HP</b> <StatNumber value={creature.hp} field="hp" diffs={diffs} />; <b className="sb-label">Bloodied</b> {Math.floor(creature.hp / 2)}</span>
+        {sb.noHitPoints
+          ? <span><b className="sb-label">HP</b> {sb.hpText as string}</span>
+          : <span><b className="sb-label">HP</b> <StatNumber value={creature.hp} field="hp" diffs={diffs} />{hpIf.length > 0 && ` (${hpIf.join('; ')})`}; <b className="sb-label">Bloodied</b> {Math.floor(creature.hp / 2)}
+            {sb.healingSurges != null && <>; <b className="sb-label">Healing Surges</b> {sb.healingSurges as number}</>}
+            {sb.surgeValue != null && <>; <b className="sb-label">Surge Value</b> {sb.surgeValue as number}</>}
+            {(sb.hpText as string) && <>; {sb.hpText as string}</>}</span>}
       </div>
       <div className="sb-row">
         <Annotation anchor={stat('defenses')} />
@@ -264,7 +272,7 @@ export function Dnd4eCreatureViewer({ creature, tooltip: tip, compendiumId: comp
         <div className="sb-row">
           <Annotation anchor={stat('resistances')} />
           {immunities.length > 0 && <span><b className="sb-label">Immune</b> {immunities.map((e, i) => (
-            <span key={i}>{i > 0 && ', '}<span style={templateItemStyle(e)} title={templateItemTitle(e, tooltip(e.type))}>{e.type}</span></span>
+            <span key={i}>{i > 0 && ', '}<span style={templateItemStyle(e)} title={templateItemTitle(e, tooltip(e.type))}>{e.type}{e.note ? ` (${e.note})` : ''}</span></span>
           ))}</span>}
           {immunities.length > 0 && (resistances.length > 0 || weaknesses.length > 0) && <span>;</span>}
           {resistances.length > 0 && <span><b className="sb-label">Resist</b> {resistances.map((e, i) => (

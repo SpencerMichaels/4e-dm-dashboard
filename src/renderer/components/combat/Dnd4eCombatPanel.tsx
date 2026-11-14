@@ -92,7 +92,7 @@ export function Dnd4eCombatPanel({
         </span>
         {c.isPC ? <span>{sheet ? sheetSubtitle(sheet) : c.playerName}</span> : <span>Level {sb.level} {(() => {
           const mod = sb.monsterModifier as string | undefined
-          const role = sb.role as string | undefined
+          const role = (sb.role ?? sb.classRole) as string | undefined
           return (mod ? capitalize(mod) + ' ' : '') + (role ? capitalize(role) : '')
         })()}</span>}
       </div>

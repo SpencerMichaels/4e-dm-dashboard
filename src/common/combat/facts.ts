@@ -89,8 +89,12 @@ export function revival(c: WithContent): Revival | undefined {
 /** Traps without initiative act only when triggered and stay out of the turn order. */
 export const actsOnInitiative = (c: WithContent) => c.kind !== 'trap' || trap(c)?.initiative !== undefined
 
-/** Traps without hit points ("see text", or none) can't be reduced to 0; they're disabled instead. */
-export const hasHitPoints = (c: WithContent) => c.kind !== 'trap' || trap(c)?.hp !== undefined
+/**
+ * Traps without hit points ("see text", or none) can't be reduced to 0; they're disabled instead.
+ * Neither can a monster printed with HP 0 and words instead ("infinite hit points").
+ */
+export const hasHitPoints = (c: WithContent) =>
+  c.kind === 'trap' ? trap(c)?.hp !== undefined : !(monster(c)?.hp === 0 && monster(c)?.hpText)
 
 /** Out of the fight: marked dead, or a monster (or trap with hit points) at 0 HP. PCs at 0 HP are dying, not defeated. */
 export const isDefeated = (c: WithContent & { isPC: boolean; hp: number; dead?: boolean }) =>

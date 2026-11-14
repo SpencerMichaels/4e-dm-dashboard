@@ -65,6 +65,16 @@ describe.skipIf(!hasContent)('combat facts from converted monsters', () => {
     const diffs = compare('published', id => ({ kind: 'creature', content: publishedMonster(root, id, () => null)! }))
     expect(diffs).toEqual({})
   }, 120_000)
+
+  it('a monster printed with HP 0 and words instead is never defeated by damage', () => {
+    const colossus = { kind: 'creature' as const, content: publishedMonster(root, 'monster4448', () => null)! }
+    expect(colossus.content.hp).toBe(0)
+    expect(colossus.content.hpText).toMatch(/infinite hit points/)
+    expect(facts.hasHitPoints(colossus)).toBe(false)
+    expect(facts.isDefeated({ ...colossus, isPC: false, hp: 0 })).toBe(false)
+    const ogre = { kind: 'creature' as const, content: { ...colossus.content, hp: 0, hpText: undefined } }
+    expect(facts.isDefeated({ ...ogre, isPC: false, hp: 0 })).toBe(true)
+  })
 })
 
 describe('campaign creature conversion', () => {

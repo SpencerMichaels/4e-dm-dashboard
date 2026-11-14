@@ -50,8 +50,9 @@ export function monsterToCreature(m: Monster, id = m.id, at = m.provenance.at): 
   return {
     id, name: m.name, hp: m.hp, maxHp: m.hp, createdAt: at, updatedAt: at,
     statBlock: {
-      level: m.level, role: m.role, monsterModifier: m.rank === 'standard' ? '' : m.rank, leader: m.leader,
+      level: m.level, role: m.role, classRole: m.classRole, monsterModifier: m.rank === 'standard' ? '' : m.rank, leader: m.leader,
       size: m.size, origin: m.origin, creatureType: m.type, subtypes: m.keywords, xp: m.xp, hp: m.hp,
+      hpText: m.hpText, hpIf: m.hpIf, healingSurges: m.healingSurges, surgeValue: m.surgeValue,
       initiative: m.initiative, perception: m.perception, senses: m.senses.map(s => `${s.kind.replace(/-vision$/, ' vision')}${s.range ? ' ' + s.range : ''}`),
       speed: walk, speeds, speedNotes: notes, ac: m.defenses.ac, defenses: m.defenses,
       savingThrowBonus: m.savingThrowBonus, actionPoints: m.actionPoints, immunities: m.immune,

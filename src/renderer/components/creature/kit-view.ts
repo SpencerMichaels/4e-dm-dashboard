@@ -17,6 +17,7 @@ const stamp = (item: object, s: Source | undefined) => !s ? item
 export function kitStatBlock(m: Monster, attribution?: Attribution): Record<string, any> {
   const sb = monsterToCreature(m).statBlock as Record<string, any>
   if (m.rank === 'minion') sb.isMinion = true
+  if (m.hp === 0 && m.hpText) sb.noHitPoints = true
   if (!attribution) return sb
   const src = attribution.sources
   sb._templateDiffs = attribution.diffs

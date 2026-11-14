@@ -168,6 +168,8 @@ export function Dnd4eEncounterEditor({ encounter, onSave, creatures, onNavigate 
     for (const ec of encounter.creatures) {
       const info = resolveInfo(ec)
       if (!info) continue
+      // A block printed with no XP (a companion, a set piece) adds none.
+      if (info.preview?.monster.xp === 0) continue
       if (ec.isMinion || info.preview?.baseRank === 'minion') {
         xp += Math.round(xpForCreature(info.level, '') / 4) * ec.count
         continue
@@ -561,7 +563,7 @@ export function Dnd4eEncounterEditor({ encounter, onSave, creatures, onNavigate 
               const effectiveModifier = modifierLevels[effectiveIdx] === 'standard' ? '' : modifierLevels[effectiveIdx]
               const nativeMinion = preview?.baseRank === 'minion'
               const isMinion = !!ec.isMinion || nativeMinion
-              const creatureXP = isMinion
+              const creatureXP = preview?.monster.xp === 0 ? 0 : isMinion
                 ? Math.round(xpForCreature(level, '') / 4)
                 : xpForCreature(level, effectiveModifier)
               const modLbl = isMinion
