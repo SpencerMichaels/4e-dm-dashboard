@@ -5,7 +5,8 @@
   padding: var(--space-2);
 }
 
-.logo {
+/* "DM Dashboard", or the open campaign's name: at most two lines, then an ellipsis (full name in the tooltip). */
+.header {
   padding: var(--space-3) var(--space-2);
   font-family: var(--font-display);
   font-size: var(--font-size-xl);
@@ -14,31 +15,17 @@
   color: var(--text);
   border-bottom: 1px solid var(--border);
   margin-bottom: var(--space-2);
+  flex-shrink: 0;
 }
 
-.campaignName {
-  padding: 0 var(--space-2) var(--space-2);
-  font-size: var(--font-size-sm);
-  font-weight: 600;
-  color: var(--text);
+/* One line; useFitText shrinks the font for long names, then the ellipsis takes over.
+   The line height stays at the full size so the nav doesn't shift between campaigns. */
+.headerText {
+  display: block;
+  line-height: calc(var(--font-size-xl) * 1.2);
+  white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.noCampaign {
-  margin: 0 var(--space-2) var(--space-2);
-  padding: var(--space-1) var(--space-2);
-  font-size: var(--font-size-sm);
-  color: var(--danger);
-  border: 1px dashed var(--danger);
-  border-radius: var(--radius-sm);
-  text-align: left;
-  cursor: pointer;
-}
-
-.noCampaign:hover {
-  background: var(--hover);
 }
 
 .section {
@@ -67,12 +54,7 @@
   text-align: left;
 }
 
-.item:disabled {
-  opacity: 0.45;
-  cursor: not-allowed;
-}
-
-.item:hover:not(:disabled) {
+.item:hover {
   background: var(--hover);
   color: var(--text);
 }
@@ -82,27 +64,16 @@
   color: var(--text);
 }
 
+/* Rare actions (Close Campaign): plain nav rows, set apart from the pages by sitting at the bottom above the icon row. */
+.footer {
+  margin-top: auto;
+  padding-bottom: var(--space-2);
+}
+
 .itemIcon {
   width: 18px;
   text-align: center;
   flex-shrink: 0;
-}
-
-/* An action, not a destination: bordered so it reads as a button among the nav rows. */
-.closeCampaign {
-  width: calc(100% - 2 * var(--space-2));
-  margin: 0 var(--space-2);
-  padding: var(--space-1) var(--space-3);
-  font-size: var(--font-size-sm);
-  color: var(--muted);
-  text-align: left;
-  border: 1px solid var(--border-strong);
-  border-radius: var(--radius-sm);
-}
-
-.closeCampaign:hover {
-  background: var(--hover);
-  color: var(--text);
 }
 
 .actionRow {

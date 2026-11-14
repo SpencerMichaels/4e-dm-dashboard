@@ -20,7 +20,7 @@ export function CommandPalette() {
   const [selectedIndex, setSelectedIndex] = useState(0)
   const inputRef = useRef<HTMLInputElement>(null)
   const { setView, setCommandPaletteOpen, toggleTheme, setThemePreference, toggleSidebar } = useUiStore()
-  const { creatures, encounters, locations, items, playerCharacters } = useCampaignStore()
+  const { campaignId, creatures, encounters, locations, items, playerCharacters } = useCampaignStore()
   const library = useLibraryStore()
   const { createCreature, createEncounter, createLocation, createItem } = useCampaignActions()
 
@@ -31,7 +31,7 @@ export function CommandPalette() {
   const commands = useMemo<Command[]>(() => {
     const cmds: Command[] = [
       // Navigation
-      { id: 'home', icon: '🏠', label: 'Go to Home', action: () => nav({ type: 'home' }) },
+      { id: 'home', icon: '🏠', label: campaignId ? 'Go to Home' : 'Browse Campaigns', action: () => nav({ type: 'home' }) },
       { id: 'combat', icon: '⚔️', label: 'Go to Combat', action: () => nav({ type: 'combat' }) },
 
       // Create
@@ -56,7 +56,7 @@ export function CommandPalette() {
       ...playerCharacters.map(p => ({ id: `pc-${p.id}`, icon: '🧑', label: p.name || 'Unnamed Character', hint: 'PC', action: () => nav({ type: 'entity-list', entityType: 'player-character' }) })),
     ]
     return cmds
-  }, [creatures, encounters, locations, items, playerCharacters, library.creatures, library.items])
+  }, [campaignId, creatures, encounters, locations, items, playerCharacters, library.creatures, library.items])
 
   const filtered = useMemo(() => {
     if (!query) return commands.slice(0, 20)
