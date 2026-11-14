@@ -45,6 +45,7 @@ const STATUS_WORDS: Record<string, RegExp> = {
   insubstantial: /\binsubstantial/i,
   phasing: /\bphas(e|es|ing)\b/i,
   'no-provoke': /\bprovok/i,
+  'no-saving-throws': /\bsaving throws?\b|\bsaves?\b/i,
   'no-concealment': /\bconceal|\binvisib/i,
   'no-regain-hp': /\bregain|\bheal/i,
   'no-healing-surges': /\bsurge/i,
@@ -75,7 +76,19 @@ const RESTRICTION_WORDS: Record<string, RegExp> = {
 }
 
 /** The words of a damage amount that is not dice (a "half-" amount also needs "half"). */
-const DAMAGE_AMOUNT_WORDS: Record<string, RegExp> = { 'surge-value': /\bsurge/i, 'bloodied-value': /\bbloodied/i, 'damage-dealt': /\bdamage/i }
+const DAMAGE_AMOUNT_WORDS: Record<string, RegExp> = { 'surge-value': /\bsurge/i, 'bloodied-value': /\bbloodied/i, 'damage-dealt': /\bdamage/i, 'level': /\blevel/i }
+
+/** What a countermeasure's success does, in its words; 'avoid', 'identify' and 'other' need none. */
+const COUNTER_WORDS: Record<string, RegExp> = {
+  disable: /\bdisabl|\bdeactivat|\bshut|\bstop|\bjam|\bdispel|\bneutraliz|\bend/i,
+  delay: /\bdelay|\bdoes not attack|\bdoesn['’]t attack|\bskip/i,
+  destroy: /\bdestroy|\battack|\bbreak|\bhp\b|\bhit points/i,
+  predict: /\bpredict|\bdetermine|\bnext/i,
+  control: /\bcontrol|\bcommand|\bdirect|\baim/i,
+}
+
+/** "twice", "three times", "two turns": a turn count in words. */
+const TIMES_WORDS: Record<number, RegExp> = { 2: /\btwice\b|\btwo\b/i, 3: /\bthree\b|\bthrice\b/i, 4: /\bfour\b/i }
 
 const AUTOMATIC_WORDS: Record<string, RegExp> = { hit: /\bhit/i, miss: /\bmiss/i, critical: /\bcrit/i, save: /\bsav(e|es|ing)\b|\bsucceed/i }
 
@@ -167,6 +180,7 @@ export function spanProblem(clause: Clause, span: string, after = '', before = '
         const word = DAMAGE_AMOUNT_WORDS[clause.amount.replace(/^half-/, '')]
         if (word && !has(word)) return `no "${word.source.replace(/\\b/g, '')}" in span for amount "${clause.amount}"`
         if (clause.amount.startsWith('half-') && !has(/\bhal(f|ved?)\b/i)) return `no "half" in span for amount "${clause.amount}"`
+        if (clause.plus !== undefined && !num(Math.abs(clause.plus))) return `plus ${clause.plus} not in span`
       } else if (!hasDice(span, clause.dice ?? '')) return `dice "${clause.dice}" not in span`
       // "crit" in the quote or its sentence: "(crit 4d8+23 damage plus 8 thunder damage)" (both
       // parts), "If the titan scores a critical hit, the damage is 4d8 + 39".
@@ -315,7 +329,8 @@ export function spanProblem(clause: Clause, span: string, after = '', before = '
       }
       return clause.value === undefined || num(clause.value) ? undefined : `value ${clause.value} not in span`
     // "cannot be knocked prone", "can't be marked" also state an immunity.
-    case 'immunity': return has(/\bimmun|\bcan ?not be\b|\bcan[’']t be\b/i) ? undefined : 'no "immune" or "cannot be" in span'
+    // "ignores forced movement" is an immunity too.
+    case 'immunity': return has(/\bimmun|\bcan ?not be\b|\bcan[’']t be\b|\bignor/i) ? undefined : 'no "immune", "cannot be" or "ignores" in span'
     // "reappears in an unoccupied square" ends removed-from-play.
     case 'end-effect': return has(/\bend(s|ed|ing)?\b|\bno longer\b|\bremov|\brid of\b|\b(re)?appears?\b/i) ? undefined : 'no "end(s)", "no longer", "removes" or "reappears" in span'
     case 'extra-action': {
@@ -365,6 +380,43 @@ export function spanProblem(clause: Clause, span: string, after = '', before = '
       if (!has(/\bheal|\bregain|\bhit points\b/i)) return 'no "healing", "regains" or "hit points" in span'
       if (clause.half && !has(/\bhalf\b/i)) return 'no "half" in span'
       return clause.value === undefined || num(clause.value) ? undefined : `value ${clause.value} not in span`
+    case 'countermeasure': {
+      // Each check's skill (or ability) and DC, and the effect's words, in the quote.
+      for (const ch of clause.checks ?? []) {
+        const word = ch.skill.startsWith('ability:') ? ABILITY_NAMES[ch.skill.slice(8)] ?? ch.skill : ch.skill
+        if (!has(new RegExp(`\\b${word}`, 'i'))) return `no "${word}" in span`
+        if (ch.dc !== undefined && !num(ch.dc)) return `DC ${ch.dc} not in span`
+      }
+      const word = COUNTER_WORDS[clause.effect]
+      if (word && !has(word)) return `no "${clause.effect}" words in span`
+      if (clause.hp !== undefined && !num(clause.hp)) return `hp ${clause.hp} not in span`
+      const def = Object.values(clause.defenses ?? {}).find(v => typeof v === 'number' && !num(v))
+      return def === undefined ? undefined : `defense ${def} not in span`
+    }
+    case 'turns': {
+      if (!has(/\binitiative|\bturns?\b|\bacts?\b|\btimes\b/i)) return 'no "initiative", "turn" or "acts" in span'
+      if (!num(clause.turns) && !TIMES_WORDS[clause.turns]?.test(span) && !(clause.counts && clause.counts.length === clause.turns)) return `${clause.turns} turns not in span`
+      const n = (clause.counts ?? []).find(x => !num(x))
+      return n === undefined ? undefined : `initiative count ${n} not in span`
+    }
+    case 'one-of':
+      if (!has(/\bone of the following|\b(two|three) of the following|\bfollowing\b/i)) return 'no "one of the following" in span'
+      return clause.chooser !== 'roll' || has(/\broll|\bd\d/i) ? undefined : 'no "roll" or die ("d6") in span'
+    case 'light': {
+      const word = { bright: /\bbright/i, dim: /\bdim\b/i, darkness: /\bdark/i, dimmer: /\bdim|\bdark|\breduc/i }[clause.light]
+      if (!has(/\blight|\bdark|\bdim\b|\bglow|\bshine|\bshed/i)) return 'no "light" or "darkness" in span'
+      if (word && !has(word)) return `no "${clause.light}" in span`
+      return clause.radius === undefined || num(clause.radius) ? undefined : `radius ${clause.radius} not in span`
+    }
+    case 'damage-type': {
+      const types = clause.types.length > 0 ? clause.types : clause.typeChoice ?? []
+      const t = types.find(x => !hasType(x))
+      return t === undefined ? undefined : `type "${t}" not in span`
+    }
+    case 'aura-off':
+      if (!has(/\baura/i) && !(clause.aura && findFragment(span, clause.aura).length > 0)) return 'no "aura" in span'
+      return has(/\bend|\bsuppress|\blos[et]|\bdeactivat|\bno longer|\boff\b|\binactive|\bdoes not function|\bdoesn['’]t function|\bnegat/i) ? undefined : 'no "ends", "suppressed" or "loses" in span'
+    case 'keyword': return findFragment(span, clause.keyword).length > 0 ? undefined : `keyword "${clause.keyword}" not in span`
     case 'unparsed':
       return span.replace(/\s+/g, ' ').trim() === clause.text.replace(/\s+/g, ' ').trim() ? undefined : 'unparsed text differs from span'
   }

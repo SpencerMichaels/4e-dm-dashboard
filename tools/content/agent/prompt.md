@@ -185,7 +185,29 @@ The check flags these; they do not lower confidence.
 - Stats printed inside a countermeasure for one part of the trap ("each
   stalagmite: AC 32, hp 25") stay in that countermeasure line; the trap-level
   `hp`/`defenses`/`resist` come only from the trap's own stat lines.
+- Each countermeasure line gets a `countermeasure` clause: `effect` what a
+  success does (a "Disable:"/"Delay:" label decides it), `checks` each printed
+  skill and DC ("Thievery DC 22 or Arcana DC 27"; "(trained only)": `trained`;
+  "Strength DC 20": `ability:str`), `action` when printed ("(minor action)"),
+  `complexity` for "Complexity 1 (4 successes before 2 failures)". Attacking a
+  part ("AC 32, other defenses 29; hp 25") is `destroy` with its `defenses`
+  (each named one) and `hp`. The quote holds the check and what success does;
+  "Failure: ..." outcomes are other clauses with `if` "Failure"; check
+  results that only give knowledge are `identify`.
 {{/traps}}
+{{#templates,themes}}
+- There is no HTML: the source text is the entry's printed lines, transcribed
+  from the books, and it is the authority.
+- Level scaling ("Increase to 2d6 at 11th level and 3d6 at 21st level",
+  "Level 11: Ongoing 10 damage.") is `byLevel` on the clause it scales
+  (`[{"level": 11, "value": "2d6"}, {"level": 21, "value": "3d6"}]`), the
+  scaling words uncovered; one that changes anything else (area, condition) stays unparsed.
+- Amounts of the creature's level: "one-half its level" is `half-level`, "8 +
+  this creature's level" `level` with `plus: 8` (damage: `amount`, no
+  `dice`). "2d8 + Strength modifier necrotic damage" is `damage-formula`.
+- "gains the necrotic keyword" is `keyword`; "change a power's energy keyword
+  to necrotic" is `damage-type`.
+{{/templates,themes}}
 
 **Lines.** `Line.text` is the printed wording, whitespace-normalized; change it
 only where the parser damaged it (dropped words, text from another field,
@@ -297,6 +319,17 @@ never write `at`. An unparsed clause is just `{"text": "<exact printed words>"}`
 - "treats the dragon as invisible" is condition invisible, `who: "self"`,
   `observer: "target"`; "can't move away from the dragon" is `move-limit` `away`.
 - "spends a healing surge" is heal `surge-value` with `spendSurge`.
+- `turns`: "rolls initiative twice", "acts three times in a round, on
+  initiative counts 20, 15, and 5" (`counts`); a turn set by another
+  creature's count stays unparsed. `one-of`: "uses one of the following eye
+  rays" whose options are the power's following attacks or labeled lines
+  (options in its own sentence are a `choice`). `summon` has `duration` when printed.
+- "This penalty is cumulative, to a maximum of -5" is `stacks: true, max: 5`
+  on the clause it qualifies ("do not stack": `stacks: false`), the sentence
+  uncovered. "cannot make saving throws" is status `no-saving-throws`;
+  "ignores forced movement" immunity `["forced-movement"]`. Also `light`
+  ("sheds bright light in a 5-square radius"; "reduced to dim light": `dim`),
+  `damage-type` ("deals cold damage instead"), `aura-off`, `keyword`.
 - `duration`: "until the end of your next turn" is
   `{"kind":"turn-end","whose":"source","next":true}`; `whose: "target"` for the
   attack target's or affected creature's turn ("the target is dazed until the
@@ -333,7 +366,7 @@ never write `at`. An unparsed clause is just `{"text": "<exact printed words>"}`
 
 | kind | the quote must contain |
 |---|---|
-| damage | the dice or flat number in printed term order ("2d6 + 5" for `2d6+5`), not "damage"; "crit" in it or its sentence if `critical`; each type in `types`, in the quote or the words after it; `amount`: "surge", "bloodied" or "damage" (and "half") |
+| damage | the dice or flat number in printed term order ("2d6 + 5" for `2d6+5`), not "damage"; "crit" in it or its sentence if `critical`; each type in `types`, in the quote or the words after it; `amount`: "surge", "bloodied", "damage" or "level" (and "half"; `plus` its number) |
 | ongoing-damage | "ongoing" and the amount (`increase`: "increases"; "ongoing" may be earlier in its sentence) |
 | condition | the condition word in any form ("dazes", "knocks prone", "removed from play", "banished", "disappears"; "asleep" for unconscious); with `escapeDc`, "escape" and the number ("escape DC 21", "escapes (DC 21)"), in the quote or later in its sentence |
 | condition, ongoing-damage with `saveModifier` | also the number with "penalty" or "bonus", and "saving throw", in the quote or later in its sentence; or "save at -2 ends" |
@@ -352,7 +385,7 @@ never write `at`. An unparsed clause is just `{"text": "<exact printed words>"}`
 | crit-range | "crit"; `min` in it or later in its sentence |
 | power-restriction | "can't"/"cannot"/"only" and each `what` ("encounter", "opportunity", "shift", "fly", "basic", "at-will"; `all`: "power"; `named`: each name in `powers`; each of `except`) |
 | redirect-attack | "instead", "redirect" or a target wording ("becomes the target", "targets another creature", "make the attack against") |
-| status | "insubstantial", "phasing", "provok", "conceal"/"invisib", "regain"/"heal", "surge", "difficult terrain", "stand", "cover", "flank", "through"/"enter", "pull"/"drag"/"with it", "temporary" |
+| status | "insubstantial", "phasing", "provok", "conceal"/"invisib", "regain"/"heal", "surge", "difficult terrain", "stand", "cover", "flank", "through"/"enter", "pull"/"drag"/"with it", "temporary", "save" |
 | opportunity-reach | "opportunity" |
 | difficult-terrain | "difficult terrain" |
 | charge | "charge" in any form |
@@ -362,7 +395,7 @@ never write `at`. An unparsed clause is just `{"text": "<exact printed words>"}`
 | sense | the sense name ("tremorsense", "low-light vision"), "see invisible", or "see"/"sight" (`sight-limit`), and `range` |
 | choice | "or", "either" or "one of the following" (`roll`: "roll" or "d6" and each of `rolls`); every option's quote lies inside it |
 | automatic | "automatic" or "instead", and "hit", "miss", "crit" or "save"/"succeed"; "is (treated as, considered) a critical hit" or "misses" alone |
-| lose-resistance, immunity | "resist" (and `value`; `what`: "vulnerab", "immun"), "immun" or "cannot be" |
+| lose-resistance, immunity | "resist" (and `value`; `what`: "vulnerab", "immun"), "immun", "cannot be" or "ignores" |
 | end-effect | "end(s)", "no longer", "removes" or "reappears" |
 | extra-action | the action ("move", "standard", "minor", "reaction") |
 | no-damage, drop-to-zero | "no damage", "negate" or "harmless"; "0 hit points", "kill", "dies" or "destroy" |
@@ -374,13 +407,24 @@ never write `at`. An unparsed clause is just `{"text": "<exact printed words>"}`
 | condition-swap | the new condition and "instead" (each replaced one in its sentence) |
 | reduced-healing | "heal", "regain" or "hit points", and "half" or `value` |
 | damage-formula | "damage" |
+| countermeasure | each check's skill (or ability) and `dc`; the effect's words ("disable"/"deactivate"/"stop", "delay", "destroy"/"attack", "predict"/"determine", "control"); `hp` and each defense number |
+| turns, one-of | "initiative", "turn" or "acts", `turns` ("twice", "three") and each count; "following" |
+| light | "light", "dark" or "dim", the level's word, `radius` |
+| damage-type, keyword | each type, in the quote or the words after it; the keyword |
+| aura-off | "aura" (or its name) and "ends", "suppressed", "loses", "no longer" or "does not function" |
 
 **Examples** (one clause or field each):
 - Split condition ("At the start of an encounter, the assassin deals 2d6 extra damage against any enemy that has not yet acted during the encounter"): `{"quote": "2d6 extra damage", "kind": "damage", "dice": "2d6", "types": [], "who": "target", "extra": true, "if": ["At the start of an encounter", "against any enemy that has not yet acted during the encounter"]}`
 - Inverted condition ("The target is slowed (save ends). If the target is already slowed, it is instead immobilized (save ends)"): `{"quote": "slowed (save ends)", "kind": "condition", "condition": "slowed", "who": "target", "duration": {"kind": "save-ends"}, "unless": "If the target is already slowed"}, {"quote": "it is instead immobilized (save ends)", "kind": "condition", "condition": "immobilized", "who": "target", "duration": {"kind": "save-ends"}, "if": "If the target is already slowed"}`
+- Turns ("The whelp acts three times in a round, on initiative counts 20, 15, and 5."): `{"quote": "acts three times in a round, on initiative counts 20, 15, and 5", "kind": "turns", "turns": 3, "counts": [20, 15, 5], "who": "self"}`
 - Zone: `{"quote": "The blast creates a zone that lasts until the end of the dragon's next turn (sustain minor)", "kind": "zone", "duration": {"kind": "sustain", "action": "minor"}}, {"quote": "takes 10 fire damage", "kind": "damage", "dice": "10", "types": ["fire"], "who": "creatures-in-area", "if": "Any creature that enters or starts its turn in the zone"}`, and the power gets `"sustain": {"action": "minor"}`.
-- Choice ("The target slides 4 squares or is knocked prone"): `{"quote": "slides 4 squares or is knocked prone", "kind": "choice", "options": [[{"quote": "slides 4 squares", "kind": "forced-move", "move": "slide", "squares": 4, "who": "target"}], [{"quote": "knocked prone", "kind": "condition", "condition": "prone", "who": "target", "duration": {"kind": "indefinite"}}]]}`
 - Inner condition ("The dragon slides any enemy that ends its turn in the aura 2 squares"): `{"quote": "slides any enemy that ends its turn in the aura 2 squares", "kind": "forced-move", "move": "slide", "squares": 2, "who": "enemies-in-area", "if": "any enemy that ends its turn in the aura"}`
+{{#traps}}
+- Countermeasure ("Delay: Thievery DC 21 (minor action). Success: The trap does not attack during its next turn."): `{"quote": "Thievery DC 21 (minor action). Success: The trap does not attack during its next turn", "kind": "countermeasure", "effect": "delay", "checks": [{"skill": "thievery", "dc": 21}], "action": "minor"}`
+{{/traps}}
+{{#templates,themes}}
+- Level scaling ("The champion deals an extra 1d6 damage against enemies it flanks. Increase to 2d6 at 11th level and 3d6 at 21st level."): `{"quote": "1d6 damage", "kind": "damage", "dice": "1d6", "types": [], "who": "target", "extra": true, "if": "against enemies it flanks", "duration": {"kind": "permanent"}, "byLevel": [{"level": 11, "value": "2d6"}, {"level": 21, "value": "3d6"}]}`
+{{/templates,themes}}
 {{#items}}
 - Weapon critical: `"critical": {"text": "+1d6 damage per plus", "clauses": [{"quote": "+1d6 damage per plus", "kind": "damage-formula", "text": "+1d6 damage per plus", "types": []}]}`
 - An entry with nothing to structure (a ritual is often only description) needs

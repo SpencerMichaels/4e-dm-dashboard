@@ -4,25 +4,28 @@
 // and the exact command that checks the reply.
 //
 // Run: npm run content:agent:prompt -- <kind> <id> --repo <content repo> [--responses <dir>] [--app <host app dir>] [--out <file>]
-//   kind: monsters | items | traps | diseases
+//   kind: monsters | items | traps | diseases | templates | themes
 // Many at once: npm run content:agent:briefs (briefs.ts).
 
 import { readFileSync, writeFileSync } from 'fs'
 import { join, resolve } from 'path'
-import { atToQuote } from './quotes'
+import { atToQuote, forEachLine } from './quotes'
 
 const ROOT = join(__dirname, '..', '..', '..')
 const RAW = join(ROOT, 'content', 'raw')
 const KIT = join(ROOT, 'vendor', '4e-kit', 'src')
 
-export type AgentKind = 'monsters' | 'items' | 'traps' | 'diseases'
-export const AGENT_KINDS: AgentKind[] = ['monsters', 'items', 'traps', 'diseases']
+export type AgentKind = 'monsters' | 'items' | 'traps' | 'diseases' | 'templates' | 'themes'
+export const AGENT_KINDS: AgentKind[] = ['monsters', 'items', 'traps', 'diseases', 'templates', 'themes']
 
+/** Raw HTML files per kind; templates and themes have none (their text is the app's transcription of the books). */
 const RAW_FILES: Record<AgentKind, string[]> = {
   monsters: ['monsters.json'],
   items: ['item.json', 'weapon.json', 'armor.json', 'implement.json', 'ritual.json'],
   traps: ['trap.json'],
   diseases: ['disease.json'],
+  templates: [],
+  themes: [],
 }
 
 const KIND_LABEL: Record<AgentKind, [string, string]> = {
@@ -30,10 +33,25 @@ const KIND_LABEL: Record<AgentKind, [string, string]> = {
   items: ['magic item', 'Item'],
   traps: ['trap or hazard', 'Trap'],
   diseases: ['disease', 'Disease'],
+  templates: ['monster template', 'MonsterTemplate'],
+  themes: ['monster theme', 'MonsterTheme'],
 }
 
 /** Declarations agents never write: provenance is rewritten by apply. */
 const SCHEMA_SKIP = new Set(['Provenance'])
+
+/**
+ * Schema pieces only some kinds use, left out of the other kinds' excerpts to
+ * keep their rules files short: the countermeasure clause (traps) and level
+ * scaling (templates, themes).
+ */
+function kindOnly(kind: AgentKind, text: string): string {
+  let t = text
+  if (kind !== 'traps') t = t.replace(/\n *\/\*\* Trap countermeasure[^\n]*\n *\| \{ kind: 'countermeasure'[^\n]*/, '')
+  if (kind !== 'templates' && kind !== 'themes') t = t.replace(/; byLevel\?: ByLevel/g, '')
+  return t
+}
+const KIND_ONLY_DECLS: Record<string, AgentKind[]> = { CounterCheck: ['traps'], ByLevel: ['templates', 'themes'] }
 
 const rawCache = new Map<string, Record<string, string>>()
 
@@ -59,6 +77,19 @@ export function htmlToText(html: string): string {
     .map(l => l.replace(/\s+/g, ' ').replace(/(?:\s*\|\s*)+/g, ' | ').replace(/^\s*\|\s*|\s*\|\s*$/g, '').trim())
     .filter(Boolean)
     .join('\n')
+}
+
+/**
+ * The printed text of an entry with no raw HTML (templates, themes): its name,
+ * description and prerequisite, then every Line's text under its JSON path.
+ */
+export function entryText(entry: Record<string, unknown>): string {
+  const out = [String(entry.name ?? '')]
+  if (typeof entry.description === 'string' && entry.description) out.push(entry.description)
+  const prereq = (entry.prerequisite as { text?: string } | undefined)?.text
+  if (prereq) out.push(`Prerequisite: ${prereq}`)
+  forEachLine(entry, (line, path) => { if (line.text) out.push(`${path}: ${line.text}`) })
+  return out.join('\n')
 }
 
 /** JSON with short objects and arrays on one line (fewer tokens than 2-space pretty printing). */
@@ -143,12 +174,13 @@ export function schemaExcerpt(kind: AgentKind): string {
   const visit = (name: string) => {
     const d = byName.get(name)
     if (!d || needed.has(d) || SCHEMA_SKIP.has(name)) return
+    if (KIND_ONLY_DECLS[name] && !KIND_ONLY_DECLS[name].includes(kind)) return
     needed.add(d)
-    for (const m of codeOnly(d.text).matchAll(/\b[A-Z]\w+\b/g)) if (!d.names.includes(m[0])) visit(m[0])
+    for (const m of codeOnly(kindOnly(kind, d.text)).matchAll(/\b[A-Z]\w+\b/g)) if (!d.names.includes(m[0])) visit(m[0])
   }
   visit(KIND_LABEL[kind][1])
   const part = (decls: Decl[]) => decls.filter(d => needed.has(d))
-    .map(d => d.names.includes('ClauseBase') ? AGENT_CLAUSE_BASE : agentForm(d.text).replace(/\| \{ kind: 'unparsed'; text: string \}/, AGENT_UNPARSED))
+    .map(d => d.names.includes('ClauseBase') ? AGENT_CLAUSE_BASE : agentForm(kindOnly(kind, d.text)).replace(/\| \{ kind: 'unparsed'; text: string \}/, AGENT_UNPARSED))
     .join('\n\n')
   return `// vocab.ts\n${part(vocab)}\n\n// schema.ts\n${part(schema)}`
 }
@@ -187,27 +219,31 @@ function kindValues(kind: AgentKind): Record<string, string> {
 }
 
 function entryValues(kind: AgentKind, id: string, p: BriefPaths): Record<string, string> {
-  const current = atToQuote(JSON.parse(readFileSync(join(p.repo, kind, `${id}.json`), 'utf-8')))
+  const json = JSON.parse(readFileSync(join(p.repo, kind, `${id}.json`), 'utf-8'))
+  const current = atToQuote(json)
   return {
-    ID: id, SOURCE_TEXT: htmlToText(rawHtml(kind, id)), CURRENT_JSON: compactJson(current, '', 140),
+    ID: id, SOURCE_TEXT: RAW_FILES[kind].length > 0 ? htmlToText(rawHtml(kind, id)) : entryText(json), CURRENT_JSON: compactJson(current, '', 140),
     REPLY_PATH: p.reply, CHECK_COMMAND: checkCommand(kind, id, p),
   }
 }
 
 export interface BriefPaths {
-  /** Content repo, as the host sees it (it is mounted at the same path in the container). */
+  /** Content repo. */
   repo: string
   /** Where the agent writes its reply. */
   reply: string
-  /** The app checkout on the host (mounted at /workspace). */
+  /** The app checkout. */
   app: string
 }
 
-/** The one command an agent runs to check its reply. */
+/**
+ * The one command an agent runs to check its reply, in the app's Nix shell.
+ * $CONTENT_CHECK_SHELL replaces the `nix develop <app> -c` prefix (for a run
+ * whose kit submodule commit is not on its remote yet, so the flake cannot fetch it).
+ */
 export function checkCommand(kind: AgentKind, id: string, p: BriefPaths): string {
-  const mounts = [`-v ${p.app}:/workspace`, `-v ${p.repo}:${p.repo}`]
-  if (!resolve(p.reply).startsWith(resolve(p.repo) + '/')) mounts.push(`-v ${resolve(p.reply, '..')}:${resolve(p.reply, '..')}`)
-  return `docker run --rm --network none ${mounts.join(' ')} -w /workspace tabletop-dev npm run -s content:agent:apply -- ${kind} ${id} ${p.reply} --repo ${p.repo} --check`
+  const shell = process.env.CONTENT_CHECK_SHELL ?? `nix develop ${p.app} -c`
+  return `${shell} npm --prefix ${p.app} run -s content:agent:apply -- ${kind} ${id} ${p.reply} --repo ${p.repo} --check`
 }
 
 export function replyPath(responses: string, kind: AgentKind, id: string): string {
@@ -275,7 +311,7 @@ function main() {
   const args = process.argv.slice(2)
   const valued = new Set(['--repo', '--out', '--responses', '--app'])
   const [kind, id] = args.filter((a, i) => !a.startsWith('--') && !valued.has(args[i - 1]))
-  if (!isAgentKind(kind) || !id) throw new Error('Usage: prompt <monsters|items|traps|diseases> <id> --repo <dir> [--responses <dir>] [--app <dir>] [--out <file>]')
+  if (!isAgentKind(kind) || !id) throw new Error('Usage: prompt <monsters|items|traps|diseases|templates|themes> <id> --repo <dir> [--responses <dir>] [--app <dir>] [--out <file>]')
   const repo = contentRepo(args)
   const ri = args.indexOf('--responses')
   const responses = resolve(ri >= 0 ? args[ri + 1] : join(repo, 'pilot', 'responses'))

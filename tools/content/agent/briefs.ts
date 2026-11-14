@@ -1,5 +1,5 @@
 // Write the agent briefs in a single run, so cleaning agents only Read files
-// (no container start per brief).
+// and run one check command per entry.
 //
 // Run: npm run content:agent:briefs -- (--sample <sample.json> [--tier small|full] | --kind <kind> --chunk <start>:<count>)
 //        --repo <content repo> (--out <dir> | --tag <name>) [--batch-size N] [--max-chars N] [--responses <dir>] [--app <host app dir>]
@@ -25,9 +25,9 @@
 // replaced by "responses", e.g. pilot/briefs-2b-opus -> pilot/responses-2b-opus);
 // its check command points at that reply. Agents only run the check; replies
 // are applied later in one batch (content:agent:apply-all). --app is the app
-// checkout as the host sees it (default $APP_HOST_DIR, else this checkout); set
-// it when running in the container. Brief and reply paths are written as this
-// process sees them, so mount host dirs at the same path in the container.
+// checkout (default $APP_HOST_DIR, else this checkout); the check command runs
+// in its Nix shell (`nix develop <app> -c`, or $CONTENT_CHECK_SHELL: see
+// checkCommand in prompt.ts).
 
 import { mkdirSync, readFileSync, readdirSync, writeFileSync } from 'fs'
 import { basename, dirname, join, resolve } from 'path'

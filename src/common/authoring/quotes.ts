@@ -60,14 +60,23 @@ export function resolveQuotes(entry: unknown): QuoteError[] {
 /**
  * Resolve a list of clauses whose quotes lie in text[lo, hi): the whole line,
  * or a choice clause's span for its options (searched inside that span only).
+ * The search starts at text[lo + start].
  */
-function resolveList(text: string, clauses: unknown[], path: string, lo: number, hi: number, errors: QuoteError[]): unknown[] {
+function resolveList(text: string, clauses: unknown[], path: string, lo: number, hi: number, errors: QuoteError[], start0 = 0): unknown[] {
   const scope = text.substring(lo, hi)
   const whole = lo === 0 && hi === text.length
-  let from = 0
+  let from = start0
+  // Options are searched in order: each from the end of the previous option's
+  // last quote, so a later option's repeated words ("1d6 ... or 1d6") resolve there.
   const options = (cl: Record<string, unknown>, p: string, a: number, b: number) => {
     if (cl.kind === 'choice' && Array.isArray(cl.options)) {
-      cl.options = cl.options.map((opt, j) => Array.isArray(opt) ? resolveList(text, opt, `${p}.options[${j}]`, a, b, errors) : opt)
+      let next = 0
+      cl.options = cl.options.map((opt, j) => {
+        if (!Array.isArray(opt)) return opt
+        const out = resolveList(text, opt, `${p}.options[${j}]`, a, b, errors, next)
+        for (const x of out as Record<string, unknown>[]) if (Array.isArray(x?.at)) next = Math.max(next, (x.at[1] as number) - a)
+        return out
+      })
     }
   }
   return clauses.map((raw, i) => {

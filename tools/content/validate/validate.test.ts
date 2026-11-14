@@ -972,3 +972,51 @@ describe('schema v14', () => {
     expect(checkMonsterBands(m).filter(f => f.rule === 'damage')).toEqual([])
   })
 })
+
+describe('schema v15', () => {
+  const p = (cl: unknown, span: string, after = '', before = '') => spanProblem(cl as any, span, after, before)
+  const at = (q: string, text: string) => { const i = text.indexOf(q); return [i, i + q.length] }
+  const errors = (clauses: unknown[], text: string) => {
+    const m = monster()
+    m.powers[0].effect = { text, clauses } as any
+    return validateEntry('monsters', m).errors.map(e => e.message)
+  }
+  const perm = { kind: 'permanent' }
+  const enc = { kind: 'encounter' }
+
+  it('checks the new clause kinds', () => {
+    const cm = { kind: 'countermeasure', effect: 'disable', checks: [{ skill: 'thievery', dc: 22 }, { skill: 'arcana', dc: 27, trained: true }] }
+    expect(p(cm, 'Thievery DC 22 or Arcana (trained only) DC 27: A character adjacent to the trap can disable it')).toBeUndefined()
+    expect(p(cm, 'Thievery DC 22: A character adjacent to the trap can disable it')).toMatch(/arcana/)
+    expect(p({ ...cm, effect: 'delay', checks: [{ skill: 'thievery', dc: 22 }] }, 'Thievery DC 22: disable it')).toMatch(/delay/)
+    expect(p({ kind: 'countermeasure', effect: 'destroy', defenses: { ac: 32, fortitude: 29 }, hp: 25 }, 'A character can attack a stalagmite (AC 32, other defenses 29; hp 25')).toBeUndefined()
+    expect(p({ kind: 'countermeasure', effect: 'other', checks: [{ skill: 'ability:str', dc: 20 }] }, 'Strength DC 20: The character holds the door shut')).toBeUndefined()
+    expect(p({ kind: 'turns', turns: 2, who: 'self' }, 'rolls initiative twice')).toBeUndefined()
+    expect(p({ kind: 'turns', turns: 3, counts: [30, 20, 10], who: 'self' }, 'gets a full turn at initiative counts 30, 20, and 10')).toBeUndefined()
+    expect(p({ kind: 'turns', turns: 3, counts: [30, 20, 15], who: 'self' }, 'gets a full turn at initiative counts 30, 20, and 10')).toMatch(/15/)
+    expect(p({ kind: 'one-of', from: 'attacks' }, 'The beholder uses one of the following eye rays')).toBeUndefined()
+    expect(p({ kind: 'light', light: 'bright', radius: 5, who: 'self', duration: perm }, 'sheds bright light in a 5-square radius')).toBeUndefined()
+    expect(p({ kind: 'light', light: 'darkness', duration: enc }, 'sheds bright light')).toMatch(/darkness/)
+    expect(p({ kind: 'damage-type', types: [], typeChoice: ['cold', 'fire'], who: 'self', duration: { kind: 'instant' } }, 'deal cold or fire damage instead')).toBeUndefined()
+    expect(p({ kind: 'damage-type', types: ['necrotic'], who: 'self', duration: perm }, "change a power's energy keyword to radiant")).toMatch(/necrotic/)
+    expect(p({ kind: 'aura-off', duration: enc }, 'Its aura is suppressed until the end of the encounter')).toBeUndefined()
+    expect(p({ kind: 'keyword', keyword: 'necrotic', who: 'self', duration: perm }, 'gain the necrotic keyword')).toBeUndefined()
+    expect(p({ kind: 'status', status: 'no-saving-throws', who: 'target', duration: enc }, 'cannot make saving throws')).toBeUndefined()
+    expect(p({ kind: 'immunity', to: ['forced-movement'], who: 'self', duration: perm }, 'ignores forced movement')).toBeUndefined()
+    expect(p({ kind: 'damage', amount: 'level', plus: 8, types: [], who: 'other' }, "damage equal to 8 + this creature's level")).toBeUndefined()
+    expect(p({ kind: 'heal', amount: 'half-level', who: 'self' }, 'regains hit points equal to one-half its level')).toBeUndefined()
+  })
+
+  it('checks the new fields', () => {
+    const text = 'The target takes a -2 penalty to attack rolls (save ends). This penalty is cumulative, to a maximum of -6.'
+    const mod = { at: at('-2 penalty to attack rolls (save ends)', text), kind: 'modifier', stat: 'attack', value: -2, who: 'target', duration: { kind: 'save-ends' } }
+    expect(errors([{ ...mod, stacks: true, max: 6 }], text)).toEqual([])
+    expect(errors([{ ...mod, stacks: 'yes' }], text).join('\n')).toMatch(/true or false/)
+    expect(errors([{ ...mod, byLevel: [{ level: 21, value: -4 }, { level: 11, value: -3 }] }], text).join('\n')).toMatch(/rising/)
+    expect(errors([{ ...mod, byLevel: [{ level: 11, value: '2d6' }] }], text)).toEqual([])
+    expect(errors([{ at: at('-2 penalty', text), kind: 'damage', dice: '2', plus: 3, types: [], who: 'target' }], text).join('\n')).toMatch(/plus only/)
+    expect(errors([{ at: at('-2 penalty', text), kind: 'turns', turns: 2, counts: [20], who: 'self' }], text).join('\n')).toMatch(/one count per turn/)
+    const sum = 'It summons a shadow that lasts until the end of the encounter.'
+    expect(errors([{ at: at('summons a shadow', sum), kind: 'summon', creature: 'shadow', duration: { kind: 'encounter' } }], sum)).toEqual([])
+  })
+})

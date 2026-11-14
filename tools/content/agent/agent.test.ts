@@ -85,6 +85,16 @@ describe('quotes', () => {
     expect(a.quote).toBeUndefined()
   })
 
+  it('resolves choice options in order, so a later option finds its repeated words', () => {
+    const text = 'The target takes 1d6 fire damage or 1d6 cold damage.'
+    const dmg = (types: string[]) => ({ quote: '1d6', kind: 'damage', dice: '1d6', types, who: 'target' })
+    const entry = { effect: { text, clauses: [{ quote: '1d6 fire damage or 1d6 cold damage', kind: 'choice', options: [[dmg(['fire'])], [dmg(['cold'])]] }] } }
+    expect(resolveQuotes(entry)).toEqual([])
+    const [first, second] = (entry.effect.clauses[0] as any).options.map((o: any[]) => o[0].at)
+    expect(first).toEqual([17, 20])
+    expect(second).toEqual([36, 39])
+  })
+
   it('reports a quote that is not in the line, and keeps plain spans', () => {
     const entry = { hit: { text: '1d8 + 3 damage.', clauses: [{ at: [0, 14], kind: 'damage', dice: '1d8+3', types: [], who: 'target' }, { quote: '2d6 damage', kind: 'half-damage' }] } }
     const errors = resolveQuotes(entry)
@@ -167,8 +177,11 @@ describe('brief', () => {
     expect(brief).toContain('"id": "disease11"')
     expect(brief).toContain('interface Disease')
     expect(brief).toContain(reply)
-    expect(brief).toContain(`docker run --rm --network none -v /src/app:/workspace -v ${repo}:${repo} -w /workspace tabletop-dev npm run -s content:agent:apply -- diseases disease11 ${reply} --repo ${repo} --check`)
-    expect(checkCommand('traps', 'trap1', { repo: '/r', reply: '/elsewhere/trap1.json', app: '/a' })).toContain('-v /elsewhere:/elsewhere')
+    expect(brief).toContain(`nix develop /src/app -c npm --prefix /src/app run -s content:agent:apply -- diseases disease11 ${reply} --repo ${repo} --check`)
+    process.env.CONTENT_CHECK_SHELL = 'bash env.sh'
+    try {
+      expect(checkCommand('traps', 'trap1', { repo: '/r', reply: '/e/trap1.json', app: '/a' })).toBe('bash env.sh npm --prefix /a run -s content:agent:apply -- traps trap1 /e/trap1.json --repo /r --check')
+    } finally { delete process.env.CONTENT_CHECK_SHELL }
     expect(defaultResponsesDir('/c/pilot/briefs-2')).toBe('/c/pilot/responses-2')
     expect(briefDirs(['--tag', '2b-opus'], '/c')).toEqual({ out: '/c/pilot/briefs-2b-opus', responses: '/c/pilot/responses-2b-opus' })
     expect(briefDirs(['--out', '/c/b', '--responses', '/c/r'], '/c')).toEqual({ out: '/c/b', responses: '/c/r' })
@@ -306,8 +319,8 @@ describe('apply', () => {
 })
 
 describe('brief examples', () => {
-  it('every worked example with printed words passes the quote, span and shape checks', () => {
-    const rules = buildRulesFile('monsters')
+  it.each([['monsters', 4], ['traps', 5], ['templates', 5]] as const)('every worked example in the %s rules passes the quote, span and shape checks', (kind, min) => {
+    const rules = buildRulesFile(kind)
     let checked = 0
     for (const ln of rules.split('\n')) {
       const open = ln.indexOf('("'), sep = ln.indexOf('): `')
@@ -324,7 +337,7 @@ describe('brief examples', () => {
       expect(c.issues, ln).toEqual([])
       checked++
     }
-    expect(checked).toBeGreaterThanOrEqual(4)
+    expect(checked).toBeGreaterThanOrEqual(min)
   })
 })
 
