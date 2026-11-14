@@ -466,7 +466,7 @@ Check command:
 ```
 
 {{/batch}}
-## Source text (from the published HTML; the only authority for wording and numbers)
+## Source text (the printed entry; the only authority for wording and numbers)
 
 ```
 {{SOURCE_TEXT}}
