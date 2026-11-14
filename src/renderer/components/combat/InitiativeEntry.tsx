@@ -5,6 +5,8 @@ import { generateId } from '@common/utils/id'
 import { rollD20 } from '@common/utils/dice'
 import { actsOnInitiative, initiativeBonus } from '@common/combat/facts'
 import { CombatToken } from './CombatToken'
+import { Icon } from '../shared/Icon'
+import { withAlpha } from '../../utils/color'
 
 interface Props {
   combat: CombatState
@@ -219,7 +221,7 @@ export function InitiativeEntry({ combat }: Props) {
   }, [playerCharacters, combat.combatants])
 
   const sectionHeader = (text: string, extra?: string) => (
-    <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', padding: '4px 0 2px', marginTop: 8 }}>
+    <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', padding: '4px 0 2px', marginTop: 8 }}>
       {text}{extra && <span style={{ fontWeight: 400, textTransform: 'none', letterSpacing: 0 }}> {extra}</span>}
     </div>
   )
@@ -230,7 +232,7 @@ export function InitiativeEntry({ combat }: Props) {
         <h1 style={{ fontSize: 'var(--font-size-2xl)', margin: 0 }}>
           {allPcsDone ? 'Prepare for Combat' : 'Roll Initiative'}
         </h1>
-        <label style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)', cursor: 'pointer' }}>
+        <label style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 'var(--font-size-xs)', color: 'var(--muted)', cursor: 'pointer' }}>
           <input type="checkbox" checked={surpriseEnabled} onChange={e => {
             setSurpriseEnabled(e.target.checked)
             if (!e.target.checked) setSurpriseActorIds(new Set())
@@ -240,7 +242,7 @@ export function InitiativeEntry({ combat }: Props) {
       </div>
 
       {sortedIds.length === 0 ? (
-        <p style={{ color: 'var(--color-text-muted)' }}>No combatants yet.</p>
+        <p style={{ color: 'var(--muted)' }}>No combatants yet.</p>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
           {/* ── PCs ── */}
@@ -265,8 +267,8 @@ export function InitiativeEntry({ combat }: Props) {
                     placeholder="Init"
                     style={{
                       width: 60, textAlign: 'center', padding: '2px 4px',
-                      borderRadius: 'var(--radius-sm)', border: '1px solid rgba(255,255,255,0.3)',
-                      background: 'rgba(255,255,255,0.15)', color: 'inherit',
+                      borderRadius: 'var(--radius-sm)', border: `1px solid ${withAlpha('var(--on-fill)', 0.3)}`,
+                      background: withAlpha('var(--on-fill)', 0.15), color: 'inherit',
                       fontSize: 'var(--font-size-base)', fontWeight: 600,
                     }}
                   />
@@ -275,7 +277,7 @@ export function InitiativeEntry({ combat }: Props) {
                     {c.initiative}
                   </span>
                 ) : (
-                  <span style={{ minWidth: 30, textAlign: 'center', color: 'var(--color-text-muted)' }}>—</span>
+                  <span style={{ minWidth: 30, textAlign: 'center', color: 'var(--muted)' }}>—</span>
                 )}
               </CombatantRow>
             )
@@ -285,7 +287,7 @@ export function InitiativeEntry({ combat }: Props) {
           {monsterIds.length > 0 && (
             <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', marginTop: 8 }}>
               {sectionHeader('Monsters', `(${monsterIds.length})`)}
-              <label style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)', cursor: 'pointer', marginLeft: 'auto' }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 'var(--font-size-xs)', color: 'var(--muted)', cursor: 'pointer', marginLeft: 'auto' }}>
                 <input type="checkbox" checked={groupInitiative} onChange={e => setGroupInitiative(e.target.checked)} />
                 Group initiative
               </label>
@@ -318,8 +320,8 @@ export function InitiativeEntry({ combat }: Props) {
                   <div style={{
                     display: 'flex', alignItems: 'center', gap: 'var(--space-2)',
                     padding: 'var(--space-2) var(--space-3)',
-                    background: 'var(--color-bg-surface)',
-                    border: '1px solid var(--color-border)',
+                    background: 'var(--surface-raised)',
+                    border: '1px solid var(--border)',
                     borderRadius: 'var(--radius-sm)',
                     opacity: allHidden ? 0.4 : 1,
                   }}>
@@ -336,8 +338,8 @@ export function InitiativeEntry({ combat }: Props) {
                         const key = group.groupId ?? ''
                         next.has(key) ? next.delete(key) : next.add(key)
                         return next
-                      })} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, fontSize: 12, color: 'var(--color-text-muted)' }}>
-                        {expanded ? '▼' : '▶'}
+                      })} title={expanded ? 'Collapse' : 'Expand'} aria-label={expanded ? 'Collapse' : 'Expand'} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, fontSize: 12, color: 'var(--muted)', display: 'inline-flex' }}>
+                        <Icon name={expanded ? 'chevron-down' : 'chevron-right'} />
                       </button>
                     )}
                     <CombatToken name={firstC.name} baseName={firstC.baseName} imageId={firstC.imageId} tokenImageId={firstC.tokenImageId}
@@ -345,14 +347,14 @@ export function InitiativeEntry({ combat }: Props) {
                       hideHpRing={!!firstC.color} solidRingColor={firstC.color} />
                     <span style={{ flex: 1, fontWeight: 400, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       {group.baseName}
-                      {isMulti && <span style={{ color: 'var(--color-text-muted)', marginLeft: 4 }}>×{group.memberIds.length}</span>}
-                      {allHidden && <span style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)', marginLeft: 4 }}>(hidden)</span>}
+                      {isMulti && <span style={{ color: 'var(--muted)', marginLeft: 4 }}>×{group.memberIds.length}</span>}
+                      {allHidden && <span style={{ fontSize: 'var(--font-size-xs)', color: 'var(--muted)', marginLeft: 4 }}>(hidden)</span>}
                     </span>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                       <button onClick={toggleGroupHidden}
                         title={allHidden ? 'Hidden — click to reveal all' : 'Visible — click to hide all'}
                         style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '0 2px', fontSize: 14, opacity: allHidden ? 0.4 : 0.8 }}>
-                        {allHidden ? '🚫' : '👁'}
+                        <Icon name={allHidden ? 'eye-off' : 'eye'} label={allHidden ? 'Hidden' : 'Visible'} />
                       </button>
                       <input
                         type="number"
@@ -365,8 +367,8 @@ export function InitiativeEntry({ combat }: Props) {
                         style={{
                           width: 48, textAlign: 'center', padding: '1px 2px',
                           fontSize: 'var(--font-size-xs)', borderRadius: 'var(--radius-sm)',
-                          background: 'var(--color-bg-primary)', border: '1px solid var(--color-border)',
-                          color: 'var(--color-text-primary)',
+                          background: 'var(--background)', border: '1px solid var(--border)',
+                          color: 'var(--text)',
                         }}
                       />
                     </div>
@@ -380,7 +382,7 @@ export function InitiativeEntry({ combat }: Props) {
                         <div style={{
                           display: 'flex', alignItems: 'center', gap: 'var(--space-2)',
                           padding: '2px var(--space-3)',
-                          borderLeft: '2px solid var(--color-border)',
+                          borderLeft: '2px solid var(--border)',
                           opacity: c.hidden ? 0.4 : 1,
                         }}>
                           <CombatToken name={c.name} baseName={c.baseName} imageId={c.imageId} tokenImageId={c.tokenImageId}
@@ -390,8 +392,9 @@ export function InitiativeEntry({ combat }: Props) {
                             {c.name}
                           </span>
                           <button onClick={() => window.api.combat.updateCombatant(id, { hidden: !c.hidden })}
+                            title={c.hidden ? 'Hidden from players — click to reveal' : 'Visible to players — click to hide'}
                             style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '0 2px', fontSize: 12, opacity: c.hidden ? 0.4 : 0.8 }}>
-                            {c.hidden ? '🚫' : '👁'}
+                            <Icon name={c.hidden ? 'eye-off' : 'eye'} label={c.hidden ? 'Hidden' : 'Visible'} />
                           </button>
                         </div>
                         <MonsterIdentityRow combatantId={id} combatant={c} recentColors={recentColors} onCustomColor={addRecentColor} />
@@ -422,7 +425,7 @@ export function InitiativeEntry({ combat }: Props) {
                         onClick={() => window.api.combat.updateCombatant(id, { hidden: !c.hidden })}
                         title={c.hidden ? 'Hidden from players — click to reveal' : 'Visible to players — click to hide'}
                         style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '0 2px', fontSize: 14, opacity: c.hidden ? 0.4 : 0.8 }}>
-                        {c.hidden ? '🚫' : '👁'}
+                        <Icon name={c.hidden ? 'eye-off' : 'eye'} label={c.hidden ? 'Hidden' : 'Visible'} />
                       </button>
                       <input
                         type="number"
@@ -435,8 +438,8 @@ export function InitiativeEntry({ combat }: Props) {
                         style={{
                           width: 48, textAlign: 'center', padding: '1px 2px',
                           fontSize: 'var(--font-size-xs)', borderRadius: 'var(--radius-sm)',
-                          background: 'var(--color-bg-primary)', border: '1px solid var(--color-border)',
-                          color: 'var(--color-text-primary)',
+                          background: 'var(--background)', border: '1px solid var(--border)',
+                          color: 'var(--text)',
                         }}
                       />
                     </div>
@@ -450,7 +453,7 @@ export function InitiativeEntry({ combat }: Props) {
       )}
 
       {triggeredTrapIds.length > 0 && (
-        <p className="triggered-trap-note" style={{ color: 'var(--color-text-muted)', fontSize: 'var(--font-size-sm)', marginTop: 'var(--space-3)' }}>
+        <p className="triggered-trap-note" style={{ color: 'var(--muted)', fontSize: 'var(--font-size-sm)', marginTop: 'var(--space-3)' }}>
           Triggered traps (no initiative; they act when triggered): {triggeredTrapIds.map(id => combat.combatants[id].name).join(', ')}
         </p>
       )}
@@ -459,17 +462,7 @@ export function InitiativeEntry({ combat }: Props) {
       {allPcsDone && sortedIds.length > 0 && (
         <button
           onClick={handleStartCombat}
-          style={{
-            display: 'block', width: '100%', marginTop: 'var(--space-4)',
-            padding: 'var(--space-3)',
-            background: 'var(--color-accent)',
-            color: 'var(--color-accent-text)',
-            borderRadius: 'var(--radius-md)',
-            fontSize: 'var(--font-size-base)',
-            fontWeight: 600,
-            cursor: 'pointer',
-            border: 'none',
-          }}
+          className="btn btn-primary" style={{ display: 'flex', width: '100%', marginTop: 'var(--space-4)', padding: 'var(--space-3)' }}
         >
           Start Combat
         </button>
@@ -493,9 +486,9 @@ function CombatantRow({ c, isCurrent, isDone, isStaging, isHidden, leading, chil
     <div style={{
       display: 'flex', alignItems: 'center', gap: 'var(--space-2)',
       padding: 'var(--space-2) var(--space-3)',
-      background: isCurrent ? 'var(--color-accent)' : 'var(--color-bg-surface)',
-      color: isCurrent ? 'var(--color-accent-text)' : undefined,
-      border: isCurrent ? '1px solid var(--color-accent)' : '1px solid var(--color-border)',
+      background: isCurrent ? 'var(--accent)' : 'var(--surface-raised)',
+      color: isCurrent ? 'var(--on-fill)' : undefined,
+      border: isCurrent ? '1px solid var(--accent)' : '1px solid var(--border)',
       borderRadius: 'var(--radius-sm)',
       opacity: isHidden ? 0.4 : (!isDone && !isCurrent && !isStaging) ? 0.5 : 1,
     }}>
@@ -511,7 +504,7 @@ function CombatantRow({ c, isCurrent, isDone, isStaging, isHidden, leading, chil
         textDecoration: isHidden ? 'line-through' : undefined,
       }}>
         {c.name}
-        {isHidden && <span style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)', marginLeft: 4 }}>(hidden)</span>}
+        {isHidden && <span style={{ fontSize: 'var(--font-size-xs)', color: 'var(--muted)', marginLeft: 4 }}>(hidden)</span>}
       </span>
       {children}
     </div>
@@ -549,7 +542,7 @@ function MonsterIdentityRow({ combatantId, combatant: c, recentColors, onCustomC
             onClick={() => setIdentity(isActive ? undefined : mc.value, c.miniNumber, c.miniDescriptor)}
             style={{
               width: 14, height: 14, borderRadius: '50%', background: mc.value,
-              border: isActive ? '2px solid #fff' : '1px solid rgba(128,128,128,0.4)',
+              border: isActive ? '2px solid var(--text)' : `1px solid ${withAlpha('var(--muted)', 0.4)}`,
               cursor: 'pointer', boxShadow: isActive ? `0 0 4px ${mc.value}` : 'none',
             }}
           />
@@ -562,7 +555,7 @@ function MonsterIdentityRow({ combatantId, combatant: c, recentColors, onCustomC
             onClick={() => setIdentity(isActive ? undefined : hex, c.miniNumber, c.miniDescriptor)}
             style={{
               width: 14, height: 14, borderRadius: '50%', background: hex,
-              border: isActive ? '2px solid #fff' : '1px dashed rgba(128,128,128,0.5)',
+              border: isActive ? '2px solid var(--text)' : `1px dashed ${withAlpha('var(--muted)', 0.5)}`,
               cursor: 'pointer', boxShadow: isActive ? `0 0 4px ${hex}` : 'none',
             }}
           />
@@ -573,20 +566,20 @@ function MonsterIdentityRow({ combatantId, combatant: c, recentColors, onCustomC
         style={{
           width: 14, height: 14, borderRadius: '50%',
           background: 'conic-gradient(red, yellow, lime, aqua, blue, magenta, red)',
-          border: '1px solid rgba(128,128,128,0.4)', cursor: 'pointer',
+          border: `1px solid ${withAlpha('var(--muted)', 0.4)}`, cursor: 'pointer',
         }}
       />
       <input ref={colorPickerRef} type="color" value={c.color ?? '#888888'}
         onChange={e => { onCustomColor(e.target.value); setIdentity(e.target.value, c.miniNumber, c.miniDescriptor) }}
         style={{ position: 'absolute', opacity: 0, pointerEvents: 'none', width: 0, height: 0 }}
       />
-      <span style={{ fontSize: 10, color: 'var(--color-text-muted)', marginLeft: 4 }}>#</span>
+      <span style={{ fontSize: 10, color: 'var(--muted)', marginLeft: 4 }}>#</span>
       <input type="number" min={1} max={99} value={c.miniNumber ?? ''}
         onChange={e => { const v = e.target.value ? parseInt(e.target.value) : undefined; setIdentity(c.color, v, c.miniDescriptor) }}
         style={{
           width: 28, textAlign: 'center', padding: '1px 2px', fontSize: 11, borderRadius: 'var(--radius-sm)',
-          background: 'var(--color-bg-primary)', border: '1px solid var(--color-border)',
-          color: 'var(--color-text-primary)',
+          background: 'var(--background)', border: '1px solid var(--border)',
+          color: 'var(--text)',
         }}
       />
       <input
@@ -595,8 +588,8 @@ function MonsterIdentityRow({ combatantId, combatant: c, recentColors, onCustomC
         placeholder="desc"
         style={{
           width: 60, padding: '1px 4px', fontSize: 11, borderRadius: 'var(--radius-sm)',
-          background: 'var(--color-bg-primary)', border: '1px solid var(--color-border)',
-          color: 'var(--color-text-primary)', marginLeft: 4,
+          background: 'var(--background)', border: '1px solid var(--border)',
+          color: 'var(--text)', marginLeft: 4,
         }}
       />
     </div>

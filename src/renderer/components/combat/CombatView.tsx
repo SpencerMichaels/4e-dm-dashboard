@@ -20,6 +20,8 @@ import { AttackApplyPanel } from './AttackApplyPanel'
 import { ReadyActionDialog } from './ReadyActionDialog'
 import { EffectDialog } from './EffectDialog'
 import { TriggeredTraps } from './TriggeredTraps'
+import { Icon } from '../shared/Icon'
+import { withAlpha } from '../../utils/color'
 
 export interface AttackMode {
   phase: 'select' | 'resolve' | 'apply'
@@ -516,7 +518,7 @@ export function CombatView() {
   ])
 
   if (!combat) {
-    return <div style={{ color: 'var(--color-text-muted)' }}>No active combat. Start one from an encounter.</div>
+    return <div style={{ color: 'var(--muted)' }}>No active combat. Start one from an encounter.</div>
   }
 
   if (combat.phase === 'initiative-entry') {
@@ -583,14 +585,14 @@ export function CombatView() {
           maxWidth: '90%', zIndex: 50, pointerEvents: 'none',
         }}>
           {notifications.map((n, i) => {
-            const bg = n.type === 'bloodied' ? 'var(--color-notify-bloodied)' : n.type === 'death' ? 'var(--color-notify-death)'
-              : n.type === 'recharge-success' || n.type === 'save-success' ? 'var(--color-notify-success)'
-              : n.type === 'recharge-fail' || n.type === 'save-fail' ? 'var(--color-notify-fail)' : 'var(--color-notify-neutral)'
+            const bg = n.type === 'bloodied' ? 'var(--notify-bloodied)' : n.type === 'death' ? 'var(--notify-death)'
+              : n.type === 'recharge-success' || n.type === 'save-success' ? 'var(--notify-success)'
+              : n.type === 'recharge-fail' || n.type === 'save-fail' ? 'var(--notify-fail)' : 'var(--notify-neutral)'
             return (
               <div key={i} style={{
                 padding: '3px 10px', borderRadius: 'var(--radius-sm)', fontSize: 11, fontWeight: 600,
-                background: bg, color: 'var(--color-text-on-dark)',
-                boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
+                background: bg, color: 'var(--on-dark)',
+                boxShadow: 'var(--shadow-md)',
               }}>
                 {n.message}
                 {n.detail && <span style={{ fontWeight: 400, marginLeft: 4, opacity: 0.8 }}>{n.detail}</span>}
@@ -604,24 +606,25 @@ export function CombatView() {
       {attackMode && (
         <div style={{
           position: 'absolute', top: 8, left: '50%', transform: 'translateX(-50%)',
-          padding: '4px 12px', background: 'rgba(92,124,250,0.95)', border: '1px solid rgba(92,124,250,0.5)',
+          padding: '4px 12px', background: 'var(--selected)', color: 'var(--on-fill)', border: `1px solid ${withAlpha('var(--selected)', 0.5)}`,
           borderRadius: 'var(--radius-sm)', zIndex: 50,
           display: 'flex', alignItems: 'center', gap: 8, fontSize: 12,
-          boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
+          boxShadow: 'var(--shadow-md)',
         }}>
-          <span style={{ fontWeight: 700 }}>
+          <span style={{ fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+            <Icon name={attackMode.phase === 'select' && pendingDisease ? 'virus' : attackMode.phase === 'select' && pendingCondition ? 'target' : attackMode.phase === 'select' && pendingAction ? 'zap' : 'swords'} />
             {attackMode.phase === 'select' ? (pendingDisease
-              ? (attackMode.singleTarget ? `🦠 Click a PC to expose to ${pendingDisease.name}` : `🦠 Select PCs to expose to ${pendingDisease.name} (Space to confirm)`)
+              ? (attackMode.singleTarget ? `Click a PC to expose to ${pendingDisease.name}` : `Select PCs to expose to ${pendingDisease.name} (Space to confirm)`)
               : pendingCondition
-              ? (attackMode.singleTarget ? '🎯 Click a target to apply condition' : '🎯 Select targets for condition (Space to confirm)')
+              ? (attackMode.singleTarget ? 'Click a target to apply condition' : 'Select targets for condition (Space to confirm)')
               : pendingAction
-              ? (attackMode.singleTarget ? `💥 Click a target to ${pendingAction.type}` : `💥 Select targets to ${pendingAction.type} (Space to confirm)`)
-              : (attackMode.singleTarget ? '⚔ Click a target' : '⚔ Select targets (click creatures, Space to confirm)')) :
-              attackMode.phase === 'resolve' ? `⚔ Resolving ${Math.min(attackMode.currentIndex + 1, attackMode.targetIds.length)}/${attackMode.targetIds.length} — H=hit, M=miss${attackMode.currentIndex > 0 ? ', Backspace=undo' : ''}` :
-              '⚔ Apply results'}
+              ? (attackMode.singleTarget ? `Click a target to ${pendingAction.type}` : `Select targets to ${pendingAction.type} (Space to confirm)`)
+              : (attackMode.singleTarget ? 'Click a target' : 'Select targets (click creatures, Space to confirm)')) :
+              attackMode.phase === 'resolve' ? `Resolving ${Math.min(attackMode.currentIndex + 1, attackMode.targetIds.length)}/${attackMode.targetIds.length} — H=hit, M=miss${attackMode.currentIndex > 0 ? ', Backspace=undo' : ''}` :
+              'Apply results'}
           </span>
           <div style={{ flex: 1 }} />
-          <button onClick={attackModeCancel} style={{ fontSize: 11, color: 'var(--color-text-muted)' }}>Cancel (Esc)</button>
+          <button onClick={attackModeCancel} style={{ fontSize: 11, color: 'var(--muted)' }}>Cancel (Esc)</button>
         </div>
       )}
 
@@ -636,8 +639,8 @@ export function CombatView() {
             <button onClick={handleEndTurn} title="End turn (Space)" disabled={combat.turnPhase !== 'active'}>Next</button>
             <button onClick={() => { if (currentId) window.api.combat.delay(currentId) }} title="Delay current creature (Y)">Delay</button>
             <button onClick={() => { if (currentId) setReadyDialog({ combatantId: currentId }) }} title="Ready an action (R)">Ready</button>
-            <button onClick={() => setShowLog(!showLog)} title="Combat log" style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 16, padding: '0 4px' }}>📋</button>
-            <button onClick={() => setShowSettings(true)} title="Combat settings" style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 16, padding: '0 4px' }}>⚙</button>
+            <button onClick={() => setShowLog(!showLog)} title="Combat log" aria-label="Combat log" style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 16, padding: '0 4px', display: 'inline-flex' }}><Icon name="scroll-text" /></button>
+            <button onClick={() => setShowSettings(true)} title="Combat settings" aria-label="Combat settings" style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 16, padding: '0 4px', display: 'inline-flex' }}><Icon name="settings" /></button>
           </div>
         </div>
 
@@ -667,7 +670,7 @@ export function CombatView() {
 
         <button
           onClick={handleEndCombat}
-          style={{ color: 'var(--color-danger)', fontSize: 'var(--font-size-sm)', flexShrink: 0 }}
+          style={{ color: 'var(--danger)', fontSize: 'var(--font-size-sm)', flexShrink: 0 }}
         >
           End Combat
         </button>
@@ -676,7 +679,7 @@ export function CombatView() {
       {/* Current turn detail panel */}
       <div style={{ overflow: 'auto', minHeight: 0 }}>
         {currentCombatant ? renderDetailPanel(currentCombatant) : (
-          <div style={{ color: 'var(--color-text-muted)', padding: 'var(--space-4)' }}>No current combatant.</div>
+          <div style={{ color: 'var(--muted)', padding: 'var(--space-4)' }}>No current combatant.</div>
         )}
       </div>
 
@@ -759,7 +762,7 @@ export function CombatView() {
             })()}
           </>
         ) : (
-          <div style={{ color: 'var(--color-text-muted)', padding: 'var(--space-4)' }}>
+          <div style={{ color: 'var(--muted)', padding: 'var(--space-4)' }}>
             Click a combatant to inspect side-by-side
           </div>
         )}
@@ -832,7 +835,8 @@ export function CombatView() {
       )}
 
       {/* Floating pinned cards */}
-      <PinnedCardsPanel cards={pinnedCards} onUnpin={(key) => setPinnedCards(prev => prev.filter(p => p.key !== key))} />
+      <PinnedCardsPanel cards={pinnedCards} onUnpin={(key) => setPinnedCards(prev => prev.filter(p => p.key !== key))}
+        combat={combat} handlers={{ onApplyConditionToTargets: handleApplyConditionToTargets, onApplyDiseaseToTargets: handleApplyDiseaseToTargets }} />
 
       {/* Combat log */}
       {showLog && <CombatLogPanel events={combatEvents} onClose={() => setShowLog(false)} />}
@@ -874,46 +878,28 @@ export function CombatView() {
           <div style={{
             position: 'fixed', bottom: 0, left: 0, right: 0,
             padding: 'var(--space-3) var(--space-6)',
-            background: 'var(--color-bg-secondary)',
-            borderTop: `2px solid ${isOngoing ? 'var(--color-danger)' : isDeathSave ? 'var(--color-miss)' : 'var(--color-accent)'}`,
+            background: 'var(--surface)',
+            borderTop: `2px solid ${isOngoing ? 'var(--danger)' : isDeathSave ? 'var(--danger)' : 'var(--accent)'}`,
             display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 'var(--space-4)',
             zIndex: 100,
           }}>
             <span style={{ fontWeight: 600 }}>{combatantName}:</span>
-            <span style={{ fontSize: 'var(--font-size-lg)', color: isOngoing ? 'var(--color-danger)' : isDeathSave ? 'var(--color-miss)' : undefined }}>
-              {isDeathSave ? '💀 Death Save' : item.label}
+            <span style={{ fontSize: 'var(--font-size-lg)', color: isOngoing ? 'var(--danger)' : isDeathSave ? 'var(--danger)' : undefined }}>
+              {isDeathSave ? <><Icon name="skull" style={{ verticalAlign: '-0.125em' }} /> Death Save</> : item.label}
             </span>
             <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
               {isOngoing ? (
-                <button onClick={() => handleResolveItem(true)} style={{
-                  padding: 'var(--space-2) var(--space-4)', background: 'var(--color-accent)', color: 'var(--on-fill)',
-                  border: 'none', borderRadius: 'var(--radius-sm)', cursor: 'pointer', fontWeight: 600,
-                }}>Continue (Space)</button>
+                <button onClick={() => handleResolveItem(true)} className="btn btn-primary">Continue (Space)</button>
               ) : isDeathSave ? (
                 <>
-                  <button onClick={() => handleResolveDeathSave('fail')} style={{
-                    padding: 'var(--space-2) var(--space-4)', background: 'var(--color-miss)', color: 'var(--on-fill)',
-                    border: 'none', borderRadius: 'var(--radius-sm)', cursor: 'pointer', fontWeight: 600,
-                  }}>Fail &lt;10 (F)</button>
-                  <button onClick={() => handleResolveDeathSave('none')} style={{
-                    padding: 'var(--space-2) var(--space-4)', background: 'var(--color-notify-neutral)', color: 'var(--color-text-on-dark)',
-                    border: 'none', borderRadius: 'var(--radius-sm)', cursor: 'pointer', fontWeight: 600,
-                  }}>10–19 (N)</button>
-                  <button onClick={() => handleResolveDeathSave('success')} style={{
-                    padding: 'var(--space-2) var(--space-4)', background: 'var(--color-check)', color: 'var(--on-fill)',
-                    border: 'none', borderRadius: 'var(--radius-sm)', cursor: 'pointer', fontWeight: 600,
-                  }}>20+ (S)</button>
+                  <button onClick={() => handleResolveDeathSave('fail')} className="btn btn-danger">Fail &lt;10 (F)</button>
+                  <button onClick={() => handleResolveDeathSave('none')} className="btn" style={{ background: 'var(--notify-neutral)', color: 'var(--on-dark)', fontWeight: 700 }}>10–19 (N)</button>
+                  <button onClick={() => handleResolveDeathSave('success')} className="btn btn-success">20+ (S)</button>
                 </>
               ) : (
                 <>
-                  <button onClick={() => handleResolveItem(true)} style={{
-                    padding: 'var(--space-2) var(--space-4)', background: 'var(--color-check)', color: 'var(--on-fill)',
-                    border: 'none', borderRadius: 'var(--radius-sm)', cursor: 'pointer', fontWeight: 600,
-                  }}>{item.kind === 'save' ? 'Save (S)' : 'Success (S)'}</button>
-                  <button onClick={() => handleResolveItem(false)} style={{
-                    padding: 'var(--space-2) var(--space-4)', background: 'var(--color-miss)', color: 'var(--on-fill)',
-                    border: 'none', borderRadius: 'var(--radius-sm)', cursor: 'pointer', fontWeight: 600,
-                  }}>Fail (F)</button>
+                  <button onClick={() => handleResolveItem(true)} className="btn btn-success">{item.kind === 'save' ? 'Save (S)' : 'Success (S)'}</button>
+                  <button onClick={() => handleResolveItem(false)} className="btn btn-danger">Fail (F)</button>
                 </>
               )}
             </div>
@@ -923,15 +909,15 @@ export function CombatView() {
 
       {/* Settings modal */}
       {showSettings && (
-        <Modal onClose={() => setShowSettings(false)} minWidth={350}>
-            <h3 style={{ marginBottom: 'var(--space-4)' }}>Combat Settings</h3>
+        <Modal title="Combat Settings" onClose={() => setShowSettings(false)} minWidth={350}
+          footer={<button className="btn" onClick={() => setShowSettings(false)}>Close</button>}>
             <label style={{ display: 'flex', alignItems: 'flex-start', gap: 'var(--space-2)', cursor: 'pointer' }}>
               <input type="checkbox" checked={hideInspectedActions}
                 onChange={e => setHideInspectedActions(e.target.checked)}
                 style={{ marginTop: 2, cursor: 'pointer' }} />
               <span>
                 <div style={{ fontSize: 'var(--font-size-sm)', fontWeight: 500 }}>Hide on-turn actions in target stat blocks</div>
-                <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)', marginTop: 1 }}>
+                <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--muted)', marginTop: 1 }}>
                   When inspecting off-turn creatures during combat, hide standard/move/minor powers to focus on triggered actions and reactions.
                 </div>
               </span>
@@ -942,7 +928,7 @@ export function CombatView() {
                 style={{ marginTop: 2, cursor: 'pointer' }} />
               <span>
                 <div style={{ fontSize: 'var(--font-size-sm)', fontWeight: 500 }}>Show condition details on player display</div>
-                <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)', marginTop: 1 }}>
+                <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--muted)', marginTop: 1 }}>
                   Show full condition descriptions under the active creature on the player-facing screen. When off, only shows condition pills.
                 </div>
               </span>
@@ -953,14 +939,11 @@ export function CombatView() {
                 style={{ marginTop: 2, cursor: 'pointer' }} />
               <span>
                 <div style={{ fontSize: 'var(--font-size-sm)', fontWeight: 500 }}>Auto-hide dead creatures</div>
-                <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)', marginTop: 1 }}>
+                <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--muted)', marginTop: 1 }}>
                   Remove dead creatures from the initiative list once no effects are tied to their turn. Creatures with regeneration are kept visible.
                 </div>
               </span>
             </label>
-            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 'var(--space-4)' }}>
-              <button onClick={() => setShowSettings(false)}>Close</button>
-            </div>
         </Modal>
       )}
     </div>

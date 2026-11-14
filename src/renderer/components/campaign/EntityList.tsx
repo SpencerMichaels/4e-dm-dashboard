@@ -4,9 +4,10 @@ import { useUiStore } from '../../stores/ui-store'
 import { useCampaignActions } from '../../hooks/use-campaign'
 import { useHotkeys } from '../../hooks/use-hotkeys'
 import { RecordCompendium } from '../compendium/RecordCompendium'
-import { ITEM_KIND, MONSTER_KIND } from '../compendium/record-kinds'
+import { RECORD_KINDS } from '../compendium/record-kinds'
 import type { EntityType } from '@common/types'
 import { ConfirmDialog } from '../shared/ConfirmDialog'
+import { Icon } from '../shared/Icon'
 import { PCListView } from './PCListView'
 
 interface Props {
@@ -14,7 +15,6 @@ interface Props {
 }
 
 const labels: Record<string, string> = {
-  note: 'Notes',
   creature: 'Creatures',
   encounter: 'Encounters',
   location: 'Locations',
@@ -25,12 +25,11 @@ const labels: Record<string, string> = {
 
 export function EntityList({ entityType }: Props) {
   const { setView } = useUiStore()
-  const { creatures, encounters, locations, maps, items, playerCharacters, notes } = useCampaignStore()
-  const { createNote, createCreature, createEncounter, createLocation, createItem, createPC, createMap } = useCampaignActions()
+  const { creatures, encounters, locations, maps, items, playerCharacters } = useCampaignStore()
+  const { createEncounter, createLocation, createPC, createMap } = useCampaignActions()
   const [pendingDelete, setPendingDelete] = useState<{ id: string; name: string } | null>(null)
 
-  const entitiesMap: Record<string, { id: string; name?: string; title?: string }[]> = {
-    note: notes,
+  const entitiesMap: Record<string, { id: string; name?: string }[]> = {
     creature: creatures,
     encounter: encounters,
     location: locations,
@@ -47,8 +46,6 @@ export function EntityList({ entityType }: Props) {
 
   const handleCreate = async () => {
     switch (entityType) {
-      case 'note': { const n = await createNote('Untitled'); setView({ type: 'note', noteId: n.id }); break }
-      case 'creature': { const c = await createCreature('New Creature'); setView({ type: 'creature', creatureId: c.id }); break }
       case 'encounter': { const e = await createEncounter('New Encounter'); setView({ type: 'encounter', encounterId: e.id }); break }
       case 'location': { const l = await createLocation('New Location'); setView({ type: 'location', locationId: l.id }); break }
       case 'map': {
@@ -59,19 +56,16 @@ export function EntityList({ entityType }: Props) {
         setView({ type: 'map', mapId: m.id })
         break
       }
-      case 'item': { const i = await createItem('New Item'); setView({ type: 'item', itemId: i.id }); break }
       case 'player-character': { await createPC('New PC', ''); break }
     }
   }
 
   const navigateTo = (id: string) => {
     switch (entityType) {
-      case 'note': setView({ type: 'note', noteId: id }); break
-      case 'creature': setView({ type: 'creature', creatureId: id }); break
+      case 'creature': case 'item': setView({ type: 'compendium', kind: entityType, id }); break
       case 'encounter': setView({ type: 'encounter', encounterId: id }); break
       case 'location': setView({ type: 'location', locationId: id }); break
       case 'map': setView({ type: 'map', mapId: id }); break
-      case 'item': setView({ type: 'item', itemId: id }); break
     }
   }
 
@@ -81,11 +75,8 @@ export function EntityList({ entityType }: Props) {
   }
 
   // Creatures and items get the shared compendium page
-  if (entityType === 'creature') {
-    return <RecordCompendium kind={MONSTER_KIND} />
-  }
-  if (entityType === 'item') {
-    return <RecordCompendium kind={ITEM_KIND} />
+  if (entityType === 'creature' || entityType === 'item') {
+    return <RecordCompendium kind={RECORD_KINDS[entityType]} />
   }
 
   return (
@@ -94,29 +85,25 @@ export function EntityList({ entityType }: Props) {
         <h1 style={{ fontSize: 'var(--font-size-2xl)' }}>{labels[entityType] ?? entityType}</h1>
         <button
           onClick={handleCreate}
-          style={{
-            padding: 'var(--space-2) var(--space-4)',
-            background: 'var(--color-accent)',
-            color: 'var(--color-accent-text)',
-            borderRadius: 'var(--radius-sm)',
-          }}
+          className="btn btn-primary"
         >
           + New
         </button>
       </div>
 
       {entities.length === 0 ? (
-        <p style={{ color: 'var(--color-text-muted)' }}>No {labels[entityType]?.toLowerCase()} yet.</p>
+        <p style={{ color: 'var(--muted)' }}>No {labels[entityType]?.toLowerCase()} yet.</p>
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
+        <div role="list" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
           {entities.map((e) => (
             <div
               key={e.id}
+              role="listitem"
               style={{
                 display: 'flex',
                 alignItems: 'center',
-                background: 'var(--color-bg-surface)',
-                border: '1px solid var(--color-border)',
+                background: 'var(--surface-raised)',
+                border: '1px solid var(--border)',
                 borderRadius: 'var(--radius-sm)',
               }}
             >
@@ -131,24 +118,25 @@ export function EntityList({ entityType }: Props) {
                   cursor: 'pointer',
                 }}
               >
-                {e.name || e.title || 'Untitled'}
+                {e.name || 'Untitled'}
               </button>
               <button
                 onClick={(ev) => {
                   ev.stopPropagation()
-                  setPendingDelete({ id: e.id, name: e.name || e.title || 'Untitled' })
+                  setPendingDelete({ id: e.id, name: e.name || 'Untitled' })
                 }}
                 title="Delete"
+                aria-label="Delete"
                 style={{
                   padding: 'var(--space-2) var(--space-3)',
                   background: 'transparent',
                   border: 'none',
                   cursor: 'pointer',
-                  color: 'var(--color-text-muted)',
+                  color: 'var(--muted)',
                   fontSize: 'var(--font-size-sm)',
                 }}
               >
-                x
+                <Icon name="x" />
               </button>
             </div>
           ))}

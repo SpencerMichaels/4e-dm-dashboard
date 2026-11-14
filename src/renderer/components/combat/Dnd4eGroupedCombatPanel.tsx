@@ -51,8 +51,8 @@ function pluralize(name: string): string {
   return name + 's'
 }
 
-/** Default designator color when combatant has no color assigned */
-const DEFAULT_DESIGNATOR_BG = '#666'
+/** Default designator color when combatant has no color assigned (constant in both themes, under white text) */
+const DEFAULT_DESIGNATOR_BG = 'var(--tone-neutral)'
 
 export function Dnd4eGroupedCombatPanel({
   combatants, combat, conditions: conditionDefs, notifications,
@@ -90,22 +90,6 @@ export function Dnd4eGroupedCombatPanel({
   const usageOrder: Record<string, number> = { 'at-will': 0, 'encounter': 1, 'recharge': 2 }
   powerEntries.sort((a, b) => (usageOrder[a.usage] ?? 3) - (usageOrder[b.usage] ?? 3))
 
-  const pinBtn = (key: string, title: string, content: any) => {
-    const isPinned = pinnedKeys.has(key)
-    return (
-      <button
-        onClick={() => onPinCard({ combatantName: baseName, title, content, key })}
-        title={isPinned ? 'Unpin' : 'Pin to overlay'}
-        style={{
-          background: 'none', border: 'none', cursor: 'pointer', padding: '0 2px',
-          fontSize: 10, color: isPinned ? 'var(--color-action-point)' : 'var(--color-text-muted)',
-          opacity: isPinned ? 1 : 0.5,
-        }}
-      >
-        {'\u{1F4CC}'}
-      </button>
-    )
-  }
 
   return (
     <div className={`stat-block-4e ${styles.container}`}>
@@ -143,14 +127,14 @@ export function Dnd4eGroupedCombatPanel({
                   className={styles.hpBarFill}
                   style={{
                     width: `${Math.max(0, Math.min(100, hpPct))}%`,
-                    background: hpPct > 0 ? hpColor(hpPct) : 'var(--color-text-muted)',
+                    background: hpPct > 0 ? hpColor(hpPct) : 'var(--muted)',
                   }}
                 />
               </div>
 
               {/* HP numbers */}
               <div className={styles.hpInfo}>
-                <span className={styles.hpCurrent} style={{ color: hpPct > 0 ? hpColor(hpPct) : 'var(--color-text-muted)' }}>
+                <span className={styles.hpCurrent} style={{ color: hpPct > 0 ? hpColor(hpPct) : 'var(--muted)' }}>
                   {c.hp}
                 </span>
                 <span className={styles.hpMax}>/ {c.maxHp}</span>
@@ -238,72 +222,16 @@ export function Dnd4eGroupedCombatPanel({
         </div>
       )}
 
-      {/* Traits */}
-      {traitEntries.length > 0 && (
+      {/* Traits, auras, and powers: the same card, read-only here (no use tracking), pinned from its header */}
+      {actions.length > 0 && (
         <div style={{ borderTop: '1px solid var(--sb-separator)', paddingTop: 2 }}>
-          {traitEntries.map((t, i) => {
-            const key = `grouped:${baseName}:trait:${i}`
-            const body = t.effect || t.text || (t as any).description || ''
-            return (
-              <div key={i} style={{ marginTop: 2, display: 'flex', alignItems: 'flex-start' }}>
-                <div style={{ flex: 1, fontSize: 'var(--font-size-xs)', lineHeight: 1.5, marginBottom: 1 }}>
-                  <div style={{ padding: '2px 8px', background: '#7a6f5e', color: '#fff' }}>
-                    <b>{t.name}</b>
-                  </div>
-                  {body && <div style={{ padding: '1px 8px 2px 16px' }}>{body}</div>}
-                </div>
-                <div style={{ paddingTop: 2 }}>{pinBtn(key, t.name, body)}</div>
-              </div>
-            )
-          })}
-        </div>
-      )}
-
-      {/* Auras */}
-      {auraEntries.length > 0 && (
-        <div style={{ paddingTop: 2 }}>
-          {auraEntries.map((a, i) => {
-            const key = `grouped:${baseName}:aura:${i}`
-            const auraRange = (a as any).auraRange ?? a.rangeValue ?? 1
-            const body = a.effect || a.text || (a as any).description || ''
-            return (
-              <div key={i} style={{ marginTop: 2, display: 'flex', alignItems: 'flex-start' }}>
-                <div style={{ flex: 1, fontSize: 'var(--font-size-xs)', lineHeight: 1.5, marginBottom: 1 }}>
-                  <div style={{ padding: '2px 8px', background: '#7a6f5e', color: '#fff' }}>
-                    <b>{a.name}</b>
-                    <span style={{ color: 'rgba(255,255,255,0.8)' }}> (aura {auraRange})</span>
-                  </div>
-                  {body && <div style={{ padding: '1px 8px 2px 16px' }}>{body}</div>}
-                </div>
-                <div style={{ paddingTop: 2 }}>{pinBtn(key, a.name, `aura ${auraRange}; ${body}`)}</div>
-              </div>
-            )
-          })}
-        </div>
-      )}
-
-      {/* Powers — read-only reference (no usage tracking) */}
-      {powerEntries.length > 0 && (
-        <div style={{ borderTop: '1px solid var(--sb-separator)', paddingTop: 2 }}>
-          {powerEntries.map((pow, i) => {
-            const globalIdx = actions.indexOf(pow)
-            const entry = toPowerCardEntry(pow)
-            const pinKey = `grouped:${baseName}:power:${globalIdx}`
-
-            return (
-              <div key={globalIdx} style={{ marginTop: 2 }}>
-                <div style={{ display: 'flex', alignItems: 'flex-start' }}>
-                  <div style={{ flex: 1 }}>
-                    <PowerCardView entry={entry}
-                      detectedConditions={detectConditions({ hit: pow.hit, effect: pow.effect, miss: pow.miss, target: pow.target })}
-                    />
-                  </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 2, paddingTop: 2 }}>
-                    {pinBtn(pinKey, pow.name, entry)}
-                  </div>
-                </div>
-              </div>
-            )
+          {[...traitEntries, ...auraEntries, ...powerEntries].map(a => {
+            const idx = actions.indexOf(a)
+            const key = `grouped:${baseName}:${a.entryType}:${idx}`
+            const entry = toPowerCardEntry(a.entryType === 'aura' ? { ...a, rangeType: 'aura', rangeValue: String((a as any).auraSize ?? (a as any).auraRange ?? a.rangeValue ?? 1) } : a)
+            return <PowerCardView key={key} entry={entry}
+              detectedConditions={a.entryType === 'action' ? detectConditions({ hit: a.hit, effect: a.effect, miss: a.miss, target: a.target }) : undefined}
+              pinned={pinnedKeys.has(key)} onPin={() => onPinCard({ combatantName: baseName, title: a.name, content: entry, key })} />
           })}
         </div>
       )}

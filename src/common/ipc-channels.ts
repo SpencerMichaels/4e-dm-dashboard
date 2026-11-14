@@ -16,9 +16,8 @@ export const CMD = {
   ENTITY_GET: 'entity:get',
   ENTITY_LIST: 'entity:list',
 
-  // Notes (tree structure)
-  NOTE_TREE_GET: 'note:tree:get',
-  NOTE_TREE_SAVE: 'note:tree:save',
+  // Player characters: import .dnd4e / .4ecb sheets
+  PC_IMPORT: 'pc:import',
 
   // Combat
   COMBAT_INIT: 'combat:init',
@@ -57,10 +56,9 @@ export const CMD = {
   // App settings (<userData>/app-settings.json)
   SETTINGS_GET: 'settings:get',
   SETTINGS_SET_THEME: 'settings:set-theme',
-  SETTINGS_DISMISS_TIP: 'settings:dismiss-tip',
+  SETTINGS_SET_AGENT_CONNECTION: 'settings:set-agent-connection',
 
   // Links
-  LINKS_GET: 'links:get',
 
   // Images
   IMAGE_IMPORT: 'image:import',

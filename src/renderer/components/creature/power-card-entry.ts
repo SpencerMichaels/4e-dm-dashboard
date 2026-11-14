@@ -41,6 +41,8 @@ export function toPowerCardEntry(p: any, opts: { hideUsageKeywords?: boolean } =
     special: p.special,
     text: p.text,
     levelScaling: p.levelScaling,
+    ...(p.encounterUses > 1 ? { encounterUses: p.encounterUses } : {}),
+    ...(p.basicAttack ? { basic: p.basicAttack } : {}),
     // Encounter level adjustment, shown on the attack and damage numbers.
     ...(p._levelAdjust ? { _levelAdjust: p._levelAdjust } : {}),
   } as PowerCardEntry

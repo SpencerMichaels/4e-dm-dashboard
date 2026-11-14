@@ -1,42 +1,35 @@
+// The monster power card ("Monster Power Cards: Proposal", card pass 1), used for powers, traits, and
+// auras wherever a stat block shows them: the creature viewer, combat panels, pinned cards, reaction
+// tiles, item and trap stat blocks. A header (action icon, name, keywords, basic-attack marker, usage
+// chip, pin), the attack line (range, target, bonus vs defense), and the printed lines in book order,
+// grouped by spacing. In combat it also shows use: a spent power collapses to its header and says so
+// in its chip.
+
+import { useState, type KeyboardEvent, type MouseEvent } from 'react'
+import { abbreviateDefense, groupLines, textAtLevel, usageChipLabel, usedChipLabel, type CardLine } from '@common/rules/power-card'
 import { DiseaseChips } from '../disease/disease-refs'
 import { usageTone, DND4E_ACTION_TYPES, sign, normalizeDamage, type DamagePart } from './dnd4e-utils'
-import { tint, withAlpha } from '../../utils/color'
+import { tint } from '../../utils/color'
 import type { DetectedCondition } from '../combat/condition-detection'
 import { splitTextWithHighlights } from '../combat/condition-detection'
 import { useSystemSetting } from '../../stores/settings-store'
+import { ActionTypeIcon, Icon, RangeKindIcon } from '../shared/Icon'
 import './statblock.css'
 
-// Monochrome unicode icons (text presentation, never colored emoji) for the
-// action-type and range-type indicators on power cards.
-export const ACTION_ICONS: Record<string, string> = {
-  standard:             '\u25CF',          // ● filled circle
-  minor:                '\u25D4',          // ◔ one-quarter filled circle
-  move:                 '\u226B',          // ≫ much greater-than
-  free:                 '\u25CB',          // ○ empty circle
-  'immediate-reaction': '\u21BB',          // ↻ clockwise loop (responds AFTER trigger)
-  'immediate-interrupt':'\u21AF',          // ↯ downwards zigzag arrow (failed/interrupted reaction)
-  opportunity:          '\u21BB',          // ↻ same glyph as immediate reaction (kit ACTION_TYPE_SYMBOLS)
-  'no-action':          '\u2013',          // – en dash
-}
-const RANGE_ICONS: Record<string, string> = {
-  melee:        '\u2694\uFE0E', // ⚔ crossed swords (text variation)
-  ranged:       '\u27B3',       // ➳ heavy arrow with hooked head
-  'close-burst':'\u229B',       // ⊛ circled asterisk (centered on self)
-  'close-blast':'\u25E2',       // ◢ lower-right triangle (cone from self)
-  'area-burst': '\u2738',       // ✸ heavy eight-pointed asterisk (explosion at range)
-  'area-wall':  '\u25A6',       // ▦ square with orthogonal hatch (wall)
-  aura:         '\u2600\uFE0E', // ☀ sun (text variation) — radiating presence
-}
-
-/** Shared read-only power card used by creature viewer, item viewer, and trap viewer */
+/** An encounter level adjustment, shown on the attack bonus and the damage. */
+export interface LevelAdjust { attackDelta: number; damageDelta: number; source: string }
 
 export interface PowerCardEntry {
   name: string
+  /** A power's usage, or 'trait' / 'aura' for those entries. */
   usage: string
   actionType?: string
   action?: string          // item powers use this instead of actionType
   rechargeValue?: number       // recharge threshold: 4 means "recharge 4+" (roll 4-6 on d6)
   rechargeCondition?: string   // e.g., "when first bloodied"
+  encounterUses?: number       // "2/Encounter"
+  /** A basic attack (also read from a "Basic melee attack" line). */
+  basic?: 'melee' | 'ranged'
   keywords?: string[]
   rangeType?: string
   rangeValue?: string
@@ -57,6 +50,7 @@ export interface PowerCardEntry {
   special?: string
   text?: string
   levelScaling?: { level: number; text: string }[]
+  _levelAdjust?: LevelAdjust
 }
 
 interface Props {
@@ -64,30 +58,53 @@ interface Props {
   selectedLevel?: number
   detectedConditions?: DetectedCondition[]
   onConditionClick?: (detection: DetectedCondition, multi: boolean) => void
+  /** In combat: how often the power was used, and the most it can be (Infinity for at-will). */
+  uses?: { used: number; max: number }
+  /** Click uses the power; right-click restores a use. */
+  onUse?: () => void
+  onRestore?: () => void
+  pinned?: boolean
+  onPin?: () => void
+  /** Header only (a reaction tile): clicking uses it (onUse) instead of expanding. */
+  collapsed?: boolean
+  /** Shown after the action icon (a reaction tile's "triggered" mark). */
+  marker?: React.ReactNode
+  /** The engine is waiting on this power's recharge roll: a dice icon in the chip. */
+  rechargeQueued?: boolean
 }
 
-export function PowerCardView({ entry: e, selectedLevel, detectedConditions, onConditionClick }: Props) {
+export function PowerCardView({ entry: e, selectedLevel, detectedConditions, onConditionClick, uses, onUse, onRestore, pinned, onPin, collapsed, marker, rechargeQueued }: Props) {
   const hideActionTypeText = useSystemSetting<boolean>('dnd-4e', 'hideActionTypeText', false)
-  // Derive rechargeValue from rechargeCondition if it's a numeric string like "5-6"
+  const [expanded, setExpanded] = useState(false)
+  const kind = e.usage === 'trait' || e.usage === 'aura' ? e.usage : 'power'
+  // A numeric recharge printed as "5-6" carries its threshold in the condition.
   const rechargeValue = e.rechargeValue ?? (e.rechargeCondition ? (parseInt(e.rechargeCondition) || undefined) : undefined)
-  const rechargeCondition = rechargeValue ? undefined : e.rechargeCondition  // don't show condition if numeric
-  const usageKey = (e.usage?.startsWith('recharge') || rechargeValue) ? 'recharge' : e.usage
-  const { fill: usageColor, text: usageText } = usageTone(usageKey)
+  const usage = { usage: e.usage, rechargeValue, rechargeCondition: rechargeValue ? undefined : e.rechargeCondition, encounterUses: e.encounterUses, auraSize: e.rangeValue }
+  const usageKey = kind !== 'power' ? 'trait' : (e.usage?.startsWith('recharge') || rechargeValue) ? 'recharge' : e.usage
+  const tone = usageTone(usageKey)
+  const spent = !!uses && uses.max !== Infinity && uses.used >= uses.max
+  const chip = uses ? usedChipLabel(usage, uses.used, uses.max) : usageChipLabel(usage)
+  const showBody = !collapsed && (!spent || expanded)
   const actionLabel = e.actionType ? (DND4E_ACTION_TYPES[e.actionType] ?? e.actionType) : (e.action ?? '')
-  /** Render a text field with detected condition keywords highlighted */
-  const renderHighlighted = (text: string, field: 'hit' | 'effect' | 'miss') => {
-    if (!detectedConditions || !onConditionClick) return text
+
+  const hasAttack = e.attackBonus != null || !!(e.attackNotes && e.defense)
+  const lines = groupLines({ ...e, attack: hasAttack })
+  // Traits and auras print their text unlabelled.
+  const groups = kind === 'power' ? lines.groups : lines.groups.map(g => g.map(l => l.label === 'Effect' ? { ...l, label: '' } : l))
+  const basicLine = lines.basic
+  const basic = e.basic ?? basicLine
+  const damage = normalizeDamage(e.damage)
+  const steps = e.levelScaling?.length ? (selectedLevel != null ? [textAtLevel(e.levelScaling, selectedLevel)].filter(Boolean) as { level: number; text: string }[] : e.levelScaling) : []
+
+  /** Text with detected condition keywords (and disease names) highlighted for click-to-apply. */
+  const highlighted = (text: string, field?: CardLine['field']) => {
+    if (!field || !detectedConditions || !onConditionClick) return text
     const segments = splitTextWithHighlights(text, detectedConditions, field)
     if (segments.length === 1 && !segments[0].detection) return text
     return segments.map((seg, i) => seg.detection ? (
-      <span key={i}
-        onMouseDown={(ev) => { if (ev.shiftKey) ev.preventDefault() }}
-        onClick={(ev) => { ev.stopPropagation(); onConditionClick(seg.detection!, ev.shiftKey) }}
-        style={{
-          textDecoration: 'underline', textDecorationStyle: 'dotted',
-          cursor: 'pointer', color: 'var(--color-action-point)', fontWeight: 600,
-          userSelect: 'none',
-        }}
+      <span key={i} className="pc-apply"
+        onMouseDown={ev => { if (ev.shiftKey) ev.preventDefault() }}
+        onClick={ev => { ev.stopPropagation(); onConditionClick(seg.detection!, ev.shiftKey) }}
         title={seg.detection.disease
           ? `Click, then a PC, to expose them to ${seg.detection.conditionName} (shift-click for several)`
           : `Click to apply ${seg.detection.conditionName} (shift-click to apply to multiple targets)`}
@@ -95,113 +112,64 @@ export function PowerCardView({ entry: e, selectedLevel, detectedConditions, onC
     ) : <span key={i}>{seg.text}</span>)
   }
 
-  const hasAttack = e.attackBonus != null || (e.attackNotes && e.defense)
-  const damage = normalizeDamage(e.damage)
-  const labelStyle = { color: 'var(--color-text-secondary)' }
+  const adjusted = (delta: number, what: string, node: React.ReactNode) => delta
+    ? <span className="pc-adjusted" title={`${e._levelAdjust!.source}: ${delta > 0 ? '+' : ''}${delta} ${what}`}>{node}</span>
+    : node
+  const damageLine = damage.length > 0 && <div className="pc-line"><b>Damage</b> {adjusted(e._levelAdjust?.damageDelta ?? 0, 'damage',
+    damage.map((p, i) => <span key={i}>{i > 0 && ' plus '}{p.ongoing && 'ongoing '}{p.expr}{p.type && ` ${p.type}`}{p.saveEnds && ' (save ends)'}</span>))}</div>
+  // Damage leads the attack's outcome (pass 2 folds it into the Hit line).
+  const damageGroup = damage.length > 0 ? Math.max(0, groups.findIndex(g => g.some(l => l.label === 'Hit'))) : -1
+
+  // ── Use, restore, expand ──
+  const activate = () => {
+    if (collapsed) return void onUse?.()
+    if (spent) setExpanded(x => !x)
+    else onUse?.()
+  }
+  const interactive = !!onUse || spent
+  const onClick = (ev: MouseEvent) => { if (interactive && !(ev.target as HTMLElement).closest('button, .pc-apply, .disease-chips')) activate() }
+  const onContextMenu = (ev: MouseEvent) => { if (onRestore && uses?.used) { ev.preventDefault(); onRestore() } }
+  const onKeyDown = (ev: KeyboardEvent) => { if (interactive && (ev.key === 'Enter' || ev.key === ' ') && ev.target === ev.currentTarget) { ev.preventDefault(); activate() } }
 
   return (
-    <div style={{ fontSize: 'var(--font-size-xs)', lineHeight: 1.5, marginBottom: 1 }}>
-      {/* Header */}
-      <div style={{ padding: '2px 8px', background: usageColor, color: usageText }}>
-        {e.actionType && ACTION_ICONS[e.actionType] && (
-          <span title={DND4E_ACTION_TYPES[e.actionType] ?? e.actionType}
-            style={{ marginRight: 6, display: 'inline-block', minWidth: '1em', textAlign: 'center' }}>
-            {ACTION_ICONS[e.actionType]}
-          </span>
-        )}
-        <b>{e.name}</b>
-        {e.keywords && e.keywords.length > 0 && (
-          <span style={{ color: withAlpha(usageText, 0.7) }}> ({e.keywords.join(', ')})</span>
-        )}
-        {!hideActionTypeText && (actionLabel || e.usage) && (
-          <span style={{ color: withAlpha(usageText, 0.8) }}> ({[
-            actionLabel,
-            rechargeValue ? `recharge ${rechargeValue}${rechargeValue < 6 ? '+' : ''}`
-              : rechargeCondition ? `recharge ${rechargeCondition}`
-              : e.usage,
-          ].filter(Boolean).join('; ')})</span>
-        )}
-        {hideActionTypeText && (rechargeValue || rechargeCondition) && (
-          <span style={{ color: withAlpha(usageText, 0.8) }}> ({
-            rechargeValue ? `recharge ${rechargeValue}${rechargeValue < 6 ? '+' : ''}`
-              : `recharge ${rechargeCondition}`
-          })</span>
-        )}
+    <div className={`power-card power-card-${kind}${spent ? ' spent' : ''}${interactive ? ' interactive' : ''}`}
+      style={{ '--pc-fill': tone.fill, '--pc-text': tone.text, '--pc-sub': tint(tone.fill, 0.85, 'var(--card-text)') } as React.CSSProperties}
+      tabIndex={interactive || onPin ? 0 : undefined} onClick={onClick} onContextMenu={onContextMenu} onKeyDown={onKeyDown}
+      title={interactive ? (spent ? 'Click to show or hide · right-click to restore a use' : 'Click to use · right-click to restore') : undefined}>
+      <div className="pc-header">
+        <ActionTypeIcon action={e.actionType} />
+        {marker}
+        <span className="pc-title">
+          <b className="pc-name">{e.name}</b>
+          {e.keywords && e.keywords.length > 0 && <span className="pc-dim"> ({e.keywords.join(', ')})</span>}
+          {!hideActionTypeText && !collapsed && actionLabel && kind === 'power' && <span className="pc-dim"> · {actionLabel}</span>}
+        </span>
+        {basic && <span className="pc-basic" title={`Basic ${basic} attack`}>Basic</span>}
+        {chip && <span className="pc-chip" title={rechargeQueued ? 'Recharge roll pending this turn' : undefined}>{rechargeQueued && <Icon name="dices" label="Recharge roll pending" />}{rechargeQueued ? ' ' : ''}{chip}</span>}
+        {onPin && <button type="button" className="pc-pin" onClick={ev => { ev.stopPropagation(); onPin() }}
+          title={pinned ? 'Unpin' : 'Pin to the overlay'} aria-pressed={pinned}><Icon name={pinned ? 'pin-off' : 'pin'} /></button>}
       </div>
-      {/* Attack / range subheader — shown for attacks AND for non-attack entries that have a range (auras, blasts).
-         Traits never get a subheader — they may carry range data from import but shouldn't display it.
-         The subheader is lighter than the header in both themes (blended toward the white header
-         text, not the surface), matching the stat block's dark-then-light header rows. */}
-      {(hasAttack || (e.rangeType && e.rangeValue)) && e.usage !== 'trait' && (
-        <div style={{ padding: '1px 8px', background: tint(usageColor, 0.85, 'var(--card-text)'), color: usageText }}>
-          {e.rangeType && RANGE_ICONS[e.rangeType] && (
-            <span title={e.rangeType.replace(/-/g, ' ')}
-              style={{ marginRight: 6, display: 'inline-block', minWidth: '1em', textAlign: 'center' }}>
-              {RANGE_ICONS[e.rangeType]}
-            </span>
-          )}
-          {e.rangeType && <>{e.rangeType.replace(/-/g, ' ')}</>}
-          {e.rangeValue && <> {e.rangeValue}</>}
-          {e.target && <> ({e.target})</>}
-          {e.defense && <>
-            ; {e.attackNotes && /level/i.test(e.attackNotes) ? e.attackNotes : (
-              (e as any)._levelAdjust?.attackDelta
-                ? <span title={`${(e as any)._levelAdjust.source}: ${(e as any)._levelAdjust.attackDelta > 0 ? '+' : ''}${(e as any)._levelAdjust.attackDelta} to attack`}
-                    style={{ color: 'var(--notify)', textDecoration: 'underline dotted', textUnderlineOffset: 2 }}>{sign(e.attackBonus!)}</span>
-                : sign(e.attackBonus!)
-            )} vs {e.defense}
-          </>}
-          {e.attackNotes && !/level/i.test(e.attackNotes) && <> {e.attackNotes}</>}
+      {showBody && kind === 'power' && (hasAttack || (e.rangeType && e.rangeValue)) && (
+        <div className="pc-attack">
+          {e.rangeType && <span><RangeKindIcon kind={e.rangeType} /> {e.rangeType.replace(/-/g, ' ')}{e.rangeValue && ` ${e.rangeValue}`}</span>}
+          {e.target && <span><Icon name="target" label="Target" /> {e.target}</span>}
+          {e.defense && <span className="pc-roll"><Icon name="dices" label="Attack" /> <b>
+            {e.attackNotes && /level/i.test(e.attackNotes) ? e.attackNotes : adjusted(e._levelAdjust?.attackDelta ?? 0, 'to attack', sign(e.attackBonus!))} vs {abbreviateDefense(e.defense)}
+          </b></span>}
+          {e.attackNotes && !/level/i.test(e.attackNotes) && <span>{e.attackNotes}</span>}
         </div>
       )}
-      {/* Body */}
-      <div style={{ padding: '1px 8px 2px 16px' }}>
-        {e.requirement && <div><b style={labelStyle}>Requirement</b> {e.requirement}</div>}
-        {e.trigger && <div><b style={labelStyle}>Trigger</b> {e.trigger}</div>}
-        {damage.length > 0 && (
-          <div>
-            <b style={labelStyle}>Damage</b>{' '}
-            {(e as any)._levelAdjust?.damageDelta ? (
-              <span title={`${(e as any)._levelAdjust.source}: ${(e as any)._levelAdjust.damageDelta > 0 ? '+' : ''}${(e as any)._levelAdjust.damageDelta} damage`}
-                style={{ color: 'var(--notify)', textDecoration: 'underline dotted', textUnderlineOffset: 2 }}>
-                {damage.map((p, i) => (
-                  <span key={i}>{i > 0 && ' plus '}{p.ongoing && 'ongoing '}{p.expr}{p.type && ` ${p.type}`}{p.saveEnds && ' (save ends)'}</span>
-                ))}
-              </span>
-            ) : (
-              damage.map((p, i) => (
-                <span key={i}>{i > 0 && ' plus '}{p.ongoing && 'ongoing '}{p.expr}{p.type && ` ${p.type}`}{p.saveEnds && ' (save ends)'}</span>
-              ))
-            )}
-          </div>
-        )}
-        {e.critical && <div><b style={labelStyle}>Critical</b> {e.critical}</div>}
-        {e.hit && <div><b style={labelStyle}>Hit</b> {renderHighlighted(e.hit.replace(/^\+\s*/, ''), 'hit')}</div>}
-        {e.secondary && <div><b style={labelStyle}>Secondary</b> {e.secondary}</div>}
-        {e.aftereffect && <div><b style={labelStyle}>Aftereffect</b> {e.aftereffect}</div>}
-        {e.miss && <div><b style={labelStyle}>Miss</b> {renderHighlighted(e.miss, 'miss')}</div>}
-        {e.effect && <div><b style={labelStyle}>Effect</b> {renderHighlighted(e.effect, 'effect')}</div>}
-        {e.sustain && <div><b style={labelStyle}>Sustain</b> {e.sustain}</div>}
-        {e.special && <div><b style={labelStyle}>Special</b> {e.special}</div>}
-        {e.text && e.text.split('\n').map((line, j) => (
-          <div key={j}>{line}</div>
-        ))}
-        {e.levelScaling && e.levelScaling.length > 0 && (
-          selectedLevel != null ? (() => {
-            let best: { level: number; text: string } | undefined
-            for (const s of e.levelScaling) {
-              if (s.level <= selectedLevel && (!best || s.level > best.level)) best = s
-            }
-            return best ? <div style={{ color: 'var(--color-text-secondary)', fontSize: 11 }}>Level {best.level}: {best.text}</div> : null
-          })() : (
-            <>{e.levelScaling.map((s, i) => (
-              <div key={i} style={{ color: 'var(--color-text-secondary)', fontSize: 11 }}>Level {s.level}: {s.text}</div>
-            ))}</>
-          )
-        )}
-        {/* Diseases the power exposes its target to */}
-        <DiseaseChips text={[e.hit, e.secondary, e.aftereffect, e.miss, e.effect, e.special, e.text].filter(Boolean).join(' ')} />
-      </div>
+      {showBody && (
+        <div className="pc-body">
+          {groups.map((g, i) => <div key={i} className="pc-group">
+            {i === damageGroup && damageLine}
+            {g.map((l, j) => <div key={j} className="pc-line">{l.label && <b>{l.label}</b>} {highlighted(l.text, l.field)}</div>)}
+          </div>)}
+          {groups.length === 0 && damageLine && <div className="pc-group">{damageLine}</div>}
+          {steps.length > 0 && <div className="pc-group pc-levels">{steps.map((s, i) => <div key={i}>Level {s.level}: {s.text}</div>)}</div>}
+          <DiseaseChips text={[e.hit, e.secondary, e.aftereffect, e.miss, e.effect, e.special, e.text].filter(Boolean).join(' ')} />
+        </div>
+      )}
     </div>
   )
 }

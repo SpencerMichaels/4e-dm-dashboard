@@ -2,7 +2,19 @@
 
 ## Workshop (content authoring) regression (2026-11-12)
 
-Run in the devcontainer: `npm test`, `npm run typecheck:node`, `npm run build`, then `npm run test:authoring:ui` and `npm run test:compendium:ui` (compendium editing for traps, diseases, templates, and themes: clone on first edit, autosave, Custom listing, delete, new entries). The UI smoke test uses temporary appData/userData and hidden, unthrottled Electron windows (`FOUR_E_HIDDEN_WINDOWS=1`, nothing appears on the desktop), verifies all four native previews, editing through the native compendium creature editor (HP, damage, hit prose; applied without an Apply step), merging with a concurrent agent change and the same-field Keep mine prompt, the version history list, a comment anchored to a power, DM-edit tracking, review, and campaign save, and writes `out/authoring-smoke.png` plus `out/authoring-edit-smoke.png`. It does not use real campaigns. `typecheck:web` retains pre-existing project-boundary/alias/component errors; check for new authoring-module errors separately.
+Since 2026-11-13 every campaign entry is edited through its working copy (a draft the agent also edits), with no AI mode; Settings › AI agent (off by default) opens the agent connection and shows comment markers (check that nothing listens and no markers show while it is off): select shows the stat block with comment markers and whole-entry comments below; Edit is the usual editor plus markers and whole-entry comments (no History: the agent restores versions); ask the agent to work on the open entry (`current_entry`) and its changes appear in the preview or editor without any click; a field both changed keeps the DM's value (no prompt), and an out-of-date agent edit is refused with what the DM changed, so the agent asks; setting art from the preview does not disturb the working copy; **+ new** and **Copy to campaign** add the entry on the first change (a copy keeps its source and art); every change is saved (validation is the agent's; no problems note); Delete works on every Custom row. Compendium pages open without a campaign. Run in the Nix shell (`nix develop -c ...`): `npm test`, `npm run typecheck:node`, `npm run build`, then `npm run test:authoring:ui` and `npm run test:compendium:ui` (compendium editing for traps, diseases, templates, and themes: clone on first edit, autosave, Custom listing, delete, new entries). The UI smoke test uses temporary appData/userData and hidden, unthrottled Electron windows (`FOUR_E_HIDDEN_WINDOWS=1`, nothing appears on the desktop), verifies all four native previews, editing through the native compendium creature editor (HP, damage, hit prose; applied without an Apply step), merging with a concurrent agent change and the DM winning a same-field change, the version history list, a comment anchored to a power, DM-edit tracking, review, and campaign save, and writes `out/authoring-smoke.png` plus `out/authoring-edit-smoke.png`. It does not use real campaigns. `typecheck:web` retains pre-existing project-boundary/alias/component errors; check for new authoring-module errors separately.
+
+## Power cards (2026-11-13)
+
+In combat and the Creatures page: each power, trait, and aura is one card with an action icon, dim keywords, a Basic marker on basic attacks, a usage chip, and a pin in the header; attacks have their own line (range · target · bold bonus vs short defense). Click a limited power to use it: the card collapses, its name is struck through, and the chip says USED (or 1/2 Enc, Rch 5+ · USED); click again to show it, right-click to restore. Tab focuses cards; Enter uses. Click-to-apply conditions and diseases still work. Reaction tiles are the same card, header only. Pin a limited power, then use it: the pinned card shows it used and can restore it; at the start of its turn a recharge power's chip shows a dice icon until the roll is resolved. Check light and dark themes.
+
+## Popouts (2026-11-13)
+
+Pin a card in combat, then click the window icon in the Pinned panel header: the cards move into their own OS window (styled, same theme; switch the theme and it follows). Use and restore a power there; the combat panel agrees. Press Space with the popout focused: the turn advances. Close the window: the pinned cards come back into the app. Pop out a stat block (combat ↗, compendium, encounter editor, a template's window) and the combat log: each opens its own window, and closing one closes that panel. Reopen one: it opens where the last one of its sort was. Closing or reloading the DM window closes the popouts.
+
+## Character import (2026-11-13)
+
+On the PCs page, **Import…** (or `I`) takes one or more `.dnd4e` files and adds a PC for each; importing the same character again updates it. The ⤓ button on a PC card imports a file onto that PC. The card shows the sheet beside the portrait (level, race, class, HP for reference, defenses, initiative, speed, passives, resistances, trained skills), and an empty mark is set from the class (Combat Challenge, Hunter's Quarry, ...). A name, player, or mark the DM changed stays on re-import. A bad file shows its error in the banner. In combat, a PC row shows its defenses under the name, a selected PC shows the sheet in its panel (no HP bar: players track it), and when a monster attacks a PC the resolve row shows the PC's defenses.
 
 ## Creature records (2026-11-13)
 
@@ -40,7 +52,7 @@ The older checklist below is retained for historical reference.
 
 Status: Historical manual regression checklist. The implementation is present; completion of every manual step was not recorded. This file is not an active implementation backlog.
 
-The session before you applied four independent renderer-side fixes. Build/typecheck and UI-verify each one inside this devcontainer.
+The session before you applied four independent renderer-side fixes. Build/typecheck and UI-verify each one inside the Nix shell.
 
 ## Build / typecheck first
 

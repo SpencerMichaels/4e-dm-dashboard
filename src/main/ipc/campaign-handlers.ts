@@ -1,7 +1,10 @@
 import { ipcMain, dialog, BrowserWindow } from 'electron'
 import { CMD, SYNC } from '@common/ipc-channels'
-import type { EntityType } from '@common/types'
-import { RECORD_STORAGE, RECORD_TYPES, type RecordType } from '@common/campaign-records'
+import type { EntityType, PlayerCharacter } from '@common/types'
+import { applySnapshots, type ImportedFile, type ImportResult } from '@common/character/character-import'
+import { generateId } from '@common/utils/id'
+import { isRecordType, RECORD_STORAGE, RECORD_TYPES, type RecordType } from '@common/campaign-records'
+import { authoringEntryChanged, authoringEntryDeleted } from './authoring-handlers'
 import * as store from '../data/campaign-store'
 import { broadcastToDm } from '../windows'
 import { invalidateCreatureIndex } from './compendium-handlers'
@@ -36,6 +39,8 @@ export function registerCampaignHandlers(): void {
 
   ipcMain.handle(CMD.ENTITY_SAVE, async (_e, entityType: EntityType, entity: { id: string }) => {
     await store.saveEntity(entityType, entity)
+    const campaignId = store.getActiveCampaignId()
+    if (campaignId && isRecordType(entityType)) authoringEntryChanged(campaignId, entity.id)
     if (entityType === 'creature') invalidateCreatureIndex()
     broadcastEntityUpdate(entityType)
     return entity
@@ -43,8 +48,18 @@ export function registerCampaignHandlers(): void {
 
   ipcMain.handle(CMD.ENTITY_DELETE, async (_e, entityType: EntityType, entityId: string) => {
     await store.deleteEntity(entityType, entityId)
+    const campaign = store.getActiveCampaignId()
+    if (campaign && isRecordType(entityType)) authoringEntryDeleted(campaign, entityId)
     if (entityType === 'creature') invalidateCreatureIndex()
     broadcastEntityUpdate(entityType)
+  })
+
+  ipcMain.handle(CMD.PC_IMPORT, async (_e, files: ImportedFile[], targetId?: string): Promise<ImportResult> => {
+    const pcs = await store.listEntities('player-character') as PlayerCharacter[]
+    const { save, result } = applySnapshots(pcs, files, { targetId, newId: generateId })
+    for (const pc of save) await store.saveEntity('player-character', pc)
+    if (save.length) broadcastEntityUpdate('player-character')
+    return result
   })
 
   ipcMain.handle(CMD.ENTITY_GET, async (_e, entityType: EntityType, entityId: string) => {
@@ -53,25 +68,6 @@ export function registerCampaignHandlers(): void {
 
   ipcMain.handle(CMD.ENTITY_LIST, async (_e, entityType: EntityType) => {
     return store.listEntities(entityType)
-  })
-
-  // Note tree
-  ipcMain.handle(CMD.NOTE_TREE_GET, async () => {
-    return store.getNoteTree()
-  })
-
-  ipcMain.handle(CMD.NOTE_TREE_SAVE, async (_e, tree: unknown) => {
-    await store.saveNoteTree(tree as any)
-    broadcastToDm(SYNC.CAMPAIGN_ENTITY_UPDATE, {
-      entityType: 'noteTree',
-      key: 'noteTree',
-      data: tree,
-    })
-  })
-
-  // Links
-  ipcMain.handle(CMD.LINKS_GET, async () => {
-    return store.getLinks()
   })
 
   // Images
@@ -122,7 +118,6 @@ export function registerCampaignHandlers(): void {
 // Maps EntityType to the key used in the renderer campaign store
 const entityTypeToStoreKey: Record<EntityType, string> = {
   encounter: 'encounters',
-  note: 'notes',
   location: 'locations',
   'player-character': 'playerCharacters',
   map: 'maps',
@@ -148,16 +143,13 @@ async function broadcastCampaignState(): Promise<void> {
   if (!campaignId) return
 
   // Broadcast a summary of current state to DM renderer
-  const [campaign, creatures, encounters, locations, maps, pcs, notes, noteTree, links, annotations, ...records] = await Promise.all([
+  const [campaign, creatures, encounters, locations, maps, pcs, annotations, ...records] = await Promise.all([
     store.getActiveCampaign(),
     store.listEntities('creature'),
     store.listEntities('encounter'),
     store.listEntities('location'),
     store.listEntities('map'),
     store.listEntities('player-character'),
-    store.listEntities('note'),
-    store.getNoteTree(),
-    store.getLinks(),
     store.loadAnnotations(campaignId),
     ...RECORD_TYPES.map(type => store.listEntities(type)),
   ])
@@ -170,9 +162,6 @@ async function broadcastCampaignState(): Promise<void> {
     locations,
     maps,
     playerCharacters: pcs,
-    notes,
-    noteTree,
-    links,
     annotations,
     ...Object.fromEntries(RECORD_TYPES.map((type, i) => [RECORD_STORAGE[type].storeKey, records[i]])),
   })

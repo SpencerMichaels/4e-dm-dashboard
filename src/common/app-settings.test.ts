@@ -14,9 +14,10 @@ describe('normalizeAppSettings', () => {
     expect(normalizeAppSettings({ theme: 'dark' }).theme).toBe('dark')
   })
 
-  it('keeps dismissed tips as unique strings', () => {
-    expect(normalizeAppSettings({ dismissedTips: ['workshop-intro', 'workshop-intro', 3, null] }).dismissedTips).toEqual(['workshop-intro'])
-    expect(normalizeAppSettings({ dismissedTips: 'workshop-intro' }).dismissedTips).toEqual([])
+  it('keeps the AI agent connection off unless it is exactly true', () => {
+    expect(normalizeAppSettings({}).agentConnection).toBe(false)
+    expect(normalizeAppSettings({ agentConnection: true }).agentConnection).toBe(true)
+    expect(normalizeAppSettings({ agentConnection: 'yes' }).agentConnection).toBe(false)
   })
 
   it('replaces an unknown theme with the default', () => {

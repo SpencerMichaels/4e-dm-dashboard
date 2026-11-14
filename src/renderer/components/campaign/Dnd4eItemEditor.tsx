@@ -3,6 +3,7 @@ import { PowerEntryEditor, emptyPower } from '../creature/PowerEntryEditor'
 import type { PowerEntry } from '../creature/PowerEntryEditor'
 import { Annotation } from '../creature/annotations'
 import { TagInput } from '@renderer/components/shared/TagInput'
+import { Icon } from '../shared/Icon'
 import { useGlossary } from '../compendium/use-glossary'
 import '../creature/statblock.css'
 
@@ -37,10 +38,10 @@ const ITEM_POWER_CONFIG: CreatureBuilderConfig = {
   targetDefenses: ['AC', 'Fortitude', 'Reflex', 'Will'],
   triggeredActionTypes: ['immediate-interrupt', 'immediate-reaction'],
   tierDisplay: {
-    'at-will': { color: '#4a7a5a', label: 'At-Will' },
-    'encounter': { color: '#7a4a4a', label: 'Encounter' },
-    'daily': { color: '#5a5a7a', label: 'Daily' },
-    'consumable': { color: '#6a6a72', label: 'Consumable' },
+    'at-will': { color: 'var(--card-at-will)', label: 'At-Will' },
+    'encounter': { color: 'var(--card-encounter)', label: 'Encounter' },
+    'daily': { color: 'var(--card-daily)', label: 'Daily' },
+    'consumable': { color: 'var(--card-consumable)', label: 'Consumable' },
   },
   damageTypes: ['acid', 'cold', 'fire', 'force', 'lightning', 'necrotic', 'poison', 'psychic', 'radiant', 'thunder'],
   creatureTraits: [],
@@ -249,7 +250,7 @@ export function Dnd4eItemEditor({ item, onSave }: Props) {
         <textarea className="ghost" value={str('flavor')}
           onChange={e => u('flavor', e.target.value)}
           placeholder="This blade crackles with elemental fire."
-          style={{ fontStyle: 'italic', color: 'var(--color-text-secondary)', fontSize: 11, width: '100%', resize: 'none', fieldSizing: 'content' as any }} />
+          style={{ fontStyle: 'italic', color: 'var(--text-secondary)', fontSize: 11, width: '100%', resize: 'none', fieldSizing: 'content' as any }} />
         <Annotation anchor={{ kind: 'stat', key: 'item-text' }} />
       </div>
 
@@ -266,7 +267,7 @@ export function Dnd4eItemEditor({ item, onSave }: Props) {
                 <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 4, width: '100%' }}>
                   <span style={{ flex: 1 }}>{label}</span>
                   <button onClick={() => { const s = [...setItemIds()]; s.splice(i, 1); u('setItemIds', s) }}
-                    style={{ color: 'var(--color-text-muted)', padding: '0 3px', lineHeight: 1, cursor: 'pointer' }}>×</button>
+                    style={{ color: 'var(--muted)', padding: '0 3px', lineHeight: 1, cursor: 'pointer', display: 'inline-flex' }} title="Remove" aria-label="Remove"><Icon name="x" /></button>
                 </div>
               )
             })}
@@ -303,11 +304,11 @@ export function Dnd4eItemEditor({ item, onSave }: Props) {
                   onChange={e => { const s = [...setBenefits()]; s[i] = { ...s[i], text: e.target.value }; u('setBenefits', s) }}
                   placeholder="You gain a +2 bonus to Perception checks." style={{ flex: 1 }} />
                 <button onClick={() => { const s = [...setBenefits()]; s.splice(i, 1); u('setBenefits', s) }}
-                  style={{ color: 'var(--color-text-muted)', padding: '0 3px', lineHeight: 1, cursor: 'pointer' }}>×</button>
+                  style={{ color: 'var(--muted)', padding: '0 3px', lineHeight: 1, cursor: 'pointer', display: 'inline-flex' }} title="Remove" aria-label="Remove"><Icon name="x" /></button>
               </div>
             ))}
             <button onClick={() => u('setBenefits', [...setBenefits(), { count: '', text: '' }])}
-              style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)', cursor: 'pointer' }}>
+              style={{ fontSize: 'var(--font-size-xs)', color: 'var(--muted)', cursor: 'pointer' }}>
               + Benefit
             </button>
           </div>
@@ -348,7 +349,7 @@ export function Dnd4eItemEditor({ item, onSave }: Props) {
           <span>{arr('groups').map((g, i) => (
             <span key={g}>{i > 0 && ', '}{g}
               <button onClick={() => u('groups', arr('groups').filter((_, j) => j !== i))}
-                style={{ color: 'var(--color-text-muted)', padding: '0 2px', lineHeight: 1, cursor: 'pointer', fontSize: '0.8em' }}>×</button>
+                style={{ color: 'var(--muted)', padding: '0 2px', lineHeight: 1, cursor: 'pointer', fontSize: '0.8em', display: 'inline-flex' }} title="Remove" aria-label="Remove"><Icon name="x" /></button>
             </span>
           ))}</span>
           <select className="ghost" value=""
@@ -424,7 +425,7 @@ export function Dnd4eItemEditor({ item, onSave }: Props) {
       {!hasAlchemical && category === 'item' && (
         <div className="sb-row sb-section">
           <button onClick={() => u('alchemicalType', 'Volatile')}
-            style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)', cursor: 'pointer' }}>
+            style={{ fontSize: 'var(--font-size-xs)', color: 'var(--muted)', cursor: 'pointer' }}>
             + Alchemical
           </button>
         </div>
@@ -486,11 +487,11 @@ export function Dnd4eItemEditor({ item, onSave }: Props) {
                 list="property-suggestions"
                 placeholder="High Crit" style={{ flex: 1 }} />
               <button onClick={() => removeProperty(i)}
-                style={{ color: 'var(--color-text-muted)', padding: '0 3px', lineHeight: 1, cursor: 'pointer' }}>×</button>
+                style={{ color: 'var(--muted)', padding: '0 3px', lineHeight: 1, cursor: 'pointer', display: 'inline-flex' }} title="Remove" aria-label="Remove"><Icon name="x" /></button>
             </div>
           ))}
           <button onClick={addProperty}
-            style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)', cursor: 'pointer' }}>
+            style={{ fontSize: 'var(--font-size-xs)', color: 'var(--muted)', cursor: 'pointer' }}>
             + Property
           </button>
         </div>
@@ -508,7 +509,7 @@ export function Dnd4eItemEditor({ item, onSave }: Props) {
                 placeholder="Cannot be used with Belt of Fiends."
                 style={{ flex: 1, resize: 'none', fieldSizing: 'content' as any }} />
               <button onClick={() => u('special', '')}
-                style={{ color: 'var(--color-text-muted)', padding: '0 2px', lineHeight: 1, cursor: 'pointer' }}>×</button>
+                style={{ color: 'var(--muted)', padding: '0 2px', lineHeight: 1, cursor: 'pointer', display: 'inline-flex' }} title="Remove" aria-label="Remove"><Icon name="x" /></button>
             </div>
           )}
           {str('requirement') !== '' && (
@@ -519,16 +520,16 @@ export function Dnd4eItemEditor({ item, onSave }: Props) {
                 placeholder="Must have the living construct racial trait."
                 style={{ flex: 1, resize: 'none', fieldSizing: 'content' as any }} />
               <button onClick={() => u('requirement', '')}
-                style={{ color: 'var(--color-text-muted)', padding: '0 2px', lineHeight: 1, cursor: 'pointer' }}>×</button>
+                style={{ color: 'var(--muted)', padding: '0 2px', lineHeight: 1, cursor: 'pointer', display: 'inline-flex' }} title="Remove" aria-label="Remove"><Icon name="x" /></button>
             </div>
           )}
         </div>
       )}
       <div className="sb-row" style={{ display: 'flex', gap: 4 }}>
         {!str('special') && <button onClick={() => u('special', ' ')}
-          style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)', cursor: 'pointer', border: '1px dashed var(--color-border)', borderRadius: 'var(--radius-sm)', padding: '0 4px', background: 'transparent' }}>+ special</button>}
+          style={{ fontSize: 'var(--font-size-xs)', color: 'var(--muted)', cursor: 'pointer', border: '1px dashed var(--border)', borderRadius: 'var(--radius-sm)', padding: '0 4px', background: 'transparent' }}>+ special</button>}
         {!str('requirement') && <button onClick={() => u('requirement', ' ')}
-          style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)', cursor: 'pointer', border: '1px dashed var(--color-border)', borderRadius: 'var(--radius-sm)', padding: '0 4px', background: 'transparent' }}>+ requirement</button>}
+          style={{ fontSize: 'var(--font-size-xs)', color: 'var(--muted)', cursor: 'pointer', border: '1px dashed var(--border)', borderRadius: 'var(--radius-sm)', padding: '0 4px', background: 'transparent' }}>+ requirement</button>}
       </div>
 
       {/* ── Powers ── */}
@@ -544,7 +545,7 @@ export function Dnd4eItemEditor({ item, onSave }: Props) {
         <input className="ghost" value={str('source')}
           onChange={e => u('source', e.target.value)}
           placeholder="Player's Handbook, page(s) 235"
-          style={{ color: 'var(--color-text-muted)', fontStyle: 'italic', width: '100%' }} />
+          style={{ color: 'var(--muted)', fontStyle: 'italic', width: '100%' }} />
       </div>
     </div>
   )

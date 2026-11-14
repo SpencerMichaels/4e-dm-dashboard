@@ -30,7 +30,7 @@ export function EncounterEditor({ encounterId }: Props) {
     }
   }, [encounterId])
 
-  if (!encounter) return <div style={{ color: 'var(--color-text-muted)' }}>Loading...</div>
+  if (!encounter) return <div style={{ color: 'var(--muted)' }}>Loading...</div>
 
   const save = (updated: Encounter) => {
     const withTime = { ...updated, updatedAt: new Date().toISOString() }
@@ -39,7 +39,7 @@ export function EncounterEditor({ encounterId }: Props) {
   }
 
   const navigateTo = (creatureId: string) => {
-    setView({ type: 'creature', creatureId })
+    setView({ type: 'compendium', kind: 'creature', id: creatureId })
   }
 
   return <Dnd4eEncounterEditor encounter={encounter} onSave={save} creatures={creatures} onNavigate={navigateTo} />

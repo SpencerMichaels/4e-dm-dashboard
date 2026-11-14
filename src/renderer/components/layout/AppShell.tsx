@@ -10,6 +10,8 @@ import { HotkeysModal, GLOBAL_HOTKEYS, COMBAT_HOTKEYS } from '../combat/HotkeysM
 import { SettingsModal } from './SettingsModal'
 import styles from './AppShell.module.css'
 import { useAuthoringStore } from '../../stores/authoring-store'
+import { recordTypeFor } from '@common/campaign-records'
+import type { Draft } from '@common/authoring/types'
 
 export function AppShell() {
   useIpcSync()
@@ -18,10 +20,21 @@ export function AppShell() {
 
   const { view, sidebarCollapsed, toggleSidebar, setCommandPaletteOpen, commandPaletteOpen, setView } = useUiStore()
   const combat = useCombatStore((s) => s.combat)
-  useEffect(() => window.api.authoring.onChange(event => {
-    if (event.draft) useAuthoringStore.getState().receive(event.draft)
-    if (event.open !== undefined) setView({ type: 'authoring', draftId: event.open || undefined })
-  }), [])
+  // Workshop drafts: keep the list current (compendium rows, sidebar counts); an agent's open_review
+  // opens the draft on its kind's compendium page (no id: the creatures page).
+  useEffect(() => {
+    const store = useAuthoringStore.getState()
+    void store.refreshList()
+    return window.api.authoring.onChange(event => {
+      if (event.draft) { store.receive(event.draft); void store.refreshList() }
+      if (event.open === undefined) return
+      if (!event.open) return setView({ type: 'compendium', kind: 'creature' })
+      void window.api.authoring.call('get_draft', { id: event.open }).then((d: Draft) => {
+        store.receive(d)
+        setView({ type: 'compendium', kind: recordTypeFor(d.kind), draftId: d.id })
+      })
+    })
+  }, [])
 
   useHotkeys([
     // Universal (work even in inputs)

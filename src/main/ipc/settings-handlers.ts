@@ -3,6 +3,7 @@ import { CMD, SYNC } from '@common/ipc-channels'
 import { isThemePreference } from '@kit/theme'
 import { getAppSettings, updateAppSettings } from '../data/app-settings-store'
 import { broadcastToAll, windowBackground } from '../windows'
+import { setAgentConnection } from './authoring-handlers'
 
 export function registerSettingsHandlers(): void {
   // Both windows may read the settings (the Player window needs the theme)
@@ -16,10 +17,12 @@ export function registerSettingsHandlers(): void {
     return settings
   })
 
-  ipcMain.handle(CMD.SETTINGS_DISMISS_TIP, async (_e, id: unknown) => {
-    if (typeof id !== 'string' || !id) throw new Error('Expected a tip ID')
-    const settings = await updateAppSettings({ dismissedTips: [...getAppSettings().dismissedTips, id] })
+  // The local AI agent connection (authoring bridge): opened or closed at once.
+  ipcMain.handle(CMD.SETTINGS_SET_AGENT_CONNECTION, async (_e, on: unknown) => {
+    const settings = await updateAppSettings({ agentConnection: on === true })
+    await setAgentConnection(settings.agentConnection)
     broadcastToAll(SYNC.APP_SETTINGS, settings)
     return settings
   })
+
 }

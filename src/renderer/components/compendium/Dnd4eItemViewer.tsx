@@ -117,7 +117,7 @@ export function Dnd4eItemViewer({ item, tooltip: tip, onSelectItem }: { item: Pa
 
       {/* Flavor / description */}
       {item.flavor && (
-        <div style={{ padding: '4px 8px', fontStyle: 'italic', color: 'var(--color-text-secondary)', fontSize: 11 }}>
+        <div style={{ padding: '4px 8px', fontStyle: 'italic', color: 'var(--text-secondary)', fontSize: 11 }}>
           {item.flavor}
           <Annotation anchor={{ kind: 'stat', key: 'item-text' }} />
         </div>
@@ -227,7 +227,7 @@ export function Dnd4eItemViewer({ item, tooltip: tip, onSelectItem }: { item: Pa
             ))}
             {item.propertyScaling && (() => {
               const s = scalingForLevel(item.propertyScaling, selectedLevel)
-              return s ? <div className="sb-row" style={{ color: 'var(--color-text-secondary)', fontSize: 11 }}>Level {s.level}: {s.text}</div> : null
+              return s ? <div className="sb-row" style={{ color: 'var(--text-secondary)', fontSize: 11 }}>Level {s.level}: {s.text}</div> : null
             })()}
           </div>
         )
@@ -236,7 +236,7 @@ export function Dnd4eItemViewer({ item, tooltip: tip, onSelectItem }: { item: Pa
       {/* Special / Requirement / Item Set */}
       {item.special && <div className="sb-row"><span><b className="sb-label">Special</b> {item.special}</span><Annotation anchor={{ kind: 'stat', key: 'item-special' }} /></div>}
       {item.requirement && <div className="sb-row"><span><b className="sb-label">Requirement</b> {item.requirement}</span>{!item.special && <Annotation anchor={{ kind: 'stat', key: 'item-special' }} />}</div>}
-      {item.itemSet && item.category !== 'set' && <div className="sb-row" style={{ fontStyle: 'italic', color: 'var(--color-text-secondary)' }}>{item.itemSet}</div>}
+      {item.itemSet && item.category !== 'set' && <div className="sb-row" style={{ fontStyle: 'italic', color: 'var(--text-secondary)' }}>{item.itemSet}</div>}
 
       {/* Structured description (rituals, item sets, concordance — before powers) */}
       {item.descriptionParts && item.descriptionParts.length > 0 && (
@@ -274,7 +274,7 @@ export function Dnd4eItemViewer({ item, tooltip: tip, onSelectItem }: { item: Pa
             // type === 'text'
             const isSetLore = item.category === 'set' && i === 0
             return (
-              <div key={i} style={isSetLore ? { fontStyle: 'italic', color: 'var(--color-text-secondary)' } : undefined}>
+              <div key={i} style={isSetLore ? { fontStyle: 'italic', color: 'var(--text-secondary)' } : undefined}>
                 {part.text.split('\n').filter(l => l.trim()).map((line, j, arr) => (
                   <p key={j} style={{ margin: 0, marginBottom: '0.4em', textIndent: arr.length > 1 ? '1em' : 0 }}>{line}</p>
                 ))}
@@ -303,7 +303,7 @@ export function Dnd4eItemViewer({ item, tooltip: tip, onSelectItem }: { item: Pa
 
       {/* Source */}
       {item.source && (
-        <div style={{ padding: '2px 8px', fontSize: 10, color: 'var(--color-text-muted)', fontStyle: 'italic' }}>
+        <div style={{ padding: '2px 8px', fontSize: 10, color: 'var(--muted)', fontStyle: 'italic' }}>
           {item.source}
         </div>
       )}
@@ -335,7 +335,7 @@ function DescriptionTable({ headers, rows, links, onNavigate }: {
                 <td key={ci} style={{ padding: '1px 6px' }}>
                   {linkId && onNavigate ? (
                     <a onClick={() => onNavigate(linkId)} style={{
-                      color: 'var(--color-accent, #5c7cfa)', cursor: 'pointer',
+                      color: 'var(--accent)', cursor: 'pointer',
                       textDecoration: 'none', borderBottom: '1px dotted currentColor',
                     }}>{cell}</a>
                   ) : cell}

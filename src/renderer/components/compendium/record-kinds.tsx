@@ -4,6 +4,7 @@
 import type { Disease, Item, Monster, MonsterTemplate, MonsterTheme, Trap } from '@kit'
 import type { CompendiumEntry, DiseaseIndexEntry, ItemIndexEntry, TrapIndexEntry } from '@common/types'
 import { scaffold } from '@common/authoring/core'
+import type { RecordType } from '@common/campaign-records'
 import { TrapStatblock } from '../trap/TrapStatblock'
 import { DiseaseStatblock } from '../disease/DiseaseStatblock'
 import { TemplateStatblock } from '../template/TemplateStatblock'
@@ -90,4 +91,9 @@ export const MONSTER_KIND: RecordKind<Monster> = {
   Statblock: props => <MonsterStatblock {...props} />,
   art: true,
   popout: true,
+}
+
+/** Every kind's page, by record type. */
+export const RECORD_KINDS: Record<RecordType, RecordKind<any>> = {
+  creature: MONSTER_KIND, item: ITEM_KIND, trap: TRAP_KIND, disease: DISEASE_KIND, template: TEMPLATE_KIND, theme: THEME_KIND,
 }

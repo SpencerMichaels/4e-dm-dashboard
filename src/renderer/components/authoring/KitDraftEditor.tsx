@@ -45,7 +45,7 @@ function LiveDraftEditor<V>({ draft, status, apply, project, diff, render }: Pro
 }) {
   const { value, edit, busy, notice } = useLiveEdits<V>({ draft, apply, status, project, diff })
   return <>
-    {isUnsaved(draft) && <p className="authoring-notice authoring-edit-bar">{busy ? 'Creating the draft…' : 'Not saved yet. Your first change creates the draft.'}</p>}
+    {isUnsaved(draft) && <p className="authoring-notice authoring-edit-bar">{busy ? 'Adding it to the campaign…' : 'New: your first change adds it to the campaign.'}</p>}
     {notice}
     <div className="native-draft-editor">{render(value, edit)}</div>
   </>

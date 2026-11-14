@@ -1,6 +1,8 @@
 import { LocationTraps } from './LocationTraps'
 import { useState, useEffect, useRef, useCallback } from 'react'
 import type { MapData, MapPin, Location } from '@common/types'
+import { Icon } from '../shared/Icon'
+import { withAlpha } from '../../utils/color'
 import { useCampaignStore } from '../../stores/campaign-store'
 import { useCampaignActions } from '../../hooks/use-campaign'
 import { useUiStore } from '../../stores/ui-store'
@@ -202,7 +204,7 @@ export function MapEditor({ mapId }: Props) {
   }, [selectedPinId])
 
   if (!map) {
-    return <div style={{ padding: 'var(--space-4)', color: 'var(--color-text-muted)' }}>Loading map...</div>
+    return <div style={{ padding: 'var(--space-4)', color: 'var(--muted)' }}>Loading map...</div>
   }
 
   const selectedPin = map.pins.find(p => p.id === selectedPinId)
@@ -215,8 +217,8 @@ export function MapEditor({ mapId }: Props) {
         position: 'absolute', top: 0, left: 0, right: 0, zIndex: 20,
         display: 'flex', alignItems: 'center', gap: 'var(--space-3)',
         padding: 'var(--space-2) var(--space-4)',
-        background: 'var(--color-bg-primary)',
-        borderBottom: '1px solid var(--color-border)',
+        background: 'var(--background)',
+        borderBottom: '1px solid var(--border)',
       }}>
         <input
           ref={nameInputRef}
@@ -225,11 +227,11 @@ export function MapEditor({ mapId }: Props) {
           placeholder="Map name"
           style={{
             flex: 1, fontSize: 'var(--font-size-xl)', fontWeight: 700,
-            background: 'transparent', border: 'none', color: 'var(--color-text-primary)',
+            background: 'transparent', border: 'none', color: 'var(--text)',
             padding: 'var(--space-1) 0',
           }}
         />
-        <span style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)' }}>
+        <span style={{ fontSize: 'var(--font-size-xs)', color: 'var(--muted)' }}>
           {map.pins.length} pin{map.pins.length !== 1 ? 's' : ''}
           {zoom !== 1 && ` · ${Math.round(zoom * 100)}%`}
         </span>
@@ -248,7 +250,7 @@ export function MapEditor({ mapId }: Props) {
           position: 'absolute', inset: 0,
           paddingTop: 44,  // header height
           overflow: 'hidden',
-          background: 'var(--color-bg-primary)',
+          background: 'var(--background)',
           cursor: interaction.current === 'panning' ? 'grabbing'
             : interaction.current === 'dragging-pin' ? 'grabbing'
             : 'grab',
@@ -277,10 +279,10 @@ export function MapEditor({ mapId }: Props) {
             ) : (
               <div style={{
                 width: 600, height: 400,
-                background: 'var(--color-bg-surface)',
-                border: '2px dashed var(--color-border)',
+                background: 'var(--surface-raised)',
+                border: '2px dashed var(--border)',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
-                color: 'var(--color-text-muted)',
+                color: 'var(--muted)',
               }}>
                 Loading map image...
               </div>
@@ -302,12 +304,12 @@ export function MapEditor({ mapId }: Props) {
                     transformOrigin: 'bottom center',
                     cursor: 'pointer',
                     fontSize: 24,
-                    filter: isSelected ? 'drop-shadow(0 0 6px rgba(92,124,250,0.8))' : 'drop-shadow(0 1px 2px rgba(0,0,0,0.5))',
+                    filter: isSelected ? `drop-shadow(0 0 6px ${withAlpha('var(--accent)', 0.8)})` : 'drop-shadow(0 1px 2px var(--overlay))',
                     transition: 'filter 0.15s',
                     zIndex: isSelected ? 10 : 1,
                   }}
                 >
-                  📍
+                  <Icon name="map-pin" size={24} fill="var(--danger)" color="var(--on-dark)" strokeWidth={1.5} style={{ display: 'block' }} />
                   <div style={{
                     position: 'absolute',
                     top: '100%',
@@ -316,8 +318,8 @@ export function MapEditor({ mapId }: Props) {
                     whiteSpace: 'nowrap',
                     fontSize: 10,
                     fontWeight: 600,
-                    color: 'var(--color-text-on-dark)',
-                    textShadow: '0 1px 3px rgba(0,0,0,0.8), 0 0 6px rgba(0,0,0,0.5)',
+                    color: 'var(--on-dark)',
+                    textShadow: '0 1px 3px var(--overlay), 0 0 6px var(--overlay)',
                     pointerEvents: 'none',
                     marginTop: 2,
                   }}>
@@ -334,7 +336,7 @@ export function MapEditor({ mapId }: Props) {
       {sidebarOpen && selectedLocation && (
         <div style={{
           position: 'absolute', top: 44, right: 0, bottom: 0, zIndex: 30,
-          boxShadow: '-4px 0 16px rgba(0,0,0,0.2)',
+          boxShadow: 'var(--shadow-md)',
         }}>
           <LocationSidebar
             location={selectedLocation}
@@ -421,32 +423,32 @@ function LocationSidebar({ location, locationNameRef, encounters, onNameChange, 
     <div style={{
       width: 340, height: '100%',
       display: 'flex', flexDirection: 'column',
-      borderLeft: '1px solid var(--color-border)',
-      background: 'var(--color-bg-surface)',
+      borderLeft: '1px solid var(--border)',
+      background: 'var(--surface-raised)',
       overflow: 'hidden',
     }}>
       {/* Header */}
       <div style={{
         display: 'flex', alignItems: 'center', gap: 'var(--space-2)',
         padding: 'var(--space-2) var(--space-3)',
-        borderBottom: '1px solid var(--color-border)',
+        borderBottom: '1px solid var(--border)',
         flexShrink: 0,
       }}>
-        <span style={{ fontSize: 16 }}>📍</span>
-        <span style={{ flex: 1, fontSize: 'var(--font-size-sm)', fontWeight: 600, color: 'var(--color-text-muted)' }}>
+        <span style={{ fontSize: 16, display: 'inline-flex' }}><Icon name="map-pin" /></span>
+        <span style={{ flex: 1, fontSize: 'var(--font-size-sm)', fontWeight: 600, color: 'var(--muted)' }}>
           Location
         </span>
-        <button onClick={onShowToPlayers} title="Show to players"
-          style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 12, color: 'var(--color-text-muted)', padding: 2 }}>
-          👁
+        <button onClick={onShowToPlayers} title="Show to players" aria-label="Show to players"
+          style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 12, color: 'var(--muted)', padding: 2, display: 'inline-flex' }}>
+          <Icon name="eye" />
         </button>
-        <button onClick={onFullscreen} title="Open fullscreen"
-          style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 12, color: 'var(--color-text-muted)', padding: 2, fontWeight: 700 }}>
-          ↗
+        <button onClick={onFullscreen} title="Open fullscreen" aria-label="Open fullscreen"
+          style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 12, color: 'var(--muted)', padding: 2, display: 'inline-flex' }}>
+          <Icon name="square-arrow-up-right-exit" />
         </button>
-        <button onClick={onClose} title="Close"
-          style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 14, color: 'var(--color-text-muted)', padding: 2 }}>
-          ✕
+        <button onClick={onClose} title="Close" aria-label="Close"
+          style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 14, color: 'var(--muted)', padding: 2, display: 'inline-flex' }}>
+          <Icon name="x" />
         </button>
       </div>
 
@@ -460,14 +462,14 @@ function LocationSidebar({ location, locationNameRef, encounters, onNameChange, 
           placeholder="Location name"
           style={{
             fontSize: 'var(--font-size-lg)', fontWeight: 700,
-            background: 'transparent', border: 'none', color: 'var(--color-text-primary)',
+            background: 'transparent', border: 'none', color: 'var(--text)',
             padding: 0, width: '100%',
           }}
         />
 
         {/* Background image */}
         <div>
-          <span style={{ display: 'block', fontSize: 'var(--font-size-sm)', color: 'var(--color-text-secondary)', marginBottom: 'var(--space-1)' }}>
+          <span style={{ display: 'block', fontSize: 'var(--font-size-sm)', color: 'var(--text-secondary)', marginBottom: 'var(--space-1)' }}>
             Background Image
           </span>
           {sceneImageUrl ? (
@@ -475,12 +477,12 @@ function LocationSidebar({ location, locationNameRef, encounters, onNameChange, 
               <img src={sceneImageUrl} style={{ width: '100%', display: 'block', borderRadius: 'var(--radius-sm)' }} alt="" />
               <div style={{ position: 'absolute', top: 4, right: 4, display: 'flex', gap: 2 }}>
                 <button onClick={handleImageUpload} title="Replace image"
-                  style={{ fontSize: 10, padding: '2px 6px', borderRadius: 'var(--radius-sm)', background: 'var(--color-overlay-bg)', color: 'var(--color-text-on-dark)', border: 'none', cursor: 'pointer' }}>
+                  style={{ fontSize: 10, padding: '2px 6px', borderRadius: 'var(--radius-sm)', background: 'var(--overlay)', color: 'var(--on-dark)', border: 'none', cursor: 'pointer' }}>
                   Replace
                 </button>
-                <button onClick={() => onSave({ ...location, sceneImageId: undefined })} title="Remove image"
-                  style={{ fontSize: 10, padding: '2px 6px', borderRadius: 'var(--radius-sm)', background: 'var(--color-overlay-bg)', color: 'var(--color-text-on-dark)', border: 'none', cursor: 'pointer' }}>
-                  ✕
+                <button onClick={() => onSave({ ...location, sceneImageId: undefined })} title="Remove image" aria-label="Remove image"
+                  style={{ fontSize: 10, padding: '2px 6px', borderRadius: 'var(--radius-sm)', background: 'var(--overlay)', color: 'var(--on-dark)', border: 'none', cursor: 'pointer', display: 'inline-flex', alignItems: 'center' }}>
+                  <Icon name="x" />
                 </button>
               </div>
             </div>
@@ -488,9 +490,9 @@ function LocationSidebar({ location, locationNameRef, encounters, onNameChange, 
             <button onClick={handleImageUpload}
               style={{
                 width: '100%', padding: 'var(--space-3)',
-                background: 'var(--color-bg-hover)', border: '1px dashed var(--color-border)',
+                background: 'var(--hover)', border: '1px dashed var(--border)',
                 borderRadius: 'var(--radius-sm)', cursor: 'pointer',
-                color: 'var(--color-text-muted)', fontSize: 'var(--font-size-sm)',
+                color: 'var(--muted)', fontSize: 'var(--font-size-sm)',
               }}>
               + Add background image
             </button>
@@ -499,7 +501,7 @@ function LocationSidebar({ location, locationNameRef, encounters, onNameChange, 
 
         {/* Description / notes */}
         <div>
-          <span style={{ display: 'block', fontSize: 'var(--font-size-sm)', color: 'var(--color-text-secondary)', marginBottom: 'var(--space-1)' }}>
+          <span style={{ display: 'block', fontSize: 'var(--font-size-sm)', color: 'var(--text-secondary)', marginBottom: 'var(--space-1)' }}>
             Notes
           </span>
           <textarea
@@ -510,42 +512,42 @@ function LocationSidebar({ location, locationNameRef, encounters, onNameChange, 
             style={{
               width: '100%', resize: 'vertical',
               fontSize: 'var(--font-size-sm)',
-              background: 'var(--color-bg-primary)',
-              border: '1px solid var(--color-border)',
+              background: 'var(--background)',
+              border: '1px solid var(--border)',
               borderRadius: 'var(--radius-sm)',
               padding: 'var(--space-2)',
-              color: 'var(--color-text-primary)',
+              color: 'var(--text)',
             }}
           />
         </div>
 
         <LocationTraps traps={location.traps ?? []} onChange={traps => onSave({ ...location, traps: traps.length ? traps : undefined })}
-          label={<span style={{ display: 'block', fontSize: 'var(--font-size-sm)', color: 'var(--color-text-secondary)', marginBottom: 'var(--space-1)' }}>Traps</span>} />
+          label={<span style={{ display: 'block', fontSize: 'var(--font-size-sm)', color: 'var(--text-secondary)', marginBottom: 'var(--space-1)' }}>Traps</span>} />
 
         {/* Encounters */}
         <div>
-          <span style={{ display: 'block', fontSize: 'var(--font-size-sm)', color: 'var(--color-text-secondary)', marginBottom: 'var(--space-1)' }}>
+          <span style={{ display: 'block', fontSize: 'var(--font-size-sm)', color: 'var(--text-secondary)', marginBottom: 'var(--space-1)' }}>
             Encounters
           </span>
           {linkedEncounters.length > 0 && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-1)', marginBottom: 'var(--space-2)' }}>
+            <div role="list" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-1)', marginBottom: 'var(--space-2)' }}>
               {linkedEncounters.map(enc => (
-                <div key={enc.id} style={{
+                <div key={enc.id} role="listitem" style={{
                   display: 'flex', alignItems: 'center', gap: 'var(--space-2)',
                   padding: 'var(--space-1) var(--space-2)',
-                  background: 'var(--color-bg-primary)',
-                  border: '1px solid var(--color-border)',
+                  background: 'var(--background)',
+                  border: '1px solid var(--border)',
                   borderRadius: 'var(--radius-sm)',
                   fontSize: 'var(--font-size-sm)',
                 }}>
                   <span style={{ fontSize: 12 }}>⚔️</span>
                   <button onClick={() => onNavigateEncounter(enc.id)}
-                    style={{ flex: 1, textAlign: 'left', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-primary)', fontSize: 'inherit', fontWeight: 500, padding: 0 }}>
+                    style={{ flex: 1, textAlign: 'left', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text)', fontSize: 'inherit', fontWeight: 500, padding: 0 }}>
                     {enc.name}
                   </button>
-                  <button onClick={() => removeEncounter(enc.id)} title="Unlink"
-                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-muted)', fontSize: 10, padding: 2 }}>
-                    ✕
+                  <button onClick={() => removeEncounter(enc.id)} title="Unlink" aria-label="Unlink encounter"
+                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--muted)', fontSize: 10, padding: 2, display: 'inline-flex' }}>
+                    <Icon name="x" />
                   </button>
                 </div>
               ))}
@@ -554,22 +556,22 @@ function LocationSidebar({ location, locationNameRef, encounters, onNameChange, 
           {addingEncounter ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-1)' }}>
               {unlinkedEncounters.length === 0 ? (
-                <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)' }}>No encounters available</div>
+                <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--muted)' }}>No encounters available</div>
               ) : (
                 unlinkedEncounters.map(enc => (
                   <button key={enc.id} onClick={() => addEncounter(enc.id)}
                     style={{
                       textAlign: 'left', padding: 'var(--space-1) var(--space-2)',
-                      background: 'var(--color-bg-hover)', border: '1px solid var(--color-border)',
+                      background: 'var(--hover)', border: '1px solid var(--border)',
                       borderRadius: 'var(--radius-sm)', cursor: 'pointer',
-                      fontSize: 'var(--font-size-sm)', color: 'var(--color-text-primary)',
+                      fontSize: 'var(--font-size-sm)', color: 'var(--text)',
                     }}>
                     ⚔️ {enc.name}
                   </button>
                 ))
               )}
               <button onClick={() => setAddingEncounter(false)}
-                style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)', background: 'none', border: 'none', cursor: 'pointer', padding: 'var(--space-1)' }}>
+                style={{ fontSize: 'var(--font-size-xs)', color: 'var(--muted)', background: 'transparent', border: '1px solid var(--border-strong)', borderRadius: 'var(--radius-sm)', cursor: 'pointer', padding: 'var(--space-1)' }}>
                 Cancel
               </button>
             </div>
@@ -577,9 +579,9 @@ function LocationSidebar({ location, locationNameRef, encounters, onNameChange, 
             <button onClick={() => setAddingEncounter(true)}
               style={{
                 padding: 'var(--space-1) var(--space-2)',
-                background: 'var(--color-bg-hover)', border: '1px solid var(--color-border)',
+                background: 'var(--hover)', border: '1px solid var(--border)',
                 borderRadius: 'var(--radius-sm)', cursor: 'pointer',
-                fontSize: 'var(--font-size-sm)', color: 'var(--color-text-muted)',
+                fontSize: 'var(--font-size-sm)', color: 'var(--muted)',
               }}>
               + Link encounter
             </button>
@@ -591,9 +593,9 @@ function LocationSidebar({ location, locationNameRef, encounters, onNameChange, 
           <button onClick={onDelete}
             style={{
               width: '100%', padding: 'var(--space-2)',
-              background: 'transparent', border: '1px solid var(--color-danger)',
+              background: 'transparent', border: '1px solid var(--danger)',
               borderRadius: 'var(--radius-sm)', cursor: 'pointer',
-              color: 'var(--color-danger)', fontSize: 'var(--font-size-sm)',
+              color: 'var(--danger)', fontSize: 'var(--font-size-sm)',
             }}>
             Delete Pin & Location
           </button>

@@ -28,6 +28,8 @@ describe('draft collaboration', () => {
     const s = new DraftStore(root); const d = await s.create('monster', (() => { const m = content(); m.powers.push({ ...testPower(), name: 'Other power' }); return m })())
     await s.patch({ id: d.id, revision: 1, changes: [{ path: '/content/defenses/ac', value: 24 }, { path: '/content/hp', value: 50 }, { path: '/order/powers', value: d.nodes.powers }] }, 'dm')
     await expect(s.patch({ id: d.id, revision: 1, changes: [] }, 'agent')).rejects.toThrow('Revision conflict')
+    // The agent is told what the DM changed since its version, and to ask before overwriting it.
+    await expect(s.patch({ id: d.id, revision: 1, changes: [] }, 'agent')).rejects.toThrow(/the DM changed: HP, Defenses › AC\..*ask the DM which version to keep/)
     await expect(s.patch({ id: d.id, revision: 2, changes: [], release: ['/content/defenses/ac'] }, 'agent')).rejects.toThrow('Only the DM')
     const revised = await s.patch({ id: d.id, revision: 2, changes: [{ path: '/content/defenses', value: { ac: 23, fortitude: 18, reflex: 21, will: 19 } }, { path: '/order/powers', value: d.nodes.powers }] }, 'agent')
     expect((revised.content as Monster).defenses.ac).toBe(23)
@@ -91,56 +93,73 @@ describe('draft collaboration', () => {
   })
 })
 
-describe('approval and save recovery', () => {
+describe('live writes into the campaign', () => {
   function publisher() {
     const saved = new Map<string, unknown>(); let writes = 0, failAt = 0
     const p: Publisher = {
       check: async () => {}, read: async (d, id) => saved.get(d.id + '/' + id) ?? null,
-      encode: (c, _kind, id) => ({ ...c, id }),
+      encode: (c, _kind, id) => ({ id, content: { ...c, id } }),
       write: async (d, id, valueKind, value) => { writes++; if (writes === failAt) throw new Error('disk full'); saved.set(d.id + '/' + id, value) },
     }
-    return { p, saved, fail: (n: number) => { failAt = n }, writes: () => writes }
+    return { p, saved, fail: (n: number) => { failAt = n }, writes: () => writes, content: (key: string) => (saved.get(key) as any)?.content }
   }
-  it('requires current content, resolved metadata/questions, and advisory acceptance', async () => {
+  it('creates the entry with the first version and updates that entry with every later one', async () => {
     const p = publisher(); const s = new DraftStore(root, p.p)
     const d = await s.create('monster', content(), '', [{ type: 'campaign', id: 'a' }])
-    await expect(s.approve(d.id, 2, true)).rejects.toThrow('Revision changed')
-    await expect(s.approve(d.id, 1, false)).rejects.toThrow('Acknowledge')
-    await s.comment(d.id, 'Clarify', '/', 'dm', true)
-    await expect(s.approve(d.id, 1, true)).rejects.toThrow('blocking questions')
-    expect(p.writes()).toBe(0)
-  })
-  it('needs acknowledgement for risks and problems but not for notes', async () => {
-    const p = publisher(); const s = new DraftStore(root, p.p)
-    const d = await s.create('monster', content(), '', [{ type: 'campaign', id: 'a' }])
-    await s.review(d.id, 1, 'Synthetic.', [{ severity: 'concern', target: '/content/hp', message: 'Risky.', suggestion: '' }], 'agent')
-    await expect(s.approve(d.id, 1, false)).rejects.toThrow('Acknowledge')
-    await s.review(d.id, 1, 'Synthetic.', [{ severity: 'info', target: '/content/hp', message: 'Matches the band.', suggestion: '' }], 'agent')
-    expect((await s.approve(d.id, 1, false)).receipt?.revision).toBe(1)
-  })
-  it('is idempotent and binds saving to recorded destinations', async () => {
-    const p = publisher(); const s = new DraftStore(root, p.p)
-    const d = await s.create('monster', content(), '', [{ type: 'campaign', id: 'campaign-a' }])
-    const saved = await s.approve(d.id, 1, true)
-    await s.approve(d.id, 1, true)
-    expect(p.writes()).toBe(1)
-    expect(saved.receipt!.targets[0].destination.id).toBe('campaign-a')
-    const edited = await s.patch({ id: d.id, revision: 1, changes: [{ path: '/content/hp', value: 30 }] }, 'dm')
-    // The receipt records the last save; the draft has changed since.
-    expect(edited.receipt!.revision).toBe(1)
-    expect(edited.revision).toBe(2)
-  })
-  it('updates the saved entry on later saves instead of adding a copy', async () => {
-    const p = publisher(); const s = new DraftStore(root, p.p)
-    const d = await s.create('monster', content(), '', [{ type: 'campaign', id: 'a' }])
-    const first = await s.approve(d.id, 1, true)
-    const entityId = first.receipt!.targets[0].entityId
-    expect(first.destinations).toEqual([{ type: 'campaign', id: 'a', entityId, expectedHash: digest(p.saved.get(`a/${entityId}`)) }])
-    await s.patch({ id: d.id, revision: first.revision, changes: [{ path: '/content/hp', value: 31 }] }, 'dm')
-    const second = await s.approve(d.id, first.revision + 1, true)
-    expect(second.receipt!.targets[0].entityId).toBe(entityId)
+    const entityId = d.destinations[0].entityId!
+    expect(p.saved.get(`a/${entityId}`)).toMatchObject({ id: entityId, content: { id: entityId, name: 'Synthetic shade' } })
+    expect(d.destinations).toEqual([{ type: 'campaign', id: 'a', entityId, expectedHash: digest(p.saved.get(`a/${entityId}`)) }])
+    expect((await new DraftStore(root).get(d.id)).destinations[0].entityId).toBe(entityId)
+    await s.patch({ id: d.id, revision: 1, changes: [{ path: '/content/hp', value: 31 }] }, 'agent')
     expect(p.saved.size).toBe(1)
-    expect((p.saved.get(`a/${entityId}`) as any).hp).toBe(31)
+    expect(p.content(`a/${entityId}`).hp).toBe(31)
+    // A comment changes nothing in the entry: no write.
+    await s.comment(d.id, 'Too tough?', '/content/hp', 'dm')
+    expect(p.writes()).toBe(2)
+    expect((await s.syncState(d.id)).error).toBeUndefined()
+  })
+  it('restoring an earlier version writes it into the entry', async () => {
+    const p = publisher(); const s = new DraftStore(root, p.p)
+    const d = await s.create('monster', content(), '', [{ type: 'campaign', id: 'a' }])
+    const next = await s.patch({ id: d.id, revision: 1, changes: [{ path: '/content/hp', value: 31 }] }, 'dm')
+    await s.restore(d.id, next.revision, 1, 'agent')
+    expect(p.content(`a/${d.destinations[0].entityId}`).hp).toBe((d.content as Monster).hp)
+  })
+  it('folds a change made to the entry elsewhere into the draft; a field both changed keeps the draft value', async () => {
+    const p = publisher(); const s = new DraftStore(root, p.p)
+    const d = await s.create('monster', content(), '', [{ type: 'campaign', id: 'a' }])
+    const key = `a/${d.destinations[0].entityId}`
+    await s.patch({ id: d.id, revision: 1, changes: [{ path: '/content/hp', value: 31 }] }, 'agent')
+    // Renamed outside the draft (say, an older editor): the draft takes the new name at once.
+    p.saved.set(key, { ...(p.saved.get(key) as object), content: { ...p.content(key), name: 'Renamed by hand' } })
+    await s.entryChanged('a', d.destinations[0].entityId!)
+    const folded = await s.get(d.id)
+    expect(folded.content).toMatchObject({ name: 'Renamed by hand', hp: 31 })
+    expect(folded.lastChange).toEqual({ by: 'dm', action: 'edited' })
+    // Both change HP: the draft's edit wins, and the outside rename stays.
+    p.saved.set(key, { ...(p.saved.get(key) as object), content: { ...p.content(key), hp: 99, speed: { walk: 4 } } })
+    await s.patch({ id: d.id, revision: folded.revision, changes: [{ path: '/content/hp', value: 40 }] }, 'dm')
+    expect(p.content(key)).toMatchObject({ name: 'Renamed by hand', hp: 40, speed: { walk: 4 } })
+    expect((await s.get(d.id)).content).toMatchObject({ hp: 40, speed: { walk: 4 } })
+    expect((await s.syncState(d.id)).error).toBeUndefined()
+  })
+  it('gives a new entry the campaign-side fields it was created with, and archives drafts of a deleted entry', async () => {
+    const p = publisher(); const s = new DraftStore(join(root, 'drafts'), p.p)
+    const d = await s.create('monster', content(), '', [{ type: 'campaign', id: 'a' }], 'dm', { basedOn: 'published/creature/m1', art: { imageId: 'x' } })
+    expect(p.saved.get(`a/${d.destinations[0].entityId}`)).toMatchObject({ basedOn: 'published/creature/m1', art: { imageId: 'x' } })
+    await s.entryDeleted('a', d.destinations[0].entityId!)
+    expect(await s.list()).toEqual([])
+  })
+  it('keeps the edit when the entry cannot be written, says why, and writes it with the next change', async () => {
+    const p = publisher(); p.fail(2)
+    const s = new DraftStore(root, p.p)
+    const d = await s.create('monster', content(), '', [{ type: 'campaign', id: 'a' }])
+    const edited = await s.patch({ id: d.id, revision: 1, changes: [{ path: '/content/hp', value: 33 }] }, 'dm')
+    expect((edited.content as Monster).hp).toBe(33)
+    expect((await s.syncState(d.id)).error).toMatch(/disk full/)
+    await s.patch({ id: d.id, revision: 2, changes: [{ path: '/content/speed/walk', value: 8 }] }, 'dm')
+    expect(p.content(`a/${d.destinations[0].entityId}`)).toMatchObject({ hp: 33, speed: { walk: 8 } })
+    expect((await s.syncState(d.id)).error).toBeUndefined()
   })
   it('lists versions with who changed which fields, skipping comment-only events', async () => {
     const s = new DraftStore(root, publisher().p)
@@ -148,43 +167,16 @@ describe('approval and save recovery', () => {
     await s.patch({ id: d.id, revision: 1, changes: [{ path: '/content/hp', value: 44 }] }, 'dm')
     await s.comment(d.id, 'Too tough?', '/content/hp', 'agent')
     await s.patch({ id: d.id, revision: 2, changes: [{ path: `/content/powers/@${d.nodes.powers[0]}/name`, value: 'Gloom bite' }], reconciled: [`/content/powers/@${d.nodes.powers[0]}`] }, 'agent')
-    await s.approve(d.id, 3, true)
     const versions = await s.versions(d.id)
-    expect(versions.map(v => [v.by, v.action, v.revision])).toEqual([['dm', 'saved', 3], ['agent', 'edited', 3], ['dm', 'edited', 2], ['agent', 'created', 1]])
-    expect(versions[2].changes).toEqual([{ label: 'HP', change: 'changed', before: String((d.content as Monster).hp), after: '44' }])
-    expect(versions[1].changes[0]).toMatchObject({ label: 'Gloom bite › name', before: (d.content as Monster).powers[0].name, after: 'Gloom bite' })
-    expect(versions[0].savedTo).toEqual([{ type: 'campaign', id: 'a' }])
+    expect(versions.map(v => [v.by, v.action, v.revision])).toEqual([['agent', 'edited', 3], ['dm', 'edited', 2], ['agent', 'created', 1]])
+    expect(versions[1].changes).toEqual([{ label: 'HP', change: 'changed', before: String((d.content as Monster).hp), after: '44' }])
+    expect(versions[0].changes[0]).toMatchObject({ label: 'Gloom bite › name', before: (d.content as Monster).powers[0].name, after: 'Gloom bite' })
   })
-  it('recovers a partial multi-destination save after restarting without duplicating the first write', async () => {
-    const p = publisher(); p.fail(2)
-    const s = new DraftStore(root, p.p)
-    const d = await s.create('monster', content(), '', [{ type: 'campaign', id: 'a' }, { type: 'campaign', id: 'b' }])
-    await expect(s.approve(d.id, 1, true)).rejects.toThrow('disk full')
-    expect(p.saved.size).toBe(1)
-    await expect(s.patch({ id: d.id, revision: 1, changes: [] }, 'dm')).rejects.toThrow('pending')
-    const recovered = await new DraftStore(root, p.p).approve(d.id, 1, true)
-    expect(p.saved.size).toBe(2)
-    expect(recovered.receipt!.targets).toHaveLength(2)
-    expect(p.writes()).toBe(3)
-  })
-  it('rejects stale destination hashes without overwriting existing content', async () => {
-    const p = publisher(); p.saved.set('a/existing', { name: 'Changed' })
-    const s = new DraftStore(root, p.p)
-    const d = await s.create('monster', content(), '', [{ type: 'campaign', id: 'a', entityId: 'existing', expectedHash: digest({ name: 'Old' }) }])
-    await expect(s.approve(d.id, 1, true)).rejects.toThrow('Destination changed')
-    expect(p.writes()).toBe(0)
-  })
-  it('requires fresh feedback acknowledgement and can abandon a partial save without deleting prior writes', async () => {
-    const p = publisher(); p.fail(2)
-    const s = new DraftStore(root, p.p)
-    const d = await s.create('monster', content(), '', [{ type: 'campaign', id: 'a' }, { type: 'campaign', id: 'b' }])
-    await s.comment(d.id, 'Another consideration', '/', 'agent')
-    await expect(s.approve(d.id, 1, true, d.event)).rejects.toThrow('feedback changed')
-    await expect(s.approve(d.id, 1, true)).rejects.toThrow('disk full')
-    const abandoned = await s.abandonSave(d.id)
-    expect(p.saved.size).toBe(1)
-    expect(abandoned.comments.some(c => c.question && !c.resolved)).toBe(true)
-    expect((await s.saveStatus(d.id)).pending).toBe(false)
-    await expect(s.patch({ id: d.id, revision: 1, changes: [{ path: '/content/hp', value: 20 }] }, 'dm')).resolves.toBeDefined()
+  it('moves an archived session out of the drafts list, keeping its files', async () => {
+    const s = new DraftStore(join(root, 'drafts'), publisher().p)
+    const d = await s.create('monster', content(), '', [{ type: 'campaign', id: 'a' }])
+    await s.archive(d.id)
+    expect(await s.list()).toEqual([])
+    await expect(s.get(d.id)).rejects.toThrow('not found')
   })
 })

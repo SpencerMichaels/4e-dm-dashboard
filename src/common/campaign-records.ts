@@ -45,7 +45,6 @@ export function entityTypeForKind(kind: string): EntityType {
 
 /** Each entity type's folder inside a campaign directory. */
 export const ENTITY_DIRS: Record<EntityType, string> = {
-  note: 'story/notes',
   creature: RECORD_STORAGE.creature.dir,
   encounter: 'encounters',
   location: 'locations',
@@ -60,3 +59,5 @@ export const ENTITY_DIRS: Record<EntityType, string> = {
 
 /** The Workshop content kind a record type holds (a creature record holds a "monster"). */
 export const contentKindFor = (type: RecordType) => type === 'creature' ? 'monster' : type
+/** The record type a content kind is stored as: a Workshop "monster" is a campaign creature. */
+export const recordTypeFor = (kind: string): RecordType => kind === 'monster' ? 'creature' : kind as RecordType

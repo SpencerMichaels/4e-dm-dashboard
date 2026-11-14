@@ -8,8 +8,6 @@ import type {
   CompendiumAnnotation,
   EncounterCreature,
   EntityType,
-  Note,
-  NoteTreeNode,
   SceneState,
 } from '@common/types'
 import type { AppSettings } from '@common/app-settings'
@@ -43,13 +41,11 @@ const api = {
     list: (entityType: EntityType) => ipcRenderer.invoke(CMD.ENTITY_LIST, entityType),
   },
 
-  // Notes (save/delete/get route through entity CRUD)
-  note: {
-    save: (note: Note) => ipcRenderer.invoke(CMD.ENTITY_SAVE, 'note', note),
-    delete: (noteId: string) => ipcRenderer.invoke(CMD.ENTITY_DELETE, 'note', noteId),
-    get: (noteId: string) => ipcRenderer.invoke(CMD.ENTITY_GET, 'note', noteId),
-    treeGet: () => ipcRenderer.invoke(CMD.NOTE_TREE_GET),
-    treeSave: (tree: NoteTreeNode[]) => ipcRenderer.invoke(CMD.NOTE_TREE_SAVE, tree),
+  // Player characters
+  pc: {
+    /** Imports .dnd4e / .4ecb files: new PCs, or updates (`targetId`: that PC). */
+    import: (files: { name: string; text: string }[], targetId?: string): Promise<{ created: string[]; updated: string[]; errors: string[] }> =>
+      ipcRenderer.invoke(CMD.PC_IMPORT, files, targetId),
   },
 
   // Combat commands
@@ -113,12 +109,7 @@ const api = {
   settings: {
     get: () => ipcRenderer.invoke(CMD.SETTINGS_GET) as Promise<AppSettings>,
     setTheme: (theme: ThemePreference) => ipcRenderer.invoke(CMD.SETTINGS_SET_THEME, theme) as Promise<AppSettings>,
-    dismissTip: (id: string) => ipcRenderer.invoke(CMD.SETTINGS_DISMISS_TIP, id) as Promise<AppSettings>,
-  },
-
-  // Links
-  links: {
-    get: () => ipcRenderer.invoke(CMD.LINKS_GET),
+    setAgentConnection: (on: boolean) => ipcRenderer.invoke(CMD.SETTINGS_SET_AGENT_CONNECTION, on) as Promise<AppSettings>,
   },
 
   // Images

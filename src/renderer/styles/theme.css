@@ -3,8 +3,7 @@
 
    Write new code against the kit tokens (--background, --surface, --text,
    --muted, --border, --accent, --danger, --power-*, ...) or the app tokens
-   below. The --color-* names are LEGACY aliases kept so the existing inline
-   styles keep working; don't add new uses of them.
+   below. (The legacy --color-* aliases were removed 2026-11-13.)
 
    Every value here is derived from kit tokens, so it follows the theme
    (data-theme on <html>, set by src/renderer/theme.ts) without dark-mode
@@ -104,73 +103,18 @@
      the scene image in either theme */
   --player-text-shadow: color-mix(in srgb, var(--background) 85%, transparent);
 
-  /* ── Legacy aliases (--color-*) ─────────────────────────────── */
-  --color-bg-primary: var(--background);
-  --color-bg-secondary: var(--surface);
-  --color-bg-tertiary: var(--surface-subtle);
-  --color-bg-surface: var(--surface-raised);
-  --color-bg-hover: var(--hover);
-  --color-bg-active: var(--active);
-
-  --color-text-primary: var(--text);
-  --color-text-secondary: color-mix(in srgb, var(--text) 45%, var(--muted));
-  --color-text-muted: var(--muted);
-  --color-text-inverse: var(--surface);
-
-  --color-border: var(--border);
-  --color-border-focus: var(--focus);
-
-  --color-accent: var(--accent);
-  --color-accent-hover: var(--accent-strong);
-  --color-accent-text: var(--on-fill);
-
-  --color-danger: var(--danger);
-  --color-danger-hover: color-mix(in srgb, var(--danger) 80%, var(--text));
-  --color-success: var(--success);
-  --color-warning: var(--warning);
-
-  --color-hp-full: var(--hp-full);
-  --color-hp-high: var(--hp-high);
-  --color-hp-mid: var(--hp-mid);
-  --color-hp-low: var(--hp-low);
-  --color-hp-down: var(--hp-down);
-
-  --color-turn-active: var(--turn-active);
-  --color-turn-delayed: var(--turn-delayed);
-
-  --color-damage: var(--damage);
-  --color-heal: var(--heal);
-  --color-temp-hp: var(--temp-hp);
-  --color-readied: var(--readied);
-  --color-readied-bg: color-mix(in srgb, var(--readied) 10%, transparent);
-  --color-readied-border: color-mix(in srgb, var(--readied) 30%, transparent);
-  --color-action-point: var(--action-point);
-
-  /* Constant: text on deep fills (power tones, token circles, image overlays) */
-  --color-text-on-dark: #fff;
-  /* Constant: text on mid-tone user colors (class-mark chips) */
-  --color-text-on-warning: #1e2933;
-
-  --color-condition-default: var(--warning);
-
-  --color-notify-bloodied: var(--notify-bloodied);
-  --color-notify-death: var(--notify-death);
-  --color-notify-success: var(--notify-success);
-  --color-notify-fail: var(--notify-fail);
-  --color-notify-neutral: var(--notify-neutral);
-
-  --color-check: var(--success);
-  --color-miss: var(--danger);
-
-  /* Constant: token mini-badge under white text */
-  --color-token-badge-bg: var(--brand-navy);
-  --color-token-badge-border: var(--border-strong);
-
-  /* Constant: buttons drawn over images */
-  --color-overlay-bg: rgb(0 0 0 / 60%);
-
-  --color-import-warning: var(--warning);
-  --color-import-warning-bg: var(--warning-soft);
+  /* ── Text and fills (the former --color-* aliases, removed 2026-11-13) ── */
+  /* Secondary text: between --text and --muted */
+  --text-secondary: color-mix(in srgb, var(--text) 45%, var(--muted));
+  --danger-strong: color-mix(in srgb, var(--danger) 80%, var(--text));
+  --readied-soft: color-mix(in srgb, var(--readied) 10%, transparent);
+  --readied-border: color-mix(in srgb, var(--readied) 30%, transparent);
+  /* Constant: text on dark fills (notification banners, token badges) */
+  --on-dark: #fff;
+  /* Constant: text on the warning fill */
+  --on-warning: #1e2933;
+  /* Constant: backdrops and buttons drawn over images */
+  --overlay: rgb(0 0 0 / 60%);
 
   /* ── Typography ─────────────────────────────────────────────── */
   --font-body: var(--font-ui);

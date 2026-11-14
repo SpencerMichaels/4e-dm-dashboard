@@ -9,8 +9,8 @@ const { AuthoringService } = await import('./service')
 const root = mkdtempSync(join(tmpdir(), 'authoring-service-'))
 afterAll(() => rmSync(root, { recursive: true, force: true }))
 
-describe('saving Workshop drafts to campaigns', () => {
-  it('saves every kind to the campaign; traps and friends as kit records in an envelope', async () => {
+describe('AI sessions writing into campaigns', () => {
+  it('writes every kind into the campaign as it changes; traps and friends as kit records in an envelope', async () => {
     const campaign = join(root, 'campaigns', 'c1')
     mkdirSync(campaign, { recursive: true })
     writeFileSync(join(campaign, 'campaign.json'), JSON.stringify({ id: 'c1', name: 'Test' }))
@@ -20,8 +20,7 @@ describe('saving Workshop drafts to campaigns', () => {
 
     for (const kind of ['trap', 'disease', 'template', 'theme'] as const) {
       const d: any = await s.call('create_draft', { kind, name: `Test ${kind}`, level: 3, destinations: [{ type: 'campaign', id: 'c1' }] }, 'dm')
-      const saved = await s.drafts.approve(d.id, d.revision, true)
-      const entityId = saved.receipt!.targets[0].entityId
+      const entityId = d.destinations[0].entityId
       const dir = { trap: 'traps', disease: 'diseases', template: 'templates', theme: 'themes' }[kind]
       const record = JSON.parse(readFileSync(join(campaign, dir, `${entityId}.json`), 'utf8'))
       expect(record).toMatchObject({ id: entityId, content: { ...d.content, id: entityId } })
@@ -30,7 +29,6 @@ describe('saving Workshop drafts to campaigns', () => {
       // An update keeps the record's creation time and replaces the content.
       const { hash } = await s.call('destination_entity', { destination: { type: 'campaign', id: 'c1' }, kind, entityId }, 'dm') as { hash: string }
       const update: any = await s.call('create_draft', { kind, content: { ...record.content, name: `Renamed ${kind}` }, destinations: [{ type: 'campaign', id: 'c1', entityId, expectedHash: hash }] }, 'dm')
-      await s.drafts.approve(update.id, update.revision, true)
       const updated = JSON.parse(readFileSync(join(campaign, dir, `${entityId}.json`), 'utf8'))
       expect(updated.content.name).toBe(`Renamed ${kind}`)
       expect(updated.createdAt).toBe(record.createdAt)

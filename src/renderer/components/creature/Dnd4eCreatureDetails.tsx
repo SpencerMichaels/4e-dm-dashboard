@@ -3,6 +3,7 @@ import type { Creature, CreatureBuilderConfig } from '@common/types'
 import { PowerEntryEditor, TraitRow, AuraRow, emptyPower } from './PowerEntryEditor'
 import type { PowerEntry } from './PowerEntryEditor'
 import { TagInput } from '@renderer/components/shared/TagInput'
+import { Icon } from '../shared/Icon'
 import { CreatureImageEditor } from '@renderer/components/shared/CreatureImageEditor'
 import { getPastedPower, getClipboardPowerName, onClipboardChange } from './power-clipboard'
 import { xpForCreature } from './dnd4e-utils'
@@ -57,7 +58,7 @@ function Hint({ value, benchmark, onClick, tooltip }: {
   if (benchmark == null || value === benchmark) return null
   return (
     <span onClick={onClick} title={tooltip ?? `Expected: ${benchmark}. Click to set.`}
-      style={{ color: 'var(--color-text-muted)', cursor: onClick ? 'pointer' : 'default', fontSize: '0.85em', marginLeft: 2 }}>
+      style={{ color: 'var(--muted)', cursor: onClick ? 'pointer' : 'default', fontSize: '0.85em', marginLeft: 2 }}>
       ({benchmark})
     </span>
   )
@@ -225,13 +226,13 @@ export function Dnd4eCreatureDetails({ creature, onSave: save, config, compact, 
             <b className="sb-label">Speed</b>
             {/* Land speed chip — deletable when other speeds exist */}
             {(landSpeed > 0 || Object.keys(speeds).length === 0) && (
-              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, padding: '0 3px', background: 'var(--color-bg-hover)', borderRadius: 'var(--radius-sm)', fontSize: 'var(--font-size-xs)' }}>
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, padding: '0 3px', background: 'var(--hover)', borderRadius: 'var(--radius-sm)', fontSize: 'var(--font-size-xs)' }}>
                 <input className="ghost" type="number" min={0} value={landSpeed || ''}
                   onChange={e => u('speed', e.target.value === '' ? '' : Number(e.target.value))}
                   onBlur={e => { if (e.target.value === '' || e.target.value === '0') u('speed', 0) }} />
                 {Object.keys(speeds).length > 0 && (
                   <button onClick={() => u('speed', 0)}
-                    style={{ color: 'var(--color-text-muted)', padding: '0 1px', lineHeight: 1 }}>×</button>
+                    style={{ color: 'var(--muted)', padding: '0 1px', lineHeight: 1, display: 'inline-flex' }} aria-label="Remove"><Icon name="x" /></button>
                 )}
               </span>
             )}
@@ -241,14 +242,14 @@ export function Dnd4eCreatureDetails({ creature, onSave: save, config, compact, 
               const justAdded = lastAddedSpeed.current === key
               if (justAdded) lastAddedSpeed.current = null
               return (
-                <span key={key} style={{ display: 'inline-flex', alignItems: 'center', gap: 3, padding: '0 3px', background: 'var(--color-bg-hover)', borderRadius: 'var(--radius-sm)', fontSize: 'var(--font-size-xs)' }}>
+                <span key={key} style={{ display: 'inline-flex', alignItems: 'center', gap: 3, padding: '0 3px', background: 'var(--hover)', borderRadius: 'var(--radius-sm)', fontSize: 'var(--font-size-xs)' }}>
                   {speedLabel.toLowerCase()}
                   <input className="ghost" type="number" min={0} value={val || ''}
                     ref={justAdded ? focusRef : undefined}
                     onChange={e => u('speeds', { ...speeds, [key]: e.target.value === '' ? '' : Number(e.target.value) })}
                     onBlur={e => { if (!e.target.value) u('speeds', { ...speeds, [key]: 0 }) }} />
                   <button onClick={() => { const { [key]: _, ...rest } = speeds; u('speeds', rest) }}
-                    style={{ color: 'var(--color-text-muted)', padding: '0 1px', lineHeight: 1 }}>×</button>
+                    style={{ color: 'var(--muted)', padding: '0 1px', lineHeight: 1, display: 'inline-flex' }} aria-label="Remove"><Icon name="x" /></button>
                 </span>
               )
             })}
@@ -367,13 +368,13 @@ export function Dnd4eCreatureDetails({ creature, onSave: save, config, compact, 
                 const justAdded = lastAddedSkill.current === name
                 if (justAdded) lastAddedSkill.current = null
                 return (
-                  <span key={name} style={{ display: 'inline-flex', alignItems: 'center', gap: 3, padding: '0 3px', background: 'var(--color-bg-hover)', borderRadius: 'var(--radius-sm)', fontSize: 'var(--font-size-xs)' }}>
+                  <span key={name} style={{ display: 'inline-flex', alignItems: 'center', gap: 3, padding: '0 3px', background: 'var(--hover)', borderRadius: 'var(--radius-sm)', fontSize: 'var(--font-size-xs)' }}>
                     {capitalize(name)} +<input className="ghost" type="number" value={mod ?? ''}
                       ref={justAdded ? focusRef : undefined}
                       onChange={ev => u('skills', { ...skills, [name]: ev.target.value === '' ? '' : Number(ev.target.value) })}
                       onBlur={ev => { if (ev.target.value === '') u('skills', { ...skills, [name]: 0 }) }} />
                     <button onClick={() => { const { [name]: _, ...rest } = skills; u('skills', rest) }}
-                      style={{ color: 'var(--color-text-muted)', padding: '0 1px', lineHeight: 1 }}>×</button>
+                      style={{ color: 'var(--muted)', padding: '0 1px', lineHeight: 1, display: 'inline-flex' }} aria-label="Remove"><Icon name="x" /></button>
                   </span>
                 )
               })}
@@ -402,7 +403,7 @@ export function Dnd4eCreatureDetails({ creature, onSave: save, config, compact, 
           <div style={{ padding: '2px 8px' }}>
             {!hasAbilities && (
               <div style={{ display: 'flex', gap: 4, alignItems: 'center', marginBottom: 2, fontSize: '10px' }}>
-                <span style={{ color: 'var(--color-text-muted)' }}>Primary:</span>
+                <span style={{ color: 'var(--muted)' }}>Primary:</span>
                 {abConfig.names.map(ab => (
                   <button key={ab} onClick={() => {
                     const newAb: Record<string, number> = {}
@@ -421,8 +422,8 @@ export function Dnd4eCreatureDetails({ creature, onSave: save, config, compact, 
                       padding: '0 3px', fontSize: '10px', textTransform: 'uppercase',
                       fontWeight: primaryAbility === ab ? 700 : 400,
                       background: primaryAbility === ab ? 'var(--sb-header-bg)' : 'transparent',
-                      color: primaryAbility === ab ? 'var(--color-text-on-dark)' : 'var(--color-text-muted)',
-                      border: primaryAbility === ab ? 'none' : '1px solid var(--color-border)',
+                      color: primaryAbility === ab ? 'var(--on-dark)' : 'var(--muted)',
+                      border: primaryAbility === ab ? 'none' : '1px solid var(--border)',
                       borderRadius: 'var(--radius-sm)', cursor: 'pointer',
                     }}>{ab}</button>
                 ))}
@@ -435,7 +436,7 @@ export function Dnd4eCreatureDetails({ creature, onSave: save, config, compact, 
                 const mod = Math.floor((score - 10) / 2)
                 return (
                   <span key={ab}>
-                    <b className="sb-label" style={{ color: !hasAbilities && ab === primaryAbility ? 'var(--color-accent)' : undefined }}>
+                    <b className="sb-label" style={{ color: !hasAbilities && ab === primaryAbility ? 'var(--accent)' : undefined }}>
                       {capitalize(ab)}
                     </b>{' '}
                     <input className="ghost" type="number" value={score}
@@ -478,8 +479,8 @@ export function Dnd4eCreatureDetails({ creature, onSave: save, config, compact, 
           u('actions', arr)
         }
         const addEntry = (type: PowerEntry['entryType']) => u('actions', [emptyPower(actionConfig, type), ...actions])
-        const gutterBtn = { color: 'var(--color-text-muted)', padding: '0', lineHeight: 1, fontSize: '10px', display: 'block' as const }
-        const addBtn = { color: 'var(--color-text-muted)', border: '1px dashed var(--color-border)', borderRadius: 'var(--radius-sm)', padding: '0 4px', background: 'transparent', cursor: 'pointer' }
+        const gutterBtn = { color: 'var(--muted)', padding: '0', lineHeight: 1, fontSize: '10px', display: 'block' as const }
+        const addBtn = { color: 'var(--muted)', border: '1px dashed var(--border)', borderRadius: 'var(--radius-sm)', padding: '0 4px', background: 'transparent', cursor: 'pointer' }
         return (
           <>
             <div style={{ display: 'flex', gap: 4, padding: '8px 8px 4px', flexWrap: 'wrap' }}>
@@ -487,7 +488,7 @@ export function Dnd4eCreatureDetails({ creature, onSave: save, config, compact, 
               <button onClick={() => addEntry('aura')} style={addBtn}>+ Aura</button>
               {clipboardName && (
                 <button onClick={() => { const p = getPastedPower(); if (p) u('actions', [p, ...actions]) }}
-                  style={{ ...addBtn, color: 'var(--color-success)', borderColor: 'var(--color-success)' }}
+                  style={{ ...addBtn, color: 'var(--success)', borderColor: 'var(--success)' }}
                   title={`Paste "${clipboardName}" from clipboard`}>
                   Paste: {clipboardName}
                 </button>
@@ -498,9 +499,9 @@ export function Dnd4eCreatureDetails({ creature, onSave: save, config, compact, 
                 {traitEntries.map(({ e, i }) => (
                   <div key={i}  style={{ display: 'flex' }}>
                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-start', padding: '4px 3px 0', gap: 1, opacity: 0.5, minWidth: 14 }}>
-                      <button onClick={() => moveAction(i, -1)} style={gutterBtn} title="Move up">▲</button>
-                      <span style={{ cursor: 'grab', fontSize: '8px', color: 'var(--color-text-muted)', letterSpacing: 1 }} title="Drag to reorder">⠿</span>
-                      <button onClick={() => moveAction(i, 1)} style={gutterBtn} title="Move down">▼</button>
+                      <button onClick={() => moveAction(i, -1)} style={gutterBtn} title="Move up" aria-label="Move up"><Icon name="chevron-up" size={10} /></button>
+                      <span style={{ cursor: 'grab', color: 'var(--muted)', display: 'inline-flex' }} title="Drag to reorder"><Icon name="grip-vertical" size={10} /></span>
+                      <button onClick={() => moveAction(i, 1)} style={gutterBtn} title="Move down" aria-label="Move down"><Icon name="chevron-down" size={10} /></button>
                     </div>
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <TraitRow entry={e} idx={i} onUpdate={updateAction} onRemove={removeAction} />
@@ -515,9 +516,9 @@ export function Dnd4eCreatureDetails({ creature, onSave: save, config, compact, 
                 {auraEntries.map(({ e, i }) => (
                   <div key={i}  style={{ display: 'flex' }}>
                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-start', padding: '4px 3px 0', gap: 1, opacity: 0.5, minWidth: 14 }}>
-                      <button onClick={() => moveAction(i, -1)} style={gutterBtn} title="Move up">▲</button>
-                      <span style={{ cursor: 'grab', fontSize: '8px', color: 'var(--color-text-muted)', letterSpacing: 1 }} title="Drag to reorder">⠿</span>
-                      <button onClick={() => moveAction(i, 1)} style={gutterBtn} title="Move down">▼</button>
+                      <button onClick={() => moveAction(i, -1)} style={gutterBtn} title="Move up" aria-label="Move up"><Icon name="chevron-up" size={10} /></button>
+                      <span style={{ cursor: 'grab', color: 'var(--muted)', display: 'inline-flex' }} title="Drag to reorder"><Icon name="grip-vertical" size={10} /></span>
+                      <button onClick={() => moveAction(i, 1)} style={gutterBtn} title="Move down" aria-label="Move down"><Icon name="chevron-down" size={10} /></button>
                     </div>
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <AuraRow entry={e} idx={i} onUpdate={updateAction} onRemove={removeAction} />
@@ -536,8 +537,8 @@ export function Dnd4eCreatureDetails({ creature, onSave: save, config, compact, 
         {showDescription && <textarea className="ghost" value={(sb.description as string) ?? ''}
           onChange={e => u('description', e.target.value)}
           placeholder="Description..."
-          style={{ width: '100%', fontStyle: 'italic', fontSize: '11px', color: 'var(--color-text-secondary)' }} />}
-        <div style={{ color: 'var(--color-text-muted)', fontStyle: 'italic', marginTop: 2 }}>
+          style={{ width: '100%', fontStyle: 'italic', fontSize: '11px', color: 'var(--text-secondary)' }} />}
+        <div style={{ color: 'var(--muted)', fontStyle: 'italic', marginTop: 2 }}>
           <input className="ghost" value={(sb.source as string) ?? ''}
             onChange={e => u('source', e.target.value)}
             placeholder="Source..."
@@ -601,17 +602,17 @@ function InlineEntryChips({ label, entries, onChange, suggestions, showValue }: 
         const justAdded = lastAdded.current === e.type
         if (justAdded) lastAdded.current = null
         return (
-          <span key={e.type} style={{ display: 'inline-flex', alignItems: 'center', gap: 3, padding: '0 3px', background: 'var(--color-bg-hover)', borderRadius: 'var(--radius-sm)', fontSize: 'var(--font-size-xs)' }}>
+          <span key={e.type} style={{ display: 'inline-flex', alignItems: 'center', gap: 3, padding: '0 3px', background: 'var(--hover)', borderRadius: 'var(--radius-sm)', fontSize: 'var(--font-size-xs)' }}>
             {e.type}
             {showValue && (
               <input className="ghost" type="number" value={e.value ?? ''}
                 ref={justAdded ? focusRef : undefined}
                 onChange={ev => updateVal(i, Number(ev.target.value))}
                 onBlur={ev => { if (ev.target.value === '') updateVal(i, 0) }}
-                style={{ borderBottom: '1px solid var(--color-border)' }} />
+                style={{ borderBottom: '1px solid var(--border)' }} />
             )}
             <button onClick={() => remove(i)}
-              style={{ color: 'var(--color-text-muted)', padding: '0 1px', lineHeight: 1 }}>×</button>
+              style={{ color: 'var(--muted)', padding: '0 1px', lineHeight: 1, display: 'inline-flex' }} aria-label="Remove"><Icon name="x" /></button>
           </span>
         )
       })}
@@ -627,7 +628,7 @@ function InlineEntryChips({ label, entries, onChange, suggestions, showValue }: 
           {available.map(s => <option key={s} value={s}>{s}</option>)}
         </select>
       )}
-      {entries.length === 0 && available.length === 0 && <span style={{ fontSize: '9px', color: 'var(--color-text-muted)' }}>—</span>}
+      {entries.length === 0 && available.length === 0 && <span style={{ fontSize: '9px', color: 'var(--muted)' }}>—</span>}
     </span>
   )
 }

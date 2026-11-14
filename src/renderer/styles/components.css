@@ -1,0 +1,178 @@
+/* Shared components, after 4ecb's primitives (apps/web/src/styles/primitives.css and 01-base.css):
+   buttons, the dialog contract, and data tables. Plain global classes so inline-styled components can opt in. */
+
+/* ── Buttons ──────────────────────────────────────────────────────
+   A <button> with no class gets a plain bordered look (global.css); these classes give the 4ecb button. Hover is the inset bottom bar from global.css; focus is the 3px ring. */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35em;
+  padding: var(--space-1) var(--space-4);
+  background: var(--surface-raised);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  color: var(--text);
+  line-height: 1.5;
+}
+
+.btn:not(:disabled):hover {
+  border-color: var(--focus);
+}
+
+.btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+/* Primary: the one main action of a dialog or page (4ecb button-primary). */
+.btn-primary {
+  background: var(--accent);
+  border-color: var(--focus);
+  color: var(--on-fill);
+  font-weight: 700;
+}
+
+.btn-danger {
+  background: var(--damage);
+  border-color: var(--damage);
+  color: var(--on-fill);
+  font-weight: 700;
+}
+
+.btn-success {
+  background: var(--heal);
+  border-color: var(--heal);
+  color: var(--on-fill);
+  font-weight: 700;
+}
+
+.btn-info {
+  background: var(--readied);
+  border-color: var(--readied);
+  color: var(--on-fill);
+  font-weight: 700;
+}
+
+.btn-primary:not(:disabled):hover,
+.btn-danger:not(:disabled):hover,
+.btn-success:not(:disabled):hover,
+.btn-info:not(:disabled):hover {
+  box-shadow: inset 0 -2px color-mix(in srgb, var(--on-fill) 70%, transparent);
+}
+
+/* Small: for stat block headers, toolbars, and other dense places. */
+.btn-sm {
+  padding: 0 var(--space-2);
+  font-size: var(--font-size-xs);
+}
+
+/* Icon-only: square, no border until hovered. */
+.btn-icon {
+  padding: 0.3rem;
+  background: transparent;
+  border-color: transparent;
+  color: inherit;
+}
+
+/* ── Dialogs ─────────────────────────────────────────────────────
+   The 4ecb dialog contract: a branded header (title and a close x), a body, and a footer whose actions sit on
+   the right as [Cancel] [Back] [Primary]; anything else goes left (.dialog-footer-start). Esc equals Cancel. */
+.dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-4);
+  background: rgb(12 18 24 / 72%);
+}
+
+.dialog-shell {
+  display: flex;
+  flex-direction: column;
+  max-height: 85vh;
+  max-width: calc(100vw - 2rem);
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-lg);
+  color: var(--text);
+}
+
+.dialog-shell > header,
+.dialog-shell > footer {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.6rem 1rem;
+  flex-shrink: 0;
+}
+
+.dialog-shell > header {
+  justify-content: space-between;
+  background: var(--brand-navy);
+  border-bottom: 3px solid var(--brand-blue);
+  color: #fff;
+}
+
+.dialog-shell > header h2 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--font-size-lg);
+  color: inherit;
+}
+
+.dialog-body {
+  padding: var(--space-4);
+  overflow: auto;
+}
+
+.dialog-shell > footer {
+  justify-content: flex-end;
+  border-top: 1px solid var(--border);
+}
+
+.dialog-footer-start {
+  margin-inline-end: auto;
+}
+
+.dialog-close {
+  padding: 0.2rem;
+  color: #fff;
+  line-height: 0;
+}
+
+/* ── Tables ──────────────────────────────────────────────────────
+   Data tables: a header rule, striped rows, a 4px inset tone bar on hover (4ecb's selection rows). */
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.data-table th {
+  text-align: left;
+  font-weight: 700;
+  color: var(--muted);
+  border-bottom: 1px solid var(--border-strong);
+  padding: 0.25rem 0.5rem;
+}
+
+.data-table td {
+  padding: 0.25rem 0.5rem;
+  vertical-align: top;
+}
+
+.data-table tbody tr {
+  --tone: var(--accent);
+  background: var(--surface);
+}
+
+.data-table tbody tr:nth-child(even) {
+  background: var(--surface-subtle);
+}
+
+.data-table tbody tr:hover {
+  box-shadow: inset 4px 0 var(--tone);
+}

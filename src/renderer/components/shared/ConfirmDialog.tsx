@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react'
-import { Modal, modalStyles } from './Modal'
+import { Modal } from './Modal'
 
 interface ConfirmDialogProps {
   message: string
@@ -7,6 +7,7 @@ interface ConfirmDialogProps {
   onCancel: () => void
   confirmLabel?: string
   danger?: boolean
+  title?: string
 }
 
 export function ConfirmDialog({
@@ -14,6 +15,7 @@ export function ConfirmDialog({
   onConfirm,
   onCancel,
   confirmLabel = 'Delete',
+  title = 'Are you sure?',
   danger = true,
 }: ConfirmDialogProps) {
   const confirmRef = useRef<HTMLButtonElement>(null)
@@ -23,20 +25,11 @@ export function ConfirmDialog({
   }, [])
 
   return (
-    <Modal onClose={onCancel} maxWidth={400}>
-      <p style={{ marginBottom: 'var(--space-4)', lineHeight: 1.5 }}>{message}</p>
-      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 'var(--space-2)' }}>
-        <button className={modalStyles.btnSecondary} onClick={onCancel}>
-          Cancel
-        </button>
-        <button
-          ref={confirmRef}
-          className={danger ? modalStyles.btnDanger : modalStyles.btnPrimary}
-          onClick={onConfirm}
-        >
-          {confirmLabel}
-        </button>
-      </div>
+    <Modal title={title} onClose={onCancel} maxWidth={400} footer={<>
+      <button className="btn" onClick={onCancel}>Cancel</button>
+      <button ref={confirmRef} className={danger ? 'btn btn-danger' : 'btn btn-primary'} onClick={onConfirm}>{confirmLabel}</button>
+    </>}>
+      <p style={{ margin: 0, lineHeight: 1.5 }}>{message}</p>
     </Modal>
   )
 }

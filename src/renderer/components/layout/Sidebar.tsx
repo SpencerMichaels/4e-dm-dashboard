@@ -2,7 +2,6 @@ import { THEME_PREFERENCE_LABELS } from '@kit/theme'
 import { useUiStore, type ViewMode } from '../../stores/ui-store'
 import { useCampaignStore } from '../../stores/campaign-store'
 import { useCombatStore } from '../../stores/combat-store'
-import { useCampaignActions } from '../../hooks/use-campaign'
 import styles from './Sidebar.module.css'
 
 interface NavItem {
@@ -18,8 +17,6 @@ const navSections: { title: string; items: NavItem[] }[] = [
     title: 'Campaign',
     items: [
       { icon: '🏠', label: 'Home', view: { type: 'home' }, global: true },
-      { icon: '🛠️', label: 'Workshop', view: { type: 'authoring' }, global: true },
-      { icon: '📝', label: 'Notes', view: { type: 'entity-list', entityType: 'note' } },
       { icon: '⚔️', label: 'Encounters', view: { type: 'entity-list', entityType: 'encounter' } },
       { icon: '🗺️', label: 'Maps', view: { type: 'entity-list', entityType: 'map' } },
       { icon: '🧑', label: 'PCs', view: { type: 'entity-list', entityType: 'player-character' } },
@@ -28,12 +25,12 @@ const navSections: { title: string; items: NavItem[] }[] = [
   {
     title: 'Compendium',
     items: [
-      { icon: '👹', label: 'Creatures', view: { type: 'entity-list', entityType: 'creature' } },
-      { icon: '🎒', label: 'Items', view: { type: 'entity-list', entityType: 'item' } },
-      { icon: '🪤', label: 'Traps', view: { type: 'trap-compendium' } },
-      { icon: '🦠', label: 'Diseases', view: { type: 'disease-compendium' } },
-      { icon: '🧬', label: 'Templates', view: { type: 'template-compendium' } },
-      { icon: '🎭', label: 'Themes', view: { type: 'theme-compendium' } },
+      { icon: '👹', label: 'Creatures', view: { type: 'compendium', kind: 'creature' }, global: true },
+      { icon: '🎒', label: 'Items', view: { type: 'compendium', kind: 'item' }, global: true },
+      { icon: '🪤', label: 'Traps', view: { type: 'compendium', kind: 'trap' }, global: true },
+      { icon: '🦠', label: 'Diseases', view: { type: 'compendium', kind: 'disease' }, global: true },
+      { icon: '🧬', label: 'Templates', view: { type: 'compendium', kind: 'template' }, global: true },
+      { icon: '🎭', label: 'Themes', view: { type: 'compendium', kind: 'theme' }, global: true },
     ],
   },
 ]
@@ -46,26 +43,16 @@ interface SidebarProps {
 export function Sidebar({ onShowHotkeys, onShowSettings }: SidebarProps) {
   const { view, setView, toggleTheme, themePreference, setCommandPaletteOpen } = useUiStore()
   const combat = useCombatStore((s) => s.combat)
-  const noteTree = useCampaignStore((s) => s.noteTree)
-  const notes = useCampaignStore((s) => s.notes)
-  const { createNote } = useCampaignActions()
 
   const isActive = (navView: ViewMode) => {
     if (navView.type === view.type) {
       if (navView.type === 'entity-list' && view.type === 'entity-list') {
         return navView.entityType === view.entityType
       }
+      if (navView.type === 'compendium' && view.type === 'compendium') return navView.kind === view.kind
       return true
     }
     return false
-  }
-
-  const handleNewNote = async () => {
-    const note = await createNote('Untitled')
-    // Add to tree
-    const tree = [...noteTree, { id: note.id, title: note.title, children: [] }]
-    await window.api.note.treeSave(tree)
-    setView({ type: 'note', noteId: note.id })
   }
 
   const campaignId = useCampaignStore((s) => s.campaignId)
@@ -89,7 +76,7 @@ export function Sidebar({ onShowHotkeys, onShowSettings }: SidebarProps) {
           </button>}
 
       {navSections.map((section) => (
-        <div key={section.title} className={styles.section}>
+        <nav key={section.title} className={styles.section} aria-label={section.title}>
           <div className={styles.sectionTitle}>{section.title}</div>
           {section.items.map((item) => (
             <button
@@ -103,11 +90,11 @@ export function Sidebar({ onShowHotkeys, onShowSettings }: SidebarProps) {
               {item.label}
             </button>
           ))}
-        </div>
+        </nav>
       ))}
 
       {combat && (
-        <div className={styles.section}>
+        <nav className={styles.section} aria-label="Active combat">
           <div className={styles.sectionTitle}>Active Combat</div>
           <button
             className={`${styles.item} ${view.type === 'combat' ? styles.active : ''}`}
@@ -116,26 +103,8 @@ export function Sidebar({ onShowHotkeys, onShowSettings }: SidebarProps) {
             <span className={styles.itemIcon}>⚔️</span>
             Round {combat.round} — Turn {combat.turnIndex + 1}
           </button>
-        </div>
+        </nav>
       )}
-
-      {campaignId && <div className={styles.section}>
-        <div className={styles.sectionTitle}>Notes</div>
-        <div className={styles.noteTree}>
-          {noteTree.map((node) => (
-            <button
-              key={node.id}
-              className={`${styles.treeNode} ${view.type === 'note' && view.noteId === node.id ? styles.active : ''}`}
-              onClick={() => setView({ type: 'note', noteId: node.id })}
-            >
-              {node.title || 'Untitled'}
-            </button>
-          ))}
-        </div>
-        <button className={styles.addBtn} onClick={handleNewNote}>
-          + New Note
-        </button>
-      </div>}
 
       <div className={styles.actionRow} style={{ marginTop: 'auto' }}>
         <button className={styles.iconBtn} onClick={() => window.api.playerWindow.show()} title="Show player window">👁</button>
@@ -147,7 +116,7 @@ export function Sidebar({ onShowHotkeys, onShowSettings }: SidebarProps) {
 
       {campaignId && (
         <div className={styles.section}>
-          <button className={styles.item} onClick={closeCampaign} style={{ color: 'var(--color-text-muted)' }}>
+          <button className={styles.closeCampaign} onClick={closeCampaign}>
             Close Campaign
           </button>
         </div>

@@ -4,30 +4,20 @@ import type { PluginCombatPanelProps } from './panel-types'
 import type { PowerEntry } from '../creature/PowerEntryEditor'
 import { PowerCardView, type PowerCardEntry } from '../creature/PowerCardView'
 import { USAGE_COLORS, sign } from '../creature/dnd4e-utils'
-import { detectConditions, detectDiseases, type DetectedCondition } from './condition-detection'
+import type { DetectedCondition } from './condition-detection'
+import { applyDetection, cardFor, detectIn, maxUses, rechargeQueued } from './card-actions'
 import { useDiseaseNames } from '../disease/disease-refs'
 import { ConditionPill, buildConditionLabel } from './ConditionPill'
+import { Icon } from '../shared/Icon'
+import { withAlpha } from '../../utils/color'
 import { capitalize } from '@common/utils/format'
 import { combatStatBlock } from './combat-view'
 import { normalizeStringArray } from '@common/utils/arrays'
 import { hpPercentage, hpColor, formatConditionName } from '@renderer/utils/combat-utils'
+import { useCampaignStore } from '../../stores/campaign-store'
+import { PcSheetRows, sheetSubtitle } from '../campaign/PcSheet'
 import '../creature/statblock.css'
 
-/** Extract max uses for a power: 1 for normal encounter, N for "N/Encounter" in keywords, Infinity for at-will */
-function getMaxUses(p: PowerEntry): number {
-  const uses = (p as any).encounterUses
-  if (typeof uses === 'number' && uses > 0) return uses
-  const kw = Array.isArray(p.keywords) ? p.keywords : []
-  for (const k of kw) {
-    const m = String(k).match(/^(\d+)\/encounter$/i)
-    if (m) return parseInt(m[1])
-    const m2 = String(k).match(/^at-will\s*\((\d+)\/\w+\)$/i)
-    if (m2) return parseInt(m2[1])
-  }
-  if (p.usage === 'encounter') return 1
-  if (p.usage === 'recharge') return 1
-  return Infinity  // at-will
-}
 
 
 export function Dnd4eCombatPanel({
@@ -38,14 +28,13 @@ export function Dnd4eCombatPanel({
   onPopoutStatblock, hideMainActionPowers, onToggleDisabled,
 }: PluginCombatPanelProps) {
   const sb = combatStatBlock(c)
+  // A PC's imported sheet: players track their own hit points, so the panel shows it for reference.
+  const sheet = useCampaignStore(s => c.isPC ? s.playerCharacters.find(p => p.id === c.entityId)?.sheet : undefined)
   const isTrap = c.kind === 'trap'
   const actions = Array.isArray(sb.actions) ? sb.actions as PowerEntry[] : []
   const diseaseNames = useDiseaseNames()
-  /** Condition keywords and disease names in a power's text; both highlight and apply to targets. */
-  const detect = (pow: PowerEntry): DetectedCondition[] => {
-    const conditions = detectConditions({ hit: pow.hit, effect: pow.effect, miss: pow.miss, target: pow.target })
-    return [...conditions, ...detectDiseases(pow, diseaseNames, conditions)]
-  }
+  const detect = (p: PowerEntry) => detectIn(p, diseaseNames)
+  const apply = (det: DetectedCondition, multi: boolean) => applyDetection(c, det, multi, { onApplyConditionToTargets, onApplyDiseaseToTargets })
   const hpPct = hpPercentage(c.hp, c.maxHp)
   const usedPowers = c.usedPowers ?? {}
 
@@ -78,27 +67,10 @@ export function Dnd4eCombatPanel({
   const usedAP = c.usedActionPoints ?? 0
   const remainingAP = Math.max(0, totalAP - usedAP)
 
-  const pinBtn = (key: string, title: string, content: any) => {
-    const isPinned = pinnedKeys.has(key)
-    return (
-      <button
-        onClick={() => onPinCard({ combatantName: c.name, title, content, key })}
-        title={isPinned ? 'Unpin' : 'Pin to overlay'}
-        style={{
-          background: 'none', border: 'none', cursor: 'pointer', padding: '0 2px',
-          fontSize: 10, color: isPinned ? 'var(--color-action-point)' : 'var(--color-text-muted)',
-          opacity: isPinned ? 1 : 0.5,
-        }}
-      >
-        📌
-      </button>
-    )
-  }
-
   const btnStyle = {
     padding: '3px 10px', borderRadius: 'var(--radius-sm)',
-    border: '1px solid var(--color-border)', cursor: 'pointer',
-    fontSize: 'var(--font-size-xs)', background: 'var(--color-bg-surface)',
+    border: '1px solid var(--border)', cursor: 'pointer',
+    fontSize: 'var(--font-size-xs)', background: 'var(--surface-raised)',
   }
 
   return (
@@ -110,33 +82,33 @@ export function Dnd4eCombatPanel({
           {c.name}
           {onPopoutStatblock && (
             <button onClick={() => onPopoutStatblock(c.id)}
-              title="Pop out full stat block as a floating window"
+              title="Pop out full stat block as a floating window" aria-label="Pop out stat block"
               style={{
                 background: 'transparent', border: 'none', cursor: 'pointer',
                 color: 'inherit', padding: 2, fontSize: 12, lineHeight: 1,
                 display: 'inline-flex', alignItems: 'center',
-              }}>↗</button>
+              }}><Icon name="external-link" /></button>
           )}
         </span>
-        <span>Level {sb.level} {(() => {
+        {c.isPC ? <span>{sheet ? sheetSubtitle(sheet) : c.playerName}</span> : <span>Level {sb.level} {(() => {
           const mod = sb.monsterModifier as string | undefined
           const role = sb.role as string | undefined
           return (mod ? capitalize(mod) + ' ' : '') + (role ? capitalize(role) : '')
-        })()}</span>
+        })()}</span>}
       </div>
 
-      {/* HP + AP line */}
-      <div style={{ padding: '4px 8px', display: 'flex', alignItems: 'center', gap: 6, borderBottom: '1px solid var(--sb-separator)' }}>
+      {/* HP + AP line (not for PCs: their players track hit points) */}
+      {!c.isPC && <div style={{ padding: '4px 8px', display: 'flex', alignItems: 'center', gap: 6, borderBottom: '1px solid var(--sb-separator)' }}>
         <b style={{ fontSize: 11 }}>HP</b>
         {sb.noHitPoints
           // Traps without hit points are stopped by countermeasures (Disable), not damage.
-          ? <span style={{ color: 'var(--color-text-muted)', fontSize: 11 }}>{sb.hpText || 'none'}{c.dead ? ' (disabled)' : ''}</span>
+          ? <span style={{ color: 'var(--muted)', fontSize: 11 }}>{sb.hpText || 'none'}{c.dead ? ' (disabled)' : ''}</span>
           : <>
-            <span style={{ fontWeight: 700, fontSize: 13, color: hpPct > 0 ? hpColor(hpPct) : 'var(--color-text-muted)' }}>{c.hp}</span>
-            <span style={{ color: 'var(--color-text-muted)', fontSize: 11 }}>/ {c.maxHp}</span>
+            <span style={{ fontWeight: 700, fontSize: 13, color: hpPct > 0 ? hpColor(hpPct) : 'var(--muted)' }}>{c.hp}</span>
+            <span style={{ color: 'var(--muted)', fontSize: 11 }}>/ {c.maxHp}</span>
           </>}
-        {c.tempHp > 0 && <span style={{ color: 'var(--color-temp-hp)', fontSize: 11, fontWeight: 600 }}>+{c.tempHp} temp</span>}
-        {hpPct <= 50 && hpPct > 0 && <span style={{ color: 'var(--color-hp-low)', fontSize: 10, fontWeight: 700 }}>BLOODIED</span>}
+        {c.tempHp > 0 && <span style={{ color: 'var(--temp-hp)', fontSize: 11, fontWeight: 600 }}>+{c.tempHp} temp</span>}
+        {hpPct <= 50 && hpPct > 0 && <span style={{ color: 'var(--hp-low)', fontSize: 10, fontWeight: 700 }}>BLOODIED</span>}
         {totalAP > 0 && (
           <>
             <div style={{ flex: 1 }} />
@@ -153,8 +125,8 @@ export function Dnd4eCombatPanel({
             >
               <b style={{ fontSize: 11 }}>AP</b>
               {Array.from({ length: totalAP }, (_, i) => (
-                <span key={i} style={{ fontSize: 14, color: i < remainingAP ? 'var(--color-action-point)' : 'var(--color-text-muted)', opacity: i < remainingAP ? 1 : 0.3 }}>
-                  {i < remainingAP ? '●' : '○'}
+                <span key={i} style={{ fontSize: 11, display: 'inline-flex', color: i < remainingAP ? 'var(--action-point)' : 'var(--muted)', opacity: i < remainingAP ? 1 : 0.3 }}>
+                  <Icon name="circle" fill={i < remainingAP ? 'currentColor' : 'none'} label={i < remainingAP ? 'Action point' : 'Spent action point'} />
                 </span>
               ))}
             </div>
@@ -167,14 +139,14 @@ export function Dnd4eCombatPanel({
               title={c.dead ? 'The trap works again' : 'A countermeasure stopped the trap'}>{c.dead ? 'Re-arm' : 'Disable'}</button>
           </>
         )}
-      </div>
+      </div>}
 
       {/* Active conditions strip */}
       {c.conditions.length > 0 && (
         <div style={{
           padding: '4px 8px', display: 'flex', flexWrap: 'wrap', gap: 4, alignItems: 'center',
           borderBottom: '1px solid var(--sb-separator)',
-          background: 'rgba(0,0,0,0.15)',
+          background: withAlpha('var(--text)', 0.07),
         }}>
           {c.conditions.map(cond => {
             const def = conditionDefs.find(d => d.id === cond.conditionId)
@@ -215,7 +187,11 @@ export function Dnd4eCombatPanel({
         </div>
       )}
 
-      {/* Full stat block */}
+      {/* Full stat block; a PC shows its imported sheet instead */}
+      {c.isPC ? <div style={{ fontSize: 11 }}>
+        {sheet ? <PcSheetRows sheet={sheet} />
+          : <div className="sb-row" style={{ color: 'var(--muted)' }}>No sheet imported (Player Characters page, Import)</div>}
+      </div> : <>
       {/* Traps print only what they have: often no initiative, senses, or defenses. */}
       {isTrap ? (sb.initiative !== undefined && (
         <div className="sb-row" style={{ fontSize: 11 }}><span><b className="sb-label">Initiative</b> {sign(sb.initiative as number)}</span></div>
@@ -255,138 +231,35 @@ export function Dnd4eCombatPanel({
           <span><b className="sb-label">Saving Throws</b> +{saveBonus}</span>
         </div>
       )}
+      </>}
 
-      {/* Traits */}
-      {traitEntries.length > 0 && (
+      {/* Traits and auras: the same card as powers, pinned from its header */}
+      {(traitEntries.length > 0 || auraEntries.length > 0) && (
         <div style={{ borderTop: '1px solid var(--sb-separator)', paddingTop: 2 }}>
-          {traitEntries.map((t, i) => {
-            const key = `${c.id}:trait:${i}`
-            const body = t.effect || t.text || (t as any).description || ''
-            return (
-              <div key={i} style={{ marginTop: 2, display: 'flex', alignItems: 'flex-start' }}>
-                <div style={{ flex: 1, fontSize: 'var(--font-size-xs)', lineHeight: 1.5, marginBottom: 1 }}>
-                  <div style={{ padding: '2px 8px', background: '#7a6f5e', color: '#fff' }}>
-                    <b>{t.name}</b>
-                  </div>
-                  {body && <div style={{ padding: '1px 8px 2px 16px' }}>{body}</div>}
-                </div>
-                <div style={{ paddingTop: 2 }}>{pinBtn(key, t.name, body)}</div>
-              </div>
-            )
+          {[...traitEntries, ...auraEntries].map(t => {
+            const idx = actions.indexOf(t)
+            const key = `${c.id}:${t.entryType}:${idx}`
+            const entry = cardFor(t)
+            return <PowerCardView key={key} entry={entry} detectedConditions={detect(t)} onConditionClick={apply}
+              pinned={pinnedKeys.has(key)} onPin={() => onPinCard({ combatantName: c.name, title: t.name, content: entry, key })} />
           })}
         </div>
       )}
 
-      {/* Auras */}
-      {auraEntries.length > 0 && (
-        <div style={{ paddingTop: 2 }}>
-          {auraEntries.map((a, i) => {
-            const key = `${c.id}:aura:${i}`
-            const auraRange = (a as any).auraRange ?? a.rangeValue ?? 1
-            const body = a.effect || a.text || (a as any).description || ''
-            return (
-              <div key={i} style={{ marginTop: 2, display: 'flex', alignItems: 'flex-start' }}>
-                <div style={{ flex: 1, fontSize: 'var(--font-size-xs)', lineHeight: 1.5, marginBottom: 1 }}>
-                  <div style={{ padding: '2px 8px', background: '#7a6f5e', color: '#fff' }}>
-                    <b>{a.name}</b>
-                    <span style={{ color: 'rgba(255,255,255,0.8)' }}> (aura {auraRange})</span>
-                  </div>
-                  {body && <div style={{ padding: '1px 8px 2px 16px' }}>{body}</div>}
-                </div>
-                <div style={{ paddingTop: 2 }}>{pinBtn(key, a.name, `aura ${auraRange}; ${body}`)}</div>
-              </div>
-            )
-          })}
-        </div>
-      )}
-
-      {/* Powers — interactive */}
+      {/* Powers: click to use, right-click to restore; a spent power collapses and says so in its chip */}
       {powerEntries.length > 0 && (
         <div style={{ borderTop: '1px solid var(--sb-separator)', paddingTop: 2 }}>
-          {powerEntries.map((pow, i) => {
+          {powerEntries.map(pow => {
             const globalIdx = actions.indexOf(pow)
             const timesUsed = usedPowers[globalIdx] ?? 0
-            const maxUses = getMaxUses(pow)
-            const isFullyUsed = maxUses !== Infinity && timesUsed >= maxUses
-            const canToggleUsed = maxUses !== Infinity
+            const max = maxUses(pow)
             const entry = toPowerCardEntry(pow)
-            const pinKey = `${c.id}:power:${globalIdx}`
-
-            return (
-              <div key={globalIdx} style={{
-                marginTop: 2, position: 'relative',
-                opacity: isFullyUsed ? 0.4 : 1,
-                transition: 'opacity 0.15s',
-              }}>
-                <div style={{ display: 'flex', alignItems: 'flex-start' }}>
-                  <div
-                    onClick={canToggleUsed ? () => {
-                      if (isFullyUsed) onUnusePower(globalIdx)
-                      else onUsePower(globalIdx)
-                    } : undefined}
-                    onContextMenu={canToggleUsed ? (e) => {
-                      e.preventDefault()
-                      if (timesUsed > 0) onUnusePower(globalIdx)
-                    } : undefined}
-                    style={{ cursor: canToggleUsed ? 'pointer' : 'default', flex: 1, position: 'relative' }}
-                    title={canToggleUsed ? 'Left click: use · Right click: restore' : undefined}
-                  >
-                    <PowerCardView entry={entry}
-                      detectedConditions={detect(pow)}
-                      onConditionClick={(det, multi) => {
-                        if (det.disease) { onApplyDiseaseToTargets?.(det.disease, det.conditionName, multi); return }
-                        const condData: any = {
-                          conditionId: det.conditionId,
-                          value: det.value,
-                          customDescription: det.damageType,
-                          sourceId: c.id,
-                          duration: det.duration,
-                        }
-                        // For marked conditions from power cards, add the "by" description
-                        if (det.conditionId === 'marked') {
-                          condData.customDescription = `by ${c.name}`
-                        }
-                        // For Regenerating, set encounter duration and clear damageType description
-                        if (det.conditionId === 'regenerating') {
-                          condData.duration = det.duration ?? { type: 'encounter' }
-                          condData.customDescription = undefined
-                        }
-                        // For Grants CA, set the recipient enum + preformatted label suffix.
-                        // Source name resolves to the power's owner (`c.name`).
-                        if (det.conditionId === 'combat-advantage') {
-                          const recipient = det.grantsCATo ?? 'all'
-                          condData.grantsCATo = recipient
-                          if (recipient === 'source') condData.customDescription = `to ${c.name}`
-                          else if (recipient === 'source-allies') condData.customDescription = `to ${c.name}'s allies`
-                          else condData.customDescription = undefined  // 'all' has no suffix
-                        }
-                        onApplyConditionToTargets(condData, multi)
-                      }}
-                    />
-                    {/* Usage counter overlaid on header — only for multi-use powers */}
-                    {maxUses > 1 && maxUses !== Infinity && (
-                      <div style={{
-                        position: 'absolute', top: 2, right: 8,
-                        fontSize: 10, fontWeight: 700, color: 'rgba(255,255,255,0.9)',
-                      }}>
-                        {timesUsed}/{maxUses}
-                      </div>
-                    )}
-                  </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 2, paddingTop: 2 }}>
-                    {pinBtn(pinKey, pow.name, entry)}
-                  </div>
-                </div>
-                {isFullyUsed && (
-                  <div style={{
-                    position: 'absolute', top: 0, left: 8, right: 8, height: '1.5em',
-                    display: 'flex', alignItems: 'center', pointerEvents: 'none',
-                  }}>
-                    <div style={{ width: '100%', height: 1, background: 'rgba(255,255,255,0.5)' }} />
-                  </div>
-                )}
-              </div>
-            )
+            const key = `${c.id}:power:${globalIdx}`
+            return <PowerCardView key={globalIdx} entry={entry} detectedConditions={detect(pow)} onConditionClick={apply}
+              uses={{ used: timesUsed, max }} rechargeQueued={rechargeQueued(combat, c.id, globalIdx)}
+              onUse={max !== Infinity ? () => onUsePower(globalIdx) : undefined}
+              onRestore={timesUsed > 0 ? () => onUnusePower(globalIdx) : undefined}
+              pinned={pinnedKeys.has(key)} onPin={() => onPinCard({ combatantName: c.name, title: pow.name, content: entry, key })} />
           })}
         </div>
       )}

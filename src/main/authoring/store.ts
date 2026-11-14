@@ -1,13 +1,24 @@
 import { mkdir, readFile, readdir, rename, writeFile, unlink } from 'fs/promises'
-import { join } from 'path'
+import { dirname, join } from 'path'
 import { randomUUID, createHash } from 'crypto'
 import { SCHEMA_VERSION } from '@kit'
-import type { Actor, Content, ContentKind, Destination, Draft, DraftAction, DraftVersion, Patch, Review } from '../../common/authoring/types'
+import type { Actor, Content, ContentKind, Destination, Draft, DraftAction, DraftVersion, Patch, Review, SyncState } from '../../common/authoring/types'
 import { POLICY, normalizeContent, validate } from '../../common/authoring/core'
 import { applyPatch, NODE_GROUPS } from '../../common/authoring/patch'
 import { describeDraftChanges } from '../../common/authoring/diff'
 
-export const digest = (value: unknown) => createHash('sha256').update(JSON.stringify(value)).digest('hex')
+export const digest = (value: unknown) => createHash('sha256').update(JSON.stringify(value) ?? 'undefined').digest('hex')
+/** The kit content of a campaign record (or the value itself, for publishers that store content bare). */
+const contentOf = (value: unknown): Record<string, unknown> => ((value as { content?: unknown })?.content ?? value ?? {}) as Record<string, unknown>
+/** Node ids follow their arrays: kept by position, new ones for added entries (after an outside change). */
+function alignNodes(d: Draft) {
+  for (const group of NODE_GROUPS) {
+    const items = (d.content as any)[group]
+    if (!Array.isArray(items)) { delete d.nodes[group]; continue }
+    const ids = d.nodes[group] ?? []
+    d.nodes[group] = items.map((_: unknown, i: number) => ids[i] ?? randomUUID())
+  }
+}
 export function safeId(id: unknown): string {
   if (typeof id !== 'string' || !/^[a-zA-Z0-9_-]{1,100}$/.test(id)) throw new Error('Invalid identifier')
   return id
@@ -36,11 +47,6 @@ export interface Publisher {
   encode(content: Content, kind: ContentKind, id: string, at: string): unknown
   write(dest: Destination, entityId: string, kind: ContentKind, value: unknown, expectedHash: string): Promise<void>
 }
-interface Journal {
-  revision: number
-  at: string
-  targets: { destination: Destination; entityId: string; previousHash: string; value: unknown }[]
-}
 
 /** All authoring writes serialize, including cross-draft destination updates. */
 export class DraftStore {
@@ -62,9 +68,10 @@ export class DraftStore {
     await mkdir(this.root, { recursive: true, mode: 0o700 })
     const dirs = await readdir(this.root, { withFileTypes: true })
     const drafts = await Promise.all(dirs.filter(d => d.isDirectory()).map(d => readJson<Draft>(join(this.root, d.name, 'current.json'))))
-    return drafts.filter((d): d is Draft => !!d).map(d => ({ id: d.id, kind: d.kind, name: d.content.name, level: (d.content as { level?: number }).level, revision: d.revision, updatedAt: d.updatedAt, saved: d.receipt?.revision === d.revision, everSaved: !!d.receipt, openQuestions: d.comments.filter(c => c.question && !c.resolved).length }))
+    return drafts.filter((d): d is Draft => !!d).map(d => ({ id: d.id, kind: d.kind, name: d.content.name, level: (d.content as { level?: number }).level, revision: d.revision, updatedAt: d.updatedAt, openQuestions: d.comments.filter(c => c.question && !c.resolved).length, destinations: d.destinations.map(x => ({ id: x.id, ...(x.entityId ? { entityId: x.entityId } : {}) })) }))
   }
-  private async persist(d: Draft, by: Actor, action: DraftAction) {
+  /** Saves a new version (history snapshot and current.json) without syncing. */
+  private async record(d: Draft, by: Actor, action: DraftAction) {
     d.lastChange = { by, action }
     const dir = this.dir(d.id)
     await mkdir(join(dir, 'history'), { recursive: true, mode: 0o700 })
@@ -73,6 +80,13 @@ export class DraftStore {
     while (await readJson(join(dir, 'history', `${d.event}.json`))) d.event++
     await atomicJson(join(dir, 'history', `${d.event}.json`), d)
     await atomicJson(join(dir, 'current.json'), d)
+  }
+  private async persist(d: Draft, by: Actor, action: DraftAction) {
+    await this.record(d, by, action)
+    const dir = this.dir(d.id)
+    // Every change goes straight into the draft's campaign entries (live editing with AI). The draft change
+    // stands even if the entry cannot be written; the panel shows why.
+    try { await this.sync(d) } catch (e) { await atomicJson(join(dir, 'sync.json'), { ...(await this.syncState(d.id)), error: `Could not save to the entry: ${e instanceof Error ? e.message : String(e)}` }) }
     this.changed(d)
     return d
   }
@@ -80,34 +94,112 @@ export class DraftStore {
     if (!Number.isSafeInteger(event) || event < 1) throw new Error('Invalid event')
     return upgrade(await readJson<Draft>(join(this.dir(id), 'history', `${event}.json`)))
   }
-  async saveStatus(id: string) {
-    const d = await this.get(id)
-    const journal = await readJson<Journal>(join(this.dir(id), 'save.json'))
-    return { pending: !!journal && d.receipt?.revision !== journal.revision, targets: journal?.targets.map(t => ({ destination: t.destination, entityId: t.entityId })) ?? [] }
+  async syncState(id: string): Promise<SyncState> {
+    return await readJson<SyncState>(join(this.dir(id), 'sync.json')) ?? { hashes: {} }
   }
-  /** Abandon the remaining writes; already saved entities are deliberately retained. */
-  abandonSave(id: string) {
+  /**
+   * Keeps the draft (the entry's working copy) and its campaign entries one: writes each valid version
+   * into the entries (creating an entry the first time, with the `entry` fields given at creation), and
+   * folds a change made to an entry elsewhere into the draft first. That merge is per top-level field:
+   * a field the draft changed since the last write keeps the draft's value; any other takes the entry's.
+   * Runs inside `serial`. Returns whether the draft itself changed (an outside change was folded in).
+   */
+  private async sync(d: Draft): Promise<boolean> {
+    if (!this.publisher || !d.destinations.length) return false
+    const path = join(this.dir(d.id), 'sync.json')
+    const state = await this.syncState(d.id)
+    state.written ??= {}
+    let folded = false
+    // Outside changes first, so what gets written includes them.
+    for (const destination of d.destinations) {
+      if (!destination.entityId) continue
+      const key = `${destination.type}/${destination.id}/${destination.entityId}`
+      const previous = await this.publisher.read(destination, destination.entityId, d.kind)
+      const base = state.written[key]
+      if (!previous) {
+        if (base) { await atomicJson(path, { ...state, error: 'The entry was deleted.' }); return false }
+        continue
+      }
+      const theirs = contentOf(previous)
+      if (!base || digest(theirs) === state.hashes[key]) continue
+      const ours = d.content as unknown as Record<string, unknown>
+      const merged: Record<string, unknown> = { ...ours }
+      for (const k of new Set([...Object.keys(ours), ...Object.keys(theirs)])) {
+        if (k === 'id' || k === 'provenance') continue
+        if (digest(ours[k]) === digest((base as Record<string, unknown>)[k])) {
+          if (theirs[k] === undefined) delete merged[k]; else merged[k] = theirs[k]
+        }
+      }
+      if (digest(merged) !== digest(ours)) {
+        d.content = merged as unknown as Content
+        alignNodes(d)
+        d.revision++
+        folded = true
+      }
+    }
+    if (folded) await this.record(d, 'dm', 'edited')
+    // Every version is written, as the compendium editor always did; the editor lists validation problems.
+    const at = new Date().toISOString()
+    let bound = false
+    for (const destination of d.destinations) {
+      await this.publisher.check(destination, d.kind)
+      if (!destination.entityId) { destination.entityId = randomUUID(); bound = true }
+      const key = `${destination.type}/${destination.id}/${destination.entityId}`
+      const previous = await this.publisher.read(destination, destination.entityId, d.kind)
+      // The record's campaign-side fields (artwork, the published entry it came from) are kept; a new
+      // entry starts with the ones given when the draft was created.
+      const kept = Object.fromEntries(['art', 'basedOn'].flatMap(k => (previous as any)?.[k] !== undefined ? [[k, (previous as any)[k]]] : []))
+      const value = { ...(this.publisher.encode(d.content, d.kind, destination.entityId, at) as object), ...(previous ? {} : state.entry), ...kept, createdAt: (previous as any)?.createdAt ?? at }
+      if (digest(contentOf(previous)) !== digest(contentOf(value))) await this.publisher.write(destination, destination.entityId, d.kind, value, digest(previous))
+      state.hashes[key] = digest(contentOf(value))
+      state.written[key] = structuredClone(d.content)
+      if (bound) destination.expectedHash = digest(value)
+    }
+    await atomicJson(path, { hashes: state.hashes, written: state.written, at })
+    // A new entry's id is part of the draft from now on (no new version: nothing in it changed).
+    if (bound) await atomicJson(join(this.dir(d.id), 'current.json'), d)
+    return folded
+  }
+  /** Folds a change made to an entry outside its draft (art set from the preview, an old migration) into the drafts bound to it. */
+  entryChanged(campaignId: string, entityId: string) {
     return this.serial(async () => {
-      const d = await this.get(id)
-      const path = join(this.dir(id), 'save.json')
-      const journal = await readJson<Journal>(path)
-      if (!journal || d.receipt?.revision === journal.revision) return d
-      await atomicJson(join(this.dir(id), `abandoned-save-${randomUUID()}.json`), journal)
-      await unlink(path)
-      d.comments.push({ id: randomUUID(), target: '/', revision: d.revision, author: 'dm', text: 'Remaining save operations abandoned. Already written entities were retained; inspect destinations before saving again.', at: new Date().toISOString(), question: true, resolved: false, replies: [] })
-      return this.persist(d, 'dm', 'save-abandoned')
+      for (const row of await this.list()) {
+        if (!row.destinations.some(x => x.id === campaignId && x.entityId === entityId)) continue
+        const d = await this.get(row.id)
+        try { if (await this.sync(d)) this.changed(d) } catch { /* the next change retries; the panel shows the error then */ }
+      }
     })
   }
-  create(kind: ContentKind, content: Content, intent = '', destinations: Destination[] = [], actor: Actor = 'agent') {
+  /** An entry was deleted: its drafts are archived (nothing would bring the entry back). */
+  async entryDeleted(campaignId: string, entityId: string) {
+    for (const row of await this.list()) if (row.destinations.some(x => x.id === campaignId && x.entityId === entityId)) await this.archive(row.id)
+  }
+  /** Ends a draft: its folder moves to `archive/` beside the drafts folder (kept on disk, out of every list). */
+  archive(id: string) {
+    return this.serial(async () => {
+      await this.get(id)
+      const archive = join(dirname(this.root), 'archive')
+      await mkdir(archive, { recursive: true, mode: 0o700 })
+      await rename(this.dir(id), join(archive, `${safeId(id)}-${Date.now()}`))
+      return { archived: id }
+    })
+  }
+  /** `entry`: campaign-side fields for a new entry (the published entry it copies, its art), set by its first write. */
+  create(kind: ContentKind, content: Content, intent = '', destinations: Destination[] = [], actor: Actor = 'agent', entry?: { basedOn?: string; art?: unknown }) {
     return this.serial(async () => {
       const normalized = normalizeContent(content)
       const errors = validate(kind, normalized).errors
       if (errors.length) throw new Error(JSON.stringify(errors))
       this.checkDestinations(destinations)
       const id = randomUUID(), at = new Date().toISOString()
-      normalized.id = id; normalized.provenance = { origin: actor === 'dm' ? 'human' : 'agent', at }
+      // A copy keeps the provenance of what it copies.
+      normalized.id = id; normalized.provenance ??= { origin: actor === 'dm' ? 'human' : 'agent', at }
       const nodes: Record<string, string[]> = {}
       for (const group of NODE_GROUPS) if (Array.isArray((normalized as any)[group])) nodes[group] = (normalized as any)[group].map(() => randomUUID())
+      if (entry && Object.keys(entry).length) {
+        await mkdir(this.dir(id), { recursive: true, mode: 0o700 })
+        await atomicJson(join(this.dir(id), 'sync.json'), { hashes: {}, entry })
+      }
       return this.persist({ version: 1, schemaVersion: SCHEMA_VERSION, id, kind, revision: 1, event: 0, createdAt: at, updatedAt: at, content: normalized, intent, decisions: '', policy: POLICY, nodes, overrides: [], stale: [], destinations, comments: [] }, actor, 'created')
     })
   }
@@ -120,22 +212,27 @@ export class DraftStore {
     }
     if (new Set(destinations.map(d => `${d.type}/${d.id}`)).size !== destinations.length) throw new Error('Duplicate destination')
   }
-  private async editable(id: string) {
-    const d = await this.get(id)
-    const journal = await readJson<Journal>(join(this.dir(id), 'save.json'))
-    if (journal && d.receipt?.revision !== journal.revision) throw new Error('Save is pending. Retry approval to finish it before editing.')
-    return d
-  }
   patch(patch: Patch, actor: Actor) {
     return this.serial(async () => {
-      const draft = applyPatch(await this.editable(patch.id), patch, actor, randomUUID)
+      const current = await this.get(patch.id)
+      // An agent working from an older version is told what the DM changed since, so it asks before overwriting it.
+      if (actor === 'agent' && patch.revision !== current.revision) throw new Error(await this.conflict(current, patch.revision))
+      const draft = applyPatch(current, patch, actor, randomUUID)
       this.checkDestinations(draft.destinations)
       return this.persist(draft, actor, 'edited')
     })
   }
-  restore(id: string, revision: number, event: number) {
+  /** A stale agent patch: the current revision, and the fields the DM changed since the agent's. */
+  private async conflict(current: Draft, revision: number) {
+    const since = (await this.versions(current.id)).filter(v => v.revision > revision && v.by === 'dm')
+    const fields = [...new Set(since.flatMap(v => v.changes.map(c => c.label)))]
+    return `Revision conflict: the draft is at revision ${current.revision}, you sent ${revision}. ` + (fields.length
+      ? `Since then the DM changed: ${fields.join(', ')}. Fetch it with get_draft; if your change touches any of those, ask the DM which version to keep before patching.`
+      : 'Fetch it with get_draft and apply your change to the current version.')
+  }
+  restore(id: string, revision: number, event: number, actor: Actor = 'dm') {
     return this.serial(async () => {
-      const current = await this.editable(id)
+      const current = await this.get(id)
       if (current.revision !== revision) throw new Error('Revision conflict; reload before restoring')
       const snapshot = await this.history(id, event)
       if (!snapshot || snapshot.schemaVersion !== SCHEMA_VERSION) throw new Error('Snapshot is unavailable or needs migration')
@@ -147,7 +244,7 @@ export class DraftStore {
       current.overrides = snapshot.overrides
       current.stale = snapshot.stale
       current.revision++
-      return this.persist(current, 'dm', 'restored')
+      return this.persist(current, actor, 'restored')
     })
   }
   comment(id: string, text: string, target: string, actor: Actor, question = false, replyTo?: string, resolve = false) {
@@ -178,50 +275,6 @@ export class DraftStore {
     })
   }
   /** Called only by authenticated DM IPC, never exposed by the agent bridge. */
-  approve(id: string, revision: number, acceptedAdvisories: boolean, expectedEvent?: number) {
-    return this.serial(async () => {
-      const d = await this.get(id)
-      if (d.revision !== revision) throw new Error('Revision changed; review the latest draft')
-      if (d.receipt?.revision === revision) return d
-      if (expectedEvent !== undefined && d.event !== expectedEvent) throw new Error('Review or feedback changed; inspect the latest draft before approving')
-      if (!this.publisher) throw new Error('Publishing is unavailable')
-      const result = validate(d.kind, d.content, d.recipe)
-      if (result.errors.length || d.stale.length || d.comments.some(c => c.question && !c.resolved)) throw new Error('Resolve validation errors, stale metadata, and blocking questions before approval')
-      // Notes (info findings) record observations; only risks, problems, flags, and missing reviews need acknowledgement.
-      if (!acceptedAdvisories && (result.flags.length || !d.review || d.review.revision !== revision || d.review.findings.some(f => f.severity !== 'info'))) throw new Error('Acknowledge balance findings or missing/current review')
-      this.checkDestinations(d.destinations)
-      if (!d.destinations.length) throw new Error('Select a destination')
-      const journalPath = join(this.dir(id), 'save.json')
-      let journal = await readJson<Journal>(journalPath)
-      if (!journal || journal.revision !== revision) {
-        journal = { revision, at: new Date().toISOString(), targets: [] }
-        for (const destination of d.destinations) {
-          await this.publisher.check(destination, d.kind)
-          const entityId = destination.entityId ?? randomUUID()
-          const previous = await this.publisher.read(destination, entityId, d.kind)
-          if (destination.entityId && digest(previous) !== destination.expectedHash) throw new Error('Destination changed; fetch it and review the update')
-          if (!destination.entityId && previous) throw new Error('New entity ID already exists')
-          const projected = this.publisher.encode.bind(this.publisher)
-          // The record's campaign-side fields (artwork, the published entry it came from) survive an update.
-          const kept = Object.fromEntries(['art', 'basedOn'].flatMap(k => (previous as any)?.[k] !== undefined ? [[k, (previous as any)[k]]] : []))
-          const value = { ...(projected(d.content, d.kind, entityId, journal.at) as object), ...kept, createdAt: (previous as any)?.createdAt ?? journal.at }
-          journal.targets.push({ destination, entityId, previousHash: digest(previous), value })
-        }
-        await atomicJson(journalPath, journal)
-      }
-      for (const t of journal.targets) {
-        await this.publisher.check(t.destination, d.kind)
-        const previous = await this.publisher.read(t.destination, t.entityId, d.kind)
-        if (digest(previous) === digest(t.value)) continue
-        if (digest(previous) !== t.previousHash) throw new Error('Destination conflict during save; no overwrite performed')
-        await this.publisher.write(t.destination, t.entityId, d.kind, t.value, t.previousHash)
-      }
-      d.receipt = { revision, at: journal.at, targets: journal.targets.map(({ destination, entityId }) => ({ destination, entityId })) }
-      // Later saves update the entries written now instead of adding copies.
-      d.destinations = journal.targets.map(t => ({ ...t.destination, entityId: t.entityId, expectedHash: digest(t.value) }))
-      return this.persist(d, 'dm', 'saved')
-    })
-  }
   /**
    * Content versions and saves, newest first: each event that changed the revision or
    * saved it, with who did it and what changed since the version before.

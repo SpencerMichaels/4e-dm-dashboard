@@ -1,4 +1,5 @@
 import { getConditionStyle } from './condition-styles'
+import { Glyph } from '../shared/Icon'
 import { CLASS_MARK_BY_CONDITION_ID } from '../../../common/rules/class-marks'
 
 /** Build a display label for a condition from its data fields */
@@ -65,10 +66,12 @@ export function ConditionPill({ conditionId, label, damageType, customColor, cus
     }}>
       <span style={{
         display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-        width: '1.7em', height: '1.7em', borderRadius: '50%',
-        background: 'rgba(0,0,0,0.35)',
+        minWidth: '1.7em', height: '1.7em', borderRadius: '0.85em',
+        padding: style.icon2 ? '0 0.25em' : 0, boxSizing: 'border-box',
+        // A wash of the text color: darker behind dark text, lighter behind white text
+        background: 'color-mix(in srgb, currentColor 18%, transparent)',
         fontSize: '0.85em', flexShrink: 0,
-      }}>{style.icon}{style.icon2 ?? ''}</span>
+      }}><Glyph icon={style.icon} />{style.icon2 && <Glyph icon={style.icon2} />}</span>
       {label}
     </span>
   )

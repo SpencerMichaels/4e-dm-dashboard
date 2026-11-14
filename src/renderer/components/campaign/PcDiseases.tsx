@@ -5,6 +5,7 @@
 import { useMemo, useState } from 'react'
 import type { Disease } from '@kit'
 import type { DiseaseRef, PcDisease, PlayerCharacter } from '@common/types'
+import { Icon } from '../shared/Icon'
 import { enduranceOutcome, finalStage, nextStage, stageText, type EnduranceOutcome } from '@common/rules/diseases'
 import { diseaseKey, useDisease, useDiseaseNames } from '../disease/disease-refs'
 import { DiseaseStatblock } from '../disease/DiseaseStatblock'
@@ -20,7 +21,7 @@ export function PcDiseases({ pcs, onSave }: { pcs: PlayerCharacter[]; onSave: (p
   return (
     <section className="pc-diseases" style={{ marginTop: 'var(--space-5)' }}>
       <h2 style={{ fontSize: 'var(--font-size-lg)', marginBottom: 'var(--space-2)' }}>Diseases</h2>
-      {rows.length === 0 && <p style={{ color: 'var(--color-text-muted)', fontSize: 'var(--font-size-sm)' }}>No one is exposed or infected. In combat, click a disease named in a power's text, then the PC; or add one here.</p>}
+      {rows.length === 0 && <p style={{ color: 'var(--muted)', fontSize: 'var(--font-size-sm)' }}>No one is exposed or infected. In combat, click a disease named in a power's text, then the PC; or add one here.</p>}
       {rows.map(({ pc, d }) => <PcDiseaseRow key={pc.id + diseaseKey(d)} pc={pc} carried={d} onChange={next => set(pc, diseaseKey(d), next)} />)}
       <AddDisease pcs={pcs} onAdd={(pc, ref) => {
         if ((pc.diseases ?? []).some(d => diseaseKey(d) === diseaseKey(ref))) return
@@ -46,14 +47,14 @@ function PcDiseaseRow({ pc, carried, onChange }: { pc: PlayerCharacter; carried:
   }
 
   return (
-    <div className="pc-disease" style={{ border: '1px solid var(--color-border)', borderRadius: 'var(--radius-sm)', padding: 'var(--space-2)', marginBottom: 'var(--space-2)', maxWidth: 720 }}>
+    <div className="pc-disease" style={{ border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', padding: 'var(--space-2)', marginBottom: 'var(--space-2)', maxWidth: 720 }}>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 'var(--space-2)', flexWrap: 'wrap' }}>
         <b>{pc.name}</b>
-        <button onClick={() => setOpen(!open)} aria-expanded={open} style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: 'inherit', textDecoration: 'underline dotted' }}>{name}</button>
-        <span style={{ flex: 1, color: 'var(--color-text-muted)', fontSize: 'var(--font-size-sm)' }}>
+        <button className="btn" onClick={() => setOpen(!open)} aria-expanded={open} title={open ? 'Hide the stages' : 'Show the stages'} style={{ padding: '0 6px' }}><Icon name={open ? 'chevron-down' : 'chevron-right'} />{name}</button>
+        <span style={{ flex: 1, color: 'var(--muted)', fontSize: 'var(--font-size-sm)' }}>
           {carried.stage === 'exposed' ? 'Exposed' : `Stage ${carried.stage}${disease && carried.stage === finalStage(disease) ? ' (final)' : ''}`}
         </span>
-        <button onClick={() => onChange(null)} title="Stop tracking" style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-muted)' }}>×</button>
+        <button onClick={() => onChange(null)} title="Stop tracking" aria-label="Stop tracking" style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--muted)', display: 'inline-flex', alignSelf: 'center' }}><Icon name="x" /></button>
       </div>
       {disease && carried.stage === 'exposed' && (
         <div style={{ display: 'flex', gap: 'var(--space-2)', alignItems: 'center', flexWrap: 'wrap', fontSize: 'var(--font-size-sm)', marginTop: 4 }}>
@@ -66,9 +67,9 @@ function PcDiseaseRow({ pc, carried, onChange }: { pc: PlayerCharacter; carried:
         <>
           <div style={{ fontSize: 'var(--font-size-sm)', marginTop: 4 }}>{stageText(disease, carried.stage)}</div>
           {/* The final stage is permanent: no more checks (DMG p.49). */}
-          {carried.stage === finalStage(disease) ? <div style={{ fontSize: 'var(--font-size-sm)', marginTop: 4, color: 'var(--color-text-muted)' }}>Final stage: no more Endurance checks. Only magic (such as Cure Disease) ends it.</div> : (
+          {carried.stage === finalStage(disease) ? <div style={{ fontSize: 'var(--font-size-sm)', marginTop: 4, color: 'var(--muted)' }}>Final stage: no more Endurance checks. Only magic (such as Cure Disease) ends it.</div> : (
           <div style={{ display: 'flex', gap: 'var(--space-2)', alignItems: 'center', flexWrap: 'wrap', fontSize: 'var(--font-size-sm)', marginTop: 4 }}>
-            <span style={{ color: 'var(--color-text-muted)' }}>After an extended rest, Endurance: improve {dc(disease.endurance.improveDc)}, maintain {dc(disease.endurance.maintainDc)}{disease.endurance.worsenText ? `, ${disease.endurance.worsenText}` : ''}.</span>
+            <span style={{ color: 'var(--muted)' }}>After an extended rest, Endurance: improve {dc(disease.endurance.improveDc)}, maintain {dc(disease.endurance.maintainDc)}{disease.endurance.worsenText ? `, ${disease.endurance.worsenText}` : ''}.</span>
             <input type="number" value={roll} onChange={e => setRoll(e.target.value)} placeholder="check" aria-label="Endurance check result" style={{ width: 64 }}
               onKeyDown={e => { const o = enduranceOutcome(disease, Number(roll)); if (e.key === 'Enter' && roll !== '' && o) move(disease, carried.stage as number, o) }} />
             {(['improve', 'maintain', 'worsen'] as const).map(o => {
@@ -103,9 +104,9 @@ function AddDisease({ pcs, onAdd }: { pcs: PlayerCharacter[]; onAdd: (pc: Player
         <input value={query} onChange={e => setQuery(e.target.value)} placeholder="+ Add a disease (stage 1)…" aria-label="Search diseases to add"
           onKeyDown={e => { if (e.key === 'Enter' && results[0] && pc) { onAdd(pc, results[0].ref); setQuery('') } }} style={{ width: 240 }} />
         {results.length > 0 && (
-          <div className="disease-search-results" style={{ position: 'absolute', left: 0, right: 0, top: '100%', zIndex: 20, background: 'var(--surface)', border: '1px solid var(--border)' }}>
+          <div className="disease-search-results" role="listbox" style={{ position: 'absolute', left: 0, right: 0, top: '100%', zIndex: 20, background: 'var(--surface)', border: '1px solid var(--border)' }}>
             {results.map(r => (
-              <button key={diseaseKey(r.ref)} onClick={() => { if (pc) onAdd(pc, r.ref); setQuery('') }}
+              <button key={diseaseKey(r.ref)} role="option" aria-selected={false} onClick={() => { if (pc) onAdd(pc, r.ref); setQuery('') }}
                 style={{ display: 'block', width: '100%', textAlign: 'left', background: 'none', border: 'none', padding: '1px 6px', cursor: 'pointer', color: 'inherit' }}>{r.name}</button>
             ))}
           </div>

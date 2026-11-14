@@ -1,4 +1,4 @@
-import { Modal, modalStyles } from '../shared/Modal'
+import { Modal } from '../shared/Modal'
 
 export interface HotkeySection {
   title: string
@@ -12,12 +12,12 @@ interface Props {
 
 export function HotkeysModal({ sections, onClose }: Props) {
   return (
-    <Modal onClose={onClose} minWidth={400} maxWidth={500}>
-      <h3 style={{ margin: '0 0 var(--space-4) 0' }}>Keyboard Shortcuts</h3>
+    <Modal title="Keyboard Shortcuts" onClose={onClose} minWidth={400} maxWidth={500}
+      footer={<button onClick={onClose} className="btn">Close</button>}>
 
       {sections.map(section => (
         <div key={section.title} style={{ marginBottom: 'var(--space-4)' }}>
-          <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 'var(--space-1)' }}>
+          <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 'var(--space-1)' }}>
             {section.title}
           </div>
           {section.keys.map(({ key, desc }) => (
@@ -25,7 +25,7 @@ export function HotkeysModal({ sections, onClose }: Props) {
               <kbd style={{
                 minWidth: 80, textAlign: 'center',
                 padding: '1px 6px', borderRadius: 'var(--radius-sm)',
-                background: 'var(--color-bg-surface)', border: '1px solid var(--color-border)',
+                background: 'var(--surface-raised)', border: '1px solid var(--border)',
                 fontSize: 11, fontFamily: 'monospace', fontWeight: 600,
               }}>{key}</kbd>
               <span>{desc}</span>
@@ -33,10 +33,6 @@ export function HotkeysModal({ sections, onClose }: Props) {
           ))}
         </div>
       ))}
-
-      <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-        <button onClick={onClose} className={modalStyles.btnSecondary}>Close</button>
-      </div>
     </Modal>
   )
 }

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import type { Comment, Draft, Finding } from '@common/authoring/types'
 import { entryAnchorTarget, statAnchorTarget, targetLabel, within, type AnchorTarget } from '@common/authoring/anchors'
 import { AnnotationContext, type Anchor } from '../creature/annotations'
+import { Icon } from '../shared/Icon'
 import { useAuthoringStore } from '../../stores/authoring-store'
 
 /** How much a review finding worries the reviewer. All findings are advisory; the DM decides. */
@@ -11,7 +12,7 @@ export const SEVERITY: Record<Finding['severity'], { label: string; plural: stri
   high: { label: 'Problem', plural: 'problems', help: 'Probably too strong, too weak, or unclear at the table. Change it or accept it deliberately.' },
 }
 export function SeverityChip({ severity }: { severity: Finding['severity'] }) {
-  return <span className={`severity-chip severity-${severity}`} title={SEVERITY[severity].help}><span aria-hidden>{MARKS[severity].icon} </span>{SEVERITY[severity].label}</span>
+  return <span className={`severity-chip severity-${severity}`} title={SEVERITY[severity].help}><span aria-hidden><Icon name={MARKS[severity].icon} style={{ verticalAlign: '-0.125em' }} /> </span>{SEVERITY[severity].label}</span>
 }
 
 /** Provides comment markers to the stat block viewer/editor; one thread is open at a time. Disabled (an unsaved draft), it renders none but keeps the tree stable. */
@@ -36,13 +37,13 @@ export function openThread(target: string) {
   requestAnimationFrame(() => document.querySelector('.annotation-thread')?.scrollIntoView({ block: 'nearest', behavior: 'smooth' }))
 }
 
-/** What a marker shows, most urgent first; each kind has one icon, also used on thread tags. */
+/** What a marker shows, most urgent first; each kind has one icon (a Lucide name), also used on thread tags. */
 export const MARKS = {
-  question: { icon: '?', one: 'open question', many: 'open questions' },
-  high: { icon: '‼', one: 'problem', many: 'problems' },
-  concern: { icon: '!', one: 'risk', many: 'risks' },
-  comment: { icon: '💬', one: 'open comment', many: 'open comments' },
-  info: { icon: 'i', one: 'note', many: 'notes' },
+  question: { icon: 'circle-question-mark', one: 'open question', many: 'open questions' },
+  high: { icon: 'octagon-exclamation-point', one: 'problem', many: 'problems' },
+  concern: { icon: 'triangle-exclamation-point', one: 'risk', many: 'risks' },
+  comment: { icon: 'message-square', one: 'open comment', many: 'open comments' },
+  info: { icon: 'info', one: 'note', many: 'notes' },
 } as const
 
 function AnchorMarker({ draft, anchor, open, setOpen }: { draft: Draft; anchor: AnchorTarget; open: boolean; setOpen: (open: boolean) => void }) {
@@ -61,7 +62,7 @@ function AnchorMarker({ draft, anchor, open, setOpen }: { draft: Draft; anchor: 
   return <>
     <button type="button" className={`annotation-marker${kinds.length ? ' has-items' : ''}${open ? ' open' : ''}`}
       aria-expanded={open} aria-label={`${anchor.label}: ${title}`} title={title} onClick={e => { e.stopPropagation(); setOpen(!open) }}>
-      {kinds.length ? kinds.map(k => <span key={k} className={`mark mark-${k}`} aria-hidden>{MARKS[k].icon}</span>) : '+'}
+      {kinds.length ? kinds.map(k => <span key={k} className={`mark mark-${k}`} aria-hidden><Icon name={MARKS[k].icon} style={{ verticalAlign: '-0.125em' }} /></span>) : <Icon name="plus" style={{ verticalAlign: '-0.125em' }} />}
     </button>
     {open && <Thread draft={draft} anchor={anchor} comments={comments} findings={findings} close={() => setOpen(false)} />}
   </>
@@ -71,7 +72,6 @@ function AnchorMarker({ draft, anchor, open, setOpen }: { draft: Draft; anchor: 
 export function Thread({ draft, anchor, comments, findings, close }: { draft: Draft; anchor: AnchorTarget; comments: Comment[]; findings: Finding[]; close?: () => void }) {
   const receive = useAuthoringStore(s => s.receive)
   const [text, setText] = useState('')
-  const [question, setQuestion] = useState(false)
   const [replyTo, setReplyTo] = useState<Comment | undefined>()
   const [focused, setFocused] = useState(false)
   const [busy, setBusy] = useState(false)
@@ -96,8 +96,8 @@ export function Thread({ draft, anchor, comments, findings, close }: { draft: Dr
   }
   const submit = async () => {
     if (!text.trim()) return
-    const ok = await call(replyTo ? { replyTo: replyTo.id, target: replyTo.target, text } : { target: anchor.target, text, question })
-    if (ok) { setText(''); setQuestion(false); setReplyTo(undefined) }
+    const ok = await call(replyTo ? { replyTo: replyTo.id, target: replyTo.target, text } : { target: anchor.target, text })
+    if (ok) { setText(''); setReplyTo(undefined) }
   }
   const toggle = (key: string) => setExpanded(x => x.includes(key) ? x.filter(i => i !== key) : [...x, key])
   // Newest first, so recent discussion sits right under the comment box.
@@ -106,15 +106,13 @@ export function Thread({ draft, anchor, comments, findings, close }: { draft: Dr
   const composing = focused || !!text || !!replyTo
   return <div ref={ref} className={close ? 'annotation-thread' : 'annotation-thread inline'} role={close ? 'dialog' : undefined} aria-label={`Comments on ${anchor.label}`}
     onClick={e => e.stopPropagation()} onKeyDown={e => { if (close && e.key === 'Escape') { e.stopPropagation(); close() } }}>
-    {close && <header><b>{anchor.label}</b><button type="button" aria-label="Close" onClick={close}>×</button></header>}
+    {close && <header><b>{anchor.label}</b><button type="button" aria-label="Close" title="Close" onClick={close}><Icon name="x" style={{ verticalAlign: '-0.125em' }} /></button></header>}
     <form className={composing ? 'composing' : ''} onSubmit={e => { e.preventDefault(); void submit() }}>
       {replyTo && <small>Replying to {replyTo.author} · <button type="button" className="annotation-link" onClick={() => setReplyTo(undefined)}>cancel</button></small>}
       <textarea ref={box} rows={composing ? 3 : 1} value={text} aria-label={replyTo ? 'Reply' : `Comment on ${anchor.label}`} placeholder={replyTo ? 'Reply…' : 'Comment…'} title="Ctrl+Enter to send"
         onFocus={() => setFocused(true)} onBlur={() => setFocused(false)}
         onChange={e => setText(e.target.value)} onKeyDown={e => { if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') { e.preventDefault(); void submit() } }} />
       {composing && <div className="annotation-actions">
-        {!replyTo && <button type="button" className={`annotation-toggle${question ? ' on' : ''}`} aria-pressed={question} title="Blocks approval until you resolve it"
-          onMouseDown={e => e.preventDefault()} onClick={() => setQuestion(!question)}>{question ? '✓ ' : ''}Needs an answer</button>}
         <button disabled={busy || !text.trim()} onMouseDown={e => e.preventDefault()}>{replyTo ? 'Reply' : 'Send'}</button>
       </div>}
       {error && <p className="authoring-error" role="alert">{error}</p>}
@@ -140,7 +138,7 @@ export function Thread({ draft, anchor, comments, findings, close }: { draft: Dr
           return <p key={i} className="annotation-text annotation-reply" onClick={() => rs !== r.text && toggle(key)}><b className="annotation-author">{r.author === 'dm' ? 'You' : 'Agent'}</b> {ro ? r.text : rs}{!ro && rs !== r.text && <span className="annotation-more"> …</span>}</p>
         })}
         {!c.resolved && <div className="annotation-actions annotation-inline-actions">
-          {c.question && <span className="annotation-flag" title="Blocks approval until resolved"><span aria-hidden>? </span>needs an answer</span>}
+          {c.question && <span className="annotation-flag" title="The agent is waiting for your answer"><span aria-hidden>? </span>needs an answer</span>}
           <button type="button" className="annotation-link" onClick={() => setReplyTo(c)}>Reply</button>
           <button type="button" className="annotation-link" disabled={busy} onClick={() => void call({ replyTo: c.id, target: c.target, text: '', resolve: true })}>Resolve</button>
         </div>}

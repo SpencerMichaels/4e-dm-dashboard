@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Modal, modalStyles } from '../shared/Modal'
+import { Modal } from '../shared/Modal'
 
 interface Props {
   combatantId: string
@@ -29,12 +29,14 @@ export function EffectDialog({ combatantId, onClose }: Props) {
   }
 
   return (
-    <Modal onClose={onClose} minWidth={350}>
-      <form onSubmit={handleSubmit}>
-        <h3 style={{ marginBottom: 'var(--space-3)' }}>Add Effect</h3>
+    <Modal title="Add Effect" onClose={onClose} minWidth={350} footer={<>
+      <button type="button" onClick={onClose} className="btn">Cancel</button>
+      <button type="submit" form="add-effect" disabled={!name.trim()} className="btn btn-primary">Add</button>
+    </>}>
+      <form id="add-effect" onSubmit={handleSubmit}>
 
         <label style={{ display: 'block', marginBottom: 'var(--space-3)' }}>
-          <span style={{ display: 'block', fontSize: 'var(--font-size-sm)', color: 'var(--color-text-secondary)', marginBottom: 'var(--space-1)' }}>
+          <span style={{ display: 'block', fontSize: 'var(--font-size-sm)', color: 'var(--text-secondary)', marginBottom: 'var(--space-1)' }}>
             Name
           </span>
           <input
@@ -47,7 +49,7 @@ export function EffectDialog({ combatantId, onClose }: Props) {
         </label>
 
         <label style={{ display: 'block', marginBottom: 'var(--space-3)' }}>
-          <span style={{ display: 'block', fontSize: 'var(--font-size-sm)', color: 'var(--color-text-secondary)', marginBottom: 'var(--space-1)' }}>
+          <span style={{ display: 'block', fontSize: 'var(--font-size-sm)', color: 'var(--text-secondary)', marginBottom: 'var(--space-1)' }}>
             Description (optional)
           </span>
           <input
@@ -59,7 +61,7 @@ export function EffectDialog({ combatantId, onClose }: Props) {
         </label>
 
         <label style={{ display: 'block', marginBottom: 'var(--space-3)' }}>
-          <span style={{ display: 'block', fontSize: 'var(--font-size-sm)', color: 'var(--color-text-secondary)', marginBottom: 'var(--space-1)' }}>
+          <span style={{ display: 'block', fontSize: 'var(--font-size-sm)', color: 'var(--text-secondary)', marginBottom: 'var(--space-1)' }}>
             Duration
           </span>
           <select
@@ -85,17 +87,6 @@ export function EffectDialog({ combatantId, onClose }: Props) {
             />
           </div>
         )}
-
-        <div style={{ display: 'flex', gap: 'var(--space-2)', justifyContent: 'flex-end' }}>
-          <button type="button" onClick={onClose} className={modalStyles.btnSecondary}>Cancel</button>
-          <button
-            type="submit"
-            disabled={!name.trim()}
-            className={modalStyles.btnPrimary}
-          >
-            Add
-          </button>
-        </div>
       </form>
     </Modal>
   )

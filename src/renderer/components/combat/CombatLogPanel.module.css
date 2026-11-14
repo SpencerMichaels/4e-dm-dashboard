@@ -1,6 +1,6 @@
 .emptyState {
   padding: 8px;
-  color: var(--color-text-muted);
+  color: var(--muted);
   font-size: 11px;
   text-align: center;
 }
@@ -9,12 +9,12 @@
   padding: 4px 8px;
   font-size: 11px;
   font-weight: 700;
-  color: var(--color-text-primary);
+  color: var(--text);
 }
 
 .roundHeaderSeparator {
   composes: roundHeader;
-  border-top: 2px solid var(--color-border);
+  border-top: 2px solid var(--border);
 }
 
 .turnHeader {
@@ -22,8 +22,8 @@
   margin-top: 2px;
   font-size: 10px;
   font-weight: 600;
-  color: var(--color-text-muted);
-  border-top: 1px solid var(--color-border);
+  color: var(--muted);
+  border-top: 1px solid var(--border);
 }
 
 .eventRow {

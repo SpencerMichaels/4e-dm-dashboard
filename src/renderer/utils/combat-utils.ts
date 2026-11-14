@@ -12,10 +12,10 @@ export function hpPercentage(hp: number, maxHp: number): number {
  */
 export function hpColor(hpPct: number): string {
   return hpPct > 50
-    ? 'var(--color-hp-full)'
+    ? 'var(--hp-full)'
     : hpPct > 25
-      ? 'var(--color-hp-mid)'
-      : 'var(--color-hp-low)'
+      ? 'var(--hp-mid)'
+      : 'var(--hp-low)'
 }
 
 /**

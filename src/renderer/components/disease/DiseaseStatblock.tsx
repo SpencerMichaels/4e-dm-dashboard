@@ -40,7 +40,7 @@ export function DiseaseStatblock({ disease: d, onChange }: { disease: Disease; o
     </div>
     {!edit && d.level === 0 && <div className="sb-subheader"><span>Disease</span></div>}
 
-    {(edit || d.flavor) && <div style={{ padding: '4px 8px', fontStyle: 'italic', color: 'var(--color-text-secondary)', fontSize: 11 }}>
+    {(edit || d.flavor) && <div style={{ padding: '4px 8px', fontStyle: 'italic', color: 'var(--text-secondary)', fontSize: 11 }}>
       <Prose value={d.flavor} placeholder="Flavor text" onChange={set && (v => set('flavor', v))} />
       <Annotation anchor={{ kind: 'stat', key: 'disease-text' }} />
     </div>}
@@ -58,8 +58,8 @@ export function DiseaseStatblock({ disease: d, onChange }: { disease: Disease; o
         <Move index={i} length={d.stages.length} move={stages.move} />
         <span style={{ flex: 1 }}>
           <b className="sb-label">Stage {edit ? <Num value={s.stage} min={0} label="Stage" onChange={stage => stages.set!(i, { ...s, stage: stage ?? 0 })} /> : s.stage}</b>
-          {(STAGE_LABELS[s.stage] || s.final) && !edit && <span style={{ color: 'var(--color-text-secondary)' }}> ({s.final ? 'Final State' : STAGE_LABELS[s.stage]})</span>}
-          {edit && <label style={{ fontSize: 10, margin: '0 4px', color: 'var(--color-text-secondary)' }}><input type="checkbox" checked={!!s.final}
+          {(STAGE_LABELS[s.stage] || s.final) && !edit && <span style={{ color: 'var(--text-secondary)' }}> ({s.final ? 'Final State' : STAGE_LABELS[s.stage]})</span>}
+          {edit && <label style={{ fontSize: 10, margin: '0 4px', color: 'var(--text-secondary)' }}><input type="checkbox" checked={!!s.final}
             onChange={e => { const next = { ...s, final: true as const }; if (!e.target.checked) delete (next as { final?: true }).final; stages.set!(i, next) }} /> final</label>}
           : <LineText line={s.line} placeholder={s.stage === 0 ? 'The target is cured.' : 'Effect at this stage'} onChange={stages.set && (line => stages.set!(i, { ...s, line }))} />
         </span>
@@ -91,7 +91,7 @@ export function DiseaseStatblock({ disease: d, onChange }: { disease: Disease; o
       <Annotation anchor={{ kind: 'stat', key: 'disease-check' }} />
     </div>
 
-    {d.sources.length > 0 && <div style={{ padding: '2px 8px', fontSize: 10, color: 'var(--color-text-muted)', fontStyle: 'italic' }}>{d.sources.map(s => `${s.book}${s.page ? `, page ${s.page}` : ''}`).join('; ')}</div>}
+    {d.sources.length > 0 && <div style={{ padding: '2px 8px', fontSize: 10, color: 'var(--muted)', fontStyle: 'italic' }}>{d.sources.map(s => `${s.book}${s.page ? `, page ${s.page}` : ''}`).join('; ')}</div>}
   </div>
 }
 

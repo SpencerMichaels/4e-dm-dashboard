@@ -3,6 +3,7 @@
 
 import { useMemo } from 'react'
 import type { EncounterTrap, TrapRef } from '@common/types'
+import { Icon } from '../shared/Icon'
 import { TrapSearch, trapKey, useTrapSources } from '../trap/trap-refs'
 
 export interface TrapRowInfo { key: string; name: string; level: number; role: string; kind: string; xp: number }
@@ -55,17 +56,17 @@ export function EncounterTraps({ traps, onChange, selectedKey, onSelect, locatio
         const info = rows.find(r => r.key === key)
         return (
           <div key={key} className="encounter-trap-row sb-row" onClick={() => onSelect(selectedKey === key ? null : key)}
-            style={{ gap: 6, cursor: 'pointer', background: selectedKey === key ? 'var(--color-bg-active, rgba(92,124,250,0.15))' : undefined }}>
+            style={{ gap: 6, cursor: 'pointer', background: selectedKey === key ? 'var(--active)' : undefined }}>
             <input className="ghost" value={et.overrideName ?? info?.name ?? ''} placeholder={info?.name ?? 'Loading…'} onClick={e => e.stopPropagation()}
               onChange={e => update(key, { overrideName: e.target.value || undefined })} aria-label="Trap name" style={{ flex: 1, minWidth: 0 }} />
-            <span style={{ ...small, color: 'var(--color-text-muted)', whiteSpace: 'nowrap' }}>{info ? `L${info.level} ${info.kind}${info.role ? ' ' + info.role : ''} · ${info.xp * et.count} XP` : ''}</span>
+            <span style={{ ...small, color: 'var(--muted)', whiteSpace: 'nowrap' }}>{info ? `L${info.level} ${info.kind}${info.role ? ' ' + info.role : ''} · ${info.xp * et.count} XP` : ''}</span>
             <input className="ghost" type="number" min={1} value={et.count} onClick={e => e.stopPropagation()} aria-label="Count"
               onChange={e => update(key, { count: Math.max(1, Number(e.target.value) || 1) })} style={{ width: 32, textAlign: 'center' }} />
             <label title="Players see this trap from the start of combat" style={{ ...small, display: 'flex', alignItems: 'center', gap: 2 }} onClick={e => e.stopPropagation()}>
               <input type="checkbox" checked={!!et.visible} onChange={e => update(key, { visible: e.target.checked || undefined })} />visible
             </label>
             <button onClick={e => { e.stopPropagation(); onChange(traps.filter(t => trapKey(t) !== key)); if (selectedKey === key) onSelect(null) }}
-              title="Remove" style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-muted)' }}>×</button>
+              title="Remove" aria-label="Remove" style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--muted)', display: 'inline-flex' }}><Icon name="x" /></button>
           </div>
         )
       })}
@@ -74,9 +75,9 @@ export function EncounterTraps({ traps, onChange, selectedKey, onSelect, locatio
         const info = rows.find(r => r.key === key)
         return (
           <div key={key} className="encounter-trap-row location-trap-row sb-row" onClick={() => onSelect(selectedKey === key ? null : key)}
-            style={{ gap: 6, cursor: 'pointer', background: selectedKey === key ? 'var(--color-bg-active, rgba(92,124,250,0.15))' : undefined }}>
+            style={{ gap: 6, cursor: 'pointer', background: selectedKey === key ? 'var(--active)' : undefined }}>
             <span style={{ flex: 1, minWidth: 0 }}>{info?.name ?? 'Loading…'}</span>
-            <span style={{ ...small, color: 'var(--color-text-muted)', whiteSpace: 'nowrap' }}>{info ? `L${info.level} ${info.kind} · ${info.xp} XP · ` : ''}from {location!.name}</span>
+            <span style={{ ...small, color: 'var(--muted)', whiteSpace: 'nowrap' }}>{info ? `L${info.level} ${info.kind} · ${info.xp} XP · ` : ''}from {location!.name}</span>
           </div>
         )
       })}

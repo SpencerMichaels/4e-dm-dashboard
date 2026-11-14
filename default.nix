@@ -1,8 +1,6 @@
-{ pkgs ? import <nixpkgs> {} }:
+# `nix build` goes through flake.nix, which pins nixpkgs and Electron.
+{ pkgs ? import <nixpkgs> {}, electron ? pkgs.electron }:
 
-let
-  electron = pkgs.electron;
-in
 pkgs.buildNpmPackage rec {
   pname = "4e-dm-dashboard";
   version = "0.1.0";
@@ -22,10 +20,10 @@ pkgs.buildNpmPackage rec {
 
   # To get the correct hash:
   #   1. Set this to pkgs.lib.fakeHash
-  #   2. Run `nix-build`
+  #   2. Run `nix build`
   #   3. The build will fail and print the correct hash
   #   4. Replace the hash below with the printed one
-  npmDepsHash = "sha256-N+ELVSBpzYtpjjZvd+kHiWnRShmuoIBHFw8OVEScj7U=";
+  npmDepsHash = "sha256-fkFy5Wc+zw7cIOR2srC/ocmW3HhX+pHiGGLxBD0S3/4=";
 
   # We use the system electron at runtime — skip downloading the npm binary
   env.ELECTRON_SKIP_BINARY_DOWNLOAD = "1";

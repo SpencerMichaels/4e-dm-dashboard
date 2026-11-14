@@ -7,6 +7,9 @@ import { CreatureImageEditor } from '../shared/CreatureImageEditor'
 import { ConfirmDialog } from '../shared/ConfirmDialog'
 import { CLASS_MARKS } from '../../../common/rules/class-marks'
 import { PcDiseases } from './PcDiseases'
+import { Icon } from '../shared/Icon'
+import { withAlpha } from '../../utils/color'
+import { ImportOutcomeBanner, PcSheetRows, sheetSubtitle, useCharacterImport } from './PcSheet'
 
 export function PCListView() {
   const playerCharacters = useCampaignStore((s) => s.playerCharacters)
@@ -32,14 +35,16 @@ export function PCListView() {
     await createPC('New Character', '')
   }, [createPC])
 
-  useHotkeys([{ key: 'n', handler: handleCreate }])
+  const { pick, outcome, clear } = useCharacterImport()
+
+  useHotkeys([{ key: 'n', handler: handleCreate }, { key: 'i', handler: () => pick() }])
 
   return (
     <div>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 'var(--space-4)' }}>
         <h1 style={{ fontSize: 'var(--font-size-2xl)' }}>Player Characters</h1>
         <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
-          <label style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', fontSize: 'var(--font-size-sm)', color: 'var(--color-text-secondary)' }}>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', fontSize: 'var(--font-size-sm)', color: 'var(--text-secondary)' }}>
             Party Level
             <input
               type="number"
@@ -50,22 +55,22 @@ export function PCListView() {
               style={{ width: 48, textAlign: 'center', fontWeight: 600 }}
             />
           </label>
+          <button className="btn" onClick={() => pick()} title="Import characters from Character Builder (.dnd4e) or 4ecb (.4ecb) files (I)">
+            Import…
+          </button>
           <button
             onClick={handleCreate}
-            style={{
-              padding: 'var(--space-2) var(--space-4)',
-              background: 'var(--color-accent)',
-              color: 'var(--color-accent-text)',
-              borderRadius: 'var(--radius-sm)',
-            }}
+            className="btn btn-primary"
           >
             + New
           </button>
         </div>
       </div>
 
+      {outcome && <ImportOutcomeBanner outcome={outcome} onClose={clear} />}
+
       {playerCharacters.length === 0 ? (
-        <p style={{ color: 'var(--color-text-muted)' }}>No player characters yet.</p>
+        <p style={{ color: 'var(--muted)' }}>No player characters yet.</p>
       ) : (
         <div style={{
           display: 'flex',
@@ -74,7 +79,7 @@ export function PCListView() {
           alignItems: 'flex-start',
         }}>
           {playerCharacters.map((pc) => (
-            <PCCard key={pc.id} pc={pc} onSave={savePC} onDelete={deletePC} />
+            <PCCard key={pc.id} pc={pc} onSave={savePC} onDelete={deletePC} onImport={() => pick(pc.id)} />
           ))}
         </div>
       )}
@@ -88,9 +93,10 @@ interface PCCardProps {
   pc: PlayerCharacter
   onSave: (pc: PlayerCharacter) => void
   onDelete: (id: string) => void
+  onImport: () => void
 }
 
-function PCCard({ pc, onSave, onDelete }: PCCardProps) {
+function PCCard({ pc, onSave, onDelete, onImport }: PCCardProps) {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const update = (patch: Partial<PlayerCharacter>) => onSave({ ...pc, ...patch })
   const isActive = pc.active !== false
@@ -107,17 +113,17 @@ function PCCard({ pc, onSave, onDelete }: PCCardProps) {
 
   return (
     <div style={{
-      border: '1px solid var(--color-border)',
+      border: '1px solid var(--border)',
       borderRadius: 'var(--radius-md)',
       overflow: 'hidden',
-      background: 'var(--color-bg-surface)',
+      background: 'var(--surface-raised)',
       opacity: isActive ? 1 : 0.55,
       width: 'fit-content',
     }}>
       {/* Stat-block style header: [color][character name] (spacer) [delete] */}
       <div style={{
-        background: '#62584a',
-        color: '#f0e8d0',
+        background: 'var(--sb-header-bg)',
+        color: 'var(--sb-header-text)',
         padding: '4px 10px',
         display: 'flex',
         alignItems: 'center',
@@ -132,7 +138,7 @@ function PCCard({ pc, onSave, onDelete }: PCCardProps) {
           <span style={{
             width: 14, height: 14, borderRadius: '50%',
             background: pc.color ?? '#888888',
-            border: '1px solid rgba(255,255,255,0.5)',
+            border: `1px solid ${withAlpha('var(--sb-header-text)', 0.5)}`,
             display: 'block',
           }} />
           <input
@@ -160,6 +166,15 @@ function PCCard({ pc, onSave, onDelete }: PCCardProps) {
           }}
         />
         <button
+          onClick={onImport}
+          title={pc.sheet ? `Update the sheet from a .dnd4e or .4ecb file (last: ${pc.sheetFile ?? 'unknown'})` : 'Import a sheet from a .dnd4e or .4ecb file'}
+          style={{
+            background: 'transparent', border: 'none', cursor: 'pointer', padding: 0,
+            fontSize: 13, lineHeight: 1, color: 'inherit', flexShrink: 0, display: 'inline-flex',
+          }}
+          aria-label={pc.sheet ? 'Update the sheet' : 'Import a sheet'}
+        ><Icon name="download" /></button>
+        <button
           onClick={() => setShowDeleteConfirm(true)}
           title="Delete character"
           style={{
@@ -167,15 +182,16 @@ function PCCard({ pc, onSave, onDelete }: PCCardProps) {
             cursor: 'pointer', padding: 0, fontSize: 14, lineHeight: 1,
             display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
             width: 18, height: 18,
-            color: 'var(--color-danger)', flexShrink: 0,
+            color: 'var(--danger)', flexShrink: 0,
           }}
-        >❌</button>
+          aria-label="Delete character"
+        ><Icon name="trash" /></button>
       </div>
 
       {/* Sub-header: [active][player name] */}
       <div style={{
-        background: '#7a6f5e',
-        color: '#f0e8d0',
+        background: 'var(--sb-subheader-bg)',
+        color: 'var(--sb-header-text)',
         padding: '2px 10px',
         display: 'flex',
         alignItems: 'center',
@@ -218,7 +234,7 @@ function PCCard({ pc, onSave, onDelete }: PCCardProps) {
           }}
         />
         {(pc.diseases?.length ?? 0) > 0 && (
-          <span title={`${pc.diseases?.length} disease(s): see Diseases below`} style={{ fontSize: 11 }}>🦠{pc.diseases?.length}</span>
+          <span title={`${pc.diseases?.length} disease(s): see Diseases below`} style={{ fontSize: 11, display: 'inline-flex', alignItems: 'center', gap: 1 }}><Icon name="virus" label="Diseases" />{pc.diseases?.length}</span>
         )}
         <span style={{ flex: 1 }} />
         <select
@@ -231,18 +247,18 @@ function PCCard({ pc, onSave, onDelete }: PCCardProps) {
             fontSize: 11, opacity: 0.85, flexShrink: 0,
           }}
         >
-          <option value="" style={{ color: '#000' }}>— no mark —</option>
+          <option value="" style={{ color: 'var(--text)', background: 'var(--surface)' }}>— no mark —</option>
           {CLASS_MARKS.map(m => (
-            <option key={m.id} value={m.id} style={{ color: '#000' }}>
-              {m.icon} {m.name}
+            <option key={m.id} value={m.id} style={{ color: 'var(--text)', background: 'var(--surface)' }}>
+              {m.name}
             </option>
           ))}
         </select>
       </div>
 
-      {/* Body: image only — fixed height so the contained image can never overflow the card */}
-      <div style={{ padding: 6 }}>
-        <div style={{ width: 180, height: 200, display: 'flex' }}>
+      {/* Body: image (fixed height so it can never overflow the card), then the imported sheet */}
+      <div style={{ padding: 6, display: 'flex', gap: 8, alignItems: 'flex-start' }}>
+        <div style={{ width: 180, height: 200, display: 'flex', flexShrink: 0 }}>
           <CreatureImageEditor
             imageId={pc.imageId}
             tokenImageId={pc.tokenImageId}
@@ -251,6 +267,12 @@ function PCCard({ pc, onSave, onDelete }: PCCardProps) {
             onTokenChange={(tokenImageId, crop) => update({ tokenImageId, tokenCrop: crop })}
           />
         </div>
+        {pc.sheet && (
+          <div className="stat-block-4e pc-sheet" style={{ width: 260, fontSize: 11 }}>
+            <div className="sb-row" style={{ fontWeight: 700 }}>{sheetSubtitle(pc.sheet)}</div>
+            <PcSheetRows sheet={pc.sheet} />
+          </div>
+        )}
       </div>
 
       {showDeleteConfirm && (

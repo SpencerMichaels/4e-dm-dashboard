@@ -28,14 +28,6 @@ export function getCampaignMetaPath(campaignId: string): string {
   return join(getCampaignDir(campaignId), 'campaign.json')
 }
 
-export function getNoteTreePath(campaignId: string): string {
-  return join(getCampaignDir(campaignId), 'story', '_tree.json')
-}
-
-export function getLinksPath(campaignId: string): string {
-  return join(getCampaignDir(campaignId), 'links.json')
-}
-
 export function getAnnotationsPath(campaignId: string): string {
   return join(getCampaignDir(campaignId), 'annotations.json')
 }

@@ -2,6 +2,7 @@ import { useRef, useEffect } from 'react'
 import type { CombatEvent } from '@common/types'
 import { renderEvent, eventColor } from './combat-log-utils'
 import { FloatingPanel } from '../shared/FloatingPanel'
+import { Icon } from '../shared/Icon'
 import styles from './CombatLogPanel.module.css'
 
 interface Props {
@@ -23,6 +24,7 @@ export function CombatLogPanel({ events, onClose }: Props) {
   return (
     <FloatingPanel
       title="Combat Log"
+      popoutKey="combat-log"
       initialX={window.innerWidth - 340}
       initialY={60}
       width={320}
@@ -68,7 +70,7 @@ export function CombatLogPanel({ events, onClose }: Props) {
           const color = eventColor(ev.type)
           elements.push(
             <div key={i} className={styles.eventRow}>
-              {color && <span className={styles.eventDot} style={{ color }}>●</span>}
+              {color && <span className={styles.eventDot} style={{ color }}><Icon name="circle" fill="currentColor" size="0.6em" style={{ verticalAlign: '0.1em' }} /></span>}
               {renderEvent(ev)}
             </div>
           )

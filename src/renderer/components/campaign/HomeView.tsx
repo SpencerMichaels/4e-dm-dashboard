@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useCampaignStore } from '../../stores/campaign-store'
 import { useUiStore } from '../../stores/ui-store'
 import { ConfirmDialog } from '../shared/ConfirmDialog'
+import { Icon } from '../shared/Icon'
 import type { Campaign } from '@common/types'
 
 export function HomeView() {
@@ -49,8 +50,8 @@ export function HomeView() {
       <h1 style={{ fontSize: 'var(--font-size-2xl)', marginBottom: 'var(--space-6)' }}>
         4e DM Dashboard
       </h1>
-      <p style={{ color: 'var(--color-text-secondary)', marginBottom: 'var(--space-4)' }}>
-        No campaign is open. {campaigns.length > 0 ? 'Open one below or create a new one' : 'Create one to start'}: notes, encounters, the compendium pages and Workshop saves all belong to a campaign.
+      <p style={{ color: 'var(--text-secondary)', marginBottom: 'var(--space-4)' }}>
+        No campaign is open. {campaigns.length > 0 ? 'Open one below or create a new one' : 'Create one to start'}: encounters, the compendium pages and Workshop saves all belong to a campaign.
       </p>
 
       {creating ? (
@@ -65,22 +66,13 @@ export function HomeView() {
           <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
             <button
               onClick={handleCreate}
-              style={{
-                padding: 'var(--space-2) var(--space-4)',
-                background: 'var(--color-accent)',
-                color: 'var(--color-accent-text)',
-                borderRadius: 'var(--radius-sm)',
-              }}
+              className="btn btn-primary"
             >
               Create
             </button>
             <button
               onClick={() => setCreating(false)}
-              style={{
-                padding: 'var(--space-2) var(--space-4)',
-                background: 'var(--color-bg-hover)',
-                borderRadius: 'var(--radius-sm)',
-              }}
+              className="btn"
             >
               Cancel
             </button>
@@ -89,31 +81,25 @@ export function HomeView() {
       ) : (
         <button
           onClick={() => setCreating(true)}
-          style={{
-            padding: 'var(--space-3) var(--space-6)',
-            background: 'var(--color-accent)',
-            color: 'var(--color-accent-text)',
-            borderRadius: 'var(--radius-md)',
-            fontSize: 'var(--font-size-base)',
-            marginBottom: 'var(--space-6)',
-          }}
+          className="btn btn-primary" style={{ padding: 'var(--space-2) var(--space-6)', marginBottom: 'var(--space-6)' }}
         >
           + New Campaign
         </button>
       )}
 
       {campaigns.length > 0 && (
-        <div style={{ marginTop: 'var(--space-6)' }}>
-          <h2 style={{ fontSize: 'var(--font-size-lg)', marginBottom: 'var(--space-3)', color: 'var(--color-text-secondary)' }}>
+        <div role="list" style={{ marginTop: 'var(--space-6)' }}>
+          <h2 style={{ fontSize: 'var(--font-size-lg)', marginBottom: 'var(--space-3)', color: 'var(--text-secondary)' }}>
             Recent Campaigns
           </h2>
           {campaigns.map(c => (
             <div
               key={c.id}
+              role="listitem"
               style={{
                 display: 'flex', alignItems: 'center',
-                background: 'var(--color-bg-surface)',
-                border: '1px solid var(--color-border)',
+                background: 'var(--surface-raised)',
+                border: '1px solid var(--border)',
                 borderRadius: 'var(--radius-md)',
                 marginBottom: 'var(--space-2)',
               }}
@@ -131,21 +117,23 @@ export function HomeView() {
                 }}
               >
                 <div style={{ fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.name}</div>
-                <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)' }}>
+                <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--muted)' }}>
                   Last opened {c.lastOpenedAt ? new Date(c.lastOpenedAt).toLocaleDateString() : 'Never'}
                 </div>
               </button>
               <button
                 onClick={(e) => { e.stopPropagation(); setConfirmDeleteId(c.id) }}
                 title="Delete campaign"
+                aria-label="Delete campaign"
                 style={{
                   padding: 'var(--space-2) var(--space-3)',
                   background: 'transparent', border: 'none',
-                  cursor: 'pointer', color: 'var(--color-text-muted)',
+                  cursor: 'pointer', color: 'var(--muted)',
                   fontSize: 'var(--font-size-sm)',
+                  display: 'inline-flex',
                 }}
               >
-                x
+                <Icon name="x" />
               </button>
             </div>
           ))}
@@ -171,11 +159,10 @@ export function HomeView() {
 }
 
 function CampaignHome() {
-  const { creatures, encounters, locations, notes, playerCharacters, items } = useCampaignStore()
+  const { creatures, encounters, locations, playerCharacters, items } = useCampaignStore()
   const { setView } = useUiStore()
 
   const stats = [
-    { label: 'Notes', count: notes.length, action: () => setView({ type: 'entity-list', entityType: 'note' }) },
     { label: 'Creatures', count: creatures.length, action: () => setView({ type: 'entity-list', entityType: 'creature' }) },
     { label: 'Encounters', count: encounters.length, action: () => setView({ type: 'entity-list', entityType: 'encounter' }) },
     { label: 'Locations', count: locations.length, action: () => setView({ type: 'entity-list', entityType: 'location' }) },
@@ -195,15 +182,15 @@ function CampaignHome() {
             onClick={s.action}
             style={{
               padding: 'var(--space-4)',
-              background: 'var(--color-bg-surface)',
-              border: '1px solid var(--color-border)',
+              background: 'var(--surface-raised)',
+              border: '1px solid var(--border)',
               borderRadius: 'var(--radius-md)',
               textAlign: 'center',
               cursor: 'pointer',
             }}
           >
             <div style={{ fontSize: 'var(--font-size-2xl)', fontWeight: 600 }}>{s.count}</div>
-            <div style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text-secondary)' }}>{s.label}</div>
+            <div style={{ fontSize: 'var(--font-size-sm)', color: 'var(--text-secondary)' }}>{s.label}</div>
           </button>
         ))}
       </div>

@@ -45,6 +45,11 @@ export function initSyncListeners(): () => void {
     )
   )
 
+  // The AI agent connection setting (Settings): agent comments and markers show only while it is on
+  const applyAgent = (s: { agentConnection: boolean }) => useUiStore.setState({ agentConnection: s.agentConnection })
+  void window.api.settings.get().then(applyAgent)
+  unsubscribers.push(window.api.on.appSettings(applyAgent))
+
   // Load annotations on init
   window.api.annotation.getAll().then(annotations => {
     useCampaignStore.getState().setCampaignState({ annotations })

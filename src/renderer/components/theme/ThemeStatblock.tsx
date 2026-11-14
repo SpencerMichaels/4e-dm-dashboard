@@ -38,7 +38,7 @@ export function ThemeStatblock({ theme: t, onChange }: { theme: MonsterTheme; on
       <span>{t.powers.length} powers</span>
     </div>
 
-    {(edit || t.description) && <div style={{ padding: '4px 8px', fontStyle: 'italic', color: 'var(--color-text-secondary)', fontSize: 11 }}>
+    {(edit || t.description) && <div style={{ padding: '4px 8px', fontStyle: 'italic', color: 'var(--text-secondary)', fontSize: 11 }}>
       <Prose value={t.description} placeholder="Who has this theme" onChange={set && (v => set('description', v))} />
       <Annotation anchor={{ kind: 'stat', key: 'theme-text' }} />
     </div>}
@@ -68,8 +68,8 @@ export function ThemeStatblock({ theme: t, onChange }: { theme: MonsterTheme; on
           </div>)}
         </> : powers.map((p, i) => <div key={i} style={{ marginTop: 12 }}>
           <KitPowers powers={[p]} />
-          {p.flavor && <div style={{ padding: '2px 8px', fontSize: 11, color: 'var(--color-text-secondary)', lineHeight: 1.4 }}>{p.flavor}</div>}
-          {!p.flavor && (p.recommendedText || p.recommendedFor?.length) && <div style={{ padding: '2px 8px', fontSize: 10, color: 'var(--color-text-muted)', fontStyle: 'italic' }}>
+          {p.flavor && <div style={{ padding: '2px 8px', fontSize: 11, color: 'var(--text-secondary)', lineHeight: 1.4 }}>{p.flavor}</div>}
+          {!p.flavor && (p.recommendedText || p.recommendedFor?.length) && <div style={{ padding: '2px 8px', fontSize: 10, color: 'var(--muted)', fontStyle: 'italic' }}>
             Recommended for: {p.recommendedText ?? p.recommendedFor!.join(', ')}</div>}
         </div>)}
       </div>

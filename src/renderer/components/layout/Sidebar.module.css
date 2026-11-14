@@ -11,8 +11,8 @@
   font-size: var(--font-size-xl);
   font-weight: 700;
   line-height: 1.2;
-  color: var(--color-text-primary);
-  border-bottom: 1px solid var(--color-border);
+  color: var(--text);
+  border-bottom: 1px solid var(--border);
   margin-bottom: var(--space-2);
 }
 
@@ -20,7 +20,7 @@
   padding: 0 var(--space-2) var(--space-2);
   font-size: var(--font-size-sm);
   font-weight: 600;
-  color: var(--color-text-primary);
+  color: var(--text);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -38,7 +38,7 @@
 }
 
 .noCampaign:hover {
-  background: var(--color-bg-hover);
+  background: var(--hover);
 }
 
 .section {
@@ -50,7 +50,7 @@
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  color: var(--color-text-muted);
+  color: var(--muted);
   padding: var(--space-2) var(--space-2) var(--space-1);
 }
 
@@ -61,7 +61,7 @@
   padding: var(--space-2) var(--space-3);
   border-radius: var(--radius-sm);
   font-size: var(--font-size-sm);
-  color: var(--color-text-secondary);
+  color: var(--text-secondary);
   cursor: pointer;
   width: 100%;
   text-align: left;
@@ -73,13 +73,13 @@
 }
 
 .item:hover:not(:disabled) {
-  background: var(--color-bg-hover);
-  color: var(--color-text-primary);
+  background: var(--hover);
+  color: var(--text);
 }
 
 .item.active {
-  background: var(--color-bg-active);
-  color: var(--color-text-primary);
+  background: var(--active);
+  color: var(--text);
 }
 
 .itemIcon {
@@ -88,70 +88,41 @@
   flex-shrink: 0;
 }
 
-.noteTree {
-  flex: 1;
-  overflow: auto;
-}
-
-.treeNode {
-  display: flex;
-  align-items: center;
-  gap: var(--space-1);
-  padding: var(--space-1) var(--space-2);
-  padding-left: var(--space-4);
+/* An action, not a destination: bordered so it reads as a button among the nav rows. */
+.closeCampaign {
+  width: calc(100% - 2 * var(--space-2));
+  margin: 0 var(--space-2);
+  padding: var(--space-1) var(--space-3);
   font-size: var(--font-size-sm);
-  color: var(--color-text-secondary);
-  cursor: pointer;
-  border-radius: var(--radius-sm);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.treeNode:hover {
-  background: var(--color-bg-hover);
-  color: var(--color-text-primary);
-}
-
-.treeNode.active {
-  background: var(--color-bg-active);
-  color: var(--color-text-primary);
-}
-
-.addBtn {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  padding: var(--space-2) var(--space-3);
-  font-size: var(--font-size-sm);
-  color: var(--color-text-muted);
-  width: 100%;
+  color: var(--muted);
+  text-align: left;
+  border: 1px solid var(--border-strong);
   border-radius: var(--radius-sm);
 }
 
-.addBtn:hover {
-  background: var(--color-bg-hover);
-  color: var(--color-text-primary);
+.closeCampaign:hover {
+  background: var(--hover);
+  color: var(--text);
 }
 
 .actionRow {
   display: flex;
   gap: var(--space-1);
   padding: var(--space-2);
-  border-top: 1px solid var(--color-border);
+  border-top: 1px solid var(--border);
 }
 
 .iconBtn {
   flex: 1;
   padding: var(--space-1) var(--space-2);
   border-radius: var(--radius-sm);
-  color: var(--color-text-secondary);
+  color: var(--text-secondary);
   font-size: var(--font-size-sm);
   text-align: center;
   cursor: pointer;
 }
 
 .iconBtn:hover {
-  background: var(--color-bg-hover);
-  color: var(--color-text-primary);
+  background: var(--hover);
+  color: var(--text);
 }

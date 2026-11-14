@@ -22,7 +22,7 @@ export interface ClassMark {
   name: string
   /** Short verb form used as the condition pill label, e.g. "Quarried". */
   shortName: string
-  /** Display icon (emoji glyph). */
+  /** Display icon: a Lucide icon name (kebab case), drawn with <Glyph>. */
   icon: string
   /** Default pill background color, used when the source PC has no chip color set. */
   color: string
@@ -45,7 +45,7 @@ export const CLASS_MARKS: ClassMark[] = [
     id: 'combat-challenge',
     name: 'Combat Challenge',
     shortName: 'Challenged',
-    icon: '⚔',
+    icon: 'swords',
     color: '#a08060',
     description: "Fighter: marked enemy provokes an opportunity attack if it shifts away or attacks others.",
     appliesMarkedCondition: true,
@@ -55,7 +55,7 @@ export const CLASS_MARKS: ClassMark[] = [
     id: 'divine-challenge',
     name: 'Divine Challenge',
     shortName: 'Challenged',
-    icon: '☀',
+    icon: 'sun',
     color: '#c4a563',
     description: 'Paladin: marked enemy takes radiant damage if it ignores the paladin. Lasts until the paladin marks another target or fails to engage.',
     appliesMarkedCondition: true,
@@ -65,7 +65,7 @@ export const CLASS_MARKS: ClassMark[] = [
     id: 'aegis-of-assault',
     name: 'Aegis (Swordmage)',
     shortName: 'Aegis',
-    icon: '🛡',
+    icon: 'shield',
     color: '#7095b3',
     description: "Swordmage: marked enemy is teleported / takes damage when attacking allies. Lasts the encounter.",
     appliesMarkedCondition: true,
@@ -75,7 +75,7 @@ export const CLASS_MARKS: ClassMark[] = [
     id: 'natures-wrath',
     name: "Nature's Wrath",
     shortName: 'Marked',
-    icon: '🌿',
+    icon: 'leaf',
     color: '#6e9663',
     description: "Warden: marks adjacent enemies who provoked the warden.",
     appliesMarkedCondition: true,
@@ -85,7 +85,7 @@ export const CLASS_MARKS: ClassMark[] = [
     id: 'battlemind-demand',
     name: "Battlemind's Demand",
     shortName: 'Demanded',
-    icon: '🧠',
+    icon: 'brain-cog',
     color: '#9b76a8',
     description: "Battlemind: marks an enemy until the battlemind marks another target or the encounter ends. The Battlemind's Mind Spike feature lets them retaliate when the marked enemy attacks an ally.",
     appliesMarkedCondition: true,
@@ -98,7 +98,7 @@ export const CLASS_MARKS: ClassMark[] = [
     conditionId: 'mark-hunter-quarry',
     name: "Hunter's Quarry",
     shortName: 'Quarried',
-    icon: '🏹',
+    icon: 'crosshair',
     color: '#7da37a',
     description: 'Ranger: deals extra damage to a designated quarry once per round. Lasts the encounter.',
     appliesMarkedCondition: false,
@@ -109,7 +109,7 @@ export const CLASS_MARKS: ClassMark[] = [
     conditionId: 'mark-warlock-curse',
     name: "Warlock's Curse",
     shortName: 'Cursed',
-    icon: '👁',
+    icon: 'eye',
     color: '#7d6d9f',
     description: 'Warlock: deals extra damage to a cursed enemy once per round. Lasts the encounter.',
     appliesMarkedCondition: false,
@@ -120,7 +120,7 @@ export const CLASS_MARKS: ClassMark[] = [
     name: 'Oath of Enmity',
     conditionId: 'mark-oath-of-enmity',
     shortName: 'Oathbound',
-    icon: '⚖',
+    icon: 'scale',
     color: '#b4a576',
     description: 'Avenger: rolls twice for melee attack rolls against the sworn enemy. Lasts the encounter.',
     appliesMarkedCondition: false,
@@ -131,7 +131,7 @@ export const CLASS_MARKS: ClassMark[] = [
     conditionId: 'mark-assassins-shroud',
     name: "Assassin's Shroud",
     shortName: 'Shrouded',
-    icon: '🌑',
+    icon: 'moon',
     color: '#5a5566',
     description: "Assassin: invisible shrouds settle on the target (stacks up to 4); when invoked, an attack deals +1d6 per shroud. Lasts the encounter.",
     appliesMarkedCondition: false,

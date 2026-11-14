@@ -5,6 +5,7 @@
 import type { CSSProperties, ReactNode } from 'react'
 import type { Line } from '@kit'
 import { TagInput } from '@renderer/components/shared/TagInput'
+import { Icon } from '../shared/Icon'
 
 interface Base { placeholder?: string; className?: string; style?: CSSProperties; label?: string }
 
@@ -53,24 +54,24 @@ export function Tags({ values, onChange, suggestions, placeholder }: { values: s
   return <TagInput compact values={values} onChange={onChange} suggestions={suggestions ?? []} placeholder={placeholder} />
 }
 
-const small: CSSProperties = { color: 'var(--color-text-muted)', padding: '0 2px', lineHeight: 1, background: 'none', border: 0, cursor: 'pointer' }
+const small: CSSProperties = { color: 'var(--muted)', padding: '0 2px', lineHeight: 1, background: 'none', border: 0, cursor: 'pointer' }
 
-/** × control, shown only while editing. */
+/** Remove (x) control, shown only while editing. */
 export function Remove({ onClick, label }: { onClick?: () => void; label: string }) {
-  return onClick ? <button type="button" className="sb-remove" aria-label={label} title={label} onClick={onClick} style={small}>×</button> : null
+  return onClick ? <button type="button" className="sb-remove" aria-label={label} title={label} onClick={onClick} style={{ ...small, display: 'inline-flex', verticalAlign: '-0.125em' }}><Icon name="x" /></button> : null
 }
 
 /** Dashed "+ thing" control, shown only while editing. */
 export function Add({ onClick, children }: { onClick?: () => void; children: ReactNode }) {
-  return onClick ? <button type="button" className="sb-add" onClick={onClick} style={{ ...small, border: '1px dashed var(--color-border)', borderRadius: 'var(--radius-sm)', padding: '0 6px', margin: '2px 0' }}>+ {children}</button> : null
+  return onClick ? <button type="button" className="sb-add" onClick={onClick} style={{ ...small, border: '1px dashed var(--border)', borderRadius: 'var(--radius-sm)', padding: '0 6px', margin: '2px 0' }}>+ {children}</button> : null
 }
 
-/** ▲▼ reorder controls for list entries, shown only while editing. */
+/** Up/down reorder controls for list entries, shown only while editing. */
 export function Move({ index, length, move }: { index: number; length: number; move?: (from: number, to: number) => void }) {
   if (!move) return null
   return <span className="sb-move" style={{ display: 'inline-flex', flexDirection: 'column', opacity: 0.5, marginRight: 2 }}>
-    <button type="button" aria-label="Move up" disabled={index === 0} onClick={() => move(index, index - 1)} style={{ ...small, fontSize: 9 }}>▲</button>
-    <button type="button" aria-label="Move down" disabled={index === length - 1} onClick={() => move(index, index + 1)} style={{ ...small, fontSize: 9 }}>▼</button>
+    <button type="button" aria-label="Move up" disabled={index === 0} onClick={() => move(index, index - 1)} title="Move up" style={{ ...small, display: 'inline-flex' }}><Icon name="chevron-up" size={10} /></button>
+    <button type="button" aria-label="Move down" disabled={index === length - 1} onClick={() => move(index, index + 1)} title="Move down" style={{ ...small, display: 'inline-flex' }}><Icon name="chevron-down" size={10} /></button>
   </span>
 }
 
