@@ -89,7 +89,7 @@ Covers monsters (5,326; 24,950 actions, of which 9,305 have their mechanics in p
 - [ ] Open question: whether the encounter editor or the creature list should pop out as whole pages (not just their floating panels); decide after using the panel popouts at the table.
 
 ## 7. Character import
-- [x] `.dnd4e` (Character Builder saves): all 59 samples in `../4ecb/sample-chars/` carry the computed `<CharacterSheet>`; they import as a kit `CharacterSnapshot` on `PlayerCharacter.sheet` (stats only; players keep tracking HP). Run the sample check with `FOUR_E_SAMPLE_CHARS=<dir> npm test` (the devcontainer cannot see `../4ecb`; `docker cp` the folder in).
+- [x] `.dnd4e` (Character Builder saves): all 59 samples in `../4ecb/sample-chars/` carry the computed `<CharacterSheet>`; they import as a kit `CharacterSnapshot` on `PlayerCharacter.sheet` (stats only; players keep tracking HP). Run the sample check with `FOUR_E_SAMPLE_CHARS=<dir> npm test` (e.g. `FOUR_E_SAMPLE_CHARS=../4ecb/sample-chars`).
 - [x] `.4ecb`: the reader takes the backup's `snapshots` (4ecb D125, 686c3775); older exports get a "re-export" message. Checked 2026-11-13 on 4ecb's 33 review characters re-exported with snapshots (same evaluation and projection as the app, in Node): all import, re-import updates them, and characters also in `sample-chars/` match their .dnd4e numbers. Field choices match D125 (hybrid "Warlord / Fighter", damage-type resistances); one difference: 4ecb gives Aegis of Shielding/Ensnarement no mark, the .dnd4e reader maps every Aegis to the dashboard's one Aegis mark.
 - [ ] PC powers: not imported (decided 2026-11-13). The .dnd4e has per-power attack and damage numbers, and `content/raw/power.json` has the text by `ID_FMP_POWER_<n>` = `power<n>`, if cards are wanted later.
 
@@ -122,7 +122,7 @@ Must be done before the repo gets a public remote. Steps 8.1–8.3 are ordinary 
 
 **8.4 Rewrite history (destructive, needs explicit go-ahead)**
 - [ ] Back up: `git clone --mirror` to a dated folder outside the repo, plus a tarball of `.git`
-- [ ] Install `git-filter-repo` in the devcontainer
+- [x] Install `git-filter-repo` (in the Nix shell, `flake.nix`)
 - [ ] Run `git filter-repo --invert-paths` with `--path` for each inventory path. Use `--path-glob 'docs/*.pdf'` for the PDFs, and give the old template/theme data files by name.
 - [ ] Verify:
   - `git log --all -- <each path>` is empty

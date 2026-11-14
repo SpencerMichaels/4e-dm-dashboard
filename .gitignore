@@ -21,3 +21,7 @@ result
 
 # Local portrait/asset working directory (not bundled into the repo)
 images/
+
+# direnv (copy .envrc.example to .envrc)
+.envrc
+.direnv/

@@ -18,6 +18,7 @@
         packages = with pkgs; [
           electron
           git
+          git-filter-repo
           jq
           librsvg
           nodejs_22
@@ -25,11 +26,12 @@
           ripgrep
         ];
 
-        # npm's electron package ships a generic Linux binary that can't run on
-        # NixOS. Skip downloading it and point the package at nixpkgs' build,
-        # so `electron` and `electron-vite` from node_modules run that one.
-        ELECTRON_SKIP_BINARY_DOWNLOAD = "1";
+        # npm's electron package downloads a generic Linux binary (and its
+        # electron.d.ts) that can't run on NixOS. Run nixpkgs' build instead:
+        # the `electron` launcher in node_modules reads the first variable,
+        # electron-vite (dev, preview) the second.
         ELECTRON_OVERRIDE_DIST_PATH = "${electron}/bin";
+        ELECTRON_EXEC_PATH = "${electron}/bin/electron";
         NODE_OPTIONS = "--max-old-space-size=4096";
       };
     };

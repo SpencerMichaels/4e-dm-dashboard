@@ -17,9 +17,9 @@ A working copy can write into two campaigns at once (the agent passes both as `d
 
 ## Agent connection
 
-The app starts a local authenticated socket bridge. The CLI automatically uses `~/.config/4e-dm-dashboard/authoring/connection.json` inside the container, so normal use requires no copied path. **Copy connection path**, in Settings › Editing with AI, copies the connection-file path for custom setups. The file contains a credential; supply its path to the CLI, not its contents to a model/chat. No network listener is opened.
+The app starts a local authenticated socket bridge. The CLI automatically uses `~/.config/4e-dm-dashboard/authoring/connection.json`, so normal use requires no copied path. **Copy connection path**, in Settings › Editing with AI, copies the connection-file path for custom setups. The file contains a credential; supply its path to the CLI, not its contents to a model/chat. No network listener is opened.
 
-Run commands inside the devcontainer, where the app runs:
+Run commands from the repository in the Nix shell (`nix develop -c ...`), as the user running the app:
 
 ```sh
 npm run --silent authoring -- list_drafts
@@ -27,25 +27,19 @@ npm run --silent authoring -- create_draft request.json
 npm run --silent authoring -- get_draft request.json
 ```
 
-Arguments are a JSON object read from a file or `-` for stdin. For a custom user-data location, use `--connection /path/to/connection.json` or `FOUR_E_AUTHORING_CONNECTION` (the flag takes precedence). If automatic discovery fails, check that the dashboard and CLI run as the same user inside the same container, then use the path from **Copy connection path** in Settings. `scaffold`, `benchmarks`, `validate`, and `search-local` work without the running app. `search-local` accepts a `contentRoot` path (the directory holding `raw/` and `parsed/`; the older `parsedRoot` still works); its default is `content` under the working directory. Monsters and traps are re-parsed from `raw/` with their printed hit, miss, and effect text, as in the content repo.
+Arguments are a JSON object read from a file or `-` for stdin. For a custom user-data location, use `--connection /path/to/connection.json` or `FOUR_E_AUTHORING_CONNECTION` (the flag takes precedence). If automatic discovery fails, check that the dashboard and CLI run as the same user, then use the path from **Copy connection path** in Settings. `scaffold`, `benchmarks`, `validate`, and `search-local` work without the running app. `search-local` accepts a `contentRoot` path (the directory holding `raw/` and `parsed/`; the older `parsedRoot` still works); its default is `content` under the working directory. Monsters and traps are re-parsed from `raw/` with their printed hit, miss, and effect text, as in the content repo.
 
-For an MCP client, configure a stdio server using the official SDK adapter. **Use `--silent` with npm so npm banners do not corrupt the protocol.** Example command/arguments for a client running inside the devcontainer:
+For an MCP client, configure a stdio server using the official SDK adapter. **Use `--silent` with npm so npm banners do not corrupt the protocol.** Example command/arguments (the client starts it in the Nix shell; `nix develop` must run in the repository, not with `path:.`):
 
 ```json
 {
-  "command": "npm",
-  "args": ["run", "--silent", "authoring", "--", "--mcp"],
-  "cwd": "/workspace"
+  "command": "nix",
+  "args": ["develop", "--quiet", "-c", "npm", "run", "--silent", "authoring", "--", "--mcp"],
+  "cwd": "/path/to/tabletop-dashboard"
 }
 ```
 
-For a host-side client, run the adapter through the existing container:
-
-```sh
-docker exec -i -w /workspace CONTAINER_ID npm run --silent authoring -- --mcp
-```
-
-This keeps the socket and credentials inside the container and requires no extra socket mounts. The server uses the SDK's stdio protocol and advertises only authoring tools; approval and arbitrary file/code operations are absent. It is local tooling, not a remotely hosted MCP service. Adapter source: `tools/authoring/cli.ts`; tool schemas: `tools/authoring/tools.ts`.
+The socket and connection file stay in the user's own config directory. The server uses the SDK's stdio protocol and advertises only authoring tools; approval and arbitrary file/code operations are absent. It is local tooling, not a remotely hosted MCP service. Adapter source: `tools/authoring/cli.ts`; tool schemas: `tools/authoring/tools.ts`.
 
 The three repository-owned skills are in `skills/4e-author-content`, `skills/4e-find-precedents`, and `skills/4e-review-balance`. Copy or symlink these into your agent's skill directory, or invoke them by their repository paths. They are ordinary Markdown and refer to this repository for tool/schema details. Installation is intentionally not automatic.
 
@@ -92,4 +86,4 @@ Protocol references: [MCP stdio transport](https://modelcontextprotocol.io/speci
 
 ## Development checks
 
-Run `npm test`, `npm run typecheck:node`, and `npm run build` in the devcontainer. `npm run test:authoring:ui` then launches an isolated Electron smoke test with temporary user data and hidden windows and captures `out/authoring-smoke.png` and `out/authoring-edit-smoke.png`. It drives the native creature editor by its printed labels and does not modify real campaigns. Skill metadata was checked with the skill-creator validator. Existing renderer-wide TypeScript errors are tracked in AGENTS.md; the new authoring modules must not add errors.
+Run `npm test`, `npm run typecheck:node`, and `npm run build` in the Nix shell (`nix develop -c ...`). `npm run test:authoring:ui` then launches an isolated Electron smoke test with temporary user data and hidden windows and captures `out/authoring-smoke.png` and `out/authoring-edit-smoke.png`. It drives the native creature editor by its printed labels and does not modify real campaigns. Skill metadata was checked with the skill-creator validator. Existing renderer-wide TypeScript errors are tracked in AGENTS.md; the new authoring modules must not add errors.
