@@ -77,8 +77,9 @@ a {
   color: var(--on-fill);
 }
 
-/* Button reset */
-button {
+/* Button reset, at zero specificity (:where) like the default below, so any
+   other rule styling a button wins */
+:where(button) {
   font: inherit;
   color: inherit;
   cursor: pointer;
@@ -87,12 +88,14 @@ button {
 }
 
 /* A button must read as a button before it is hovered. One without a class of
-   its own gets a border and the raised surface; inline styles still win.
+   its own gets a border and the raised surface. The selector sits in :where()
+   so it has zero specificity: any rule that styles a button (a container's
+   `.panel button`, a module class, an inline style) wins over it.
    Icon-only buttons carry an aria-label and stay bare (the icon is the
    affordance), as do items of a menu, list box, or tab strip (role="menuitem",
    "option", "tab"): the popup or strip says they are buttons.
    `npm run test:buttons:ui` checks this across the app. */
-button:not([class]):not([aria-label]):not([role]) {
+:where(button:not([class]):not([aria-label]):not([role])) {
   padding: 1px var(--space-2);
   background: var(--surface-raised);
   border: 1px solid var(--border-strong);
@@ -100,9 +103,12 @@ button:not([class]):not([aria-label]):not([role]) {
 }
 
 /* 4ecb's hover: an inset bar along the bottom edge. Ghost buttons keep their
-   own underline. */
+   own underline. The bottom corners go square while hovered: the bar follows
+   the corner radius, so it would otherwise end rounded. */
 button:not(:disabled):not([aria-disabled="true"]):not(.ghost):hover {
   box-shadow: inset 0 -2px var(--focus);
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
 }
 
 /* Input reset */

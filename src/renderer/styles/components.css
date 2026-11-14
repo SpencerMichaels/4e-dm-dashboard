@@ -59,6 +59,8 @@
 .btn-success:not(:disabled):hover,
 .btn-info:not(:disabled):hover {
   box-shadow: inset 0 -2px color-mix(in srgb, var(--on-fill) 70%, transparent);
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
 }
 
 /* Small: for stat block headers, toolbars, and other dense places. */

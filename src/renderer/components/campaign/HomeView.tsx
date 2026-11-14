@@ -308,7 +308,7 @@ const RECORD_LABELS: Record<RecordType, string> = { creature: 'Creatures', item:
 const ROW_HEIGHT = 24
 
 interface RecentRow { key: string; name: string; updatedAt: string; view: ViewMode }
-interface RecentColumn { label: string; page: ViewMode; rows: RecentRow[] }
+interface RecentColumn { label: string; rows: RecentRow[] }
 
 const newestFirst = (rows: RecentRow[]) => rows.filter(r => r.updatedAt).sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
 
@@ -318,12 +318,11 @@ function RecentlyChanged() {
   const setView = useUiStore((s) => s.setView)
   const columns = useMemo(() => {
     const all: RecentColumn[] = [
-      { label: 'Encounters', page: { type: 'entity-list', entityType: 'encounter' }, rows: state.encounters.map(e => ({ key: e.id, name: e.name, updatedAt: e.updatedAt, view: { type: 'encounter', encounterId: e.id } })) },
-      { label: 'Locations', page: { type: 'entity-list', entityType: 'location' }, rows: state.locations.map(l => ({ key: l.id, name: l.name, updatedAt: l.updatedAt, view: { type: 'location', locationId: l.id } })) },
-      { label: 'Maps', page: { type: 'entity-list', entityType: 'map' }, rows: state.maps.map(m => ({ key: m.id, name: m.name, updatedAt: m.updatedAt, view: { type: 'map', mapId: m.id } })) },
+      { label: 'Encounters', rows: state.encounters.map(e => ({ key: e.id, name: e.name, updatedAt: e.updatedAt, view: { type: 'encounter', encounterId: e.id } })) },
+      { label: 'Locations', rows: state.locations.map(l => ({ key: l.id, name: l.name, updatedAt: l.updatedAt, view: { type: 'location', locationId: l.id } })) },
+      { label: 'Maps', rows: state.maps.map(m => ({ key: m.id, name: m.name, updatedAt: m.updatedAt, view: { type: 'map', mapId: m.id } })) },
       ...RECORD_TYPES.map((type): RecentColumn => ({
         label: RECORD_LABELS[type],
-        page: { type: 'compendium', kind: type },
         rows: (state[RECORD_STORAGE[type].storeKey as keyof CampaignState] as CampaignRecord<{ name: string }>[])
           .map(r => ({ key: r.id, name: r.content.name, updatedAt: r.updatedAt, view: { type: 'compendium', kind: type, id: r.id } })),
       })),
@@ -345,7 +344,6 @@ function RecentlyChanged() {
   }, [columns.length > 0])
 
   if (columns.length === 0) return null
-  const link = { display: 'block', width: '100%', textAlign: 'left', background: 'transparent', border: 'none', cursor: 'pointer', padding: 0, color: 'inherit', font: 'inherit', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } as const
   // A panel per kind, side by side: each its own list, so rows across panels don't read as one row.
   return (
     <nav className="home-recent" aria-label="Recently changed" style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
@@ -354,13 +352,13 @@ function RecentlyChanged() {
         {columns.map((c, i) => (
           <div key={c.label} className="stat-block-4e home-recent-kind" style={{ display: 'flex', flexDirection: 'column', minHeight: 0 }}>
             <div className="sb-header">
-              <span className="sb-name" style={{ minWidth: 0 }}><button onClick={() => setView(c.page)} title={`Open ${c.label}`} style={link}>{c.label}</button></span>
+              <span className="sb-name" style={{ minWidth: 0 }}>{c.label}</span>
             </div>
             <div ref={i === 0 ? listRef : undefined} style={{ flex: 1, minHeight: 0, overflow: 'hidden' }}>
               <div className="striped-rows" role="list">
                 {c.rows.slice(0, fit).map(r => (
-                  <div key={r.key} role="listitem" className="sb-list-row" style={{ height: ROW_HEIGHT }}>
-                    <button onClick={() => setView(r.view)} title={`${r.name}, changed ${when(r.updatedAt)}`} style={link}>{r.name}</button>
+                  <div key={r.key} role="listitem" className="sb-list-row sb-row-link" style={{ height: ROW_HEIGHT }}>
+                    <button className="sb-row-button" onClick={() => setView(r.view)} title={`${r.name}, changed ${when(r.updatedAt)}`}>{r.name}</button>
                   </div>
                 ))}
               </div>
