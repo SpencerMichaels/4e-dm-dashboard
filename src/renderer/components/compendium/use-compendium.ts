@@ -1,6 +1,8 @@
 import { useState, useEffect, useMemo, useRef, useCallback, useDeferredValue } from 'react'
 import type { CompendiumEntry } from '@common/types'
 import { XP_BY_LEVEL } from '../creature/dnd4e-utils'
+import { useCampaignStore } from '../../stores/campaign-store'
+import { useLibraryStore } from '../../stores/library-store'
 
 // Minion detection: native minions in the parsed data have an empty modifier
 // (no monsterModifier set) but their xp is exactly 1/4 of the standard XP for
@@ -55,6 +57,8 @@ const defaultFilters: CompendiumFilters = {
   source: '',
 }
 
+const sourceRank = (s: string) => s === 'Custom' ? 0 : s === 'Library' ? 1 : 2
+
 export function useCompendium() {
   const [index, setIndex] = useState<CompendiumEntry[] | null>(null)
   const [loading, setLoading] = useState(false)
@@ -68,11 +72,15 @@ export function useCompendium() {
       .finally(() => setLoading(false))
   }, [])
 
-  // Reload index when campaign creatures change (custom creatures appear in merged index)
+  // Reload index when campaign or Library creatures change (custom creatures appear in merged index)
   const reloadIndex = useCallback(() => {
     window.api.compendium.index()
       .then((entries: CompendiumEntry[]) => setIndex(entries))
   }, [])
+  const campaignCreatures = useCampaignStore(s => s.creatures)
+  const libraryCreatures = useLibraryStore(s => s.creatures)
+  const loaded = useRef(false)
+  useEffect(() => { if (loaded.current) reloadIndex(); loaded.current = true }, [campaignCreatures, libraryCreatures])
 
   const filterOptions = useMemo(() => {
     if (!index) return { roles: [], sizes: [], origins: [], types: [], alignments: [], sources: [] }
@@ -97,7 +105,8 @@ export function useCompendium() {
       types: [...types].sort(),
       alignments: ['Lawful Good', 'Good', 'Unaligned', 'Evil', 'Chaotic Evil'].filter(a =>
         alignments.has(a) || alignments.has(a.toLowerCase())),
-      sources: [...sources].sort((a, b) => a === 'Custom' ? -1 : b === 'Custom' ? 1 : a.localeCompare(b)),
+      // The campaign's own first, then the Library's, then the books.
+      sources: [...sources].sort((a, b) => sourceRank(a) - sourceRank(b) || a.localeCompare(b)),
     }
   }, [index])
 

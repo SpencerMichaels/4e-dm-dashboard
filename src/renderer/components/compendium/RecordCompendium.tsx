@@ -229,7 +229,11 @@ export function RecordCompendium<T extends { id: string; name: string }>({ kind,
   const remove = async (row: RecordRow) => {
     setMenu(null)
     // A Library entry may be used by any campaign: those uses show it as missing afterwards.
-    if (row.library && !window.confirm(`Delete “${row.name}” from the Library? Campaigns that use it will show it as missing.`)) return
+    if (row.library) {
+      const usage = await window.api.library.usage(kind.type, row.id)
+      const where = usage.length ? `It is used in ${usage.map(u => `${u.name} (${u.uses})`).join(', ')}; there it will show as missing.` : 'No campaign uses it.'
+      if (!window.confirm(`Delete “${row.name}” from the Library? ${where}`)) return
+    }
     if (selected?.id === row.id) { setEdit(null); setSelected(null); setPreview(null); setCopyId(null) }
     await window.api.entity.delete(kind.type, row.id, row.library ? LIBRARY : undefined)
   }

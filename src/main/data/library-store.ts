@@ -5,7 +5,8 @@
 import { join } from 'path'
 import type { CampaignRecord } from '@common/types'
 import { checkRecord, RECORD_STORAGE, RECORD_TYPES, type RecordType } from '@common/campaign-records'
-import { getLibraryAssetsDir, getLibraryDir } from './paths'
+import { readdir } from 'fs/promises'
+import { getCampaignsRoot, getLibraryAssetsDir, getLibraryDir } from './paths'
 import { atomicWriteJson, deleteFile, ensureDir, listJsonFiles, readJson } from './file-io'
 import { withWriteLock } from './write-lock'
 
@@ -43,4 +44,43 @@ export async function deleteLibraryRecord(type: RecordType, id: string): Promise
 
 export async function ensureLibrary(): Promise<void> {
   await Promise.all([...RECORD_TYPES.map(t => ensureDir(dir(t))), ensureDir(getLibraryAssetsDir())])
+}
+
+/**
+ * The campaigns that use a Library entry (encounter rows and their templates and themes, location traps,
+ * PC diseases), so deleting it can say where it will show as missing. Copies (`basedOn`) are not uses.
+ */
+export async function libraryUsage(type: RecordType, id: string): Promise<{ campaignId: string; name: string; uses: number }[]> {
+  const root = getCampaignsRoot()
+  const dirs = await readdir(root, { withFileTypes: true }).catch(() => [])
+  const ref = `library:${id}`
+  const usesIn = (value: unknown): number => {
+    const v = value as Record<string, any>
+    switch (type) {
+      case 'creature': return (v.creatures ?? []).filter((c: any) => c?.libraryId === id).length
+      case 'trap': return (v.traps ?? []).filter((t: any) => t?.libraryId === id).length
+      case 'disease': return (v.diseases ?? []).filter((d: any) => d?.libraryId === id).length
+      case 'template': return (v.creatures ?? []).filter((c: any) => (c?.monsterTemplates ?? []).includes(ref)).length
+      case 'theme': return (v.creatures ?? []).filter((c: any) => c?.monsterTheme?.name === ref).length
+      default: return 0
+    }
+  }
+  // Where each kind can be referenced from.
+  const folders: Record<RecordType, string[]> = {
+    creature: ['encounters'], trap: ['encounters', 'locations'], disease: ['player-characters'],
+    template: ['encounters'], theme: ['encounters'], item: [],
+  }
+  const result: { campaignId: string; name: string; uses: number }[] = []
+  for (const d of dirs) {
+    if (!d.isDirectory()) continue
+    const meta = await readJson<{ id: string; name: string }>(join(root, d.name, 'campaign.json'))
+    if (!meta) continue
+    let uses = 0
+    for (const folder of folders[type]) {
+      const dir = join(root, d.name, folder)
+      for (const f of await listJsonFiles(dir)) uses += usesIn(await readJson(join(dir, f)) ?? {})
+    }
+    if (uses) result.push({ campaignId: meta.id, name: meta.name, uses })
+  }
+  return result
 }

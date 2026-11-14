@@ -219,8 +219,12 @@ export async function saveAnnotation(campaignId: string, compendiumId: string, a
 
 // Custom creature index — builds CompendiumEntry[] from campaign creatures
 export async function buildCreatureIndex(campaignId: string): Promise<CompendiumEntry[]> {
+  return creatureIndexEntries(await listEntities<CreatureRecord>('creature'), 'Custom')
+}
+
+/** Index rows for custom creature records: the open campaign's ("Custom") or the Library's ("Library"). */
+export function creatureIndexEntries(creatures: CreatureRecord[], source: 'Custom' | 'Library'): CompendiumEntry[] {
   const cap = (s: string | null | undefined) => s ? s[0].toUpperCase() + s.slice(1) : ''
-  const creatures = await listEntities<CreatureRecord>('creature')
   return creatures.filter(r => r.content).map(({ id, content: m }) => ({
     id,
     name: m.name,
@@ -233,6 +237,6 @@ export async function buildCreatureIndex(campaignId: string): Promise<Compendium
     origin: m.origin ?? '',
     alignment: m.alignment ?? '',
     xp: m.xp ?? 0,
-    source: 'Custom',
+    source,
   }))
 }

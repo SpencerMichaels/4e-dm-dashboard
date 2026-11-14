@@ -77,6 +77,7 @@ export function CreatureCompendiumList({ items, onAdd, addingId, onSelect, onAct
         const mod = modLabel(item.modifier)
         const isSelected = item.id === selectedId
         const isCustom = item.source === 'Custom'
+        const isLibrary = item.source === 'Library'
         return (
           <div onClick={onSelect ? () => onSelect(item.id) : undefined}
             onDoubleClick={onActivate ? () => onActivate(item.id) : undefined}
@@ -92,6 +93,7 @@ export function CreatureCompendiumList({ items, onAdd, addingId, onSelect, onAct
             }}>
             <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: isSelected ? 600 : 400 }}>
               {isCustom && <span title="Custom creature" style={{ color: 'var(--accent)', marginRight: 3, fontSize: '0.8em' }}><Icon name="star" label="Custom creature" fill="currentColor" /></span>}
+              {isLibrary && <span title="Library creature: shared by every campaign" style={{ color: 'var(--accent)', marginRight: 3, fontSize: '0.8em' }}><Icon name="library" label="Library creature" /></span>}
               {item.name}
             </span>
             <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: 'var(--muted)' }}>{item.type}</span>

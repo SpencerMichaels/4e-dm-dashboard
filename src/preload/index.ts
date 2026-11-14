@@ -45,6 +45,7 @@ const api = {
   // The Library: custom entries shared by every campaign (saved and deleted through entity with home "library").
   library: {
     state: () => ipcRenderer.invoke(CMD.LIBRARY_STATE) as Promise<Record<string, unknown[]>>,
+    usage: (entityType: EntityType, id: string) => ipcRenderer.invoke(CMD.LIBRARY_USAGE, entityType, id) as Promise<{ campaignId: string; name: string; uses: number }[]>,
   },
 
   // Player characters

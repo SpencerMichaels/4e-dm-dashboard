@@ -83,7 +83,7 @@ export const MONSTER_KIND: RecordKind<Monster> = {
   type: 'creature', singular: 'creature', plural: 'creatures',
   columns: [{ label: 'Type', width: '90px' }, { label: 'Role', width: '80px' }],
   filters: [{ label: 'role', column: 1 }, { label: 'rank', facet: 0 }, { label: 'type', column: 0 }, { label: 'size', facet: 1 }, { label: 'origin', facet: 2 }],
-  index: async () => (await window.api.compendium.index() as CompendiumEntry[]).filter(e => e.source !== 'Custom').map(e => ({
+  index: async () => (await window.api.compendium.index() as CompendiumEntry[]).filter(e => e.source !== 'Custom' && e.source !== 'Library').map(e => ({
     id: e.id, name: e.name, level: e.level, cells: [typeLabel(e.type), cap(e.role)], facets: [cap(rankOf(e)), cap(e.size), cap(e.origin)],
   })),
   row: m => ({ name: m.name, level: m.level, cells: [typeLabel(m.type), cap(m.role ?? '')], facets: [cap(m.rank), cap(m.size), cap(m.origin ?? '')] }),

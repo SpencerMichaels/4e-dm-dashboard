@@ -46,6 +46,7 @@ export function registerCampaignHandlers(): void {
     if (isLibrary(home)) {
       if (!isRecordType(entityType)) throw new Error(`The Library holds no ${entityType}`)
       await library.saveLibraryRecord(entityType, entity)
+      if (entityType === 'creature') invalidateCreatureIndex()
       authoringEntryChanged(LIBRARY, entity.id)
       await broadcastLibraryUpdate(entityType)
       return entity
@@ -62,6 +63,7 @@ export function registerCampaignHandlers(): void {
     if (isLibrary(home)) {
       if (!isRecordType(entityType)) throw new Error(`The Library holds no ${entityType}`)
       await library.deleteLibraryRecord(entityType, entityId)
+      if (entityType === 'creature') invalidateCreatureIndex()
       authoringEntryDeleted(LIBRARY, entityId)
       await broadcastLibraryUpdate(entityType)
       return
@@ -77,6 +79,8 @@ export function registerCampaignHandlers(): void {
     await library.ensureLibrary()
     return library.libraryState()
   })
+
+  ipcMain.handle(CMD.LIBRARY_USAGE, async (_e, entityType: EntityType, id: string) => isRecordType(entityType) ? library.libraryUsage(entityType, id) : [])
 
   ipcMain.handle(CMD.PC_IMPORT, async (_e, files: ImportedFile[], targetId?: string): Promise<ImportResult> => {
     const pcs = await store.listEntities('player-character') as PlayerCharacter[]

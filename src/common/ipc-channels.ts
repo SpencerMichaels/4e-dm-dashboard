@@ -14,6 +14,8 @@ export const CMD = {
   ENTITY_SAVE: 'entity:save',
   /** Every Library record list, keyed like the campaign store. */
   LIBRARY_STATE: 'library:state',
+  /** The campaigns that use a Library entry: [{ campaignId, name, uses }]. */
+  LIBRARY_USAGE: 'library:usage',
   ENTITY_DELETE: 'entity:delete',
   ENTITY_GET: 'entity:get',
   ENTITY_LIST: 'entity:list',

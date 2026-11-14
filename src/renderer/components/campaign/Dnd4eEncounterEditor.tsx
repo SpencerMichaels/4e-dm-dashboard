@@ -25,18 +25,19 @@ import { VirtualizedList } from '../shared/VirtualizedList'
 import { FloatingPanel } from '@renderer/components/shared/FloatingPanel'
 import { useUiStore } from '@renderer/stores/ui-store'
 import { useCampaignStore } from '@renderer/stores/campaign-store'
+import { useLibraryStore } from '@renderer/stores/library-store'
 import { capitalize } from '@common/utils/format'
 import '../creature/statblock.css'
 
 
 /** Get a unique key for an encounter creature entry */
 function ecKey(ec: EncounterCreature): string {
-  return ec.creatureId ?? ec.compendiumId ?? ''
+  return ec.creatureId ?? ec.libraryId ?? ec.compendiumId ?? ''
 }
 
 /** Check if an encounter creature matches a given key */
 function ecMatches(ec: EncounterCreature, key: string): boolean {
-  return ec.creatureId === key || ec.compendiumId === key
+  return ec.creatureId === key || ec.libraryId === key || ec.compendiumId === key
 }
 
 
@@ -48,12 +49,14 @@ function useRowPreviews(rows: EncounterCreature[], creatures: CreatureRecord[]):
   const templates = useCampaignStore(s => s.templates)
   const themes = useCampaignStore(s => s.themes)
   const annotations = useCampaignStore(s => s.annotations)
+  // Library entries are used live: a change to one refreshes the rows that use it.
+  const library = useLibraryStore()
   useEffect(() => {
     let cancelled = false
     Promise.all(rows.map(async ec => [ecKey(ec), await window.api.combat.previewRow(ec) as EncounterRowPreview | null] as const))
       .then(results => { if (!cancelled) setPreviews(Object.fromEntries(results)) })
     return () => { cancelled = true }
-  }, [rows, creatures, templates, themes, annotations])
+  }, [rows, creatures, templates, themes, annotations, library.creatures, library.templates, library.themes])
   return previews
 }
 
@@ -115,6 +118,8 @@ export function Dnd4eEncounterEditor({ encounter, onSave, creatures, onNavigate 
   const [selectedRowKey, setSelectedRowKey] = useState<string | null>(null)
 
   // Party size and level are derived from active PCs and the campaign-wide level
+  // The Library's creatures (shared by every campaign): rows use them by libraryId, live.
+  const libraryCreatures = useLibraryStore(s => s.creatures)
   const playerCharacters = useCampaignStore(s => s.playerCharacters)
   const campaign = useCampaignStore(s => s.campaign)
   const partySize = playerCharacters.filter(pc => pc.active !== false).length
@@ -128,8 +133,8 @@ export function Dnd4eEncounterEditor({ encounter, onSave, creatures, onNavigate 
 
   // Resolve creature info from campaign creatures or compendium index
   const resolveInfo = useCallback((ec: EncounterCreature): { name: string; level: number; role: string; modifier: string; imageId?: string; preview?: EncounterRowPreview | null } | null => {
-    if (ec.creatureId) {
-      const record = creatures.find(c => c.id === ec.creatureId)
+    if (ec.creatureId || ec.libraryId) {
+      const record = ec.creatureId ? creatures.find(c => c.id === ec.creatureId) : libraryCreatures.find(c => c.id === ec.libraryId)
       if (!record) return null
       const m = record.content
       const modifier = m.rank === 'elite' || m.rank === 'solo' ? m.rank : ''
@@ -141,7 +146,7 @@ export function Dnd4eEncounterEditor({ encounter, onSave, creatures, onNavigate 
       return { name: ec.overrideName || entry.name, level: entry.level + (ec.levelAdjust ?? 0), role: entry.role, modifier: entry.modifier, preview: rowPreviews[ecKey(ec)] }
     }
     return null
-  }, [creatures, comp.index, rowPreviews])
+  }, [creatures, libraryCreatures, comp.index, rowPreviews])
 
   // Traps noted on the encounter's location join its combat too (once; the encounter's own row wins).
   const locations = useCampaignStore(s => s.locations)
@@ -197,13 +202,15 @@ export function Dnd4eEncounterEditor({ encounter, onSave, creatures, onNavigate 
     if (adding) return
     setAdding(entryId)
     try {
-      // Check if this is a campaign creature (Custom) or a compendium entry
+      // A campaign creature (Custom), a Library one (shared, used live), or a compendium entry
       const campaignCreature = creatures.find(c => c.id === entryId)
+      const libraryCreature = campaignCreature ? undefined : libraryCreatures.find(c => c.id === entryId)
+      const record = campaignCreature ?? libraryCreature
       const existing = encounter.creatures.find(c => ecMatches(c, entryId))
       // Auto-detect native minions by name suffix
-      const entryName = campaignCreature?.content.name ?? comp.index?.find(e => e.id === entryId)?.name ?? ''
-      // Auto-detect minions by name or the campaign creature's rank; printed minions are minions by rank anyway
-      const autoMinion = /\bminion\b/i.test(entryName) || campaignCreature?.content.rank === 'minion'
+      const entryName = record?.content.name ?? comp.index?.find(e => e.id === entryId)?.name ?? ''
+      // Auto-detect minions by name or the custom creature's rank; printed minions are minions by rank anyway
+      const autoMinion = /\bminion\b/i.test(entryName) || record?.content.rank === 'minion'
       if (existing) {
         save({
           creatures: encounter.creatures.map(c =>
@@ -213,6 +220,9 @@ export function Dnd4eEncounterEditor({ encounter, onSave, creatures, onNavigate 
       } else if (campaignCreature) {
         // Custom/campaign creature — reference by creatureId
         save({ creatures: [...encounter.creatures, { creatureId: entryId, count: 1, isMinion: autoMinion || undefined }] })
+      } else if (libraryCreature) {
+        // Library creature — reference by libraryId (live, like a published one)
+        save({ creatures: [...encounter.creatures, { libraryId: entryId, count: 1, isMinion: autoMinion || undefined }] })
       } else {
         // Compendium creature — reference by compendiumId (no import!)
         save({ creatures: [...encounter.creatures, { compendiumId: entryId, count: 1, isMinion: autoMinion || undefined }] })
@@ -220,14 +230,14 @@ export function Dnd4eEncounterEditor({ encounter, onSave, creatures, onNavigate 
     } finally {
       setAdding(null)
     }
-  }, [encounter, adding, creatures, comp.index])
+  }, [encounter, adding, creatures, libraryCreatures, comp.index])
 
   const selectPreview = useCallback(async (entryId: string) => {
     if (entryId === previewId) return
     setPreviewId(entryId)
     setSelectedRowKey(null)
     setSelectedTrapKey(null)
-    const record = creatures.find(c => c.id === entryId)
+    const record = creatures.find(c => c.id === entryId) ?? libraryCreatures.find(c => c.id === entryId)
     if (record) {
       setPreviewCreature(kitViewCreature(record.content, undefined, { ...record.art }))
     } else {
@@ -235,7 +245,7 @@ export function Dnd4eEncounterEditor({ encounter, onSave, creatures, onNavigate 
       setPreviewCreature(m ? kitViewCreature(m, undefined, { compendiumId: entryId }) : null)
     }
     previewRef.current?.scrollTo(0, 0)
-  }, [previewId, creatures])
+  }, [previewId, creatures, libraryCreatures])
 
   // A campaign creature's artwork lives on its record.
   const saveCreatureArt = async (id: string, art: RecordArt) => {
@@ -571,7 +581,7 @@ export function Dnd4eEncounterEditor({ encounter, onSave, creatures, onNavigate 
               const templateBtnDisabled = isMinion || !preview || templateCount >= maxTemplates || availableTemplates.length === 0
 
               const handleNavigate = () => {
-                if (ec.creatureId) onNavigate(ec.creatureId)
+                if (ec.creatureId || ec.libraryId) onNavigate((ec.creatureId ?? ec.libraryId)!)
                 // Compendium creatures — no navigation (could open preview in future)
               }
 
@@ -828,8 +838,10 @@ export function Dnd4eEncounterEditor({ encounter, onSave, creatures, onNavigate 
             const targetCurrent = (themePickerKey === selectedRowKey ? themePreview : undefined) ?? rowPreviews[selectedRowKey]
             if (targetEc && targetCurrent) {
               const isCustom = !!targetEc?.creatureId
-              const entityKey = targetEc?.creatureId ?? targetEc?.compendiumId
-              const customCreature = isCustom ? creatures.find(c => c.id === targetEc?.creatureId) : undefined
+              // A Library creature's art is edited on its compendium page (it is stored with the Library).
+              const isLibrary = !!targetEc?.libraryId
+              const entityKey = isLibrary ? undefined : targetEc?.creatureId ?? targetEc?.compendiumId
+              const customCreature = isCustom ? creatures.find(c => c.id === targetEc?.creatureId) : isLibrary ? libraryCreatures.find(c => c.id === targetEc?.libraryId) : undefined
               const synthetic = kitViewCreature(targetCurrent.monster, targetCurrent.attribution, {
                 id: 'selected', name: targetEc.overrideName || targetCurrent.monster.name,
                 ...customCreature?.art,
@@ -1279,7 +1291,7 @@ function ThemePicker({ currentTheme, onApply, onRemove, onClose, onPreview }: {
         >
           <option value="">— Select a theme —</option>
           {themes.map(t => (
-            <option key={t.ref} value={t.ref}>{t.name} ({t.custom ? 'Custom' : t.source})</option>
+            <option key={t.ref} value={t.ref}>{t.name} ({t.library ? 'Library' : t.custom ? 'Custom' : t.source})</option>
           ))}
         </select>
         {currentTheme && (
