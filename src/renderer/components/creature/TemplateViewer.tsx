@@ -23,7 +23,7 @@ export function TemplateViewer({ template: t }: { template: MonsterTemplate }) {
 
       {/* Description */}
       {t.description && (
-        <div style={{ padding: '4px 8px', fontStyle: 'italic', color: 'var(--color-text-secondary)', fontSize: 11 }}>
+        <div style={{ padding: '4px 8px', fontStyle: 'italic', color: 'var(--text-secondary)', fontSize: 11 }}>
           {t.description}
         </div>
       )}
@@ -124,7 +124,7 @@ export function TemplateViewer({ template: t }: { template: MonsterTemplate }) {
 
       {/* Source */}
       {t.source && (
-        <div style={{ padding: '2px 8px', fontSize: 10, color: 'var(--color-text-muted)', fontStyle: 'italic' }}>
+        <div style={{ padding: '2px 8px', fontSize: 10, color: 'var(--muted)', fontStyle: 'italic' }}>
           {t.source}
         </div>
       )}

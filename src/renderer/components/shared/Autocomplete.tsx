@@ -100,7 +100,7 @@ export function Autocomplete({ options, value, onChange, placeholder, style }: P
               background: 'none',
               border: 'none',
               cursor: 'pointer',
-              color: 'var(--color-text-muted)',
+              color: 'var(--muted)',
               padding: '0 4px',
               fontSize: 'var(--font-size-sm)',
             }}
@@ -119,8 +119,8 @@ export function Autocomplete({ options, value, onChange, placeholder, style }: P
           right: 0,
           maxHeight: 200,
           overflow: 'auto',
-          background: 'var(--color-bg-primary)',
-          border: '1px solid var(--color-border)',
+          background: 'var(--background)',
+          border: '1px solid var(--border)',
           borderRadius: 'var(--radius-sm)',
           marginTop: 2,
           zIndex: 50,
@@ -134,10 +134,10 @@ export function Autocomplete({ options, value, onChange, placeholder, style }: P
                 width: '100%',
                 textAlign: 'left',
                 padding: '6px 10px',
-                background: i === highlightIndex ? 'var(--color-bg-hover)' : 'transparent',
+                background: i === highlightIndex ? 'var(--hover)' : 'transparent',
                 border: 'none',
                 cursor: 'pointer',
-                color: 'var(--color-text-primary)',
+                color: 'var(--text)',
                 fontSize: 'var(--font-size-sm)',
               }}
             >

@@ -10,6 +10,7 @@ import { NativeCreatureDraftEditor } from './NativeCreatureDraftEditor'
 import { isKitNative, ItemDraftEditor, KitDraftEditor } from './KitDraftEditor'
 import { DraftMetadataFields } from './DraftMetadataFields'
 import { DraftAnnotations, openThread } from './DraftAnnotations'
+import { Icon } from '../shared/Icon'
 import { DraftNotes } from './DraftNotes'
 import type { EditStatus } from './live-edits'
 import { ProposalView, RecipeEditor, type NumberProposal } from './RecipeEditor'
@@ -79,7 +80,7 @@ export function AuthoringView({ draftId }: { draftId?: string }) {
   return <main className="authoring">
     {error && <p className="authoring-error" role="alert">{error}</p>}
     {open ? <>
-      <button className="rail-link authoring-back" onClick={home}>← {kindInfo(open.kind).plural}</button>
+      <button className="rail-link authoring-back" onClick={home}><Icon name="arrow-left" style={{ verticalAlign: '-0.125em' }} /> {kindInfo(open.kind).plural}</button>
       {draft ? <DraftEditor key={keys.current[draft.id] ?? draft.id} draft={draft} destinations={destinations} defaultDestinations={defaultDestinations} />
         : <DraftEditor key={fresh!.key} draft={freshDraft!} destinations={destinations} defaultDestinations={defaultDestinations} onCreated={created} />}
     </> : <WorkshopHome tab={tab} setTab={setTab} drafts={list} destinations={destinations} defaultDestinations={defaultDestinations} refresh={refresh} onError={setError} onNew={startNew} onCreated={created}
@@ -112,7 +113,7 @@ function WorkshopHome({ tab, setTab, drafts, destinations, defaultDestinations, 
   const sortValue = (d: DraftRow) => sort.key === 'name' ? d.name.toLowerCase() : sort.key === 'level' ? d.level ?? 0 : sort.key === 'status' ? status(d) : d.updatedAt ?? ''
   const rows = drafts.filter(d => d.kind === tab).sort((a, b) => { const x = sortValue(a), y = sortValue(b); return (x < y ? -1 : x > y ? 1 : 0) * sort.dir })
   const header = (key: typeof sort.key, label: string) => <th aria-sort={sort.key === key ? (sort.dir === 1 ? 'ascending' : 'descending') : undefined}>
-    <button onClick={() => setSort(s => ({ key, dir: s.key === key ? (s.dir === 1 ? -1 : 1) : key === 'updated' ? -1 : 1 }))}>{label}{sort.key === key ? (sort.dir === 1 ? ' ▲' : ' ▼') : ''}</button></th>
+    <button onClick={() => setSort(s => ({ key, dir: s.key === key ? (s.dir === 1 ? -1 : 1) : key === 'updated' ? -1 : 1 }))}>{label}{sort.key === key && <>{' '}<Icon name={sort.dir === 1 ? 'chevron-up' : 'chevron-down'} style={{ verticalAlign: '-0.125em' }} /></>}</button></th>
   // One row per entry; matching powers are listed on it.
   const grouped = (results ?? []).reduce<{ key: string; entry: any; powers: string[] }[]>((acc, r) => {
     const row = acc.find(x => x.key === r.key) ?? (acc.push({ key: r.key, entry: r, powers: [] }), acc.at(-1)!)
@@ -149,7 +150,7 @@ function WorkshopHome({ tab, setTab, drafts, destinations, defaultDestinations, 
       <button disabled={busy || !importText.trim()}>Import</button>
     </form>}
 
-    {rows.length ? <table className="authoring-table">
+    {rows.length ? <table className="authoring-table data-table">
       <thead><tr>{header('name', 'Name')}{header('level', 'Level')}{header('status', 'Status')}{header('updated', 'Updated')}</tr></thead>
       <tbody>{rows.map(d => <tr key={d.id} onClick={() => onOpen(d.id)}>
         <td><button className="rail-link" onClick={e => { e.stopPropagation(); onOpen(d.id) }}>{d.name}</button></td>

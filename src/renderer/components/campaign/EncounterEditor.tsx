@@ -30,7 +30,7 @@ export function EncounterEditor({ encounterId }: Props) {
     }
   }, [encounterId])
 
-  if (!encounter) return <div style={{ color: 'var(--color-text-muted)' }}>Loading...</div>
+  if (!encounter) return <div style={{ color: 'var(--muted)' }}>Loading...</div>
 
   const save = (updated: Encounter) => {
     const withTime = { ...updated, updatedAt: new Date().toISOString() }

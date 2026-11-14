@@ -51,8 +51,8 @@ function pluralize(name: string): string {
   return name + 's'
 }
 
-/** Default designator color when combatant has no color assigned */
-const DEFAULT_DESIGNATOR_BG = '#666'
+/** Default designator color when combatant has no color assigned (constant in both themes, under white text) */
+const DEFAULT_DESIGNATOR_BG = 'var(--tone-neutral)'
 
 export function Dnd4eGroupedCombatPanel({
   combatants, combat, conditions: conditionDefs, notifications,
@@ -127,14 +127,14 @@ export function Dnd4eGroupedCombatPanel({
                   className={styles.hpBarFill}
                   style={{
                     width: `${Math.max(0, Math.min(100, hpPct))}%`,
-                    background: hpPct > 0 ? hpColor(hpPct) : 'var(--color-text-muted)',
+                    background: hpPct > 0 ? hpColor(hpPct) : 'var(--muted)',
                   }}
                 />
               </div>
 
               {/* HP numbers */}
               <div className={styles.hpInfo}>
-                <span className={styles.hpCurrent} style={{ color: hpPct > 0 ? hpColor(hpPct) : 'var(--color-text-muted)' }}>
+                <span className={styles.hpCurrent} style={{ color: hpPct > 0 ? hpColor(hpPct) : 'var(--muted)' }}>
                   {c.hp}
                 </span>
                 <span className={styles.hpMax}>/ {c.maxHp}</span>

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Modal, modalStyles } from '../shared/Modal'
+import { Modal } from '../shared/Modal'
 
 /** Evaluate a simple integer expression with + and - operators.
  *  Returns null if any part is not a valid integer or the result is <= 0. */
@@ -59,11 +59,18 @@ export function DamageHealDialog({ mode, combatantName, initialAmount, resistEnt
   const showResist = mode === 'damage' && resistEntries && resistEntries.length > 0
 
   return (
-    <Modal onClose={onClose} minWidth={300}>
-      <form onSubmit={handleSubmit} onKeyDown={handleKeyDown}>
-        <h3 style={{ marginBottom: 'var(--space-3)' }}>
-          {mode === 'damage' ? 'Damage' : 'Heal'} {combatantName}
-        </h3>
+    <Modal title={<>{mode === 'damage' ? 'Damage' : 'Heal'} {combatantName}</>} onClose={onClose} minWidth={300} footer={<>
+      <button type="button" onClick={onClose} className="btn">Cancel</button>
+      {showResist && selectedResistIndex >= 0 && (
+        <button type="button" onClick={(e) => handleSubmit(e, true)} className="btn btn-danger" style={{ opacity: 0.8 }} title="Shift+Enter">
+          Apply with Resist
+        </button>
+      )}
+      <button type="submit" form="damage-heal" className={mode === 'damage' ? 'btn btn-danger' : 'btn btn-success'}>
+        {mode === 'damage' ? 'Damage' : 'Heal'}
+      </button>
+    </>}>
+      <form id="damage-heal" onSubmit={handleSubmit} onKeyDown={handleKeyDown}>
         <input
           type="text"
           inputMode="numeric"
@@ -74,14 +81,14 @@ export function DamageHealDialog({ mode, combatantName, initialAmount, resistEnt
           autoFocus
         />
         {mode === 'damage' && (
-          <label style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', marginBottom: 'var(--space-3)', fontSize: 'var(--font-size-sm)', color: 'var(--color-text-secondary)', cursor: 'pointer' }}>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', marginBottom: 'var(--space-3)', fontSize: 'var(--font-size-sm)', color: 'var(--text-secondary)', cursor: 'pointer' }}>
             <input type="checkbox" checked={missDamage} onChange={e => setMissDamage(e.target.checked)} />
             Miss damage (minions ignore)
           </label>
         )}
         {showResist && (
           <div style={{ marginBottom: 'var(--space-3)' }}>
-            <label style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text-secondary)', display: 'block', marginBottom: 'var(--space-1)' }}>
+            <label style={{ fontSize: 'var(--font-size-sm)', color: 'var(--text-secondary)', display: 'block', marginBottom: 'var(--space-1)' }}>
               Resist
             </label>
             <select
@@ -96,26 +103,6 @@ export function DamageHealDialog({ mode, combatantName, initialAmount, resistEnt
             </select>
           </div>
         )}
-        <div style={{ display: 'flex', gap: 'var(--space-2)', justifyContent: 'flex-end' }}>
-          <button type="button" onClick={onClose} className={modalStyles.btnSecondary}>Cancel</button>
-          {showResist && selectedResistIndex >= 0 && (
-            <button
-              type="button"
-              onClick={(e) => handleSubmit(e, true)}
-              className={modalStyles.btnDanger}
-              style={{ opacity: 0.8 }}
-              title="Shift+Enter"
-            >
-              Apply with Resist
-            </button>
-          )}
-          <button
-            type="submit"
-            className={mode === 'damage' ? modalStyles.btnDanger : modalStyles.btnSuccess}
-          >
-            {mode === 'damage' ? 'Damage' : 'Heal'}
-          </button>
-        </div>
       </form>
     </Modal>
   )

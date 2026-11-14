@@ -61,7 +61,7 @@ export function NoteEditor({ noteId }: Props) {
   }, [note, noteId])
 
   if (!note) {
-    return <div style={{ color: 'var(--color-text-muted)' }}>Loading...</div>
+    return <div style={{ color: 'var(--muted)' }}>Loading...</div>
   }
 
   return (
@@ -86,8 +86,8 @@ export function NoteEditor({ noteId }: Props) {
         style={{
           minHeight: 300,
           display: 'flex', flexDirection: 'column',
-          background: 'var(--color-bg-surface)',
-          border: '1px solid var(--color-border)',
+          background: 'var(--surface-raised)',
+          border: '1px solid var(--border)',
           borderRadius: 'var(--radius-md)',
           padding: 'var(--space-4)',
           cursor: 'text',

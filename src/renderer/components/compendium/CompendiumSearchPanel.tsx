@@ -6,6 +6,7 @@
 
 import { useMemo } from 'react'
 import { MultiSelectDropdown } from '@renderer/components/shared/MultiSelectDropdown'
+import { Icon } from '../shared/Icon'
 import { CreatureCompendiumList } from './CreatureCompendiumList'
 import { xpForCreature } from '../creature/dnd4e-utils'
 import type { useCompendium } from './use-compendium'
@@ -86,7 +87,7 @@ export function CompendiumSearchPanel({ comp, onSelect, onActivate, selectedId, 
 
       {/* List */}
       {loading ? (
-        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--color-text-muted)' }}>
+        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--muted)' }}>
           Loading...
         </div>
       ) : (
@@ -94,21 +95,21 @@ export function CompendiumSearchPanel({ comp, onSelect, onActivate, selectedId, 
       )}
 
       {/* Status */}
-      <div style={{ color: 'var(--color-text-muted)', padding: 'var(--space-2)', flexShrink: 0, opacity: filtering ? 0.5 : 1, fontSize: 'var(--font-size-xs)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 'var(--space-2)' }}>
+      <div style={{ color: 'var(--muted)', padding: 'var(--space-2)', flexShrink: 0, opacity: filtering ? 0.5 : 1, fontSize: 'var(--font-size-xs)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 'var(--space-2)' }}>
         <span>{loading ? '\u00A0' : `${filtered.length.toLocaleString()} of ${totalCount.toLocaleString()}`}</span>
         <button onClick={resetFilters} disabled={!hasActiveFilters}
           title={hasActiveFilters ? 'Clear all filters' : 'No filters active'}
           style={{
             padding: '2px 8px', borderRadius: 'var(--radius-sm)',
-            border: '1px solid var(--color-border)',
-            background: hasActiveFilters ? 'var(--color-bg-active)' : 'transparent',
-            color: hasActiveFilters ? 'var(--color-text-primary)' : 'var(--color-text-muted)',
+            border: '1px solid var(--border)',
+            background: hasActiveFilters ? 'var(--active)' : 'transparent',
+            color: hasActiveFilters ? 'var(--text)' : 'var(--muted)',
             cursor: hasActiveFilters ? 'pointer' : 'default',
             opacity: hasActiveFilters ? 1 : 0.4,
             fontSize: 'var(--font-size-xs)', fontWeight: 600,
-            whiteSpace: 'nowrap',
+            whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'center', gap: 3,
           }}>
-          ✕ Clear filters
+          <Icon name="x" /> Clear filters
         </button>
       </div>
     </div>

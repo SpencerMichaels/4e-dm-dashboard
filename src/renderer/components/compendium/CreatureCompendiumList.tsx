@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react'
 import { VirtualizedList } from '../shared/VirtualizedList'
+import { Icon } from '../shared/Icon'
 
 /**
  * Shared creature compendium list with sorting and column headers.
@@ -56,15 +57,15 @@ export function CreatureCompendiumList({ items, onAdd, addingId, onSelect, onAct
   const cols = onAdd ? GRID_COLS : GRID_COLS_NO_ADD
   const xs = { fontSize: 'var(--font-size-xs)' }
   const modLabel = (m: string) => m === 'elite' ? 'E' : m === 'solo' ? 'S' : ''
-  const arrow = (key: SortKey) => sortKey === key ? (sortAsc ? ' ▲' : ' ▼') : ''
+  const arrow = (key: SortKey) => sortKey === key ? <>{' '}<Icon name={sortAsc ? 'chevron-up' : 'chevron-down'} label={sortAsc ? 'ascending' : 'descending'} style={{ verticalAlign: '-0.125em' }} /></> : null
 
   return (
     <>
       <div style={{
         display: 'grid', gridTemplateColumns: cols,
         gap: 'var(--space-2)', padding: '2px var(--space-2)',
-        borderBottom: '1px solid var(--sb-separator, var(--color-border))',
-        flexShrink: 0, color: 'var(--color-text-muted)', fontWeight: 600, ...xs, userSelect: 'none',
+        borderBottom: '1px solid var(--sb-separator, var(--border))',
+        flexShrink: 0, color: 'var(--muted)', fontWeight: 600, ...xs, userSelect: 'none',
       }}>
         <span style={{ cursor: 'pointer', whiteSpace: 'nowrap' }} onClick={() => toggleSort('name')}>Name{arrow('name')}</span>
         <span style={{ cursor: 'pointer', whiteSpace: 'nowrap' }} onClick={() => toggleSort('type')}>Type{arrow('type')}</span>
@@ -84,24 +85,24 @@ export function CreatureCompendiumList({ items, onAdd, addingId, onSelect, onAct
             style={{
               display: 'grid', gridTemplateColumns: cols, height: '100%',
               gap: 'var(--space-2)', alignItems: 'center', padding: '0 var(--space-2)',
-              background: isSelected ? 'var(--color-bg-active, rgba(92,124,250,0.15))' : 'transparent',
+              background: isSelected ? 'var(--active)' : 'transparent',
               cursor: onSelect || onActivate ? 'pointer' : undefined,
               userSelect: onActivate ? 'none' : undefined,
               ...xs,
             }}>
             <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: isSelected ? 600 : 400 }}>
-              {isCustom && <span title="Custom creature" style={{ color: 'var(--color-accent)', marginRight: 3, fontSize: '0.8em' }}>★</span>}
+              {isCustom && <span title="Custom creature" style={{ color: 'var(--accent)', marginRight: 3, fontSize: '0.8em' }}><Icon name="star" label="Custom creature" fill="currentColor" /></span>}
               {item.name}
             </span>
-            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: 'var(--color-text-muted)' }}>{item.type}</span>
-            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: 'var(--color-text-muted)' }}>{item.role}</span>
-            <span>{item.level}{mod && <sup style={{ color: 'var(--color-text-muted)', marginLeft: 1 }}>{mod}</sup>}</span>
+            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: 'var(--muted)' }}>{item.type}</span>
+            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: 'var(--muted)' }}>{item.role}</span>
+            <span>{item.level}{mod && <sup style={{ color: 'var(--muted)', marginLeft: 1 }}>{mod}</sup>}</span>
             {onAdd && (
               <button onClick={(ev) => { ev.stopPropagation(); onAdd(item.id) }} disabled={addingId === item.id}
                 title={addTitle}
                 style={{
-                  padding: '2px 6px', background: 'transparent', border: '1px solid var(--color-border)',
-                  borderRadius: 'var(--radius-sm)', cursor: 'pointer', color: 'var(--color-text-muted)',
+                  padding: '2px 6px', background: 'transparent', border: '1px solid var(--border)',
+                  borderRadius: 'var(--radius-sm)', cursor: 'pointer', color: 'var(--muted)',
                   ...xs, lineHeight: 1,
                 }}>+</button>
             )}

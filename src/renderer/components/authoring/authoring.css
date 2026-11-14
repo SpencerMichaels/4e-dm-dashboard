@@ -68,7 +68,7 @@
 /* Thread: popover beside its anchor, or inline in the rail */
 .annotation-thread { position: absolute; right: 0; top: 24px; width: min(360px, 80vw); max-height: 60vh; overflow: auto; z-index: 20;
   background: var(--background); color: var(--text); border: 1px solid var(--border); border-radius: var(--radius); padding: 8px 10px;
-  box-shadow: 0 6px 24px rgb(0 0 0 / 0.25); font-family: var(--font-ui); font-size: 13px; line-height: 1.45; white-space: normal; }
+  box-shadow: var(--shadow-lg); font-family: var(--font-ui); font-size: 13px; line-height: 1.45; white-space: normal; }
 .annotation-thread.inline { position: static; width: auto; max-height: none; box-shadow: none; border: 0; padding: 0; background: none; }
 .annotation-thread header { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 4px; }
 .annotation-thread article { border-top: 1px solid var(--border); padding: 6px 0; }
@@ -136,7 +136,7 @@
 .rail-menu > summary { list-style: none; padding: 4px 10px; border: 1px solid var(--border); border-radius: var(--radius); height: 100%; box-sizing: border-box; display: flex; align-items: center; }
 .rail-menu > summary::-webkit-details-marker { display: none; }
 .rail-menu-items { position: absolute; right: 0; top: calc(100% + 4px); z-index: 10; min-width: 190px; display: flex; flex-direction: column;
-  background: var(--background); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: 0 4px 16px rgb(0 0 0 / 0.2); padding: 4px; }
+  background: var(--background); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow-md); padding: 4px; }
 .authoring .rail-menu-items button { margin: 0; text-align: left; border: 0; background: none; padding: 6px 8px; }
 .authoring .rail-menu-items button:hover { background: var(--surface); }
 .rail-status { margin: 6px 0 0; color: var(--muted); }
@@ -215,12 +215,10 @@
 .authoring .authoring-toolbar button.authoring-primary { border: 2px solid var(--accent); font-weight: 600; }
 .authoring-tool { margin: 0 0 14px; padding: 10px; border: 1px solid var(--border); border-radius: var(--radius); }
 .authoring .authoring-tool > button { margin: 6px 0 0; }
-.authoring-table { width: 100%; border-collapse: collapse; }
-.authoring-table th { text-align: left; border-bottom: 1px solid var(--border); padding: 0; }
+.authoring-table th { padding: 0; }
 .authoring .authoring-table th button { margin: 0; padding: 6px 8px; border: 0; background: none; font-weight: 600; color: var(--muted); width: 100%; text-align: left; }
-.authoring-table td { padding: 6px 8px; border-bottom: 1px solid var(--border); }
+.authoring-table td { padding: 6px 8px; }
 .authoring-table tbody tr { cursor: pointer; }
-.authoring-table tbody tr:hover { background: var(--surface); }
 .authoring .authoring-table td button.rail-link { color: var(--text); font-weight: 600; }
 .authoring-table td:nth-child(2) { width: 5em; }
 .authoring-table td:nth-child(4) { width: 9em; color: var(--muted); }

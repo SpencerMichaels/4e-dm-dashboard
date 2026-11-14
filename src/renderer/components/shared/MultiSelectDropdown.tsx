@@ -66,15 +66,15 @@ export function MultiSelectDropdown({ options, selected, onChange, placeholder =
           minWidth: 140,
           maxHeight: 240,
           overflowY: 'auto',
-          background: 'var(--color-bg-primary)',
-          border: '1px solid var(--color-border)',
+          background: 'var(--background)',
+          border: '1px solid var(--border)',
           borderRadius: 'var(--radius-sm)',
-          boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
+          boxShadow: 'var(--shadow-md)',
           zIndex: 100,
           padding: 'var(--space-1) 0',
         }}>
           {options.length === 0 && (
-            <div style={{ padding: '4px 10px', color: 'var(--color-text-muted)', fontSize: 'var(--font-size-xs)', fontStyle: 'italic' }}>
+            <div style={{ padding: '4px 10px', color: 'var(--muted)', fontSize: 'var(--font-size-xs)', fontStyle: 'italic' }}>
               No options
             </div>
           )}
@@ -87,10 +87,10 @@ export function MultiSelectDropdown({ options, selected, onChange, placeholder =
                   display: 'flex', alignItems: 'center', gap: 6,
                   padding: '3px 10px', cursor: 'pointer',
                   fontSize: 'var(--font-size-xs)',
-                  background: checked ? 'var(--color-bg-hover)' : 'transparent',
-                  color: 'var(--color-text-primary)',
+                  background: checked ? 'var(--hover)' : 'transparent',
+                  color: 'var(--text)',
                 }}
-                onMouseEnter={e => { if (!checked) e.currentTarget.style.background = 'var(--color-bg-hover)' }}
+                onMouseEnter={e => { if (!checked) e.currentTarget.style.background = 'var(--hover)' }}
                 onMouseLeave={e => { if (!checked) e.currentTarget.style.background = 'transparent' }}
               >
                 <input type="checkbox" checked={checked} onChange={() => toggle(opt)} style={{ cursor: 'pointer' }} />
@@ -100,13 +100,13 @@ export function MultiSelectDropdown({ options, selected, onChange, placeholder =
           })}
           {selected.length > 0 && (
             <div style={{
-              borderTop: '1px solid var(--color-border)',
+              borderTop: '1px solid var(--border)',
               padding: '4px 10px', marginTop: 2,
             }}>
               <button type="button" onClick={() => onChange([])}
                 style={{
                   background: 'transparent', border: 'none', cursor: 'pointer',
-                  color: 'var(--color-text-muted)', fontSize: 'var(--font-size-xs)',
+                  color: 'var(--muted)', fontSize: 'var(--font-size-xs)',
                   padding: 0,
                 }}>
                 Clear

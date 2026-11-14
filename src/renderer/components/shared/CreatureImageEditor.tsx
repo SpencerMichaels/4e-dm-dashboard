@@ -41,7 +41,7 @@ export function CreatureImageEditor({ imageId, tokenImageId, tokenCrop, onImageC
           onClick={handleUpload}
           style={{
             width: '100%', height: '100%', minHeight: 100,
-            background: 'transparent', border: '2px dashed var(--color-border)',
+            background: 'transparent', border: '2px dashed var(--border)',
             borderRadius: 'var(--radius-md)', cursor: 'pointer',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             overflow: 'hidden', position: 'relative',
@@ -56,7 +56,7 @@ export function CreatureImageEditor({ imageId, tokenImageId, tokenCrop, onImageC
               display: 'block',
             }} />
           ) : (
-            <div style={{ textAlign: 'center', padding: 'var(--space-3)', color: 'var(--color-text-muted)', fontSize: 11 }}>
+            <div style={{ textAlign: 'center', padding: 'var(--space-3)', color: 'var(--muted)', fontSize: 11 }}>
               Click to upload image
             </div>
           )}
@@ -69,10 +69,10 @@ export function CreatureImageEditor({ imageId, tokenImageId, tokenCrop, onImageC
               style={{
                 position: 'absolute', bottom: 6, right: 6,
                 width: 48, height: 48, borderRadius: '50%',
-                border: '2px solid var(--color-border)',
+                border: '2px solid var(--border)',
                 overflow: 'hidden', cursor: onTokenChange ? 'pointer' : 'default',
-                background: 'var(--color-bg-surface)',
-                boxShadow: '0 2px 6px rgba(0,0,0,0.4)',
+                background: 'var(--surface-raised)',
+                boxShadow: 'var(--shadow-sm)',
               }}
             >
               <img

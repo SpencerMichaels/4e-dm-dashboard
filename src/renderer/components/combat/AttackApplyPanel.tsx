@@ -3,6 +3,7 @@ import type { CombatState, AppliedCondition } from '@common/types'
 import type { ConditionDef } from '@common/types/system-plugin'
 import type { AttackMode } from './CombatView'
 import styles from './AttackApplyPanel.module.css'
+import { Icon } from '../shared/Icon'
 
 interface Props {
   combat: CombatState
@@ -76,7 +77,7 @@ export function AttackApplyPanel({ combat, attackMode, conditionDefs, onApply, o
       {hitIds.length > 0 && (
         <div className={styles.section}>
           <div className={styles.hitHeader}>
-            ⚔ Hit ({hitIds.length}): {hitIds.map(id => combat.combatants[id]?.name).join(', ')}
+            <Icon name="swords" style={{ verticalAlign: '-0.125em' }} /> Hit ({hitIds.length}): {hitIds.map(id => combat.combatants[id]?.name).join(', ')}
           </div>
           <div className={styles.inputRow}>
             <label className={styles.fieldLabel}>Damage:</label>
@@ -95,7 +96,7 @@ export function AttackApplyPanel({ combat, attackMode, conditionDefs, onApply, o
       {missIds.length > 0 && (
         <div className={styles.section}>
           <div className={styles.missHeader}>
-            ✕ Miss ({missIds.length}): {missIds.map(id => combat.combatants[id]?.name).join(', ')}
+            <Icon name="x" style={{ verticalAlign: '-0.125em' }} /> Miss ({missIds.length}): {missIds.map(id => combat.combatants[id]?.name).join(', ')}
           </div>
           <div className={styles.inputRow}>
             <label className={styles.fieldLabel}>Damage:</label>

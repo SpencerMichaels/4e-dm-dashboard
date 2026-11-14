@@ -20,23 +20,7 @@ export function SettingsModal({ onClose }: Props) {
   const systemDefs: SystemSettingDef[] = systemPlugin?.settings ?? []
 
   return (
-    <Modal onClose={onClose} minWidth={520}>
-      {/* Header */}
-      <div style={{
-        marginBottom: 'var(--space-4)',
-        borderBottom: '1px solid var(--color-border)',
-        paddingBottom: 'var(--space-3)',
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-      }}>
-        <h2 style={{ margin: 0, fontSize: 'var(--font-size-lg)' }}>Settings</h2>
-        <button onClick={onClose}
-          style={{
-            background: 'transparent', border: 'none', cursor: 'pointer',
-            color: 'var(--color-text-muted)', fontSize: 16, lineHeight: 1, padding: 0,
-          }}>×</button>
-      </div>
-
-      {/* Body */}
+    <Modal title="Settings" onClose={onClose} minWidth={520} footer={<button className="btn" onClick={onClose}>Close</button>}>
       <div>
         <SettingsSection title="General">
           <label style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-1)', padding: '4px 0' }}>
@@ -54,7 +38,7 @@ export function SettingsModal({ onClose }: Props) {
         {systemPlugin && (
           <SettingsSection title={systemPlugin.name}>
             {systemDefs.length === 0 ? (
-              <div style={{ color: 'var(--color-text-muted)', fontSize: 'var(--font-size-sm)', fontStyle: 'italic' }}>
+              <div style={{ color: 'var(--muted)', fontSize: 'var(--font-size-sm)', fontStyle: 'italic' }}>
                 This system has no configurable settings.
               </div>
             ) : (
@@ -78,9 +62,9 @@ function SettingsSection({ title, children }: { title: string; children: React.R
       <h3 style={{
         margin: '0 0 var(--space-2)',
         fontSize: 'var(--font-size-xs)', fontWeight: 700,
-        color: 'var(--color-text-muted)',
+        color: 'var(--muted)',
         textTransform: 'uppercase', letterSpacing: '0.05em',
-        borderBottom: '1px solid var(--color-border)',
+        borderBottom: '1px solid var(--border)',
         paddingBottom: 'var(--space-1)',
       }}>{title}</h3>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
@@ -105,7 +89,7 @@ function SystemSettingRow({ def, value, onChange }: {
         <span>
           <div style={{ fontSize: 'var(--font-size-sm)', fontWeight: 500 }}>{def.label}</div>
           {def.description && (
-            <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)', marginTop: 1 }}>
+            <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--muted)', marginTop: 1 }}>
               {def.description}
             </div>
           )}
@@ -118,7 +102,7 @@ function SystemSettingRow({ def, value, onChange }: {
       <label style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-1)', padding: '4px 0' }}>
         <span style={{ fontSize: 'var(--font-size-sm)', fontWeight: 500 }}>{def.label}</span>
         {def.description && (
-          <span style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)' }}>{def.description}</span>
+          <span style={{ fontSize: 'var(--font-size-xs)', color: 'var(--muted)' }}>{def.description}</span>
         )}
         <select value={value as string} onChange={(e) => onChange(e.target.value)}>
           {def.options.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
@@ -131,7 +115,7 @@ function SystemSettingRow({ def, value, onChange }: {
       <label style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-1)', padding: '4px 0' }}>
         <span style={{ fontSize: 'var(--font-size-sm)', fontWeight: 500 }}>{def.label}</span>
         {def.description && (
-          <span style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)' }}>{def.description}</span>
+          <span style={{ fontSize: 'var(--font-size-xs)', color: 'var(--muted)' }}>{def.description}</span>
         )}
         <input type="number" value={value as number}
           onChange={(e) => onChange(Number(e.target.value))} />
@@ -143,7 +127,7 @@ function SystemSettingRow({ def, value, onChange }: {
     <label style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-1)', padding: '4px 0' }}>
       <span style={{ fontSize: 'var(--font-size-sm)', fontWeight: 500 }}>{def.label}</span>
       {def.description && (
-        <span style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)' }}>{def.description}</span>
+        <span style={{ fontSize: 'var(--font-size-xs)', color: 'var(--muted)' }}>{def.description}</span>
       )}
       <input type="text" value={(value as string) ?? ''}
         onChange={(e) => onChange(e.target.value)} />

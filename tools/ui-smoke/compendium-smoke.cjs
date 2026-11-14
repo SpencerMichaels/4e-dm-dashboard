@@ -158,7 +158,7 @@ app.whenReady().then(async () => {
     await until(() => document.querySelector('.compendium-preview')?.innerText.includes('Bite'), 'the published creature preview')
     if (await js(() => !!document.querySelector('.compendium-preview input.sb-name'))) throw new Error('Published creature preview is editable')
     await js(() => document.querySelector('.compendium-preview button[title="Pop out stat block"]').click())
-    await until(() => [...document.querySelectorAll('*')].some(el => el.children.length === 0 && el.textContent.trim() === '📑 Dire Rat'), 'the pop-out')
+    await until(() => [...document.querySelectorAll('svg.lucide-file-text')].some(svg => svg.parentElement.textContent.trim() === 'Dire Rat'), 'the pop-out')
     await js(() => [...document.querySelectorAll('.record-action')].find(b => b.textContent === 'Copy to campaign').click())
     await until(() => !!document.querySelector('.compendium-preview input.sb-name'), 'the creature editor')
     if (!(await js(() => [...document.querySelectorAll('.compendium-preview input')].some(i => i.value === 'Bite')))) throw new Error('The creature editor lacks the powers')

@@ -1,6 +1,7 @@
 import type { Creature, CombatantState } from '@common/types'
 import { combatStatBlock } from './combat-view'
 import { FloatingPanel } from '../shared/FloatingPanel'
+import { Icon } from '../shared/Icon'
 import { Dnd4eCreatureViewer } from '../creature/Dnd4eCreatureViewer'
 import { useGlossary } from '../compendium/use-glossary'
 
@@ -33,7 +34,8 @@ export function PopoutStatblockPanel({ combatant, offsetIndex, onClose }: Props)
 
   return (
     <FloatingPanel
-      title={`📑 ${combatant.name}`}
+      title={<><Icon name="file-text" style={{ verticalAlign: '-0.125em' }} /> {combatant.name}</>}
+      popoutKey={`combat-statblock:${combatant.id}`} popoutPlace="statblock" windowTitle={combatant.name}
       initialX={baseX}
       initialY={baseY}
       width={420}

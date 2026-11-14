@@ -147,7 +147,7 @@ export function Sidebar({ onShowHotkeys, onShowSettings }: SidebarProps) {
 
       {campaignId && (
         <div className={styles.section}>
-          <button className={styles.item} onClick={closeCampaign} style={{ color: 'var(--color-text-muted)' }}>
+          <button className={styles.item} onClick={closeCampaign} style={{ color: 'var(--muted)' }}>
             Close Campaign
           </button>
         </div>

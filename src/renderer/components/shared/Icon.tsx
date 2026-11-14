@@ -1,25 +1,30 @@
-// Lucide icons by name. Names come from shared tables (src/common/rules/power-card.ts) so the app and
-// 4ecb agree on what each action and range shows; only the icons named there are bundled.
+// Lucide icons by name (kebab case, as lucide.dev lists them: "app-window", "flame"). Names also come from
+// shared tables (src/common/rules/power-card.ts, condition and damage-type styles) so the app and 4ecb agree
+// on what each action, range, and condition shows. A desktop app, so the whole icon set is bundled.
 
 import type { LucideIcon, LucideProps } from 'lucide-react'
-import {
-  Bomb, BrickWall, Circle, CircleDashed, CircleDot, Contrast, Dices, Footprints, Minus, MoveUpRight, Pin, PinOff,
-  Redo2, Sun, Sword, Target, TriangleRight, Undo2, User, Zap,
-} from 'lucide-react'
+import { icons } from 'lucide-react'
 import { ACTION_TYPE_ICON, RANGE_KIND_ICON } from '@common/rules/power-card'
 
-const ICONS: Record<string, LucideIcon> = {
-  bomb: Bomb, 'brick-wall': BrickWall, circle: Circle, 'circle-dashed': CircleDashed, 'circle-dot': CircleDot,
-  contrast: Contrast, dices: Dices, footprints: Footprints, minus: Minus, 'move-up-right': MoveUpRight,
-  pin: Pin, 'pin-off': PinOff, 'redo-2': Redo2, sun: Sun, sword: Sword, target: Target,
-  'triangle-right': TriangleRight, 'undo-2': Undo2, user: User, zap: Zap,
-}
+const pascal = (name: string) => name.replace(/(^|-)([a-z0-9])/g, (_, __, c: string) => c.toUpperCase())
+
+/** The Lucide component for a kebab-case name, if there is one. */
+export const lucideIcon = (name: string): LucideIcon | undefined => (icons as Record<string, LucideIcon>)[pascal(name)]
 
 /** An icon by name, sized to the surrounding text; unknown names draw nothing. */
 export function Icon({ name, label, size = '1em', ...rest }: { name: string; label?: string } & Omit<LucideProps, 'ref'>) {
-  const Component = ICONS[name]
+  const Component = lucideIcon(name)
   if (!Component) return null
   return <Component size={size} aria-label={label} aria-hidden={label ? undefined : true} role={label ? 'img' : undefined} strokeWidth={2.25} {...rest} />
+}
+
+/**
+ * An icon that may be a Lucide name or text: condition, mark, and damage-type icons are Lucide names, but a
+ * DM's custom condition can carry any emoji or text, which draws as itself.
+ */
+export function Glyph({ icon, label, size = '1em' }: { icon: string; label?: string; size?: string | number }) {
+  if (lucideIcon(icon)) return <Icon name={icon} label={label} size={size} style={{ verticalAlign: '-0.125em' }} />
+  return <span role={label ? 'img' : undefined} aria-label={label}>{icon}</span>
 }
 
 const ACTION_WORDS: Record<string, string> = {

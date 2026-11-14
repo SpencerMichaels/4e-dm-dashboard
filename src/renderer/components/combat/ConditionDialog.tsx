@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useUiStore } from '../../stores/ui-store'
-import { Modal, modalStyles } from '../shared/Modal'
+import { Modal } from '../shared/Modal'
 import type { AppliedCondition, DurationType } from '@common/types'
 import { generateId } from '@common/utils/id'
 
@@ -46,9 +46,11 @@ export function ConditionDialog({ combatantId, onClose }: Props) {
   }
 
   return (
-    <Modal onClose={onClose} minWidth={350}>
-      <form onSubmit={handleSubmit}>
-        <h3 style={{ marginBottom: 'var(--space-3)' }}>Add Condition</h3>
+    <Modal title="Add Condition" onClose={onClose} minWidth={350} footer={<>
+      <button type="button" onClick={onClose} className="btn">Cancel</button>
+      <button type="submit" form="add-condition" disabled={!canSubmit} className="btn btn-primary">Apply</button>
+    </>}>
+      <form id="add-condition" onSubmit={handleSubmit}>
 
         <select
           value={selectedConditionId}
@@ -66,7 +68,7 @@ export function ConditionDialog({ combatantId, onClose }: Props) {
         {isCustom && (
           <>
             <label style={{ display: 'block', marginBottom: 'var(--space-3)' }}>
-              <span style={{ display: 'block', fontSize: 'var(--font-size-sm)', color: 'var(--color-text-secondary)', marginBottom: 'var(--space-1)' }}>
+              <span style={{ display: 'block', fontSize: 'var(--font-size-sm)', color: 'var(--text-secondary)', marginBottom: 'var(--space-1)' }}>
                 Name
               </span>
               <input
@@ -78,7 +80,7 @@ export function ConditionDialog({ combatantId, onClose }: Props) {
               />
             </label>
             <label style={{ display: 'block', marginBottom: 'var(--space-3)' }}>
-              <span style={{ display: 'block', fontSize: 'var(--font-size-sm)', color: 'var(--color-text-secondary)', marginBottom: 'var(--space-1)' }}>
+              <span style={{ display: 'block', fontSize: 'var(--font-size-sm)', color: 'var(--text-secondary)', marginBottom: 'var(--space-1)' }}>
                 Description (optional)
               </span>
               <input
@@ -93,7 +95,7 @@ export function ConditionDialog({ combatantId, onClose }: Props) {
 
         {selectedDef?.hasValue && (
           <label style={{ display: 'block', marginBottom: 'var(--space-3)' }}>
-            <span style={{ display: 'block', fontSize: 'var(--font-size-sm)', color: 'var(--color-text-secondary)', marginBottom: 'var(--space-1)' }}>
+            <span style={{ display: 'block', fontSize: 'var(--font-size-sm)', color: 'var(--text-secondary)', marginBottom: 'var(--space-1)' }}>
               Value
             </span>
             <input
@@ -108,7 +110,7 @@ export function ConditionDialog({ combatantId, onClose }: Props) {
         )}
 
         <label style={{ display: 'block', marginBottom: 'var(--space-3)' }}>
-          <span style={{ display: 'block', fontSize: 'var(--font-size-sm)', color: 'var(--color-text-secondary)', marginBottom: 'var(--space-1)' }}>
+          <span style={{ display: 'block', fontSize: 'var(--font-size-sm)', color: 'var(--text-secondary)', marginBottom: 'var(--space-1)' }}>
             Duration
           </span>
           <select
@@ -134,17 +136,6 @@ export function ConditionDialog({ combatantId, onClose }: Props) {
             />
           </div>
         )}
-
-        <div style={{ display: 'flex', gap: 'var(--space-2)', justifyContent: 'flex-end' }}>
-          <button type="button" onClick={onClose} className={modalStyles.btnSecondary}>Cancel</button>
-          <button
-            type="submit"
-            disabled={!canSubmit}
-            className={modalStyles.btnPrimary}
-          >
-            Apply
-          </button>
-        </div>
       </form>
     </Modal>
   )

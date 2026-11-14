@@ -39,7 +39,19 @@ export function createDmWindow(): BrowserWindow {
     },
   })
 
-  dmWindow.webContents.setWindowOpenHandler(({ url }) => {
+  dmWindow.webContents.setWindowOpenHandler(({ url, frameName }) => {
+    // Popped-out panels: a blank child window the DM renderer draws into (shared/popout-window.ts).
+    if (url === 'about:blank' && frameName.startsWith('popout:')) {
+      return {
+        action: 'allow',
+        overrideBrowserWindowOptions: {
+          show: !hiddenWindows,
+          autoHideMenuBar: true,
+          backgroundColor: windowBackground(),
+          webPreferences: { backgroundThrottling: !hiddenWindows },
+        },
+      }
+    }
     shell.openExternal(url)
     return { action: 'deny' }
   })

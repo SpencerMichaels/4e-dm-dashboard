@@ -51,7 +51,7 @@ export function TrapStatblock({ trap: t, onChange }: { trap: Trap; onChange?: (n
     </div>
 
     <div className="sb-anchored">
-      {(edit || t.flavor) && <div style={{ padding: '4px 8px', fontStyle: 'italic', color: 'var(--color-text-secondary)', fontSize: 11 }}>
+      {(edit || t.flavor) && <div style={{ padding: '4px 8px', fontStyle: 'italic', color: 'var(--text-secondary)', fontSize: 11 }}>
         <Prose value={t.flavor} placeholder="Flavor text" onChange={set && (v => set('flavor', v))} />
       </div>}
       {(edit || t.description) && <div className="sb-row sb-section"><Prose value={t.description} placeholder="Description" onChange={set && (v => set('description', v))} /></div>}
@@ -121,7 +121,7 @@ export function TrapStatblock({ trap: t, onChange }: { trap: Trap; onChange?: (n
       <div className="sb-row" style={{ paddingLeft: 16 }}><Add onClick={counters.add && (() => counters.add!(blankLine()))}>countermeasure</Add></div>
     </div>}
 
-    {t.sources.length > 0 && <div style={{ padding: '2px 8px', fontSize: 10, color: 'var(--color-text-muted)', fontStyle: 'italic' }}>{sourceText(t)}</div>}
+    {t.sources.length > 0 && <div style={{ padding: '2px 8px', fontSize: 10, color: 'var(--muted)', fontStyle: 'italic' }}>{sourceText(t)}</div>}
   </div>
 }
 

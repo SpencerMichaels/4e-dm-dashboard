@@ -7,6 +7,7 @@ import type { DiseaseIndexEntry, DiseaseRef, PcDisease } from '@common/types'
 import { findDiseaseMentions, type DiseaseName } from '@common/rules/diseases'
 import { useCampaignStore } from '../../stores/campaign-store'
 import { DiseaseStatblock } from './DiseaseStatblock'
+import { Icon } from '../shared/Icon'
 
 export const diseaseKey = (ref: DiseaseRef) => ref.diseaseId ? `disease:${ref.diseaseId}` : `published:${ref.compendiumId}`
 
@@ -61,8 +62,8 @@ export function DiseaseChips({ text }: { text: string }) {
         {found.map(d => (
           <button key={diseaseKey(d.ref)} className="disease-chip" onClick={() => setOpen(open === diseaseKey(d.ref) ? null : diseaseKey(d.ref))}
             aria-expanded={open === diseaseKey(d.ref)} title="Show the disease"
-            style={{ fontSize: 11, padding: '0 6px', borderRadius: 'var(--radius)', border: '1px solid var(--border)', background: 'var(--surface)', color: 'inherit', cursor: 'pointer' }}>
-            🦠 {d.name}
+            style={{ fontSize: 11, padding: '0 6px', borderRadius: 'var(--radius)', border: '1px solid var(--border)', background: 'var(--surface)', color: 'inherit', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 3 }}>
+            <Icon name="biohazard" /> {d.name}
           </button>
         ))}
       </div>

@@ -102,9 +102,9 @@ export function DamageEntryList({ entries, onChange, suggestions, showValue, pla
         flexWrap: 'wrap',
         gap: 4,
         padding: '4px 6px',
-        border: '1px solid var(--color-border)',
+        border: '1px solid var(--border)',
         borderRadius: 'var(--radius-sm)',
-        background: 'var(--color-bg-surface)',
+        background: 'var(--surface-raised)',
         minHeight: 34,
         alignItems: 'center',
         cursor: 'text',
@@ -117,7 +117,7 @@ export function DamageEntryList({ entries, onChange, suggestions, showValue, pla
             alignItems: 'center',
             gap: 4,
             padding: '2px 8px',
-            background: 'var(--color-bg-hover)',
+            background: 'var(--hover)',
             borderRadius: 'var(--radius-sm)',
             fontSize: 'var(--font-size-sm)',
           }}>
@@ -126,7 +126,7 @@ export function DamageEntryList({ entries, onChange, suggestions, showValue, pla
               onClick={(e) => { e.stopPropagation(); removeEntry(i) }}
               style={{
                 background: 'none', border: 'none', cursor: 'pointer',
-                padding: 0, fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)',
+                padding: 0, fontSize: 'var(--font-size-xs)', color: 'var(--muted)',
                 lineHeight: 1,
               }}
             >x</button>
@@ -149,7 +149,7 @@ export function DamageEntryList({ entries, onChange, suggestions, showValue, pla
           />
         ) : (
           <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 'var(--font-size-sm)' }}>
-            <span style={{ color: 'var(--color-text-secondary)' }}>{typeInput}</span>
+            <span style={{ color: 'var(--text-secondary)' }}>{typeInput}</span>
             <input
               ref={valueRef}
               type="number"
@@ -167,9 +167,9 @@ export function DamageEntryList({ entries, onChange, suggestions, showValue, pla
                   onMouseDown={(e) => { e.preventDefault(); commitEntry(typeInput, valueRange.min) }}
                   style={{
                     padding: '1px 4px', fontSize: '10px',
-                    background: 'transparent', border: '1px solid var(--color-border)',
+                    background: 'transparent', border: '1px solid var(--border)',
                     borderRadius: 'var(--radius-sm)', cursor: 'pointer',
-                    color: 'var(--color-accent)',
+                    color: 'var(--accent)',
                   }}
                   title="Low"
                 >{valueRange.min}</button>
@@ -177,9 +177,9 @@ export function DamageEntryList({ entries, onChange, suggestions, showValue, pla
                   onMouseDown={(e) => { e.preventDefault(); commitEntry(typeInput, Math.round((valueRange.min + valueRange.max) / 2)) }}
                   style={{
                     padding: '1px 4px', fontSize: '10px',
-                    background: 'transparent', border: '1px solid var(--color-border)',
+                    background: 'transparent', border: '1px solid var(--border)',
                     borderRadius: 'var(--radius-sm)', cursor: 'pointer',
-                    color: 'var(--color-check)',
+                    color: 'var(--success)',
                   }}
                   title="Mid"
                 >{Math.round((valueRange.min + valueRange.max) / 2)}</button>
@@ -187,9 +187,9 @@ export function DamageEntryList({ entries, onChange, suggestions, showValue, pla
                   onMouseDown={(e) => { e.preventDefault(); commitEntry(typeInput, valueRange.max) }}
                   style={{
                     padding: '1px 4px', fontSize: '10px',
-                    background: 'transparent', border: '1px solid var(--color-border)',
+                    background: 'transparent', border: '1px solid var(--border)',
                     borderRadius: 'var(--radius-sm)', cursor: 'pointer',
-                    color: 'var(--color-hp-low)',
+                    color: 'var(--hp-low)',
                   }}
                   title="High"
                 >{valueRange.max}</button>
@@ -207,8 +207,8 @@ export function DamageEntryList({ entries, onChange, suggestions, showValue, pla
           right: 0,
           maxHeight: 160,
           overflow: 'auto',
-          background: 'var(--color-bg-primary)',
-          border: '1px solid var(--color-border)',
+          background: 'var(--background)',
+          border: '1px solid var(--border)',
           borderRadius: 'var(--radius-sm)',
           marginTop: 2,
           zIndex: 50,
@@ -220,9 +220,9 @@ export function DamageEntryList({ entries, onChange, suggestions, showValue, pla
               style={{
                 display: 'block', width: '100%', textAlign: 'left',
                 padding: '4px 10px',
-                background: i === highlightIndex ? 'var(--color-bg-hover)' : 'transparent',
+                background: i === highlightIndex ? 'var(--hover)' : 'transparent',
                 border: 'none', cursor: 'pointer',
-                color: 'var(--color-text-primary)', fontSize: 'var(--font-size-sm)',
+                color: 'var(--text)', fontSize: 'var(--font-size-sm)',
               }}
             >
               {s}

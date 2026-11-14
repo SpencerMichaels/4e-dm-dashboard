@@ -94,19 +94,14 @@ export function EntityList({ entityType }: Props) {
         <h1 style={{ fontSize: 'var(--font-size-2xl)' }}>{labels[entityType] ?? entityType}</h1>
         <button
           onClick={handleCreate}
-          style={{
-            padding: 'var(--space-2) var(--space-4)',
-            background: 'var(--color-accent)',
-            color: 'var(--color-accent-text)',
-            borderRadius: 'var(--radius-sm)',
-          }}
+          className="btn btn-primary"
         >
           + New
         </button>
       </div>
 
       {entities.length === 0 ? (
-        <p style={{ color: 'var(--color-text-muted)' }}>No {labels[entityType]?.toLowerCase()} yet.</p>
+        <p style={{ color: 'var(--muted)' }}>No {labels[entityType]?.toLowerCase()} yet.</p>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
           {entities.map((e) => (
@@ -115,8 +110,8 @@ export function EntityList({ entityType }: Props) {
               style={{
                 display: 'flex',
                 alignItems: 'center',
-                background: 'var(--color-bg-surface)',
-                border: '1px solid var(--color-border)',
+                background: 'var(--surface-raised)',
+                border: '1px solid var(--border)',
                 borderRadius: 'var(--radius-sm)',
               }}
             >
@@ -144,7 +139,7 @@ export function EntityList({ entityType }: Props) {
                   background: 'transparent',
                   border: 'none',
                   cursor: 'pointer',
-                  color: 'var(--color-text-muted)',
+                  color: 'var(--muted)',
                   fontSize: 'var(--font-size-sm)',
                 }}
               >

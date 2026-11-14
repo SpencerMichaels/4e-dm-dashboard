@@ -6,7 +6,9 @@ import { useImage } from '@renderer/hooks/use-image'
 import { useHotkeys } from '@renderer/hooks/use-hotkeys'
 import { useCompendium } from '../compendium/use-compendium'
 import { useGlossary } from '../compendium/use-glossary'
-import { XP_BY_LEVEL, xpForCreature, encounterBudget, encounterLevel, encounterDifficulty, ENCOUNTER_TEMPLATES, type EncounterTemplate } from '../creature/dnd4e-utils'
+import { XP_BY_LEVEL, xpForCreature, encounterBudget, encounterLevel, encounterDifficulty, ENCOUNTER_TEMPLATES, type EncounterTemplate, DIFFICULTY_COLORS, THEME_COLOR, LEVEL_ADJUST_COLOR, templateColor } from '../creature/dnd4e-utils'
+import { Icon } from '../shared/Icon'
+import { withAlpha } from '../../utils/color'
 import type { MonsterTemplate } from '../creature/monster-templates'
 import { parseSkillModifications, type MonsterTheme, type ThemePower } from '../creature/monster-themes'
 import { findByRef, useTemplateCatalog } from '../creature/template-catalog'
@@ -448,7 +450,7 @@ export function Dnd4eEncounterEditor({ encounter, onSave, creatures, onNavigate 
           <DifficultyBar totalXP={totalXP} partySize={partySize!} partyLevel={partyLevel!}
             difficulty={difficulty} targetXP={targetXP} targetDelta={targetDelta} onSetTarget={setTargetDelta} />
         ) : (
-          <div style={{ padding: '8px', color: 'var(--color-text-muted)', fontSize: 11, fontStyle: 'italic' }}>
+          <div style={{ padding: '8px', color: 'var(--muted)', fontSize: 11, fontStyle: 'italic' }}>
             Set party size and level to see difficulty.
           </div>
         )}
@@ -462,7 +464,7 @@ export function Dnd4eEncounterEditor({ encounter, onSave, creatures, onNavigate 
           </select>
           <span style={{ fontWeight: 600, fontSize: 'var(--font-size-xs)', whiteSpace: 'nowrap' }}>
             {totalXP.toLocaleString()}
-            {targetXP != null && <span style={{ color: 'var(--color-text-muted)', fontWeight: 400 }}> / {targetXP.toLocaleString()}</span>}
+            {targetXP != null && <span style={{ color: 'var(--muted)', fontWeight: 400 }}> / {targetXP.toLocaleString()}</span>}
             {' '}XP
           </span>
         </div>
@@ -484,15 +486,15 @@ export function Dnd4eEncounterEditor({ encounter, onSave, creatures, onNavigate 
                     position: 'relative', overflow: 'hidden',
                     padding: '2px 8px', borderRadius: 'var(--radius-sm)', cursor: 'pointer',
                     fontSize: 'var(--font-size-xs)', fontWeight: 600,
-                    background: 'var(--color-bg-hover)',
-                    color: done ? 'var(--color-text-primary)' : 'var(--color-text-primary)',
-                    border: '1px solid var(--color-border)',
+                    background: 'var(--hover)',
+                    color: done ? 'var(--text)' : 'var(--text)',
+                    border: '1px solid var(--border)',
                   }}>
                   {/* Progress fill */}
                   <div style={{
                     position: 'absolute', left: 0, top: 0, bottom: 0,
                     width: `${fraction * 100}%`,
-                    background: done ? 'var(--color-accent)' : 'rgba(92, 124, 250, 0.25)',
+                    background: done ? 'var(--accent)' : withAlpha('var(--accent)', 0.25),
                     transition: 'width 0.2s',
                   }} />
                   <span style={{ position: 'relative' }}>
@@ -510,8 +512,8 @@ export function Dnd4eEncounterEditor({ encounter, onSave, creatures, onNavigate 
             display: 'grid', gridTemplateColumns: '1fr 24px 70px 50px 28px 50px 70px',
             gap: 'var(--space-2)', padding: '2px var(--space-2)',
             borderTop: '1px solid var(--sb-separator)',
-            borderBottom: '1px solid var(--sb-separator, var(--color-border))',
-            flexShrink: 0, color: 'var(--color-text-muted)', fontWeight: 600,
+            borderBottom: '1px solid var(--sb-separator, var(--border))',
+            flexShrink: 0, color: 'var(--muted)', fontWeight: 600,
             fontSize: 'var(--font-size-xs)', userSelect: 'none',
           }}>
             <span>Name</span>
@@ -527,7 +529,7 @@ export function Dnd4eEncounterEditor({ encounter, onSave, creatures, onNavigate 
         {/* Creature list */}
         <div className="striped-rows" style={{ borderTop: encounter.creatures.length === 0 ? '1px solid var(--sb-separator)' : 'none', flex: 1, overflowX: 'hidden', overflowY: 'auto', minHeight: 0 }}>
           {encounter.creatures.length === 0 ? (
-            <div className="sb-row" style={{ color: 'var(--color-text-muted)', fontStyle: 'italic' }}>
+            <div className="sb-row" style={{ color: 'var(--muted)', fontStyle: 'italic' }}>
               Add creatures from the compendium →
             </div>
           ) : (
@@ -576,12 +578,12 @@ export function Dnd4eEncounterEditor({ encounter, onSave, creatures, onNavigate 
               const isRowSelected = selectedRowKey === key
               const ENC_ROW_COLS = 'minmax(0, 1fr) 40px 60px 46px 28px 46px auto'
               const xsStyle = { fontSize: 'var(--font-size-xs)' }
-              const mutedCell: React.CSSProperties = { ...xsStyle, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: 'var(--color-text-muted)' }
+              const mutedCell: React.CSSProperties = { ...xsStyle, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: 'var(--muted)' }
               return (
                 <div key={key}
                   onClick={() => selectRow(key)}
                   style={{
-                    background: isRowSelected ? 'var(--color-bg-active, rgba(92,124,250,0.15))' : undefined,
+                    background: isRowSelected ? 'var(--active)' : undefined,
                     cursor: 'pointer', userSelect: 'none',
                   }}
                 >
@@ -593,7 +595,7 @@ export function Dnd4eEncounterEditor({ encounter, onSave, creatures, onNavigate 
                   }}>
                     <span style={{ ...xsStyle, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: isRowSelected ? 600 : 400, minWidth: 0 }}
                       onDoubleClick={(e) => { e.stopPropagation(); setRenamingKey(key); setRenameValue(ec.overrideName || info.name) }}>
-                      {outOfRange && <span title={`${levelDelta} levels from party — DMG recommends ±4`} style={{ color: 'var(--color-danger)', marginRight: 2 }}>⚠</span>}
+                      {outOfRange && <span title={`${levelDelta} levels from party — DMG recommends ±4`} style={{ color: 'var(--danger)', marginRight: 2, display: 'inline-flex', verticalAlign: '-0.125em' }}><Icon name="triangle-exclamation-point" /></span>}
                       {renamingKey === key ? (
                         <input
                           autoFocus
@@ -605,10 +607,10 @@ export function Dnd4eEncounterEditor({ encounter, onSave, creatures, onNavigate 
                             if (e.key === 'Escape') setRenamingKey(null)
                           }}
                           onClick={e => e.stopPropagation()}
-                          style={{ width: '100%', ...xsStyle, padding: '0 2px', border: '1px solid var(--color-border)', borderRadius: 2, background: 'var(--color-bg-primary)', color: 'var(--color-text-primary)' }}
+                          style={{ width: '100%', ...xsStyle, padding: '0 2px', border: '1px solid var(--border)', borderRadius: 2, background: 'var(--background)', color: 'var(--text)' }}
                         />
                       ) : (
-                        <span title="Double-click to rename" style={{ color: ec.overrideName ? '#0d9488' : undefined }}>
+                        <span title="Double-click to rename" style={{ color: ec.overrideName ? 'var(--accent)' : undefined }}>
                           {info.name}
                         </span>
                       )}
@@ -616,17 +618,17 @@ export function Dnd4eEncounterEditor({ encounter, onSave, creatures, onNavigate 
                     <span style={{ ...mutedCell, display: 'inline-flex', alignItems: 'center', gap: 1 }}
                       onClick={e => e.stopPropagation()}>
                       <button onClick={() => setLevelAdjust(key, Math.max(-5, (ec.levelAdjust ?? 0) - 1))}
-                        disabled={(ec.levelAdjust ?? 0) <= -5}
-                        style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, fontSize: 8, color: 'var(--color-text-muted)', lineHeight: 1, opacity: (ec.levelAdjust ?? 0) <= -5 ? 0.3 : 1 }}>
-                        ▼</button>
+                        disabled={(ec.levelAdjust ?? 0) <= -5} title="Lower level" aria-label="Lower level"
+                        style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, display: 'inline-flex', color: 'var(--muted)', lineHeight: 1, opacity: (ec.levelAdjust ?? 0) <= -5 ? 0.3 : 1 }}>
+                        <Icon name="chevron-down" size={10} /></button>
                       <span title={ec.levelAdjust ? `Base level ${level - (ec.levelAdjust ?? 0)}, adjusted ${ec.levelAdjust > 0 ? '+' : ''}${ec.levelAdjust}` : undefined}
-                        style={{ color: ec.levelAdjust ? '#c47a1a' : undefined, fontWeight: ec.levelAdjust ? 600 : undefined, minWidth: 14, textAlign: 'center' }}>
+                        style={{ color: ec.levelAdjust ? LEVEL_ADJUST_COLOR : undefined, fontWeight: ec.levelAdjust ? 600 : undefined, minWidth: 14, textAlign: 'center' }}>
                         {level}
                       </span>
                       <button onClick={() => setLevelAdjust(key, Math.min(5, (ec.levelAdjust ?? 0) + 1))}
-                        disabled={(ec.levelAdjust ?? 0) >= 5}
-                        style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, fontSize: 8, color: 'var(--color-text-muted)', lineHeight: 1, opacity: (ec.levelAdjust ?? 0) >= 5 ? 0.3 : 1 }}>
-                        ▲</button>
+                        disabled={(ec.levelAdjust ?? 0) >= 5} title="Raise level" aria-label="Raise level"
+                        style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, display: 'inline-flex', color: 'var(--muted)', lineHeight: 1, opacity: (ec.levelAdjust ?? 0) >= 5 ? 0.3 : 1 }}>
+                        <Icon name="chevron-up" size={10} /></button>
                     </span>
                     <span style={mutedCell}>{effectiveRole}{modLbl}</span>
                     <span style={mutedCell}>{creatureXP.toLocaleString()}</span>
@@ -635,7 +637,7 @@ export function Dnd4eEncounterEditor({ encounter, onSave, creatures, onNavigate 
                         onChange={v => updateCount(key, v ?? 1)}
                         style={{ width: 24, textAlign: 'left', ...xsStyle }} />
                     </span>
-                    <span style={{ ...xsStyle, color: 'var(--color-text-secondary)', fontWeight: 600 }}>
+                    <span style={{ ...xsStyle, color: 'var(--text-secondary)', fontWeight: 600 }}>
                       {(creatureXP * ec.count).toLocaleString()}
                     </span>
                     <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}
@@ -647,9 +649,9 @@ export function Dnd4eEncounterEditor({ encounter, onSave, creatures, onNavigate 
                           style={{
                             padding: '0 5px', borderRadius: 'var(--radius-sm)',
                             ...xsStyle, fontWeight: 600, cursor: 'pointer',
-                            background: isMinion ? 'var(--color-accent)' : 'var(--color-bg-hover)',
-                            color: isMinion ? 'var(--color-accent-text)' : 'var(--color-text-muted)',
-                            border: '1px solid var(--color-border)', lineHeight: 1.2,
+                            background: isMinion ? 'var(--accent)' : 'var(--hover)',
+                            color: isMinion ? 'var(--on-fill)' : 'var(--muted)',
+                            border: '1px solid var(--border)', lineHeight: 1.2,
                           }}
                         >M</button>
                       )}
@@ -667,9 +669,9 @@ export function Dnd4eEncounterEditor({ encounter, onSave, creatures, onNavigate 
                           padding: '0 5px', borderRadius: 'var(--radius-sm)',
                           ...xsStyle, fontWeight: 600,
                           cursor: templateBtnDisabled ? 'not-allowed' : 'pointer',
-                          background: inTemplateMode ? 'var(--color-accent)' : 'var(--color-bg-hover)',
-                          color: inTemplateMode ? 'var(--color-accent-text)' : 'var(--color-text-muted)',
-                          border: '1px solid var(--color-border)',
+                          background: inTemplateMode ? 'var(--accent)' : 'var(--hover)',
+                          color: inTemplateMode ? 'var(--on-fill)' : 'var(--muted)',
+                          border: '1px solid var(--border)',
                           opacity: templateBtnDisabled ? 0.4 : 1, lineHeight: 1.2,
                         }}
                       >T</button>
@@ -683,14 +685,14 @@ export function Dnd4eEncounterEditor({ encounter, onSave, creatures, onNavigate 
                           padding: '0 5px', borderRadius: 'var(--radius-sm)',
                           ...xsStyle, fontWeight: 600,
                           cursor: 'pointer',
-                          background: themePickerKey === key ? '#0d9488' : ec.monsterTheme ? '#0d948840' : 'var(--color-bg-hover)',
-                          color: themePickerKey === key ? 'var(--color-text-on-dark)' : ec.monsterTheme ? '#0d9488' : 'var(--color-text-muted)',
-                          border: '1px solid var(--color-border)', lineHeight: 1.2,
+                          background: themePickerKey === key ? THEME_COLOR : ec.monsterTheme ? withAlpha(THEME_COLOR, 0.25) : 'var(--hover)',
+                          color: themePickerKey === key ? 'var(--on-fill)' : ec.monsterTheme ? THEME_COLOR : 'var(--muted)',
+                          border: '1px solid var(--border)', lineHeight: 1.2,
                         }}
                       >Th</button>
                       <button onClick={() => removeCreature(key)}
-                        title="Remove from encounter"
-                        style={{ color: 'var(--color-text-muted)', padding: '0 4px', lineHeight: 1, cursor: 'pointer', background: 'transparent', border: 'none' }}>×</button>
+                        title="Remove from encounter" aria-label="Remove from encounter"
+                        style={{ color: 'var(--muted)', padding: '0 4px', lineHeight: 1, cursor: 'pointer', background: 'transparent', border: 'none', display: 'inline-flex' }}><Icon name="x" /></button>
                     </span>
                   </div>
                   {/* Template + theme chips */}
@@ -701,22 +703,22 @@ export function Dnd4eEncounterEditor({ encounter, onSave, creatures, onNavigate 
                       <span key={tName} style={{
                         display: 'inline-flex', alignItems: 'center', gap: 2,
                         padding: '0 5px', borderRadius: 'var(--radius-sm)',
-                        background: 'var(--color-bg-hover)', color: 'var(--color-text-secondary)',
+                        background: withAlpha(templateColor(ti), 0.19), color: templateColor(ti),
                       }}>
                         {tName}
-                        <button onClick={() => removeMonsterTemplate(key, ti)}
-                          style={{ color: 'var(--color-text-muted)', padding: 0, lineHeight: 1, cursor: 'pointer', fontSize: '0.9em', background: 'transparent', border: 'none' }}>×</button>
+                        <button onClick={() => removeMonsterTemplate(key, ti)} title={`Remove ${tName}`} aria-label={`Remove ${tName}`}
+                          style={{ color: 'inherit', padding: 0, lineHeight: 1, cursor: 'pointer', fontSize: '0.9em', background: 'transparent', border: 'none', display: 'inline-flex' }}><Icon name="x" /></button>
                       </span>
                     ))}
                     {ec.monsterTheme && (
                       <span style={{
                         display: 'inline-flex', alignItems: 'center', gap: 2,
                         padding: '0 5px', borderRadius: 'var(--radius-sm)',
-                        background: '#0d948830', color: '#0d9488',
+                        background: withAlpha(THEME_COLOR, 0.19), color: THEME_COLOR,
                       }}>
                         {ec.monsterTheme.name}
-                        <button onClick={() => setTheme(key, undefined)}
-                          style={{ color: '#0d9488', padding: 0, lineHeight: 1, cursor: 'pointer', fontSize: '0.9em', background: 'transparent', border: 'none' }}>×</button>
+                        <button onClick={() => setTheme(key, undefined)} title="Remove theme" aria-label="Remove theme"
+                          style={{ color: 'inherit', padding: 0, lineHeight: 1, cursor: 'pointer', fontSize: '0.9em', background: 'transparent', border: 'none', display: 'inline-flex' }}><Icon name="x" /></button>
                       </span>
                     )}
                   </div>
@@ -756,16 +758,9 @@ export function Dnd4eEncounterEditor({ encounter, onSave, creatures, onNavigate 
           <span style={{ flex: 1 }} />
           {(encounter.creatures.length > 0 || allTraps.length > 0) && (
             <button onClick={startCombat}
-              title="Start combat with this encounter"
-              style={{
-                padding: '3px 12px',
-                background: 'var(--color-bg-active)',
-                color: 'var(--color-text-primary)',
-                borderRadius: 'var(--radius-sm)', fontWeight: 600, cursor: 'pointer',
-                border: '1px solid var(--color-border)',
-                fontSize: 'var(--font-size-xs)',
-              }}>
-              Start Combat ▶
+              title="Start combat with this encounter" className="btn btn-primary"
+              style={{ padding: '3px 12px', fontSize: 'var(--font-size-xs)' }}>
+              Start Combat <Icon name="play" style={{ verticalAlign: '-0.125em' }} />
             </button>
           )}
         </div>
@@ -806,7 +801,7 @@ export function Dnd4eEncounterEditor({ encounter, onSave, creatures, onNavigate 
             const current = (previewTemplate ? hoverPreview : undefined) ?? rowPreviews[templateModeKey]
             if (!targetEc || !current) {
               return (
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: 'var(--color-text-muted)', fontStyle: 'italic', padding: 'var(--space-4)', textAlign: 'center' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: 'var(--muted)', fontStyle: 'italic', padding: 'var(--space-4)', textAlign: 'center' }}>
                   Loading creature data…
                 </div>
               )
@@ -900,7 +895,7 @@ export function Dnd4eEncounterEditor({ encounter, onSave, creatures, onNavigate 
             )
           }
           return (
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: 'var(--color-text-muted)', fontStyle: 'italic', padding: 'var(--space-4)', textAlign: 'center' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: 'var(--muted)', fontStyle: 'italic', padding: 'var(--space-4)', textAlign: 'center' }}>
               Click a creature in the search or encounter list to preview.<br/>Double-click in search to add. Press Delete on a selected encounter row to remove.
             </div>
           )
@@ -916,7 +911,8 @@ export function Dnd4eEncounterEditor({ encounter, onSave, creatures, onNavigate 
       {poppedOut.map((p, i) => (
         <FloatingPanel
           key={p.id}
-          title={`📑 ${p.creature.name}`}
+          title={<><Icon name="file-text" style={{ verticalAlign: '-0.125em' }} /> {p.creature.name}</>}
+          popoutKey={`encounter-statblock:${p.id}`} popoutPlace="statblock" windowTitle={p.creature.name}
           initialX={120 + i * 30}
           initialY={80 + i * 30}
           width={420}
@@ -934,61 +930,12 @@ export function Dnd4eEncounterEditor({ encounter, onSave, creatures, onNavigate 
 // ─── Draggable Template Window ───
 
 function DraggableTemplateWindow({ template, onClose }: { template: MonsterTemplate; onClose: () => void }) {
-  const [pos, setPos] = useState({ x: window.innerWidth - 460, y: 80 })
-  const [dragging, setDragging] = useState(false)
-  const dragOffset = useRef({ x: 0, y: 0 })
-
-  const onMouseDown = useCallback((e: React.MouseEvent) => {
-    setDragging(true)
-    dragOffset.current = { x: e.clientX - pos.x, y: e.clientY - pos.y }
-  }, [pos])
-
-  useEffect(() => {
-    if (!dragging) return
-    const onMove = (e: MouseEvent) => setPos({ x: e.clientX - dragOffset.current.x, y: e.clientY - dragOffset.current.y })
-    const onUp = () => setDragging(false)
-    window.addEventListener('mousemove', onMove)
-    window.addEventListener('mouseup', onUp)
-    return () => {
-      window.removeEventListener('mousemove', onMove)
-      window.removeEventListener('mouseup', onUp)
-    }
-  }, [dragging])
-
   return (
-    <div style={{
-      position: 'fixed',
-      left: pos.x, top: pos.y,
-      zIndex: 1000,
-      width: 420, maxHeight: '85vh', overflow: 'hidden',
-      background: 'var(--color-bg-primary)',
-      border: '1px solid var(--color-border)',
-      borderRadius: 'var(--radius-md)',
-      boxShadow: '0 6px 24px rgba(0,0,0,0.4)',
-      display: 'flex', flexDirection: 'column',
-    }}>
-      <div onMouseDown={onMouseDown}
-        style={{
-          padding: '4px 8px',
-          background: 'var(--color-bg-surface)',
-          borderBottom: '1px solid var(--color-border)',
-          cursor: dragging ? 'grabbing' : 'grab',
-          fontSize: 11, fontWeight: 600, color: 'var(--color-text-muted)',
-          textTransform: 'uppercase', letterSpacing: '0.05em',
-          userSelect: 'none',
-          display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-        }}>
-        <span>📄 Template — {template.name}</span>
-        <button onClick={onClose} title="Close"
-          style={{
-            background: 'transparent', border: 'none', color: 'var(--color-text-muted)',
-            cursor: 'pointer', fontSize: 14, lineHeight: 1, padding: 0,
-          }}>×</button>
-      </div>
-      <div style={{ overflow: 'auto', padding: 'var(--space-2)' }}>
-        <TemplateViewer template={template} />
-      </div>
-    </div>
+    <FloatingPanel title={`Template — ${template.name}`} initialX={window.innerWidth - 460} initialY={80} width={420} maxHeight="85vh"
+      onClose={onClose} popoutKey={`template:${template.name}`} popoutPlace="statblock" windowTitle={`${template.name} (template)`}
+      bodyStyle={{ padding: 'var(--space-2)' }}>
+      <TemplateViewer template={template} />
+    </FloatingPanel>
   )
 }
 
@@ -1036,7 +983,7 @@ function TemplatePanel({ eligible, appliedNames, previewTemplateName, onSelect, 
       <div className="sb-header" style={{ flexShrink: 0, marginBottom: 0, gap: 6 }}>
         <button onClick={onExit} className="ghost"
           title="Back to creature search"
-          style={{ color: 'inherit', font: 'inherit' }}>← creatures</button>
+          style={{ color: 'inherit', font: 'inherit' }}><Icon name="arrow-left" style={{ verticalAlign: '-0.125em' }} /> creatures</button>
         <input className="ghost sb-name" value={search}
           onChange={e => setSearch(e.target.value)}
           placeholder="Search templates..."
@@ -1060,8 +1007,8 @@ function TemplatePanel({ eligible, appliedNames, previewTemplateName, onSelect, 
       <div style={{
         display: 'grid', gridTemplateColumns: GRID_COLS,
         gap: 'var(--space-2)', padding: '2px var(--space-2)',
-        borderBottom: '1px solid var(--sb-separator, var(--color-border))',
-        flexShrink: 0, color: 'var(--color-text-muted)', fontWeight: 600, ...xs, userSelect: 'none',
+        borderBottom: '1px solid var(--sb-separator, var(--border))',
+        flexShrink: 0, color: 'var(--muted)', fontWeight: 600, ...xs, userSelect: 'none',
       }}>
         <span>Name</span>
         <span>Source</span>
@@ -1080,23 +1027,23 @@ function TemplatePanel({ eligible, appliedNames, previewTemplateName, onSelect, 
             style={{
               display: 'grid', gridTemplateColumns: GRID_COLS, height: '100%',
               gap: 'var(--space-2)', alignItems: 'center', padding: '0 var(--space-2)',
-              background: isSelected ? 'var(--color-bg-active, rgba(92,124,250,0.15))' : 'transparent',
+              background: isSelected ? 'var(--active)' : 'transparent',
               cursor: 'pointer', userSelect: 'none', ...xs,
             }}
           >
             <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: isSelected ? 600 : 400 }}>
               {t.name}
-              {t.leader && <span title="Leader" style={{ color: 'var(--color-accent)', marginLeft: 3 }}>L</span>}
+              {t.leader && <span title="Leader" style={{ color: 'var(--accent)', marginLeft: 3 }}>L</span>}
             </span>
-            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: 'var(--color-text-muted)' }}>{t.source}</span>
-            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: 'var(--color-text-muted)' }}>{t.role}</span>
-            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: 'var(--color-text-muted)' }}>{t.prerequisite}</span>
+            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: 'var(--muted)' }}>{t.source}</span>
+            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: 'var(--muted)' }}>{t.role}</span>
+            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: 'var(--muted)' }}>{t.prerequisite}</span>
           </div>
         )
       }} />
 
       {/* Status */}
-      <div style={{ color: 'var(--color-text-muted)', padding: 'var(--space-2)', flexShrink: 0, fontSize: 'var(--font-size-xs)', display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+      <div style={{ color: 'var(--muted)', padding: 'var(--space-2)', flexShrink: 0, fontSize: 'var(--font-size-xs)', display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
         <span>{filtered.length.toLocaleString()} of {total.toLocaleString()}</span>
         {previewTemplateName && (
           <button onClick={() => onShowInfo(findByRef(templates, previewTemplateName ?? undefined)!)}
@@ -1113,17 +1060,17 @@ function TemplatePanel({ eligible, appliedNames, previewTemplateName, onSelect, 
 
 // Each level cell in the bar: delta from party level, which difficulty zone it belongs to
 const LEVEL_CELLS: { delta: number; label: string; color: string }[] = [
-  { delta: -4, label: 'Trivial', color: '#888' },
-  { delta: -3, label: 'Trivial', color: '#888' },
-  { delta: -2, label: 'Easy', color: '#4a7a5a' },
-  { delta: -1, label: 'Easy', color: '#4a7a5a' },
-  { delta: 0, label: 'Standard', color: '#4a6a8a' },
-  { delta: 1, label: 'Standard', color: '#4a6a8a' },
-  { delta: 2, label: 'Hard', color: '#b8860b' },
-  { delta: 3, label: 'Hard', color: '#b8860b' },
-  { delta: 4, label: 'Hard', color: '#b8860b' },
-  { delta: 5, label: 'Deadly', color: '#7b241c' },
-  { delta: 6, label: 'Deadly', color: '#7b241c' },
+  { delta: -4, label: 'Trivial', color: DIFFICULTY_COLORS.Trivial },
+  { delta: -3, label: 'Trivial', color: DIFFICULTY_COLORS.Trivial },
+  { delta: -2, label: 'Easy', color: DIFFICULTY_COLORS.Easy },
+  { delta: -1, label: 'Easy', color: DIFFICULTY_COLORS.Easy },
+  { delta: 0, label: 'Standard', color: DIFFICULTY_COLORS.Standard },
+  { delta: 1, label: 'Standard', color: DIFFICULTY_COLORS.Standard },
+  { delta: 2, label: 'Hard', color: DIFFICULTY_COLORS.Hard },
+  { delta: 3, label: 'Hard', color: DIFFICULTY_COLORS.Hard },
+  { delta: 4, label: 'Hard', color: DIFFICULTY_COLORS.Hard },
+  { delta: 5, label: 'Deadly', color: DIFFICULTY_COLORS.Deadly },
+  { delta: 6, label: 'Deadly', color: DIFFICULTY_COLORS.Deadly },
 ]
 
 function BackgroundImagePicker({ imageId, onChange }: { imageId?: string; onChange: (id: string | undefined) => void }) {
@@ -1142,30 +1089,30 @@ function BackgroundImagePicker({ imageId, onChange }: { imageId?: string; onChan
           : 'Set a background image for the player display'}
         style={{
           padding: '3px 12px', borderRadius: 'var(--radius-sm)',
-          border: '1px solid var(--color-border)',
-          background: imageId ? 'var(--color-bg-active)' : 'transparent',
-          color: imageId ? 'var(--color-text-primary)' : 'var(--color-text-muted)',
+          border: '1px solid var(--border)',
+          background: imageId ? 'var(--active)' : 'transparent',
+          color: imageId ? 'var(--text)' : 'var(--muted)',
           fontWeight: 600, fontSize: 'var(--font-size-xs)',
           cursor: 'pointer', lineHeight: 1.2,
           display: 'inline-flex', alignItems: 'center', gap: 4,
         }}
       >
-        🖼 {imageId ? 'Background' : 'Add background'}
+        <Icon name="image" /> {imageId ? 'Background' : 'Add background'}
       </button>
       {imageUrl && (
         <span style={{ position: 'relative', display: 'inline-flex' }}>
           <img src={imageUrl} alt=""
             title="Player-screen background preview"
-            style={{ width: 28, height: 18, objectFit: 'cover', borderRadius: 2, border: '1px solid var(--color-border)', display: 'block' }} />
+            style={{ width: 28, height: 18, objectFit: 'cover', borderRadius: 2, border: '1px solid var(--border)', display: 'block' }} />
         </span>
       )}
       {imageId && (
         <button onClick={() => onChange(undefined)}
-          title="Clear background image"
+          title="Clear background image" aria-label="Clear background image"
           style={{
-            background: 'transparent', border: 'none', color: 'var(--color-text-muted)',
-            cursor: 'pointer', fontSize: 'var(--font-size-xs)', padding: 0, lineHeight: 1,
-          }}>×</button>
+            background: 'transparent', border: 'none', color: 'var(--muted)',
+            cursor: 'pointer', fontSize: 'var(--font-size-xs)', padding: 0, lineHeight: 1, display: 'inline-flex',
+          }}><Icon name="x" /></button>
       )}
     </span>
   )
@@ -1231,9 +1178,9 @@ function DifficultyBar({ totalXP, partySize, partyLevel, difficulty, targetXP, t
               style={{
                 flex: 1, background: cell.color, display: 'flex',
                 alignItems: 'center', justifyContent: 'center',
-                fontSize: 8, color: 'rgba(255,255,255,0.8)', cursor: 'pointer',
-                borderRight: '1px solid rgba(0,0,0,0.15)',
-                outline: isTarget ? '2px solid #fff' : 'none',
+                fontSize: 8, color: withAlpha('var(--on-fill)', 0.8), cursor: 'pointer',
+                borderRight: `1px solid ${withAlpha('var(--text)', 0.15)}`,
+                outline: isTarget ? '2px solid var(--on-fill)' : 'none',
                 outlineOffset: -2,
                 zIndex: isTarget ? 1 : 0,
               }}>
@@ -1245,7 +1192,7 @@ function DifficultyBar({ totalXP, partySize, partyLevel, difficulty, targetXP, t
         {targetPos != null && (
           <div style={{
             position: 'absolute', left: `${targetPos}%`, top: 0, bottom: 0,
-            width: 2, background: '#fff', opacity: 0.8,
+            width: 2, background: 'var(--on-fill)', opacity: 0.8,
             transform: 'translateX(-1px)', pointerEvents: 'none',
           }} />
         )}
@@ -1317,15 +1264,15 @@ function ThemePicker({ currentTheme, onApply, onRemove, onClose, onPreview }: {
   return (
     <div style={{
       padding: 'var(--space-2) var(--space-3)',
-      background: 'var(--color-bg-surface)',
-      borderTop: '1px solid #0d948844',
+      background: 'var(--surface-raised)',
+      borderTop: `1px solid ${withAlpha(THEME_COLOR, 0.27)}`,
       fontSize: 'var(--font-size-xs)',
     }}
       onClick={e => e.stopPropagation()}
     >
       {/* Theme selector */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', marginBottom: 'var(--space-2)' }}>
-        <span style={{ color: '#0d9488', fontWeight: 600 }}>Theme:</span>
+        <span style={{ color: THEME_COLOR, fontWeight: 600 }}>Theme:</span>
         <select
           value={selectedThemeName}
           onChange={e => handleThemeChange(e.target.value)}
@@ -1338,20 +1285,20 @@ function ThemePicker({ currentTheme, onApply, onRemove, onClose, onPreview }: {
         </select>
         {currentTheme && (
           <button onClick={onRemove} title="Remove theme"
-            style={{ color: 'var(--color-danger)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 'var(--font-size-xs)' }}>
+            style={{ color: 'var(--danger)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 'var(--font-size-xs)' }}>
             Remove
           </button>
         )}
-        <button onClick={onClose}
-          style={{ color: 'var(--color-text-muted)', background: 'none', border: 'none', cursor: 'pointer' }}>
-          ✕
+        <button onClick={onClose} title="Close" aria-label="Close"
+          style={{ color: 'var(--muted)', background: 'none', border: 'none', cursor: 'pointer', display: 'inline-flex' }}>
+          <Icon name="x" />
         </button>
       </div>
 
       {theme && (
         <>
           {theme.originChange && (
-            <div style={{ color: 'var(--color-text-muted)', marginBottom: 'var(--space-1)', fontStyle: 'italic' }}>
+            <div style={{ color: 'var(--muted)', marginBottom: 'var(--space-1)', fontStyle: 'italic' }}>
               {theme.originChange}
             </div>
           )}
@@ -1359,19 +1306,19 @@ function ThemePicker({ currentTheme, onApply, onRemove, onClose, onPreview }: {
           {/* Skill modifications — with choice UI when there are alternatives */}
           {parsedSkills && (parsedSkills.always.length > 0 || parsedSkills.choices) && (
             <div style={{ marginBottom: 'var(--space-2)' }}>
-              <div style={{ color: 'var(--color-text-muted)', fontStyle: 'italic' }}>
+              <div style={{ color: 'var(--muted)', fontStyle: 'italic' }}>
                 Skills: {parsedSkills.always.length > 0 && (
                   <span>{parsedSkills.always.map(s => `${capitalize(s)} +${parsedSkills.bonus}`).join(', ')}</span>
                 )}
               </div>
               {hasSkillChoice && (
                 <div style={{ marginTop: 4 }}>
-                  <div style={{ fontWeight: 600, color: '#0d9488', marginBottom: 2 }}>Choose skill bonus:</div>
+                  <div style={{ fontWeight: 600, color: THEME_COLOR, marginBottom: 2 }}>Choose skill bonus:</div>
                   {parsedSkills.choices!.map((group, gi) => (
                     <label key={gi} style={{
                       display: 'flex', alignItems: 'center', gap: 'var(--space-2)',
                       padding: '1px 4px', cursor: 'pointer',
-                      background: skillChoice === gi ? '#0d948820' : 'transparent',
+                      background: skillChoice === gi ? withAlpha(THEME_COLOR, 0.13) : 'transparent',
                       borderRadius: 'var(--radius-sm)',
                     }}>
                       <input type="radio" name="skillChoice" checked={skillChoice === gi}
@@ -1386,13 +1333,13 @@ function ThemePicker({ currentTheme, onApply, onRemove, onClose, onPreview }: {
 
           {/* Attack power selection */}
           <div style={{ marginBottom: 'var(--space-2)' }}>
-            <div style={{ fontWeight: 600, color: '#0d9488', marginBottom: 2 }}>Choose one attack power:</div>
+            <div style={{ fontWeight: 600, color: THEME_COLOR, marginBottom: 2 }}>Choose one attack power:</div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
               {attackPowers.map(p => (
                 <label key={p.name} style={{
                   display: 'flex', alignItems: 'flex-start', gap: 'var(--space-2)',
                   padding: '2px 4px', borderRadius: 'var(--radius-sm)',
-                  background: selectedAttack === p.name ? '#0d948820' : 'transparent',
+                  background: selectedAttack === p.name ? withAlpha(THEME_COLOR, 0.13) : 'transparent',
                   cursor: 'pointer',
                 }}>
                   <input type="radio" name="attack" checked={selectedAttack === p.name}
@@ -1400,8 +1347,8 @@ function ThemePicker({ currentTheme, onApply, onRemove, onClose, onPreview }: {
                     style={{ marginTop: 2 }} />
                   <div>
                     <span style={{ fontWeight: 600 }}>{p.name}</span>
-                    {p.action && <span style={{ color: 'var(--color-text-muted)' }}> ({p.action})</span>}
-                    <div style={{ color: 'var(--color-text-muted)', lineHeight: 1.3, marginTop: 1 }}>
+                    {p.action && <span style={{ color: 'var(--muted)' }}> ({p.action})</span>}
+                    <div style={{ color: 'var(--muted)', lineHeight: 1.3, marginTop: 1 }}>
                       {powerSummary(p)}
                     </div>
                   </div>
@@ -1412,13 +1359,13 @@ function ThemePicker({ currentTheme, onApply, onRemove, onClose, onPreview }: {
 
           {/* Utility power selection */}
           <div style={{ marginBottom: 'var(--space-2)' }}>
-            <div style={{ fontWeight: 600, color: '#0d9488', marginBottom: 2 }}>Choose one utility power:</div>
+            <div style={{ fontWeight: 600, color: THEME_COLOR, marginBottom: 2 }}>Choose one utility power:</div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
               {utilityPowers.map(p => (
                 <label key={p.name} style={{
                   display: 'flex', alignItems: 'flex-start', gap: 'var(--space-2)',
                   padding: '2px 4px', borderRadius: 'var(--radius-sm)',
-                  background: selectedUtility === p.name ? '#0d948820' : 'transparent',
+                  background: selectedUtility === p.name ? withAlpha(THEME_COLOR, 0.13) : 'transparent',
                   cursor: 'pointer',
                 }}>
                   <input type="radio" name="utility" checked={selectedUtility === p.name}
@@ -1426,8 +1373,8 @@ function ThemePicker({ currentTheme, onApply, onRemove, onClose, onPreview }: {
                     style={{ marginTop: 2 }} />
                   <div>
                     <span style={{ fontWeight: 600 }}>{p.name}</span>
-                    {p.action && <span style={{ color: 'var(--color-text-muted)' }}> ({p.action})</span>}
-                    <div style={{ color: 'var(--color-text-muted)', lineHeight: 1.3, marginTop: 1 }}>
+                    {p.action && <span style={{ color: 'var(--muted)' }}> ({p.action})</span>}
+                    <div style={{ color: 'var(--muted)', lineHeight: 1.3, marginTop: 1 }}>
                       {powerSummary(p)}
                     </div>
                   </div>
@@ -1442,8 +1389,8 @@ function ThemePicker({ currentTheme, onApply, onRemove, onClose, onPreview }: {
             onClick={() => canApply && onApply({ name: theme.name, attackPower: selectedAttack, utilityPower: selectedUtility, skillChoice: hasSkillChoice ? skillChoice : undefined })}
             style={{
               padding: '3px 12px', borderRadius: 'var(--radius-sm)',
-              background: canApply ? '#0d9488' : 'var(--color-bg-hover)',
-              color: canApply ? 'var(--color-text-on-dark)' : 'var(--color-text-muted)',
+              background: canApply ? THEME_COLOR : 'var(--hover)',
+              color: canApply ? 'var(--on-fill)' : 'var(--muted)',
               border: 'none', cursor: canApply ? 'pointer' : 'not-allowed',
               fontWeight: 600, fontSize: 'var(--font-size-xs)',
             }}

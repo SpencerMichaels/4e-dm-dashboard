@@ -55,7 +55,7 @@ export function RecipeEditor({ draft: d, save, status }: { draft: Draft; save: (
       {DEFENSES.map(([key, label]) => <NumberField key={key} label={`${label} ±`} placeholder="0" value={recipe.defenseOffsets?.[key]}
         commit={v => update({ ...recipe, defenseOffsets: { ...recipe.defenseOffsets, [key]: v } })} />)}
     </div>
-    {attackPowers.length > 0 && <table className="recipe-powers">
+    {attackPowers.length > 0 && <table className="recipe-powers data-table">
       <thead><tr><th>Power</th><th>Accuracy ±</th><th>Damage band</th><th title="Encounter or recharge: use the limited damage table">Limited</th></tr></thead>
       <tbody>{attackPowers.map(({ p, node }) => {
         const c: PowerChoice = recipe.powers?.[node] ?? {}

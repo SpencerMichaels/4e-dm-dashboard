@@ -230,15 +230,15 @@ export function InitiativeList({ combat, currentId, selectedIds, onSelect, onCon
           pointerEvents: 'none',
           zIndex: 9999,
           opacity: 0.85,
-          boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
+          boxShadow: 'var(--shadow-md)',
           borderRadius: 'var(--radius-sm)',
-          background: 'var(--color-bg-surface)',
-          border: '2px solid var(--color-accent)',
+          background: 'var(--surface-raised)',
+          border: '2px solid var(--accent)',
           display: 'flex',
           alignItems: 'center',
           padding: '0 var(--space-2)',
           fontSize: 'var(--font-size-sm)',
-          color: 'var(--color-text-primary)',
+          color: 'var(--text)',
           overflow: 'hidden',
         }}>
           {combat.combatants[dragId]?.name ?? dragId}
@@ -248,10 +248,10 @@ export function InitiativeList({ combat, currentId, selectedIds, onSelect, onCon
         if (section === 'header') {
           return (
             <div key="__next_round__" data-flip-key="__next_round__" style={{
-              fontSize: 10, fontWeight: 600, color: 'var(--color-text-muted)',
+              fontSize: 10, fontWeight: 600, color: 'var(--muted)',
               textTransform: 'uppercase', letterSpacing: '0.05em',
               padding: '4px var(--space-3) 2px', marginTop: 4,
-              borderTop: '1px solid var(--color-border)',
+              borderTop: '1px solid var(--border)',
             }}>
               {combat.round === 0 ? 'Round 1' : `Round ${combat.round + 1}`}
             </div>
@@ -290,7 +290,7 @@ export function InitiativeList({ combat, currentId, selectedIds, onSelect, onCon
               display: 'flex', flexDirection: 'column', position: 'relative',
               ...(isDelayed || isReadied) ? { marginLeft: 16 } : {},
               ...(isDragging ? { opacity: 0.4, zIndex: 0 } : {}),
-              ...(canDrag ? { border: '1px dashed var(--color-border)', borderRadius: 'var(--radius-sm)', margin: '1px 0', cursor: 'grab', userSelect: 'none' } : {}),
+              ...(canDrag ? { border: '1px dashed var(--border)', borderRadius: 'var(--radius-sm)', margin: '1px 0', cursor: 'grab', userSelect: 'none' } : {}),
           }}>
           {/* Row: card button + action buttons (for delayed/readied the action buttons sit beside the card) */}
           <div style={{ display: 'flex', alignItems: 'center', gap: (isDelayed || isReadied) ? 4 : 0 }}>
@@ -304,18 +304,18 @@ export function InitiativeList({ combat, currentId, selectedIds, onSelect, onCon
               padding: '3px var(--space-3) 3px 0',
               minHeight: 38,
               background: isAttackCurrent
-                ? 'rgba(92,124,250,0.25)'
+                ? withAlpha('var(--selected)', 0.25)
                 : attackMode?.phase === 'select' && isAttackTarget
-                  ? 'rgba(92,124,250,0.15)'
+                  ? withAlpha('var(--selected)', 0.15)
                   : isSelected
-                    ? 'var(--color-bg-hover)'
+                    ? 'var(--hover)'
                     : isCurrent
-                      ? 'var(--color-accent)'
-                      : 'var(--color-bg-surface)',
-              color: isCurrent && !isSelected && !isAttackCurrent ? 'var(--color-accent-text)' : 'var(--color-text-primary)',
-              border: isAttackCurrent ? '2px solid rgba(92,124,250,0.6)'
-                : attackMode?.phase === 'select' && isAttackTarget ? '1px solid rgba(92,124,250,0.4)'
-                : isSelected ? '1px solid var(--color-accent)' : '1px solid var(--color-border)',
+                      ? 'var(--accent)'
+                      : 'var(--surface-raised)',
+              color: isCurrent && !isSelected && !isAttackCurrent ? 'var(--on-fill)' : 'var(--text)',
+              border: isAttackCurrent ? `2px solid ${withAlpha('var(--selected)', 0.6)}`
+                : attackMode?.phase === 'select' && isAttackTarget ? `1px solid ${withAlpha('var(--selected)', 0.4)}`
+                : isSelected ? '1px solid var(--accent)' : '1px solid var(--border)',
               borderRadius: '19px var(--radius-sm) var(--radius-sm) 19px',
               textAlign: 'left',
               cursor: 'pointer',
@@ -338,14 +338,14 @@ export function InitiativeList({ combat, currentId, selectedIds, onSelect, onCon
                 <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', textDecoration: isDead ? 'line-through' : 'none' }}>
                   {c.name}
                   {isDelayed && <span style={{ fontSize: 'var(--font-size-xs)', marginLeft: 'var(--space-1)' }}>[D]</span>}
-                  {isReadied && <span style={{ fontSize: 'var(--font-size-xs)', marginLeft: 'var(--space-1)', color: 'var(--color-readied)' }}>[R]</span>}
-                  {isHidden && <span style={{ fontSize: 'var(--font-size-xs)', marginLeft: 'var(--space-1)', opacity: 0.6 }}>👁‍🗨</span>}
+                  {isReadied && <span style={{ fontSize: 'var(--font-size-xs)', marginLeft: 'var(--space-1)', color: 'var(--readied)' }}>[R]</span>}
+                  {isHidden && <span style={{ fontSize: 'var(--font-size-xs)', marginLeft: 'var(--space-1)', opacity: 0.6, display: 'inline-flex', verticalAlign: 'middle' }} title="Hidden from players"><Icon name="eye-off" label="Hidden from players" /></span>}
                 </span>
                 {c.isPC && (c.deathSaveFailures != null && c.deathSaveFailures > 0 || c.conditions.some(cd => cd.conditionId === 'dying')) && (
                   <span style={{ display: 'inline-flex', gap: 1, fontSize: 11, lineHeight: 1, flexShrink: 0 }}>
                     {[0, 1, 2].map(i => {
                       const filled = (c.deathSaveFailures ?? 0) > i
-                      return <span key={i} style={{ opacity: filled ? 1 : 0.3 }}>💀</span>
+                      return <span key={i} style={{ opacity: filled ? 1 : 0.3, display: 'inline-flex' }}><Icon name="skull" label={filled ? 'Failed death save' : undefined} /></span>
                     })}
                   </span>
                 )}
@@ -366,7 +366,7 @@ export function InitiativeList({ combat, currentId, selectedIds, onSelect, onCon
                     style={{
                       flex: 1, height: 5, minWidth: 24,
                       overflow: 'hidden', borderRadius: 3,
-                      background: 'color-mix(in srgb, var(--color-text-muted) 25%, transparent)',
+                      background: 'color-mix(in srgb, var(--muted) 25%, transparent)',
                     }}
                   >
                     <div style={{
@@ -380,7 +380,7 @@ export function InitiativeList({ combat, currentId, selectedIds, onSelect, onCon
                 </div>
               )}
               {isReadied && c.readiedAction && (
-                <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-readied)', marginTop: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+                <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--readied)', marginTop: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
                   title={c.readiedAction}>
                   {c.readiedAction}
                 </div>
@@ -414,17 +414,17 @@ export function InitiativeList({ combat, currentId, selectedIds, onSelect, onCon
             </div>
 
             {/* Attack mode: hit/miss indicator */}
-            {attackResult === 'hit' && <span style={{ fontSize: 14, color: 'var(--color-check)' }} title="Hit">⚔</span>}
-            {attackResult === 'miss' && <span style={{ fontSize: 14, color: 'var(--color-miss)' }} title="Miss">✕</span>}
+            {attackResult === 'hit' && <span style={{ fontSize: 14, color: 'var(--success)', display: 'inline-flex' }} title="Hit"><Icon name="swords" label="Hit" /></span>}
+            {attackResult === 'miss' && <span style={{ fontSize: 14, color: 'var(--danger)', display: 'inline-flex' }} title="Miss"><Icon name="x" label="Miss" /></span>}
 
             {/* Attack mode: selection checkmark */}
-            {attackMode?.phase === 'select' && isAttackTarget && <span style={{ fontSize: 12, color: 'rgba(92,124,250,0.8)' }}>✓</span>}
+            {attackMode?.phase === 'select' && isAttackTarget && <span style={{ fontSize: 12, color: 'var(--selected)', display: 'inline-flex' }}><Icon name="check" label="Selected" /></span>}
           </button>
           {/* Undelay button for delayed creatures */}
           {isDelayed && onUndelay && (
             <button onClick={() => onUndelay(id)} title="Undelay"
-              style={{ padding: '2px 8px', borderRadius: 'var(--radius-sm)', cursor: 'pointer', background: 'var(--color-bg-hover)', border: '1px solid var(--color-border)', color: 'var(--color-text-primary)', fontSize: 11, whiteSpace: 'nowrap' }}>
-              ▶ Undelay
+              style={{ padding: '2px 8px', borderRadius: 'var(--radius-sm)', cursor: 'pointer', background: 'var(--hover)', border: '1px solid var(--border)', color: 'var(--text)', fontSize: 11, whiteSpace: 'nowrap' }}>
+              <Icon name="play" style={{ verticalAlign: '-0.125em' }} /> Undelay
             </button>
           )}
           {/* Resolve/Cancel buttons for readied creatures */}
@@ -432,14 +432,14 @@ export function InitiativeList({ combat, currentId, selectedIds, onSelect, onCon
             <div style={{ display: 'flex', gap: 2 }}>
               {onResolveReady && (
                 <button onClick={() => onResolveReady(id)} title="Resolve readied action"
-                  style={{ padding: '2px 8px', borderRadius: 'var(--radius-sm)', cursor: 'pointer', background: 'var(--color-readied)', border: '1px solid var(--color-readied-border)', color: 'var(--on-fill)', fontSize: 11, whiteSpace: 'nowrap' }}>
-                  ▶ Resolve
+                  style={{ padding: '2px 8px', borderRadius: 'var(--radius-sm)', cursor: 'pointer', background: 'var(--readied)', border: '1px solid var(--readied-border)', color: 'var(--on-fill)', fontSize: 11, whiteSpace: 'nowrap' }}>
+                  <Icon name="play" style={{ verticalAlign: '-0.125em' }} /> Resolve
                 </button>
               )}
               {onCancelReady && (
                 <button onClick={() => onCancelReady(id)} title="Cancel readied action"
-                  style={{ padding: '2px 8px', borderRadius: 'var(--radius-sm)', cursor: 'pointer', background: 'var(--color-bg-hover)', border: '1px solid var(--color-border)', color: 'var(--color-text-primary)', fontSize: 11, whiteSpace: 'nowrap' }}>
-                  ✕
+                  style={{ padding: '2px 8px', borderRadius: 'var(--radius-sm)', cursor: 'pointer', background: 'var(--hover)', border: '1px solid var(--border)', color: 'var(--text)', fontSize: 11, whiteSpace: 'nowrap' }}>
+                  <Icon name="x" label="Cancel readied action" />
                 </button>
               )}
             </div>
@@ -457,7 +457,7 @@ export function InitiativeList({ combat, currentId, selectedIds, onSelect, onCon
                 lineHeight: 1,
               }}
             >
-              {isHidden ? '🚫' : '👁'}
+              <Icon name={isHidden ? 'eye-off' : 'eye'} label={isHidden ? 'Hidden' : 'Visible'} />
             </button>
           )}
           {/* Attack mode: expanded defense row for current target */}
@@ -465,14 +465,14 @@ export function InitiativeList({ combat, currentId, selectedIds, onSelect, onCon
             <div style={{
               display: 'flex', gap: 'var(--space-3)', padding: '2px var(--space-3) 4px',
               marginTop: -1, marginBottom: 2,
-              background: 'rgba(92,124,250,0.1)', borderRadius: '0 0 var(--radius-sm) var(--radius-sm)',
-              border: '1px solid rgba(92,124,250,0.3)', borderTop: 'none',
+              background: withAlpha('var(--selected)', 0.1), borderRadius: '0 0 var(--radius-sm) var(--radius-sm)',
+              border: `1px solid ${withAlpha('var(--selected)', 0.3)}`, borderTop: 'none',
               fontSize: 11, fontWeight: 600,
             }}>
-              <span><b style={{ color: 'var(--color-text-muted)' }}>AC</b> {defensesOf(c).ac ?? '—'}</span>
-              <span><b style={{ color: 'var(--color-text-muted)' }}>Fort</b> {defensesOf(c).fortitude ?? '—'}</span>
-              <span><b style={{ color: 'var(--color-text-muted)' }}>Ref</b> {defensesOf(c).reflex ?? '—'}</span>
-              <span><b style={{ color: 'var(--color-text-muted)' }}>Will</b> {defensesOf(c).will ?? '—'}</span>
+              <span><b style={{ color: 'var(--muted)' }}>AC</b> {defensesOf(c).ac ?? '—'}</span>
+              <span><b style={{ color: 'var(--muted)' }}>Fort</b> {defensesOf(c).fortitude ?? '—'}</span>
+              <span><b style={{ color: 'var(--muted)' }}>Ref</b> {defensesOf(c).reflex ?? '—'}</span>
+              <span><b style={{ color: 'var(--muted)' }}>Will</b> {defensesOf(c).will ?? '—'}</span>
             </div>
           )}
 
@@ -536,7 +536,7 @@ function CreatureReactions({ combatantId, combatant, isCurrent, notifications, t
         const { text: usageText } = usageTone(r.card.usage)
         return (
           <div key={key} style={{
-            borderLeft: triggered ? '3px solid var(--color-action-point)' : '3px solid transparent',
+            borderLeft: triggered ? '3px solid var(--action-point)' : '3px solid transparent',
             paddingLeft: 1,
             animation: triggered ? 'reaction-pulse 1.5s ease-in-out 2' : 'none',
             position: 'relative',
@@ -551,7 +551,7 @@ function CreatureReactions({ combatantId, combatant, isCurrent, notifications, t
               <div className="reaction-tile" style={{ paddingRight: 30 }}>
                 <PowerCardView entry={r.card} collapsed uses={{ used: r.used ? 1 : 0, max: 1 }}
                   onUse={() => toggleReaction(combatantId, r)}
-                  marker={triggered ? <span title="Triggered" style={{ color: 'var(--color-turn-active)', display: 'inline-flex' }}><Icon name="zap" label="Triggered" /></span> : undefined} />
+                  marker={triggered ? <span title="Triggered" style={{ color: 'var(--turn-active)', display: 'inline-flex' }}><Icon name="zap" label="Triggered" /></span> : undefined} />
               </div>
             )}
             {/* Toggle button — absolutely positioned so it sits in the same spot in both states */}
@@ -559,16 +559,16 @@ function CreatureReactions({ combatantId, combatant, isCurrent, notifications, t
               title={isExpanded ? 'Collapse' : 'Show power card'}
               style={{
                 position: 'absolute', top: 0, right: 0, height: 22,
-                background: 'rgba(0,0,0,0.2)',
+                background: withAlpha('var(--overlay)', 0.33),
                 border: 'none',
                 color: withAlpha(usageText, 0.9),
                 cursor: 'pointer', fontSize: 11, lineHeight: 1, padding: '0 8px',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 zIndex: 1,
-              }}>{isExpanded ? '▾' : '▸'}</button>
+              }}><Icon name={isExpanded ? 'chevron-down' : 'chevron-right'} /></button>
             {/* Trigger text — only when collapsed; the card carries it when expanded */}
             {r.power.trigger && !isExpanded && (
-              <div style={{ padding: '0 4px 0 11px', fontSize: 10, color: 'var(--color-text-secondary)', lineHeight: 1.3 }}>
+              <div style={{ padding: '0 4px 0 11px', fontSize: 10, color: 'var(--text-secondary)', lineHeight: 1.3 }}>
                 {r.power.trigger}
               </div>
             )}

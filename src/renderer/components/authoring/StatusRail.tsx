@@ -3,6 +3,7 @@ import type { Draft } from '@common/authoring/types'
 import { validate } from '@common/authoring/core'
 import { allAnchorPaths, jsonPathTarget, targetLabel, within } from '@common/authoring/anchors'
 import { firstSentence, openThread, SEVERITY, SeverityChip, Thread } from './DraftAnnotations'
+import { Icon } from '../shared/Icon'
 import { useAuthoringStore } from '../../stores/authoring-store'
 import { useUiStore } from '../../stores/ui-store'
 import type { EditStatus } from './live-edits'
@@ -122,7 +123,7 @@ export function StatusRail({ draft: d, destinations, busy, editing, perform, pat
       <button className="authoring-approve" aria-disabled={saved || !!blockers.length} disabled={busy} title={blockedTitle} onClick={press}>
         {saved ? 'Saved' : queued ? 'Saving…' : d.destinations.length ? `Save to ${where}` : 'Save'}
       </button>
-      <details className="rail-menu"><summary aria-label="More actions" title="More actions">⋯</summary><div className="rail-menu-items">
+      <details className="rail-menu"><summary aria-label="More actions" title="More actions"><Icon name="ellipsis" style={{ verticalAlign: '-0.125em' }} /></summary><div className="rail-menu-items">
         <button disabled={busy} title="Leaves a comment asking your connected agent to revise; it does not start a model" onClick={() => void perform(async () => receive(await call('comment', { id: d.id, target: '/', text: 'Please read the current draft and DM edits, address unresolved feedback, and submit a fresh balance review.', question: false })))}>Request agent revision</button>
         <button onClick={() => toggle('destination')}>Choose campaigns…</button>
         <button onClick={() => void navigator.clipboard.writeText(JSON.stringify(d, null, 2)).then(() => { setCopied(true); setTimeout(() => setCopied(false), 1200) })}>{copied ? 'Copied' : 'Copy draft JSON'}</button>
@@ -143,7 +144,7 @@ export function StatusRail({ draft: d, destinations, busy, editing, perform, pat
 
     <div id="rail-discussion" className="rail-discussion">
       <button className="rail-link" aria-expanded={discussion} onClick={() => setDiscussion(!discussion)}>
-        {discussion ? '▾' : '▸'} Discussion{generalOpen ? ` (${generalOpen} open)` : general.length ? ` (${general.length})` : ''}
+        <Icon name={discussion ? 'chevron-down' : 'chevron-right'} style={{ verticalAlign: '-0.125em' }} /> Discussion{generalOpen ? ` (${generalOpen} open)` : general.length ? ` (${general.length})` : ''}
       </button>
       {discussion && <>
         {generalTarget !== '/' && <p className="authoring-notice">On <b>{targetLabel(d, generalTarget)}</b> · <button className="rail-link" onClick={() => setGeneralTarget('/')}>whole draft</button></p>}

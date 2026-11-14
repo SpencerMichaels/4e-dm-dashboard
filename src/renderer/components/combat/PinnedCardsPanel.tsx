@@ -1,6 +1,7 @@
 import type { CombatState } from '@common/types'
 import { PowerCardView, type PowerCardEntry } from '../creature/PowerCardView'
 import { FloatingPanel } from '../shared/FloatingPanel'
+import { Icon } from '../shared/Icon'
 import { useDiseaseNames } from '../disease/disease-refs'
 import { applyDetection, cardFor, detectIn, entryAt, maxUses, rechargeQueued, type ApplyHandlers } from './card-actions'
 
@@ -55,11 +56,11 @@ export function PinnedCardsPanel({ cards, onUnpin, combat, handlers }: Props) {
   }
 
   return (
-    <FloatingPanel title={`📌 Pinned (${cards.length})`} initialX={20} initialY={60} width={320} maxHeight="60vh">
+    <FloatingPanel title={<><Icon name="pin" style={{ verticalAlign: '-0.125em' }} /> Pinned ({cards.length})</>} popoutKey="pinned-cards" windowTitle={`Pinned cards (${cards.length})`} initialX={20} initialY={60} width={320} maxHeight="60vh">
       <div className="stat-block-4e pinned-cards" style={{ fontSize: 11 }}>
         {groups.map(group => (
           <div key={group.name} style={{ padding: '4px 0' }}>
-            <div style={{ padding: '0 8px 2px', fontSize: 9, color: 'var(--color-text-muted)', fontWeight: 600 }}>{group.name}</div>
+            <div style={{ padding: '0 8px 2px', fontSize: 9, color: 'var(--muted)', fontWeight: 600 }}>{group.name}</div>
             {group.cards.map(card => <div key={card.key}>
               {live(card) ?? <PowerCardView pinned onPin={() => onUnpin(card.key)}
                 entry={typeof card.content === 'string' ? { name: card.title, usage: 'trait', effect: card.content } : card.content} />}

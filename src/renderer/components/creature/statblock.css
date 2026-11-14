@@ -36,11 +36,11 @@
 
 /* Override theme colors inside the dark subheader */
 .stat-block-4e .sb-subheader {
-  --color-text-primary: var(--sb-header-text);
-  --color-text-secondary: var(--sb-header-text);
-  --color-text-muted: color-mix(in srgb, var(--sb-header-text) 65%, transparent);
-  --color-bg-hover: color-mix(in srgb, var(--sb-header-text) 18%, transparent);
-  --color-border: color-mix(in srgb, var(--sb-header-text) 30%, transparent);
+  --text: var(--sb-header-text);
+  --text-secondary: var(--sb-header-text);
+  --muted: color-mix(in srgb, var(--sb-header-text) 65%, transparent);
+  --hover: color-mix(in srgb, var(--sb-header-text) 18%, transparent);
+  --border: color-mix(in srgb, var(--sb-header-text) 30%, transparent);
   color: var(--sb-header-text);
 }
 .stat-block-4e .sb-subheader * {
@@ -166,20 +166,20 @@
 .stat-block-4e .sb-check-table td { padding: 1px 6px; vertical-align: top; }
 
 /* RecordCompendium: list rows, actions, and the edit bar */
-.record-compendium .record-columns { display: grid; gap: var(--space-2); padding: 2px var(--space-2); border-bottom: 1px solid var(--sb-separator, var(--color-border)); flex-shrink: 0; color: var(--color-text-muted); font-weight: 600; font-size: var(--font-size-xs); user-select: none; }
+.record-compendium .record-columns { display: grid; gap: var(--space-2); padding: 2px var(--space-2); border-bottom: 1px solid var(--sb-separator, var(--border)); flex-shrink: 0; color: var(--muted); font-weight: 600; font-size: var(--font-size-xs); user-select: none; }
 .record-compendium .record-row { display: grid; gap: var(--space-2); align-items: center; height: 100%; padding: 0 var(--space-2); cursor: pointer; font-size: var(--font-size-xs); }
-.record-compendium .record-row.active { background: var(--color-bg-active, rgba(92,124,250,0.15)); font-weight: 600; }
+.record-compendium .record-row.active { background: var(--active); font-weight: 600; }
 .record-compendium .record-row > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.record-compendium .record-cell { color: var(--color-text-muted); }
-.record-compendium .record-custom { margin-left: 6px; padding: 0 4px; font-size: 9px; font-weight: 600; border-radius: var(--radius-sm); background: var(--color-bg-hover); color: var(--color-text-secondary); }
-.record-compendium .record-count { color: var(--color-text-muted); padding: var(--space-2) 0; flex-shrink: 0; font-size: var(--font-size-xs); }
-.record-compendium .record-editbar { flex-shrink: 0; border-top: 1px solid var(--sb-separator); padding: var(--space-2) 0; display: flex; align-items: center; gap: var(--space-2); font-size: var(--font-size-xs); color: var(--color-text-muted); font-style: italic; }
-.record-compendium .record-editbar button { padding: 2px 8px; background: transparent; border: 1px solid var(--color-border); border-radius: var(--radius-sm); cursor: pointer; color: var(--color-text-muted); font-size: var(--font-size-xs); font-style: normal; }
+.record-compendium .record-cell { color: var(--muted); }
+.record-compendium .record-custom { margin-left: 6px; padding: 0 4px; font-size: 9px; font-weight: 600; border-radius: var(--radius-sm); background: var(--hover); color: var(--text-secondary); }
+.record-compendium .record-count { color: var(--muted); padding: var(--space-2) 0; flex-shrink: 0; font-size: var(--font-size-xs); }
+.record-compendium .record-editbar { flex-shrink: 0; border-top: 1px solid var(--sb-separator); padding: var(--space-2) 0; display: flex; align-items: center; gap: var(--space-2); font-size: var(--font-size-xs); color: var(--muted); font-style: italic; }
+.record-compendium .record-editbar button { padding: 2px 8px; background: transparent; border: 1px solid var(--border); border-radius: var(--radius-sm); cursor: pointer; color: var(--muted); font-size: var(--font-size-xs); font-style: normal; }
 .record-compendium .record-actions { display: flex; gap: 10px; justify-content: flex-end; padding: 0 2px 4px; font-size: var(--font-size-xs); }
-.record-compendium .record-action { color: var(--color-text-secondary); }
-.record-compendium .record-empty { display: flex; align-items: center; justify-content: center; height: 100%; color: var(--color-text-muted); font-size: var(--font-size-sm); }
-.record-menu { position: fixed; z-index: 1000; background: var(--color-bg-primary, var(--background)); border: 1px solid var(--color-border); border-radius: var(--radius-sm); box-shadow: 0 4px 12px rgba(0,0,0,0.3); padding: var(--space-1) 0; min-width: 140px; }
-.record-menu button { display: block; width: 100%; text-align: left; padding: 4px 12px; background: none; border: 0; color: var(--color-danger, var(--danger)); cursor: pointer; }
+.record-compendium .record-action { color: var(--text-secondary); }
+.record-compendium .record-empty { display: flex; align-items: center; justify-content: center; height: 100%; color: var(--muted); font-size: var(--font-size-sm); }
+.record-menu { position: fixed; z-index: 1000; background: var(--background); border: 1px solid var(--border); border-radius: var(--radius-sm); box-shadow: var(--shadow-md); padding: var(--space-1) 0; min-width: 140px; }
+.record-menu button { display: block; width: 100%; text-align: left; padding: 4px 12px; background: none; border: 0; color: var(--danger, var(--danger)); cursor: pointer; }
 
 /* Power cards (PowerCardView): header in the usage tone, a lighter attack line, then the printed
    lines in book order, grouped by spacing rather than rules. */
@@ -199,9 +199,9 @@
 .power-card .pc-attack > span { display: inline-flex; align-items: center; gap: 4px; }
 .power-card .pc-body { padding: 1px 8px 3px 16px; }
 .power-card .pc-group + .pc-group { margin-top: 4px; }
-.power-card .pc-line b { color: var(--color-text-secondary); }
-.power-card .pc-levels { color: var(--color-text-secondary); font-size: 11px; }
-.power-card .pc-apply { text-decoration: underline dotted; cursor: pointer; color: var(--color-action-point); font-weight: 600; user-select: none; }
+.power-card .pc-line b { color: var(--text-secondary); }
+.power-card .pc-levels { color: var(--text-secondary); font-size: 11px; }
+.power-card .pc-apply { text-decoration: underline dotted; cursor: pointer; color: var(--action-point); font-weight: 600; user-select: none; }
 .power-card .pc-adjusted { color: var(--notify); text-decoration: underline dotted; text-underline-offset: 2px; }
 /* A spent power keeps full contrast; the chip says USED and the name is struck through. */
 .power-card.spent .pc-name { text-decoration: line-through; text-decoration-thickness: 1px; }

@@ -3,11 +3,12 @@ import { THEME_PREFERENCES, THEME_PREFERENCE_LABELS } from '@kit/theme'
 import { useUiStore } from '../../stores/ui-store'
 import { useCampaignStore } from '../../stores/campaign-store'
 import { useCampaignActions } from '../../hooks/use-campaign'
+import { Glyph } from '../shared/Icon'
 import styles from './CommandPalette.module.css'
 
 interface Command {
   id: string
-  icon: string
+  icon: string  // an emoji (navigation, as in the sidebar) or a Lucide icon name
   label: string
   hint?: string
   action: () => void
@@ -41,7 +42,7 @@ export function CommandPalette() {
       // Settings
       { id: 'toggle-theme', icon: '◐', label: 'Cycle Theme (system / light / dark)', hint: 'Setting', action: toggleTheme },
       ...THEME_PREFERENCES.map(p => ({ id: `theme-${p}`, icon: '◐', label: `Theme: ${THEME_PREFERENCE_LABELS[p]}`, hint: 'Setting', action: () => setThemePreference(p) })),
-      { id: 'toggle-sidebar', icon: '☰', label: 'Toggle Sidebar', hint: 'Ctrl+B', action: toggleSidebar },
+      { id: 'toggle-sidebar', icon: 'panel-left', label: 'Toggle Sidebar', hint: 'Ctrl+B', action: toggleSidebar },
 
       // Entity jump-to
       ...notes.map(n => ({ id: `note-${n.id}`, icon: '📝', label: n.title || 'Untitled', hint: 'Note', action: () => nav({ type: 'note', noteId: n.id }) })),
@@ -109,7 +110,7 @@ export function CommandPalette() {
                 className={`${styles.resultItem} ${i === selectedIndex ? styles.selected : ''}`}
                 onClick={() => execute(cmd)}
               >
-                <span className={styles.resultIcon}>{cmd.icon}</span>
+                <span className={styles.resultIcon}><Glyph icon={cmd.icon} /></span>
                 <span className={styles.resultLabel}>{cmd.label}</span>
                 {cmd.hint && <span className={styles.resultHint}>{cmd.hint}</span>}
               </button>

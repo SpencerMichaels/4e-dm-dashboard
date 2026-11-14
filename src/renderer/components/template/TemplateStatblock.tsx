@@ -37,7 +37,7 @@ export function TemplateStatblock({ template: t, onChange }: { template: Monster
       <span>XP Elite</span>
     </div>
 
-    {(edit || t.description) && <div style={{ padding: '4px 8px', fontStyle: 'italic', color: 'var(--color-text-secondary)', fontSize: 11 }}>
+    {(edit || t.description) && <div style={{ padding: '4px 8px', fontStyle: 'italic', color: 'var(--text-secondary)', fontSize: 11 }}>
       <Prose value={t.description} placeholder="What the template represents" onChange={set && (v => set('description', v))} />
       <Annotation anchor={{ kind: 'stat', key: 'template-text' }} />
     </div>}
@@ -74,7 +74,7 @@ export function TemplateStatblock({ template: t, onChange }: { template: Monster
       <KitPowers powers={t.powers} role={t.role === 'any' ? undefined : t.role} onChange={set && (v => set('powers', v))} />
     </div>}
 
-    {t.sources.some(s => s.book) && <div style={{ padding: '2px 8px', fontSize: 10, color: 'var(--color-text-muted)', fontStyle: 'italic' }}>{t.sources.map(s => s.book).filter(Boolean).join('; ')}</div>}
+    {t.sources.some(s => s.book) && <div style={{ padding: '2px 8px', fontSize: 10, color: 'var(--muted)', fontStyle: 'italic' }}>{t.sources.map(s => s.book).filter(Boolean).join('; ')}</div>}
   </div>
 }
 

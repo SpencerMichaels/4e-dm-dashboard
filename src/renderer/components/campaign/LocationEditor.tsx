@@ -1,6 +1,7 @@
 import { LocationTraps } from './LocationTraps'
 import { useState, useEffect } from 'react'
 import type { Location } from '@common/types'
+import { Icon } from '../shared/Icon'
 import { useCampaignStore } from '../../stores/campaign-store'
 import { useUiStore } from '../../stores/ui-store'
 import { useImage } from '../../hooks/use-image'
@@ -35,7 +36,7 @@ export function LocationEditor({ locationId }: Props) {
   // Hooks run before the loading return, so every render calls the same hooks.
   const sceneImageUrl = useImage(location?.sceneImageId)
 
-  if (!location) return <div style={{ color: 'var(--color-text-muted)' }}>Loading...</div>
+  if (!location) return <div style={{ color: 'var(--muted)' }}>Loading...</div>
 
   const save = (updated: Location) => {
     const withTime = { ...updated, updatedAt: new Date().toISOString() }
@@ -72,7 +73,7 @@ export function LocationEditor({ locationId }: Props) {
 
   const sectionLabel = (text: string) => (
     <span style={{
-      display: 'block', fontSize: 'var(--font-size-sm)', color: 'var(--color-text-secondary)',
+      display: 'block', fontSize: 'var(--font-size-sm)', color: 'var(--text-secondary)',
       marginBottom: 'var(--space-1)',
     }}>
       {text}
@@ -102,24 +103,20 @@ export function LocationEditor({ locationId }: Props) {
             border: 'none',
             background: 'transparent',
             padding: 0,
-            color: 'var(--color-text-primary)',
+            color: 'var(--text)',
           }}
         />
         <button
           onClick={showToPlayers}
           title="Show to players"
+          className="btn"
           style={{
             padding: 'var(--space-2) var(--space-3)',
-            background: 'var(--color-bg-hover)',
-            border: '1px solid var(--color-border)',
-            borderRadius: 'var(--radius-sm)',
-            cursor: 'pointer',
             fontSize: 'var(--font-size-sm)',
-            color: 'var(--color-text-primary)',
             whiteSpace: 'nowrap',
           }}
         >
-          👁 Show
+          <Icon name="eye" /> Show
         </button>
       </div>
 
@@ -131,11 +128,11 @@ export function LocationEditor({ locationId }: Props) {
             <img src={sceneImageUrl} style={{ width: '100%', display: 'block', borderRadius: 'var(--radius-sm)' }} alt="" />
             <div style={{ position: 'absolute', top: 4, right: 4, display: 'flex', gap: 4 }}>
               <button onClick={handleImageUpload}
-                style={{ fontSize: 'var(--font-size-xs)', padding: '2px 8px', borderRadius: 'var(--radius-sm)', background: 'var(--color-overlay-bg)', color: 'var(--color-text-on-dark)', border: 'none', cursor: 'pointer' }}>
+                style={{ fontSize: 'var(--font-size-xs)', padding: '2px 8px', borderRadius: 'var(--radius-sm)', background: 'var(--overlay)', color: 'var(--on-dark)', border: 'none', cursor: 'pointer' }}>
                 Replace
               </button>
               <button onClick={() => save({ ...location, sceneImageId: undefined })}
-                style={{ fontSize: 'var(--font-size-xs)', padding: '2px 8px', borderRadius: 'var(--radius-sm)', background: 'var(--color-overlay-bg)', color: 'var(--color-text-on-dark)', border: 'none', cursor: 'pointer' }}>
+                style={{ fontSize: 'var(--font-size-xs)', padding: '2px 8px', borderRadius: 'var(--radius-sm)', background: 'var(--overlay)', color: 'var(--on-dark)', border: 'none', cursor: 'pointer' }}>
                 Remove
               </button>
             </div>
@@ -144,9 +141,9 @@ export function LocationEditor({ locationId }: Props) {
           <button onClick={handleImageUpload}
             style={{
               width: '100%', padding: 'var(--space-4)',
-              background: 'var(--color-bg-hover)', border: '1px dashed var(--color-border)',
+              background: 'var(--hover)', border: '1px dashed var(--border)',
               borderRadius: 'var(--radius-sm)', cursor: 'pointer',
-              color: 'var(--color-text-muted)', fontSize: 'var(--font-size-sm)',
+              color: 'var(--muted)', fontSize: 'var(--font-size-sm)',
             }}>
             + Add background image
           </button>
@@ -164,11 +161,11 @@ export function LocationEditor({ locationId }: Props) {
           style={{
             width: '100%', resize: 'vertical',
             fontSize: 'var(--font-size-sm)',
-            background: 'var(--color-bg-surface)',
-            border: '1px solid var(--color-border)',
+            background: 'var(--surface-raised)',
+            border: '1px solid var(--border)',
             borderRadius: 'var(--radius-sm)',
             padding: 'var(--space-2)',
-            color: 'var(--color-text-primary)',
+            color: 'var(--text)',
           }}
         />
       </div>
@@ -184,8 +181,8 @@ export function LocationEditor({ locationId }: Props) {
               <div key={enc.id} style={{
                 display: 'flex', alignItems: 'center', gap: 'var(--space-2)',
                 padding: 'var(--space-2) var(--space-3)',
-                background: 'var(--color-bg-surface)',
-                border: '1px solid var(--color-border)',
+                background: 'var(--surface-raised)',
+                border: '1px solid var(--border)',
                 borderRadius: 'var(--radius-sm)',
               }}>
                 <span style={{ fontSize: 14 }}>⚔️</span>
@@ -193,14 +190,14 @@ export function LocationEditor({ locationId }: Props) {
                   onClick={() => setView({ type: 'encounter', encounterId: enc.id })}
                   style={{
                     flex: 1, textAlign: 'left', background: 'none', border: 'none',
-                    cursor: 'pointer', color: 'var(--color-text-primary)',
+                    cursor: 'pointer', color: 'var(--text)',
                     fontSize: 'var(--font-size-sm)', fontWeight: 500, padding: 0,
                   }}>
                   {enc.name}
                 </button>
-                <button onClick={() => removeEncounter(enc.id)} title="Unlink encounter"
-                  style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-muted)', fontSize: 'var(--font-size-xs)', padding: 2 }}>
-                  ✕
+                <button onClick={() => removeEncounter(enc.id)} title="Unlink encounter" aria-label="Unlink encounter"
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--muted)', fontSize: 'var(--font-size-xs)', padding: 2, display: 'inline-flex' }}>
+                  <Icon name="x" />
                 </button>
               </div>
             ))}
@@ -209,22 +206,22 @@ export function LocationEditor({ locationId }: Props) {
         {addingEncounter ? (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-1)' }}>
             {unlinkedEncounters.length === 0 ? (
-              <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)' }}>No encounters available to link.</div>
+              <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--muted)' }}>No encounters available to link.</div>
             ) : (
               unlinkedEncounters.map(enc => (
                 <button key={enc.id} onClick={() => addEncounter(enc.id)}
                   style={{
                     textAlign: 'left', padding: 'var(--space-2) var(--space-3)',
-                    background: 'var(--color-bg-hover)', border: '1px solid var(--color-border)',
+                    background: 'var(--hover)', border: '1px solid var(--border)',
                     borderRadius: 'var(--radius-sm)', cursor: 'pointer',
-                    fontSize: 'var(--font-size-sm)', color: 'var(--color-text-primary)',
+                    fontSize: 'var(--font-size-sm)', color: 'var(--text)',
                   }}>
                   ⚔️ {enc.name}
                 </button>
               ))
             )}
             <button onClick={() => setAddingEncounter(false)}
-              style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)', background: 'none', border: 'none', cursor: 'pointer', padding: 'var(--space-1)' }}>
+              style={{ fontSize: 'var(--font-size-xs)', color: 'var(--muted)', background: 'none', border: 'none', cursor: 'pointer', padding: 'var(--space-1)' }}>
               Cancel
             </button>
           </div>
@@ -232,9 +229,9 @@ export function LocationEditor({ locationId }: Props) {
           <button onClick={() => setAddingEncounter(true)}
             style={{
               padding: 'var(--space-2) var(--space-3)',
-              background: 'var(--color-bg-hover)', border: '1px solid var(--color-border)',
+              background: 'var(--hover)', border: '1px solid var(--border)',
               borderRadius: 'var(--radius-sm)', cursor: 'pointer',
-              fontSize: 'var(--font-size-sm)', color: 'var(--color-text-muted)',
+              fontSize: 'var(--font-size-sm)', color: 'var(--muted)',
             }}>
             + Link encounter
           </button>
@@ -250,11 +247,11 @@ export function LocationEditor({ locationId }: Props) {
           placeholder="Add tags (comma-separated)"
           style={{
             width: '100%',
-            background: 'var(--color-bg-surface)',
-            border: '1px solid var(--color-border)',
+            background: 'var(--surface-raised)',
+            border: '1px solid var(--border)',
             borderRadius: 'var(--radius-sm)',
             padding: 'var(--space-2)',
-            color: 'var(--color-text-primary)',
+            color: 'var(--text)',
           }}
         />
       </div>

@@ -1,6 +1,7 @@
 import { useRef, useCallback, useState } from 'react'
 import type { CreatureBuilderConfig } from '@common/types'
 import { TagInput } from '@renderer/components/shared/TagInput'
+import { Icon } from '../shared/Icon'
 import { usageTone, normalizeDamage, type DamagePart } from './dnd4e-utils'
 import { tint, withAlpha } from '../../utils/color'
 import { Annotation } from './annotations'
@@ -80,7 +81,7 @@ function lookup(table: { [level: number]: Record<string, number> }, level: numbe
 
 
 function getTierColor(tier: string, config: CreatureBuilderConfig): string {
-  return config.tierDisplay?.[tier]?.color ?? '#868e96'
+  return config.tierDisplay?.[tier]?.color ?? 'var(--card-recharge)'
 }
 function getTierLabel(tier: string, config: CreatureBuilderConfig): string {
   return config.tierDisplay?.[tier]?.label ?? tier.charAt(0).toUpperCase() + tier.slice(1)
@@ -122,7 +123,7 @@ export function PowerEntryEditor({ entries, onChange, config, level, statBlock }
   }
 
   // Grouped layout (traits, auras, actions)
-  const sepStyle = { borderBottom: '1px solid var(--sb-separator, var(--color-border))', marginBottom: 2 }
+  const sepStyle = { borderBottom: '1px solid var(--sb-separator, var(--border))', marginBottom: 2 }
   const newEntryRef = useCallback((el: HTMLDivElement | null) => {
     if (el) el.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
   }, [entries.length])
@@ -154,7 +155,7 @@ function SimpleAttackRow({ entry: e, idx, config, level, atkBonusTables, onUpdat
   onUpdate: (i: number, p: Partial<PowerEntry>) => void; onRemove: (i: number) => void
 }) {
   return (
-    <div style={{ padding: 'var(--space-3)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-sm)', background: 'var(--color-bg-surface)' }}>
+    <div style={{ padding: 'var(--space-3)', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', background: 'var(--surface-raised)' }}>
       {/* Row 1: type + name */}
       <div style={{ display: 'flex', gap: 'var(--space-2)', alignItems: 'center', marginBottom: 'var(--space-2)' }}>
         <select value={e.rangeType} onChange={(ev) => onUpdate(idx, { rangeType: ev.target.value })} style={{ width: 90 }}>
@@ -162,7 +163,7 @@ function SimpleAttackRow({ entry: e, idx, config, level, atkBonusTables, onUpdat
           <option value="ranged">Ranged</option>
         </select>
         <input value={e.name} onChange={(ev) => onUpdate(idx, { name: ev.target.value })} placeholder="Attack name" style={{ flex: 1 }} />
-        <button onClick={() => onRemove(idx)} style={{ color: 'var(--color-danger)', fontSize: 'var(--font-size-sm)', padding: '2px 6px' }}>x</button>
+        <button onClick={() => onRemove(idx)} style={{ color: 'var(--danger)', fontSize: 'var(--font-size-sm)', padding: '2px 6px' }}>x</button>
       </div>
 
       {/* Row 2: action type + to-hit */}
@@ -174,23 +175,23 @@ function SimpleAttackRow({ entry: e, idx, config, level, atkBonusTables, onUpdat
                 style={{
                   padding: '2px 5px', fontSize: '10px',
                   fontWeight: e.actionType === at.value ? 700 : 400,
-                  background: e.actionType === at.value ? 'var(--color-accent)' : 'transparent',
-                  color: e.actionType === at.value ? 'var(--color-accent-text)' : 'var(--color-text-muted)',
-                  border: e.actionType === at.value ? 'none' : '1px solid var(--color-border)',
+                  background: e.actionType === at.value ? 'var(--accent)' : 'transparent',
+                  color: e.actionType === at.value ? 'var(--on-fill)' : 'var(--muted)',
+                  border: e.actionType === at.value ? 'none' : '1px solid var(--border)',
                   borderRadius: 'var(--radius-sm)', cursor: 'pointer',
                 }}>{at.icon ?? at.value}</button>
             ))}
           </div>
         )}
-        <span style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)' }}>Atk</span>
+        <span style={{ fontSize: 'var(--font-size-xs)', color: 'var(--muted)' }}>Atk</span>
         <input type="number" value={e.attackBonus ?? ''} onChange={(ev) => onUpdate(idx, { attackBonus: ev.target.value === '' ? null : Number(ev.target.value) })}
           style={{ width: 55 }} />
         {e.attackNotes ? (
           <input value={e.attackNotes} onChange={(ev) => onUpdate(idx, { attackNotes: ev.target.value })}
-            placeholder="attack notes" style={{ width: 120, fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)' }} />
+            placeholder="attack notes" style={{ width: 120, fontSize: 'var(--font-size-xs)', color: 'var(--muted)' }} />
         ) : e.attackBonus != null ? (
           <button onClick={() => onUpdate(idx, { attackNotes: ' ' })} title="Add attack notes"
-            style={{ fontSize: '10px', color: 'var(--color-text-muted)', border: '1px dashed var(--color-border)', borderRadius: 'var(--radius-sm)', padding: '1px 4px', background: 'transparent', cursor: 'pointer' }}>+</button>
+            style={{ fontSize: '10px', color: 'var(--muted)', border: '1px dashed var(--border)', borderRadius: 'var(--radius-sm)', padding: '1px 4px', background: 'transparent', cursor: 'pointer' }}>+</button>
         ) : null}
         {level != null && atkBonusTables.length > 0 && (
           <div style={{ display: 'flex', gap: 1 }}>
@@ -203,8 +204,8 @@ function SimpleAttackRow({ entry: e, idx, config, level, atkBonusTables, onUpdat
                     padding: '1px 4px', fontSize: '10px',
                     fontWeight: e.attackBonus === val ? 700 : 400,
                     background: e.attackBonus === val ? (getTierColor(tier, config)) : 'transparent',
-                    color: e.attackBonus === val ? 'var(--color-text-on-dark)' : 'var(--color-text-muted)',
-                    border: e.attackBonus === val ? 'none' : '1px solid var(--color-border)',
+                    color: e.attackBonus === val ? 'var(--on-dark)' : 'var(--muted)',
+                    border: e.attackBonus === val ? 'none' : '1px solid var(--border)',
                     borderRadius: 'var(--radius-sm)', cursor: 'pointer', lineHeight: 1.4,
                   }}>{getTierLabel(tier, config)}</button>
               ))
@@ -222,7 +223,7 @@ function SimpleAttackRow({ entry: e, idx, config, level, atkBonusTables, onUpdat
         suggestions={config.attackTraits} placeholder="Attack traits..." />
 
       {/* Preview */}
-      <div style={{ marginTop: 'var(--space-2)', fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)', fontStyle: 'italic' }}>
+      <div style={{ marginTop: 'var(--space-2)', fontSize: 'var(--font-size-xs)', color: 'var(--muted)', fontStyle: 'italic' }}>
         {e.rangeType === 'melee' ? 'Melee' : 'Ranged'} ({config.actionTypes?.find(a => a.value === e.actionType)?.icon ?? e.actionType}) {e.name || '...'} +{e.attackBonus ?? '?'}
         {e.keywords.length > 0 ? ` (${e.keywords.join(', ')})` : ''}, Damage {formatDamage(e.damage) || '...'}
       </div>
@@ -242,7 +243,7 @@ export function TraitRow({ entry: e, idx, onUpdate, onRemove }: {
         <input className="ghost" value={e.name} onChange={(ev) => onUpdate(idx, { name: ev.target.value })}
           placeholder="Trait name" style={{ fontWeight: 700, fontSize: 'var(--font-size-sm)' }} />
         <span style={{ marginLeft: 'auto' }}>
-          <button onClick={() => onRemove(idx)} style={{ color: 'var(--color-text-muted)', padding: '0 2px', lineHeight: 1 }}>×</button>
+          <button onClick={() => onRemove(idx)} style={{ color: 'var(--muted)', padding: '0 2px', lineHeight: 1, display: 'inline-flex' }} aria-label="Remove"><Icon name="x" /></button>
         </span>
       </div>
       <div style={{ paddingLeft: 12 }}>
@@ -262,10 +263,10 @@ export function AuraRow({ entry: e, idx, onUpdate, onRemove }: {
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 4 }}>
         <input className="ghost" value={e.name} onChange={(ev) => onUpdate(idx, { name: ev.target.value })}
           placeholder="Aura name" style={{ fontWeight: 700, fontSize: 'var(--font-size-sm)' }} />
-        <span style={{ color: 'var(--color-text-secondary)' }}>aura <input className="ghost" type="number" min={1} value={e.auraRange ?? 1}
+        <span style={{ color: 'var(--text-secondary)' }}>aura <input className="ghost" type="number" min={1} value={e.auraRange ?? 1}
           onChange={(ev) => onUpdate(idx, { auraRange: Number(ev.target.value) })} /></span>
         <span style={{ marginLeft: 'auto' }}>
-          <button onClick={() => onRemove(idx)} style={{ color: 'var(--color-text-muted)', padding: '0 2px', lineHeight: 1 }}>×</button>
+          <button onClick={() => onRemove(idx)} style={{ color: 'var(--muted)', padding: '0 2px', lineHeight: 1, display: 'inline-flex' }} aria-label="Remove"><Icon name="x" /></button>
         </span>
       </div>
       <div style={{ paddingLeft: 12 }}>
@@ -290,11 +291,11 @@ function FullPowerRow({ entry: e, idx, config, level, statBlock, atkBonusTables,
   const addField = (field: string, value: unknown) => { setFocusField(field); onUpdate(idx, { [field]: value }) }
 
   const hasUsage = config.usageTypes && config.usageTypes.length > 0
-  const { fill: usageColor, text: usageText } = hasUsage ? usageTone(e.usage) : { fill: 'var(--color-border)', text: 'var(--text)' }
+  const { fill: usageColor, text: usageText } = hasUsage ? usageTone(e.usage) : { fill: 'var(--border)', text: 'var(--text)' }
   const isTriggered = (config.triggeredActionTypes ?? ['reaction']).includes(e.actionType)
 
   const xs = { fontSize: 'var(--font-size-xs)' }
-  const lbl = { ...xs, color: 'var(--color-text-secondary)', whiteSpace: 'nowrap' as const }
+  const lbl = { ...xs, color: 'var(--text-secondary)', whiteSpace: 'nowrap' as const }
   // Inline ghost select style for use inside colored headers (inherits white text)
   const hdrSelect = { color: 'inherit' }
 
@@ -303,21 +304,21 @@ function FullPowerRow({ entry: e, idx, config, level, statBlock, atkBonusTables,
   const usageLabel = config.usageTypes?.find(u => u.value === e.usage)?.label ?? e.usage
 
   const hdrColors = {
-    '--color-text-secondary': withAlpha(usageText, 0.7), '--color-text-muted': withAlpha(usageText, 0.5),
-    '--color-bg-hover': withAlpha(usageText, 0.18), '--color-border': withAlpha(usageText, 0.3),
+    '--text-secondary': withAlpha(usageText, 0.7), '--muted': withAlpha(usageText, 0.5),
+    '--hover': withAlpha(usageText, 0.18), '--border': withAlpha(usageText, 0.3),
   } as React.CSSProperties
-  const addBtn = { color: 'var(--color-text-muted)', border: '1px dashed var(--color-border)', borderRadius: 'var(--radius-sm)', padding: '0 4px', background: 'transparent', cursor: 'pointer' }
+  const addBtn = { color: 'var(--muted)', border: '1px dashed var(--border)', borderRadius: 'var(--radius-sm)', padding: '0 4px', background: 'transparent', cursor: 'pointer' }
 
-  const dragBtnStyle = { color: 'var(--color-text-muted)', padding: '0', lineHeight: 1, fontSize: '10px', display: 'block' }
+  const dragBtnStyle = { color: 'var(--muted)', padding: '0', lineHeight: 1, fontSize: '10px', display: 'block' }
 
   return (
     <div style={{ display: 'flex', fontSize: 'var(--font-size-xs)', lineHeight: 1.5, marginBottom: 2 }}>
       <Annotation anchor={{ kind: 'entry', entry: e }} />
       {/* Reorder controls — left gutter */}
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-start', padding: '4px 3px 0', gap: 1, opacity: 0.5, minWidth: 14 }}>
-        <button onClick={() => onMove(idx, -1)} style={dragBtnStyle} title="Move up">▲</button>
-        <span style={{ cursor: 'grab', fontSize: '8px', color: 'var(--color-text-muted)', letterSpacing: 1 }} title="Drag to reorder">⠿</span>
-        <button onClick={() => onMove(idx, 1)} style={dragBtnStyle} title="Move down">▼</button>
+        <button onClick={() => onMove(idx, -1)} style={dragBtnStyle} title="Move up" aria-label="Move up"><Icon name="chevron-up" size={10} /></button>
+        <span style={{ cursor: 'grab', color: 'var(--muted)', display: 'inline-flex' }} title="Drag to reorder"><Icon name="grip-vertical" size={10} /></span>
+        <button onClick={() => onMove(idx, 1)} style={dragBtnStyle} title="Move down" aria-label="Move down"><Icon name="chevron-down" size={10} /></button>
       </div>
 
       {/* Card content */}
@@ -348,7 +349,7 @@ function FullPowerRow({ entry: e, idx, config, level, statBlock, atkBonusTables,
             suggestions={config.attackTraits} placeholder="keywords..." />
         </span>
         <span style={{ marginLeft: 'auto' }}>
-          <button onClick={() => onRemove(idx)} style={{ color: 'var(--color-text-muted)', padding: '0 2px', lineHeight: 1 }}>×</button>
+          <button onClick={() => onRemove(idx)} style={{ color: 'var(--muted)', padding: '0 2px', lineHeight: 1, display: 'inline-flex' }} aria-label="Remove"><Icon name="x" /></button>
         </span>
       </div>
 
@@ -361,7 +362,7 @@ function FullPowerRow({ entry: e, idx, config, level, statBlock, atkBonusTables,
           </select>
           {e.rangeType === 'personal' ? (
             <button onClick={() => onUpdate(idx, { attackBonus: null, attackNotes: '', rangeType: '', rangeValue: '', target: '', defense: 'AC', damage: [] })}
-              style={{ color: withAlpha(usageText, 0.5), padding: '0 2px', lineHeight: 1 }}>×</button>
+              style={{ color: withAlpha(usageText, 0.5), padding: '0 2px', lineHeight: 1, display: 'inline-flex' }} aria-label="Remove"><Icon name="x" /></button>
           ) : <>
           {(
             <input className="ghost" value={e.rangeValue} onChange={(ev) => onUpdate(idx, { rangeValue: ev.target.value })}
@@ -397,7 +398,7 @@ function FullPowerRow({ entry: e, idx, config, level, statBlock, atkBonusTables,
             <button onClick={() => onUpdate(idx, { attackNotes: ' ' })} style={{ color: withAlpha(usageText, 0.5), padding: '0 2px', lineHeight: 1 }}>+</button>
           ) : null}
           <button onClick={() => onUpdate(idx, { attackBonus: null, attackNotes: '', rangeType: '', rangeValue: '', target: '', defense: 'AC', damage: [] })}
-            style={{ marginLeft: 'auto', color: withAlpha(usageText, 0.5), padding: '0 2px', lineHeight: 1 }}>×</button>
+            style={{ marginLeft: 'auto', color: withAlpha(usageText, 0.5), padding: '0 2px', lineHeight: 1, display: 'inline-flex' }} aria-label="Remove"><Icon name="x" /></button>
         </>}
         </div>
       )}
@@ -410,7 +411,7 @@ function FullPowerRow({ entry: e, idx, config, level, statBlock, atkBonusTables,
             ref={focusField === 'trigger' ? autoFocusRef : undefined}
             placeholder="e.g. an enemy enters a square within reach"
             style={{ fontStyle: 'italic', minWidth: 100 }} />
-            {!isTriggered && <button onClick={() => onUpdate(idx, { trigger: '' })} style={{ color: 'var(--color-text-muted)', padding: '0 2px', lineHeight: 1 }}>×</button>}
+            {!isTriggered && <button onClick={() => onUpdate(idx, { trigger: '' })} style={{ color: 'var(--muted)', padding: '0 2px', lineHeight: 1, display: 'inline-flex' }} aria-label="Remove"><Icon name="x" /></button>}
           </div>
         )}
         {e.requirement && (
@@ -418,7 +419,7 @@ function FullPowerRow({ entry: e, idx, config, level, statBlock, atkBonusTables,
             ref={focusField === 'requirement' ? autoFocusRef : undefined}
             onChange={(ev) => onUpdate(idx, { requirement: ev.target.value })}
             style={{ fontStyle: 'italic', minWidth: 100 }} />
-            <button onClick={() => onUpdate(idx, { requirement: '' })} style={{ color: 'var(--color-text-muted)', padding: '0 2px', lineHeight: 1 }}>×</button></div>
+            <button onClick={() => onUpdate(idx, { requirement: '' })} style={{ color: 'var(--muted)', padding: '0 2px', lineHeight: 1, display: 'inline-flex' }} aria-label="Remove"><Icon name="x" /></button></div>
         )}
 
         {/* Damage (not for personal powers) */}
@@ -453,7 +454,7 @@ function FullPowerRow({ entry: e, idx, config, level, statBlock, atkBonusTables,
                 ref={focusField === key ? autoFocusRef : undefined}
                 onChange={(ev) => onUpdate(idx, { [key]: ev.target.value })}
                 style={{ flex: 1 }} />
-              <button onClick={() => onUpdate(idx, { [key]: '' })} style={{ color: 'var(--color-text-muted)', padding: '0 2px', lineHeight: 1 }}>×</button>
+              <button onClick={() => onUpdate(idx, { [key]: '' })} style={{ color: 'var(--muted)', padding: '0 2px', lineHeight: 1, display: 'inline-flex' }} aria-label="Remove"><Icon name="x" /></button>
             </div>
           ) : null
         ))}
@@ -465,7 +466,7 @@ function FullPowerRow({ entry: e, idx, config, level, statBlock, atkBonusTables,
               ref={focusField === 'special' ? autoFocusRef : undefined}
               onChange={(ev) => onUpdate(idx, { special: ev.target.value })}
               style={{ flex: 1 }} />
-            <button onClick={() => onUpdate(idx, { special: '' })} style={{ color: 'var(--color-text-muted)', padding: '0 2px', lineHeight: 1 }}>×</button>
+            <button onClick={() => onUpdate(idx, { special: '' })} style={{ color: 'var(--muted)', padding: '0 2px', lineHeight: 1, display: 'inline-flex' }} aria-label="Remove"><Icon name="x" /></button>
           </div>
         )}
 
@@ -492,7 +493,7 @@ function FullPowerRow({ entry: e, idx, config, level, statBlock, atkBonusTables,
 
 function SectionLabel({ text }: { text: string }) {
   return (
-    <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--sb-header-text, var(--color-text-muted))', background: 'var(--sb-header-bg, transparent)', fontWeight: 700, padding: '2px 8px', marginTop: 'var(--space-1)' }}>
+    <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--sb-header-text, var(--muted))', background: 'var(--sb-header-bg, transparent)', fontWeight: 700, padding: '2px 8px', marginTop: 'var(--space-1)' }}>
       {text}
     </div>
   )
@@ -501,8 +502,8 @@ function SectionLabel({ text }: { text: string }) {
 function AddButton({ label, onClick }: { label: string; onClick: () => void }) {
   return (
     <button onClick={onClick} style={{
-      flex: 1, padding: 'var(--space-2)', border: '1px dashed var(--color-border)', borderRadius: 'var(--radius-sm)',
-      background: 'transparent', cursor: 'pointer', color: 'var(--color-text-secondary)', fontSize: 'var(--font-size-xs)', textTransform: 'capitalize',
+      flex: 1, padding: 'var(--space-2)', border: '1px dashed var(--border)', borderRadius: 'var(--radius-sm)',
+      background: 'transparent', cursor: 'pointer', color: 'var(--text-secondary)', fontSize: 'var(--font-size-xs)', textTransform: 'capitalize',
     }}>+ {label}</button>
   )
 }
@@ -520,8 +521,8 @@ function DiceTierButtons({ table, level, currentDice, onSelect, config }: {
             padding: '1px 4px', fontSize: '9px',
             fontWeight: currentDice === dice ? 700 : 400,
             background: currentDice === dice ? (getTierColor(tier, config)) : 'transparent',
-            color: currentDice === dice ? 'var(--color-text-on-dark)' : 'var(--color-text-muted)',
-            border: currentDice === dice ? 'none' : '1px solid var(--color-border)',
+            color: currentDice === dice ? 'var(--on-dark)' : 'var(--muted)',
+            border: currentDice === dice ? 'none' : '1px solid var(--border)',
             borderRadius: 'var(--radius-sm)', cursor: 'pointer', textTransform: 'capitalize',
           }}>{getTierLabel(tier, config)}</button>
       ))}
@@ -581,10 +582,10 @@ function DamagePartsEditor({ parts, config, level, usage, inferredTier, onChange
       {parts.map((p, i) => (
         <div key={i} style={{ display: 'flex', gap: 4, alignItems: 'center', flexWrap: 'wrap' }}>
           {i === 0
-            ? <b style={{ ...xs, color: 'var(--color-text-secondary)' }}>Damage</b>
-            : <span style={{ ...xs, color: 'var(--color-text-secondary)', paddingLeft: 24 }}>plus</span>
+            ? <b style={{ ...xs, color: 'var(--text-secondary)' }}>Damage</b>
+            : <span style={{ ...xs, color: 'var(--text-secondary)', paddingLeft: 24 }}>plus</span>
           }
-          {p.ongoing && <span style={{ ...xs, color: 'var(--color-text-secondary)' }}>{ongoingLabel}</span>}
+          {p.ongoing && <span style={{ ...xs, color: 'var(--text-secondary)' }}>{ongoingLabel}</span>}
           <input className="ghost" value={p.expr} onChange={(ev) => updatePart(i, { expr: ev.target.value })} placeholder="2d8+6" />
           <select className="ghost" value={p.ongoing ? 'ongoing' : p.type} onChange={(ev) => {
             if (ev.target.value === 'ongoing') updatePart(i, { ongoing: true })
@@ -602,11 +603,11 @@ function DamagePartsEditor({ parts, config, level, usage, inferredTier, onChange
           )}
           {i === 0 && level != null && dmgRow && suggestedDmg && p.expr !== suggestedDmg && (
             <span onClick={() => updatePart(0, { expr: suggestedDmg })} title={dmgTooltip}
-              style={{ color: 'var(--color-text-muted)', cursor: 'pointer', fontSize: '0.85em' }}>
+              style={{ color: 'var(--muted)', cursor: 'pointer', fontSize: '0.85em' }}>
               ({suggestedDmg})
             </span>
           )}
-          <button onClick={() => removePart(i)} style={{ color: 'var(--color-text-muted)', padding: '0 2px', lineHeight: 1 }}>×</button>
+          <button onClick={() => removePart(i)} style={{ color: 'var(--muted)', padding: '0 2px', lineHeight: 1, display: 'inline-flex' }} aria-label="Remove"><Icon name="x" /></button>
         </div>
       ))}
     </div>

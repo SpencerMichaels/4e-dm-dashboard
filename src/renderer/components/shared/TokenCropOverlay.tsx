@@ -177,7 +177,7 @@ export function TokenCropOverlay({ imageUrl, initialCrop, onCropChange, onConfir
           overflow: 'hidden',
           userSelect: 'none',
           cursor: dragging.current ? 'grabbing' : 'grab',
-          background: 'var(--color-bg-surface)',
+          background: 'var(--surface-raised)',
           borderRadius: 'var(--radius-md)',
         }}
       >
@@ -204,14 +204,14 @@ export function TokenCropOverlay({ imageUrl, initialCrop, onCropChange, onConfir
               <circle cx={circleCenter} cy={circleCenter} r={circleDiameter / 2} fill="black" />
             </mask>
           </defs>
-          <rect width={containerSize} height={containerSize} fill="rgba(0,0,0,0.55)" mask="url(#crop-mask)" />
+          <rect width={containerSize} height={containerSize} style={{ fill: 'var(--overlay)' }} mask="url(#crop-mask)" />
           <circle cx={circleCenter} cy={circleCenter} r={circleDiameter / 2}
-            fill="none" stroke="white" strokeWidth="2" strokeDasharray="4 4" />
+            fill="none" style={{ stroke: 'var(--on-dark)' }} strokeWidth="2" strokeDasharray="4 4" />
         </svg>
       </div>
       <div style={{
         marginTop: 4, textAlign: 'center',
-        fontSize: 10, color: 'var(--color-text-muted)', fontStyle: 'italic',
+        fontSize: 10, color: 'var(--muted)', fontStyle: 'italic',
       }}>
         drag to position · scroll to zoom · click to set token
       </div>

@@ -13,6 +13,7 @@ import { useHotkeys } from '@renderer/hooks/use-hotkeys'
 import { useUiStore } from '@renderer/stores/ui-store'
 import { useAuthoringStore } from '@renderer/stores/authoring-store'
 import { VirtualizedList } from '../shared/VirtualizedList'
+import { Icon } from '../shared/Icon'
 import { FloatingPanel } from '../shared/FloatingPanel'
 import { parseLevelFilter } from './use-compendium'
 import '../creature/statblock.css'
@@ -207,7 +208,7 @@ export function RecordCompendium<T extends { id: string; name: string }>({ kind,
 
   const cols = `1fr ${kind.columns.map(c => c.width).join(' ')}${kind.levelless ? '' : ' 34px'}`
   const header = (label: string, key: number) => <span style={{ cursor: 'pointer', whiteSpace: 'nowrap' }}
-    onClick={() => setSort(s => ({ key, asc: s.key === key ? !s.asc : true }))}>{label}{sort.key === key ? (sort.asc ? ' ▲' : ' ▼') : ''}</span>
+    onClick={() => setSort(s => ({ key, asc: s.key === key ? !s.asc : true }))}>{label}{sort.key === key && <>{' '}<Icon name={sort.asc ? 'chevron-up' : 'chevron-down'} label={sort.asc ? 'ascending' : 'descending'} style={{ verticalAlign: '-0.125em' }} /></>}</span>
   const Statblock = kind.Statblock
   const action = (label: string, onClick: () => void, title?: string): ReactNode => <button className="ghost record-action" title={title} onClick={onClick}>{label}</button>
 
@@ -245,7 +246,7 @@ export function RecordCompendium<T extends { id: string; name: string }>({ kind,
         }} />}
       <div className="record-count">{published === null ? ' ' : `${rows.length.toLocaleString()} of ${(published.length + custom.length).toLocaleString()}`}</div>
       {editing && <div className="record-editbar">
-        <button onClick={() => void exit()} title="Back to preview">← Back</button>
+        <button onClick={() => void exit()} title="Back to preview"><Icon name="arrow-left" style={{ verticalAlign: '-0.125em' }} /> Back</button>
         <span>{editing.draft ? 'Draft (saves on first edit)' : savedAt ? `Saved at ${savedAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}` : 'Editing'}</span>
       </div>}
     </div>
@@ -266,7 +267,7 @@ export function RecordCompendium<T extends { id: string; name: string }>({ kind,
         : <div className="record-empty">Click a {kind.singular} to preview</div>}
     </div>
 
-    {poppedOut.map((p, i) => <FloatingPanel key={p.id} title={`📑 ${p.content.name}`} initialX={100 + i * 30} initialY={100 + i * 30} width={420} maxHeight="80vh"
+    {poppedOut.map((p, i) => <FloatingPanel key={p.id} title={<><Icon name="file-text" style={{ verticalAlign: '-0.125em' }} /> {p.content.name}</>} popoutKey={`compendium-statblock:${p.id}`} popoutPlace="statblock" windowTitle={p.content.name} initialX={100 + i * 30} initialY={100 + i * 30} width={420} maxHeight="80vh"
       onClose={() => setPoppedOut(prev => prev.filter(x => x.id !== p.id))}>
       <Statblock value={p.content} art={p.art} />
     </FloatingPanel>)}

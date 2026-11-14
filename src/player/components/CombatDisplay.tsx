@@ -7,6 +7,7 @@ import { CombatToken } from '@renderer/components/combat/CombatToken'
 import { useImage } from '@renderer/hooks/use-image'
 import { tokenColorFromName } from '@common/utils/token-color'
 import { withAlpha } from '../../renderer/utils/color'
+import { Glyph, Icon } from '../../renderer/components/shared/Icon'
 
 interface Props {
   combat: PlayerCombatState
@@ -471,7 +472,7 @@ function PlayerCard({ combatant: c, isCurrent, isDelayed, isReadied }: { combata
             <span style={{ display: 'inline-flex', gap: 2, fontSize: '1rem', flexShrink: 0 }}>
               {[0, 1, 2].map(i => {
                 const filled = (c.deathSaveFailures ?? 0) > i
-                return <span key={i} style={{ opacity: filled ? 1 : 0.3 }}>💀</span>
+                return <span key={i} style={{ opacity: filled ? 1 : 0.3, display: 'inline-flex' }}><Icon name="skull" label={filled ? 'Failed death save' : undefined} /></span>
               })}
             </span>
           )}
@@ -504,7 +505,7 @@ function PlayerCard({ combatant: c, isCurrent, isDelayed, isReadied }: { combata
 
       {/* HP descriptor (monsters) or player name (PCs) */}
       <div style={{
-        color: c.isPC ? 'var(--color-text-secondary)' : hpColor,
+        color: c.isPC ? 'var(--text-secondary)' : hpColor,
         fontWeight: 600,
         fontSize: '1rem', whiteSpace: 'nowrap',
       }}>
@@ -610,7 +611,8 @@ function TurnItemRow({ item, isActive }: { item: PlayerTurnItem; isActive: boole
   const condStyle = item.conditionId ? getConditionStyle(item.conditionId, item.damageType) : null
   const dmgStyle = item.damageType ? getDamageTypeStyle(item.damageType.trim().split(/\s+and\s+/)[0]) : null
   const itemColor = isDeathSave ? 'var(--danger)' : isRecharge ? 'var(--accent)' : (condStyle?.color ?? dmgStyle?.color ?? 'var(--muted)')
-  const itemIcon = isDeathSave ? '💀' : isRecharge ? '↻' : isDamage ? (dmgStyle?.icon ?? '🔄') : (condStyle?.icon ?? '')
+  // Lucide names (or a custom condition's own text), drawn with <Glyph>
+  const itemIcon = isDeathSave ? 'skull' : isRecharge ? 'rotate-cw' : isDamage ? (dmgStyle?.icon ?? 'repeat') : (condStyle?.icon ?? '')
 
   const isSaveOrRecharge = item.kind === 'save' || item.kind === 'recharge'
   const isPending = !resolved && !isActive
@@ -642,13 +644,13 @@ function TurnItemRow({ item, isActive }: { item: PlayerTurnItem; isActive: boole
   } else if (isDeathSave) {
     if (isSuccess) {
       bg = successBg; border = successBorder
-      iconFilter = 'none'; textColor = 'var(--success)'; displayIcon = '✓'
+      iconFilter = 'none'; textColor = 'var(--success)'; displayIcon = 'check'
     } else if (isFail) {
       bg = failBg; border = failBorder
-      iconFilter = 'none'; textColor = 'var(--danger)'; displayIcon = '✗'
+      iconFilter = 'none'; textColor = 'var(--danger)'; displayIcon = 'x'
     } else if (isNone) {
       bg = withAlpha('var(--text)', 0.05); border = `1px solid ${withAlpha('var(--text)', 0.15)}`
-      iconFilter = 'grayscale(1) opacity(0.6)'; textColor = 'var(--muted)'; displayIcon = '—'
+      iconFilter = 'grayscale(1) opacity(0.6)'; textColor = 'var(--muted)'; displayIcon = 'minus'
     } else if (isActive) {
       bg = activeBg; border = activeBorder
       iconFilter = 'none'; textColor = 'var(--text)'
@@ -659,10 +661,10 @@ function TurnItemRow({ item, isActive }: { item: PlayerTurnItem; isActive: boole
   } else if (isSaveOrRecharge) {
     if (isSuccess) {
       bg = successBg; border = successBorder
-      iconFilter = 'none'; textColor = 'var(--success)'; displayIcon = '✓'
+      iconFilter = 'none'; textColor = 'var(--success)'; displayIcon = 'check'
     } else if (isFail) {
       bg = failBg; border = failBorder
-      iconFilter = 'none'; textColor = 'var(--danger)'; displayIcon = '✗'
+      iconFilter = 'none'; textColor = 'var(--danger)'; displayIcon = 'x'
     } else if (isActive) {
       bg = activeBg; border = activeBorder
       iconFilter = 'none'; textColor = 'var(--text)'
@@ -692,7 +694,7 @@ function TurnItemRow({ item, isActive }: { item: PlayerTurnItem; isActive: boole
         color: isSuccess ? 'var(--success)' : isFail ? 'var(--danger)' : undefined,
         fontWeight: resolved && (isSaveOrRecharge || isDeathSave) ? 700 : undefined,
       }}>
-        {displayIcon}
+        {displayIcon && <Glyph icon={displayIcon} />}
       </span>
 
       <span style={{
@@ -738,7 +740,7 @@ function ConditionCard({ condition: cond, carrierName, hideExpiresLine }: {
       borderRadius: 8,
     }}>
       <span style={{ fontSize: '1.3rem', flexShrink: 0 }}>
-        {style.icon}{style.icon2 ?? ''}
+        <Glyph icon={style.icon} />{style.icon2 && <Glyph icon={style.icon2} />}
       </span>
 
       <div style={{ flex: 1, minWidth: 0 }}>
@@ -746,7 +748,7 @@ function ConditionCard({ condition: cond, carrierName, hideExpiresLine }: {
           {label}
         </div>
         {cond.description && (
-          <div style={{ fontSize: '0.8rem', color: 'var(--color-text-secondary)', lineHeight: 1.3 }}>
+          <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', lineHeight: 1.3 }}>
             {cond.description}
           </div>
         )}

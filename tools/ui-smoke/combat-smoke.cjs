@@ -159,6 +159,23 @@ app.whenReady().then(async () => {
     // Pin Sweeping Cut before using it: the pinned card is live, so it shows the power as used.
     await js(() => [...document.querySelectorAll('.power-card')].find(c => c.querySelector('.pc-name')?.textContent === 'Sweeping Cut').querySelector('.pc-pin').click())
     await until(() => document.querySelector('.pinned-cards')?.innerText.includes('Sweeping Cut'), 'the pinned card')
+    // Pop the pinned cards out into their own window: the same live card, drawn by this renderer.
+    const before = new Set(BrowserWindow.getAllWindows())
+    await js(() => document.querySelector('.pinned-cards').closest('[style*="position: fixed"]').querySelector('button[aria-label="Open in its own window"]').click())
+    let popWin
+    for (let i = 0; i < 50 && !popWin; i++) { await sleep(100); popWin = BrowserWindow.getAllWindows().find(w => !before.has(w)) }
+    if (!popWin) throw new Error('No popout window opened')
+    let popText = ''
+    for (let i = 0; i < 50 && !popText.includes('Sweeping Cut'); i++) { await sleep(100); popText = await popWin.webContents.executeJavaScript('document.body.innerText').catch(() => '') }
+    if (!popText.includes('Sweeping Cut')) throw new Error('The popout does not show the pinned card: ' + popText.slice(0, 300))
+    if (await js(() => !!document.querySelector('.pinned-cards'))) throw new Error('The pinned cards stayed in the DM window')
+    // Styles came along: the card has its header background.
+    const styled = await popWin.webContents.executeJavaScript(`getComputedStyle(document.querySelector('.power-card .pc-header')).backgroundColor`)
+    if (!styled || styled === 'rgba(0, 0, 0, 0)') throw new Error('The popout has no styles')
+    { const img = await popWin.webContents.capturePage().catch(() => null); console.error('popout capture', img?.getSize()); if (img && !img.isEmpty()) writeFileSync(join(process.cwd(), 'out/popout-pinned.png'), img.toPNG()) }
+    // Closing the window puts the pinned cards back in the app.
+    popWin.close()
+    await until(() => !!document.querySelector('.pinned-cards'), 'the pinned cards back in the DM window')
 
     // The rat's turn: the disease named in its Bite applies like a condition: click the name, then the PC.
     await js(() => window.api.combat.endTurn())
@@ -223,7 +240,7 @@ app.whenReady().then(async () => {
 
     const confirms = await js(() => window.__confirms)
     clearTimeout(timeout)
-    console.log('COMBAT_SMOKE_OK: legacy creature converted on open, encounter row preview (template, level adjustment), combat start in main with kit combatants (elite captain, troll regeneration, grouped minions), combat panel, recharge prompt, live pinned card, location trap stat blocks and search, location traps joining the encounter, encounter diseases, disease name in a power applied to a PC like a condition, PC disease stages, PC sheet import (row defenses, panel, PC card), trap rows with XP and preview, hidden trap with initiative, triggered trap (Trigger, Disable); confirms: ' + confirms.length + '; screenshots out/combat-encounter-preview.png, out/combat-panel.png, out/combat-trap.png, out/location-traps.png, out/combat-disease.png, out/pc-diseases.png, out/combat-pc-sheet.png')
+    console.log('COMBAT_SMOKE_OK: legacy creature converted on open, encounter row preview (template, level adjustment), combat start in main with kit combatants (elite captain, troll regeneration, grouped minions), combat panel, recharge prompt, live pinned card, location trap stat blocks and search, location traps joining the encounter, encounter diseases, disease name in a power applied to a PC like a condition, PC disease stages, PC sheet import (row defenses, panel, PC card), pinned cards popped out to an OS window and back, trap rows with XP and preview, hidden trap with initiative, triggered trap (Trigger, Disable); confirms: ' + confirms.length + '; screenshots out/combat-encounter-preview.png, out/combat-panel.png, out/combat-trap.png, out/location-traps.png, out/combat-disease.png, out/pc-diseases.png, out/combat-pc-sheet.png, out/popout-pinned.png')
     finish(0)
   } catch (err) {
     console.error(err)

@@ -8,6 +8,8 @@ import type { DetectedCondition } from './condition-detection'
 import { applyDetection, cardFor, detectIn, maxUses, rechargeQueued } from './card-actions'
 import { useDiseaseNames } from '../disease/disease-refs'
 import { ConditionPill, buildConditionLabel } from './ConditionPill'
+import { Icon } from '../shared/Icon'
+import { withAlpha } from '../../utils/color'
 import { capitalize } from '@common/utils/format'
 import { combatStatBlock } from './combat-view'
 import { normalizeStringArray } from '@common/utils/arrays'
@@ -67,8 +69,8 @@ export function Dnd4eCombatPanel({
 
   const btnStyle = {
     padding: '3px 10px', borderRadius: 'var(--radius-sm)',
-    border: '1px solid var(--color-border)', cursor: 'pointer',
-    fontSize: 'var(--font-size-xs)', background: 'var(--color-bg-surface)',
+    border: '1px solid var(--border)', cursor: 'pointer',
+    fontSize: 'var(--font-size-xs)', background: 'var(--surface-raised)',
   }
 
   return (
@@ -80,12 +82,12 @@ export function Dnd4eCombatPanel({
           {c.name}
           {onPopoutStatblock && (
             <button onClick={() => onPopoutStatblock(c.id)}
-              title="Pop out full stat block as a floating window"
+              title="Pop out full stat block as a floating window" aria-label="Pop out stat block"
               style={{
                 background: 'transparent', border: 'none', cursor: 'pointer',
                 color: 'inherit', padding: 2, fontSize: 12, lineHeight: 1,
                 display: 'inline-flex', alignItems: 'center',
-              }}>↗</button>
+              }}><Icon name="external-link" /></button>
           )}
         </span>
         {c.isPC ? <span>{sheet ? sheetSubtitle(sheet) : c.playerName}</span> : <span>Level {sb.level} {(() => {
@@ -100,13 +102,13 @@ export function Dnd4eCombatPanel({
         <b style={{ fontSize: 11 }}>HP</b>
         {sb.noHitPoints
           // Traps without hit points are stopped by countermeasures (Disable), not damage.
-          ? <span style={{ color: 'var(--color-text-muted)', fontSize: 11 }}>{sb.hpText || 'none'}{c.dead ? ' (disabled)' : ''}</span>
+          ? <span style={{ color: 'var(--muted)', fontSize: 11 }}>{sb.hpText || 'none'}{c.dead ? ' (disabled)' : ''}</span>
           : <>
-            <span style={{ fontWeight: 700, fontSize: 13, color: hpPct > 0 ? hpColor(hpPct) : 'var(--color-text-muted)' }}>{c.hp}</span>
-            <span style={{ color: 'var(--color-text-muted)', fontSize: 11 }}>/ {c.maxHp}</span>
+            <span style={{ fontWeight: 700, fontSize: 13, color: hpPct > 0 ? hpColor(hpPct) : 'var(--muted)' }}>{c.hp}</span>
+            <span style={{ color: 'var(--muted)', fontSize: 11 }}>/ {c.maxHp}</span>
           </>}
-        {c.tempHp > 0 && <span style={{ color: 'var(--color-temp-hp)', fontSize: 11, fontWeight: 600 }}>+{c.tempHp} temp</span>}
-        {hpPct <= 50 && hpPct > 0 && <span style={{ color: 'var(--color-hp-low)', fontSize: 10, fontWeight: 700 }}>BLOODIED</span>}
+        {c.tempHp > 0 && <span style={{ color: 'var(--temp-hp)', fontSize: 11, fontWeight: 600 }}>+{c.tempHp} temp</span>}
+        {hpPct <= 50 && hpPct > 0 && <span style={{ color: 'var(--hp-low)', fontSize: 10, fontWeight: 700 }}>BLOODIED</span>}
         {totalAP > 0 && (
           <>
             <div style={{ flex: 1 }} />
@@ -123,8 +125,8 @@ export function Dnd4eCombatPanel({
             >
               <b style={{ fontSize: 11 }}>AP</b>
               {Array.from({ length: totalAP }, (_, i) => (
-                <span key={i} style={{ fontSize: 14, color: i < remainingAP ? 'var(--color-action-point)' : 'var(--color-text-muted)', opacity: i < remainingAP ? 1 : 0.3 }}>
-                  {i < remainingAP ? '●' : '○'}
+                <span key={i} style={{ fontSize: 11, display: 'inline-flex', color: i < remainingAP ? 'var(--action-point)' : 'var(--muted)', opacity: i < remainingAP ? 1 : 0.3 }}>
+                  <Icon name="circle" fill={i < remainingAP ? 'currentColor' : 'none'} label={i < remainingAP ? 'Action point' : 'Spent action point'} />
                 </span>
               ))}
             </div>
@@ -144,7 +146,7 @@ export function Dnd4eCombatPanel({
         <div style={{
           padding: '4px 8px', display: 'flex', flexWrap: 'wrap', gap: 4, alignItems: 'center',
           borderBottom: '1px solid var(--sb-separator)',
-          background: 'rgba(0,0,0,0.15)',
+          background: withAlpha('var(--text)', 0.07),
         }}>
           {c.conditions.map(cond => {
             const def = conditionDefs.find(d => d.id === cond.conditionId)
@@ -188,7 +190,7 @@ export function Dnd4eCombatPanel({
       {/* Full stat block; a PC shows its imported sheet instead */}
       {c.isPC ? <div style={{ fontSize: 11 }}>
         {sheet ? <PcSheetRows sheet={sheet} />
-          : <div className="sb-row" style={{ color: 'var(--color-text-muted)' }}>No sheet imported (Player Characters page, Import)</div>}
+          : <div className="sb-row" style={{ color: 'var(--muted)' }}>No sheet imported (Player Characters page, Import)</div>}
       </div> : <>
       {/* Traps print only what they have: often no initiative, senses, or defenses. */}
       {isTrap ? (sb.initiative !== undefined && (

@@ -9,16 +9,14 @@ import { CreatureImageEditor } from '@renderer/components/shared/CreatureImageEd
 import { useCampaignStore } from '@renderer/stores/campaign-store'
 import { copyPower } from './power-clipboard'
 import { Annotation, type StatAnchor } from './annotations'
-import { xpForCreature, sign } from './dnd4e-utils'
+import { xpForCreature, sign, THEME_COLOR, LEVEL_ADJUST_COLOR, templateColor } from './dnd4e-utils'
+import { Icon } from '../shared/Icon'
+import { withAlpha } from '../../utils/color'
 import { capitalize } from '@common/utils/format'
 import { normalizeStringArray } from '@common/utils/arrays'
 import './statblock.css'
 
 
-// Per-template-slot color palette (used for visual attribution of template-modified values)
-const TEMPLATE_COLORS = ['var(--color-accent)', '#f59f00']
-const THEME_COLOR = '#0d9488'
-const templateColor = (idx: number): string => TEMPLATE_COLORS[idx] ?? '#9c36b5'
 
 // Render a numeric stat with template/theme-attribution highlighting
 function StatNumber({ value, field, diffs, prefix }: { value: number; field: string; diffs?: TemplateFieldDiff[]; prefix?: string }): ReactNode {
@@ -33,9 +31,8 @@ function StatNumber({ value, field, diffs, prefix }: { value: number; field: str
   }).join('; ')
   const title = `${lineage}; original: ${prefix ? (original >= 0 ? '+' : '') + original : original}`
   // Theme diffs use sourceIndex -1; level adjustments use -2
-  const LEVEL_ADJ_COLOR = '#c47a1a'
   const lastSource = sorted[sorted.length - 1]
-  const color = lastSource.sourceIndex === -2 ? LEVEL_ADJ_COLOR : lastSource.sourceIndex === -1 ? THEME_COLOR : templateColor(lastSource.sourceIndex)
+  const color = lastSource.sourceIndex === -2 ? LEVEL_ADJUST_COLOR : lastSource.sourceIndex === -1 ? THEME_COLOR : templateColor(lastSource.sourceIndex)
   return <span title={title} style={{ color, textDecoration: 'underline dotted', textUnderlineOffset: 2 }}>{display}</span>
 }
 
@@ -146,8 +143,8 @@ export function Dnd4eCreatureViewer({ creature, tooltip: tip, compendiumId: comp
                 display: 'inline-flex', alignItems: 'center',
                 padding: '0 6px', borderRadius: 'var(--radius-sm)',
                 background: templateColor(chip.slot),
-                color: 'var(--color-text-on-dark)',
-                border: chip.preview ? '1px dashed rgba(255,255,255,0.6)' : 'none',
+                color: 'var(--on-fill)',
+                border: chip.preview ? `1px dashed ${withAlpha('var(--on-fill)', 0.6)}` : 'none',
                 fontSize: 10, fontWeight: 700,
                 cursor: onTemplateChipClick ? 'pointer' : 'default',
                 opacity: chip.preview ? 0.85 : 1,
@@ -160,7 +157,7 @@ export function Dnd4eCreatureViewer({ creature, tooltip: tip, compendiumId: comp
             <span style={{
               display: 'inline-flex', alignItems: 'center',
               padding: '0 6px', borderRadius: 'var(--radius-sm)',
-              background: THEME_COLOR, color: 'var(--color-text-on-dark)',
+              background: THEME_COLOR, color: 'var(--on-fill)',
               fontSize: 10, fontWeight: 700,
               fontFamily: 'var(--font-card)',
               textTransform: 'uppercase', letterSpacing: '0.03em',
@@ -177,7 +174,7 @@ export function Dnd4eCreatureViewer({ creature, tooltip: tip, compendiumId: comp
                 color: 'inherit', padding: 2, fontSize: 13,
                 display: 'inline-flex', alignItems: 'center',
               }}
-            >⧉</button>
+            ><Icon name="square-arrow-up-right-exit" /></button>
           )}
           {onClone && (
             <button
@@ -188,7 +185,7 @@ export function Dnd4eCreatureViewer({ creature, tooltip: tip, compendiumId: comp
                 color: 'inherit', padding: 2, fontSize: 13,
                 display: 'inline-flex', alignItems: 'center',
               }}
-            >📑</button>
+            ><Icon name="copy-plus" /></button>
           )}
           {onEdit && (
             <button
@@ -199,7 +196,7 @@ export function Dnd4eCreatureViewer({ creature, tooltip: tip, compendiumId: comp
                 color: 'inherit', padding: 2, fontSize: 13,
                 display: 'inline-flex', alignItems: 'center',
               }}
-            >📝</button>
+            ><Icon name="pencil" /></button>
           )}
         </span>
         <span>Level {level} {roleLabel}</span>
@@ -408,12 +405,12 @@ export function Dnd4eCreatureViewer({ creature, tooltip: tip, compendiumId: comp
 
       {/* Description */}
       {(sb.description as string) && (
-        <div style={{ padding: '4px 8px', fontStyle: 'italic', fontSize: 11, color: 'var(--color-text-secondary)' }}>
+        <div style={{ padding: '4px 8px', fontStyle: 'italic', fontSize: 11, color: 'var(--text-secondary)' }}>
           {sb.description as string}
         </div>
       )}
       {(sb.source as string) && (
-        <div style={{ padding: '2px 8px', fontSize: 10, color: 'var(--color-text-muted)', fontStyle: 'italic' }}>
+        <div style={{ padding: '2px 8px', fontSize: 10, color: 'var(--muted)', fontStyle: 'italic' }}>
           {sb.source as string}
         </div>
       )}
@@ -428,10 +425,10 @@ function CopiedFlash() {
   return (
     <div style={{
       position: 'absolute', inset: 0,
-      background: 'rgba(40,167,69,0.2)',
+      background: withAlpha('var(--success)', 0.2),
       display: 'flex', alignItems: 'center', justifyContent: 'center',
       pointerEvents: 'none',
-      fontSize: 11, fontWeight: 700, color: 'var(--color-hp-full)',
+      fontSize: 11, fontWeight: 700, color: 'var(--hp-full)',
       borderRadius: 2,
     }}>
       Copied

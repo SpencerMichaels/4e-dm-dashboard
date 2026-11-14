@@ -69,33 +69,54 @@ export interface DifficultyInfo {
   color: string
 }
 
+// Difficulty zone colors: theme tokens, deep in the light theme and light in the dark one, so a
+// zone fill takes --on-fill text in both.
+export const DIFFICULTY_COLORS = {
+  Trivial: 'var(--muted)',
+  Easy: 'var(--success)',
+  Standard: 'var(--accent)',
+  Hard: 'var(--warning)',
+  Deadly: 'var(--danger)',
+} as const
+
 // DMG p.56: Easy = 1-2 below, Standard = at level or +1, Hard = +2 to +4
-const DIFFICULTY_TIERS: { maxDelta: number; label: string; color: string }[] = [
-  { maxDelta: -3, label: 'Trivial', color: '#888' },
-  { maxDelta: -1, label: 'Easy', color: '#4a7a5a' },
-  { maxDelta: 1, label: 'Standard', color: '#4a6a8a' },
-  { maxDelta: 4, label: 'Hard', color: '#b8860b' },
-  { maxDelta: Infinity, label: 'Deadly', color: '#7b241c' },
+const DIFFICULTY_TIERS: { maxDelta: number; label: keyof typeof DIFFICULTY_COLORS }[] = [
+  { maxDelta: -3, label: 'Trivial' },
+  { maxDelta: -1, label: 'Easy' },
+  { maxDelta: 1, label: 'Standard' },
+  { maxDelta: 4, label: 'Hard' },
+  { maxDelta: Infinity, label: 'Deadly' },
 ]
 
 export function encounterDifficulty(totalXP: number, partySize: number, partyLevel: number): DifficultyInfo {
   const encLevel = encounterLevel(totalXP, partySize)
   const delta = encLevel - partyLevel
   const tier = DIFFICULTY_TIERS.find(t => delta <= t.maxDelta) ?? DIFFICULTY_TIERS[DIFFICULTY_TIERS.length - 1]
-  return { encounterLevel: encLevel, label: tier.label, color: tier.color }
+  return { encounterLevel: encLevel, label: tier.label, color: DIFFICULTY_COLORS[tier.label] }
 }
 
 /** Get XP thresholds for difficulty bar zones */
 export function difficultyThresholds(partySize: number, partyLevel: number): { label: string; color: string; xp: number }[] {
   const xp = (lvl: number) => partySize * (XP_BY_LEVEL[Math.max(1, Math.min(30, lvl))] ?? XP_BY_LEVEL[1])
   return [
-    { label: 'Trivial', color: '#888', xp: xp(partyLevel - 2) },
-    { label: 'Easy', color: '#4a7a5a', xp: xp(partyLevel) },
-    { label: 'Standard', color: '#4a6a8a', xp: xp(partyLevel + 2) },
-    { label: 'Hard', color: '#b8860b', xp: xp(partyLevel + 5) },
-    { label: 'Deadly', color: '#7b241c', xp: xp(partyLevel + 7) },
+    { label: 'Trivial', color: DIFFICULTY_COLORS.Trivial, xp: xp(partyLevel - 2) },
+    { label: 'Easy', color: DIFFICULTY_COLORS.Easy, xp: xp(partyLevel) },
+    { label: 'Standard', color: DIFFICULTY_COLORS.Standard, xp: xp(partyLevel + 2) },
+    { label: 'Hard', color: DIFFICULTY_COLORS.Hard, xp: xp(partyLevel + 5) },
+    { label: 'Deadly', color: DIFFICULTY_COLORS.Deadly, xp: xp(partyLevel + 7) },
   ]
 }
+
+// Encounter adjustment attribution colors (stat block highlights, chips, encounter rows). Theme tokens
+// or mixes of them, so each reads as text on --surface and, as a chip fill, under --on-fill text in
+// both themes.
+/** Monster themes: a teal between --success and --accent. */
+export const THEME_COLOR = 'color-mix(in srgb, var(--success) 50%, var(--accent))'
+/** Functional templates, by slot: the first, the second, and any further one. */
+export const TEMPLATE_COLORS = ['var(--accent)', 'var(--warning)', 'var(--power-feature)']
+export const templateColor = (idx: number): string => TEMPLATE_COLORS[idx] ?? TEMPLATE_COLORS[TEMPLATE_COLORS.length - 1]
+/** Level adjustments. */
+export const LEVEL_ADJUST_COLOR = 'var(--notify)'
 
 // Encounter templates (DMG p.58)
 export interface EncounterSlot {

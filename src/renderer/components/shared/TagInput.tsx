@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
+import { Icon } from './Icon'
 
 interface Props {
   values: string[]
@@ -67,9 +68,9 @@ export function TagInput({ values, onChange, suggestions = [], placeholder, comp
         flexWrap: 'wrap',
         gap: compact ? 2 : 4,
         padding: compact ? '0 2px' : '4px 6px',
-        border: compact ? 'none' : '1px solid var(--color-border)',
+        border: compact ? 'none' : '1px solid var(--border)',
         borderRadius: 'var(--radius-sm)',
-        background: compact ? 'transparent' : 'var(--color-bg-surface)',
+        background: compact ? 'transparent' : 'var(--surface-raised)',
         minHeight: compact ? undefined : 34,
         alignItems: 'center',
         cursor: 'text',
@@ -83,7 +84,7 @@ export function TagInput({ values, onChange, suggestions = [], placeholder, comp
             alignItems: 'center',
             gap: compact ? 2 : 4,
             padding: compact ? '0 4px' : '2px 8px',
-            background: 'var(--color-bg-hover)',
+            background: 'var(--hover)',
             borderRadius: 'var(--radius-sm)',
             fontSize: compact ? 'var(--font-size-xs)' : 'var(--font-size-sm)',
           }}>
@@ -93,9 +94,10 @@ export function TagInput({ values, onChange, suggestions = [], placeholder, comp
               style={{
                 background: 'none', border: 'none', cursor: 'pointer',
                 padding: 0, color: 'inherit', opacity: 0.6,
-                lineHeight: 1,
+                lineHeight: 1, display: 'inline-flex',
               }}
-            >×</button>
+              title="Remove" aria-label={`Remove ${val}`}
+            ><Icon name="x" /></button>
           </span>
         ))}
         {compact && values.length > 0 && !focused && !input ? (
@@ -134,8 +136,8 @@ export function TagInput({ values, onChange, suggestions = [], placeholder, comp
           minWidth: compact ? 150 : undefined,
           maxHeight: 160,
           overflow: 'auto',
-          background: 'var(--color-bg-primary)',
-          border: '1px solid var(--color-border)',
+          background: 'var(--background)',
+          border: '1px solid var(--border)',
           borderRadius: 'var(--radius-sm)',
           marginTop: 2,
           zIndex: 50,
@@ -149,10 +151,10 @@ export function TagInput({ values, onChange, suggestions = [], placeholder, comp
                 width: '100%',
                 textAlign: 'left',
                 padding: '4px 10px',
-                background: i === highlightIndex ? 'var(--color-bg-hover)' : 'transparent',
+                background: i === highlightIndex ? 'var(--hover)' : 'transparent',
                 border: 'none',
                 cursor: 'pointer',
-                color: 'var(--color-text-primary)',
+                color: 'var(--text)',
                 fontSize: 'var(--font-size-sm)',
               }}
             >

@@ -6,8 +6,8 @@ export interface ConditionStyle {
   color: string     // pill background, any CSS color incl. var(--token); use withAlpha() for tints, never append hex digits
   color2?: string   // second color for split background
   textColor: string // text color (usually white or dark)
-  icon: string      // single emoji/unicode icon
-  icon2?: string    // second icon for multi-type
+  icon: string      // Lucide icon name, drawn with <Glyph>; a custom icon may be any text
+  icon2?: string    // second icon for multi-type (a Lucide name too)
 }
 
 // Pill tones from the theme (theme.css --cond-*): pastel in the light theme,
@@ -17,40 +17,40 @@ const tone = (name: 'red' | 'orange' | 'amber' | 'green' | 'blue' | 'purple' | '
   ({ color: `var(--cond-${name})`, textColor: 'var(--cond-text)', icon })
 
 export const CONDITION_STYLES: Record<string, ConditionStyle> = {
-  'combat-advantage':  tone('purple', '⚠'),
-  'blinded':           tone('blue', '🕶'),
-  'dazed':             tone('amber', '💫'),
-  'dominated':         tone('purple', '🧠'),
-  'dead':              { color: 'var(--cond-dead)', textColor: 'var(--color-text-on-dark)', icon: '💀' },
-  'dying':             tone('red', '☠'),
-  'grabbed':           tone('orange', '✊'),
-  'helpless':          tone('gray', '🪢'),
-  'immobilized':       tone('blue', '⛓'),
-  'invisible':         tone('gray', '👁'),
-  'marked':            tone('red', '🎯'),
-  'petrified':         tone('gray', '🪨'),
-  'prone':             tone('orange', '⤵'),
-  'restrained':        tone('blue', '🕸'),
-  'slowed':            tone('blue', '🐌'),
-  'stunned':           tone('red', '⚡'),
-  'surprised':         tone('amber', '❗'),
-  'unconscious':       tone('gray', '😵'),
-  'weakened':          tone('green', '📉'),
-  'bloodied':          tone('red', '🩸'),
-  'ongoing-damage':    tone('red', '🔄'),
-  'regenerating':      tone('green', '💚'),
-  'reacted':           tone('purple', '↻'),
+  'combat-advantage':  tone('purple', 'triangle-exclamation-point'),
+  'blinded':           tone('blue', 'eye-off'),
+  'dazed':             tone('amber', 'orbit'),
+  'dominated':         tone('purple', 'brain-circuit'),
+  'dead':              { color: 'var(--cond-dead)', textColor: 'var(--on-dark)', icon: 'skull' },
+  'dying':             tone('red', 'heart-pulse'),
+  'grabbed':           tone('orange', 'hand-grab'),
+  'helpless':          tone('gray', 'shield-off'),
+  'immobilized':       tone('blue', 'anchor'),
+  'invisible':         tone('gray', 'ghost'),
+  'marked':            tone('red', 'target'),
+  'petrified':         tone('gray', 'mountain'),
+  'prone':             tone('orange', 'arrow-down-to-line'),
+  'restrained':        tone('blue', 'lock'),
+  'slowed':            tone('blue', 'snail'),
+  'stunned':           tone('red', 'zap-off'),
+  'surprised':         tone('amber', 'exclamation-mark'),
+  'unconscious':       tone('gray', 'bed'),
+  'weakened':          tone('green', 'trending-down'),
+  'bloodied':          tone('red', 'droplet'),
+  'ongoing-damage':    tone('red', 'repeat'),
+  'regenerating':      tone('green', 'heart-plus'),
+  'reacted':           tone('purple', 'reply'),
   // Class marks — fallback colors used when the source PC has no chip color set.
   // These are mid-tone colors in both themes, so the text stays dark.
   ...Object.fromEntries(CLASS_MARKS.map(m => [
-    m.conditionId, { color: m.color, textColor: 'var(--color-text-on-warning)', icon: m.icon } as ConditionStyle,
+    m.conditionId, { color: m.color, textColor: 'var(--on-warning)', icon: m.icon } as ConditionStyle,
   ])),
 }
 
-const DEFAULT_STYLE: ConditionStyle = tone('gray', '●')
+const DEFAULT_STYLE: ConditionStyle = tone('gray', 'circle')
 
 // Damage-type colors (damage-types.ts) are light pastels in both themes
-const DAMAGE_TEXT = 'var(--color-text-on-warning)'
+const DAMAGE_TEXT = 'var(--on-warning)'
 
 
 export function getConditionStyle(
