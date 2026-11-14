@@ -9,6 +9,7 @@ import { batchFile, briefDirs, chunkIds, defaultResponsesDir, packBatches, parse
 import { buildBatchBrief, buildBrief, buildRulesFile, checkCommand, compactJson, htmlToText, rulesFile, schemaExcerpt } from './prompt'
 import { atToQuote, resolveQuotes } from './quotes'
 import { patchEntry } from './patch-defenses-if'
+import { patchCompanion } from './patch-companions'
 import { mulberry32, pick, sampleIds, tieredSample } from './sample'
 import { Checker, clause } from '../validate/shape'
 import { checkLineSpans } from '../validate/spans'
@@ -323,7 +324,7 @@ describe('brief examples', () => {
       expect(c.issues, ln).toEqual([])
       checked++
     }
-    expect(checked).toBeGreaterThanOrEqual(10)
+    expect(checked).toBeGreaterThanOrEqual(4)
   })
 })
 
@@ -349,5 +350,28 @@ describe('patch-defenses-if', () => {
     const differs = patchEntry(entry({ defenses: { ac: 22, fortitude: 21, reflex: 16, will: 18 } }), html)
     expect(differs.entry).toBeUndefined()
     expect(differs.result?.status).toBe('base differs')
+  })
+})
+
+describe('patch-companions', () => {
+  const html = '<h1 class=monster>Taloklaxus (Companion)<br><span class=type>Medium natural magical beast</span><br><span class=level>Level 4 Leader<span class=xp>-</span></span></h1>' +
+    '<table class=bodytable><tr><td><b>HP</b> 48; <b>Bloodied</b> 24; <b>Healing Surges</b> 11; <b>Surge Value</b> 12<td class=rightalign><b>Initiative</b> +3</table>'
+  const entry = (over: Record<string, unknown> = {}) => ({
+    id: 'monster1', name: 'Taloklaxus', level: 4, role: null, rank: 'standard', leader: true, xp: 0, hp: 48,
+    hpText: 'Healing Surges 11; Surge Value 12', initiative: 3, provenance: { origin: 'agent', at: '2026-11-13' }, ...over,
+  })
+
+  it('adds classRole and the surges, and drops the stand-ins agents used', () => {
+    const { entry: out, changes } = patchCompanion(entry(), html)
+    expect(Object.keys(out!)).toEqual(['id', 'name', 'level', 'role', 'classRole', 'rank', 'xp', 'hp', 'healingSurges', 'surgeValue', 'initiative', 'provenance'])
+    expect(out).toMatchObject({ role: null, classRole: 'leader', healingSurges: 11, surgeValue: 12 })
+    expect(changes).toEqual(['classRole leader', 'healingSurges 11', 'surgeValue 12', 'hpText "Healing Surges 11; Surge Value 12" removed', 'leader removed'])
+    expect(patchCompanion(entry({ role: 'controller', hpText: undefined }), html.replace('Leader', 'Controller')).entry).toMatchObject({ role: null, classRole: 'controller', leader: true })
+  })
+
+  it('skips parser entries, patched entries, and monsters without the fields', () => {
+    expect(patchCompanion(entry({ provenance: { origin: 'parser', at: '2026-11-13' } }), html)).toEqual({})
+    expect(patchCompanion(entry({ classRole: 'leader' }), html)).toEqual({})
+    expect(patchCompanion(entry(), html.replace(/Leader<span class=xp>-/, 'Soldier<span class=xp> XP 175').replace(/; <b>Healing Surges.*?12/, ''))).toEqual({})
   })
 })

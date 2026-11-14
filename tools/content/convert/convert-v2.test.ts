@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest'
 import { MONSTER_TEMPLATES } from '../../../src/renderer/components/creature/monster-templates'
 import { auraRangeIf, parseMonsterHtml } from '../html-parser'
 import { parseTrapHtml } from '../trap-parser'
-import { Notes, damageModifier, parseSources, splitRangePrefix, type ConvertContext } from './common'
+import { Notes, damageModifier, parseSources, saveEndsClauses, splitRangePrefix, type ConvertContext } from './common'
 import { checkFrom, enduranceFrom } from './disease'
 import { armorFrom, cleanWeight, parsePrice, tierOf } from './item'
 import { convertMonster, convertPower } from './monster'
@@ -79,6 +79,16 @@ describe('monster powers', () => {
     })
     expect(splitRangePrefix('Area wall 10 within 10; conjures a wall.')?.range).toEqual({ kind: 'area-wall', size: 10, within: 10 })
     expect(splitRangePrefix('The stalker teleports 8 squares.')).toBeUndefined()
+    // v12: "squares", a bare "Wall", a wall height, a long range, a comma, no separator after the target.
+    expect(splitRangePrefix('Area wall 4 within 10 squares; the illusory wall occupies 4 squares.')?.range).toEqual({ kind: 'area-wall', size: 4, within: 10 })
+    expect(splitRangePrefix('Wall 8 within 10; the giant conjures a wall.')?.range).toEqual({ kind: 'area-wall', size: 8, within: 10 })
+    expect(splitRangePrefix('Area wall 8 (4 high) within 10; a wall of fire appears.')?.range).toEqual({ kind: 'area-wall', size: 8, within: 10, note: '4 high' })
+    expect(splitRangePrefix('Ranged 10/20; the target is immobilized (save ends)')).toEqual({ range: { kind: 'ranged', size: 10, note: '/20' }, rest: 'the target is immobilized (save ends)' })
+    expect(splitRangePrefix('Close burst 1, targets enemies; the Lady explodes.')?.rest).toBe('targets enemies; the Lady explodes.')
+    expect(splitRangePrefix('Close burst 2 (creatures in the burst)Darien pulls the target 1 square.')).toEqual({
+      range: { kind: 'close-burst', size: 2, note: 'creatures in the burst' }, rest: 'Darien pulls the target 1 square.',
+    })
+    expect(splitRangePrefix('Wall of fire surrounds it.')).toBeUndefined()
     const p = convertPower({ name: 'Succor', actionType: 'minor', usage: 'encounter', printed: { body: 'Close burst 5; allies in the burst regain 10 hit points.' } }, new Notes())
     expect(p).toMatchObject({ range: { kind: 'close-burst', size: 5 }, effect: { text: 'allies in the burst regain 10 hit points.' } })
   })
@@ -300,6 +310,12 @@ describe('schema v11', () => {
     expect(gaze.attacks[0].hit?.clauses).toMatchObject([{ kind: 'condition', condition: 'dominated', saveModifier: -2 }])
   })
 
+  it('reads the older "(save at -2 ends)" save penalty (v12)', () => {
+    expect(saveEndsClauses('The target is slowed (save at -2 ends).')).toMatchObject([{ kind: 'condition', condition: 'slowed', saveModifier: -2 }])
+    expect(saveEndsClauses('1d8 damage and ongoing 5 poison damage (save at -2 ends).')).toMatchObject([{ kind: 'ongoing-damage', amount: 5, saveModifier: -2 }])
+    expect(saveEndsClauses('The target is slowed (save ends).')[0]).not.toHaveProperty('saveModifier')
+  })
+
   it('does not read "requires a free hand" or "sustain minor" as the action', () => {
     const html = head + stats('') + "<p class='flavor alt'>⚔ <b>Claw</b> (standard; requires a free hand, at-will)</p><p class=flavorIndent>+18 vs AC; 2d6+5 damage.</p><p class='flavor alt'>➶ <b>Grasping Tendrils</b> (standard; sustain minor, encounter)</p><p class=flavorIndent>Ranged 10; +16 vs Reflex; the target is restrained (save ends).</p>" + tail
     const m = convertMonster('monster1', parseMonsterHtml(html, [], { printed: true }), ctx)
@@ -307,5 +323,13 @@ describe('schema v11', () => {
       ['Claw', 'standard', 'at-will', undefined],
       ['Grasping Tendrils', 'standard', 'encounter', 'minor'],
     ])
+  })
+
+  it('records a regeneration suppressor that is not a damage type as suppressedText (v12)', () => {
+    const regen = (text: string) => convertMonster('monster1', parseMonsterHtml(head + stats('').replace('<br><b>AC</b>', `<br><b>Regeneration</b> ${text}<br><b>AC</b>`) + tail, [], { printed: true }), ctx).regeneration
+    expect(regen("10 (if the wererat takes damage from a silvered weapon, its regeneration doesn't function on its next turn)"))
+      .toMatchObject({ value: 10, suppressedBy: [], suppressedText: 'damage from a silvered weapon' })
+    expect(regen('10 (regeneration does not function while the vampire lord is exposed to direct sunlight)')?.suppressedText).toBe('exposed to direct sunlight')
+    expect(regen("10 (regeneration functions even while Manshoon is exposed to direct sunlight)")?.suppressedText).toBeUndefined()
   })
 })

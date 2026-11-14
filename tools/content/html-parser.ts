@@ -61,7 +61,11 @@ function _parseMonsterHtml(html: string, warnings: string[], options: ParseOptio
   const isMinion = roleRaw.includes('minion')
   // Extract role by matching known 4e roles — avoids picking up origin words like "fey", "natural"
   const knownRoles = ['artillery', 'brute', 'controller', 'lurker', 'skirmisher', 'soldier']
-  const roleMatch = knownRoles.find(r => roleRaw.includes(r))
+  // A PC class role alone ("Level 4 Defender", companions and NPCs, usually with no XP):
+  // classRole, not a monster role. "Controller" is a class role only when no XP is printed.
+  const classWord = roleRaw.trim().match(/^(striker|defender|leader|controller)$/)?.[1]
+  const classRole = classWord && (classWord !== 'controller' || !xpMatch) ? classWord : undefined
+  const roleMatch = classRole ? undefined : knownRoles.find(r => roleRaw.includes(r))
   const cleanRole = roleMatch ?? ''
 
   // ── Stats block: either <table class=bodytable> (newer) or <p class=flavor> (older) ──
@@ -79,8 +83,18 @@ function _parseMonsterHtml(html: string, warnings: string[], options: ParseOptio
     const m = statsText.match(new RegExp(kw, 'i'))
     if (m) foundSenses.push(m[0])
   }
+  // A sense printed with no range on the Perception line ("Perception +7; blindsight").
+  const senseLine = statsText.match(/Perception[^\n]*/i)?.[0] ?? ''
+  for (const m of senseLine.matchAll(/\b(blindsight|tremorsense|truesight)\b(?!\s*\d)/gi)) {
+    if (!foundSenses.some(s => s.toLowerCase().startsWith(m[1].toLowerCase()))) foundSenses.push(m[1])
+  }
   const senses = foundSenses.join(', ')
   const hp = parseInt(statsText.match(/HP\s+(\d+)/)?.[1] ?? '1')
+  // HP 0 with a printed rule ("HP 0; Bloodied 0 ; The colossus has infinite hit points; ..."): hpText.
+  const hpText = hp === 0 ? statsText.match(/HP\s+0\s*;\s*Bloodied\s+\d+\s*;\s*([^\n]+)/i)?.[1]?.split(/\s{2,}|(?=(?:Initiative|AC|Perception|Speed|Immune|Resist)\b)/)[0].trim() || undefined : undefined
+  // Companion and NPC blocks: "HP 48; Bloodied 24; Healing Surges 11; Surge Value 12".
+  const healingSurges = statsText.match(/Healing Surges\s+(\d+)/i)?.[1]
+  const surgeValue = statsText.match(/Surge Value\s+(\d+)/i)?.[1]
   // Defenses, with printed conditional values ("AC 24 (28 against opportunity attacks)") in defensesIf.
   const parsedDefenses = parseDefenses(statsText)
   const { ac, fortitude: fort, reflex: ref, will } = parsedDefenses?.defenses ?? { ac: 10, fortitude: 10, reflex: 10, will: 10 }
@@ -152,7 +166,8 @@ function _parseMonsterHtml(html: string, warnings: string[], options: ParseOptio
   }
   const alignment = footerText.match(/Alignment\s+(.+?)(?=\s+Languages|\s*$)/i)?.[1]?.trim() ?? ''
   const languages = footerText.match(/Languages\s+(.+?)(?=\n|Skills|Equipment|Str|$)/i)?.[1]?.trim() ?? ''
-  const equipment = footerText.match(/Equipment\s*:?\s*(.+?)(?=\.\s*$|$)/i)?.[1]?.trim() ?? ''
+  // No space before a comma ("chainmail , spear"), no trailing period.
+  const equipment = (footerText.match(/Equipment\s*:?\s*(.+?)(?=\.\s*$|$)/i)?.[1]?.trim() ?? '').replace(/\s+([,;])/g, '$1').replace(/\s*\.$/, '')
 
   const sizeNames = ['Tiny', 'Small', 'Medium', 'Large', 'Huge', 'Gargantuan']
   const filteredKeywords = [...new Set(keywords.filter(s => s && !sizeNames.includes(s)))]
@@ -212,7 +227,8 @@ function _parseMonsterHtml(html: string, warnings: string[], options: ParseOptio
     hp,
     maxHp: hp,
     statBlock: {
-      size, level, role: cleanRole, monsterModifier: eliteSolo, isMinion: isMinion || undefined, leader: roleRaw.includes('leader') || undefined, ac,
+      size, level, role: cleanRole, classRole, monsterModifier: eliteSolo, isMinion: isMinion || undefined, leader: (!classRole && roleRaw.includes('leader')) || undefined, ac,
+      healingSurges: healingSurges ? parseInt(healingSurges) : undefined, surgeValue: surgeValue ? parseInt(surgeValue) : undefined,
       defenses: { fortitude: fort, reflex: ref, will },
       initiative, perception, senses,
       speed: land, speeds, speedNotes: speedNotes || undefined,
@@ -221,7 +237,7 @@ function _parseMonsterHtml(html: string, warnings: string[], options: ParseOptio
       immunities, resistances, weaknesses,
       skills, skillNotes: skillNotes.length > 0 ? skillNotes : undefined, alignment, languages, equipment,
       defensesIf: parsedDefenses?.defensesIf, defenseNotes: parsedDefenses?.unplaced,
-      xp, savingThrowBonus, savingThrowNotes, actionPoints,
+      xp, savingThrowBonus, savingThrowNotes, actionPoints, hpText,
       description, source,
       actions,
       regeneration,
@@ -343,8 +359,10 @@ export function cleanHeaderKeywords(bolds: string[]): HeaderKeywords {
 }
 
 // ─── Range, target and notes from an attack's range part ───
-// "Close burst 5; targets enemies" / "Ranged 10 (one creature)" / "Melee 1 or Ranged 10"
-export function parseRangePart(rangePart: string): { rangeType: string; rangeValue: string; target: string; notes: string[] } {
+// "Close burst 5; targets enemies" / "Ranged 10 (one creature)" / "Melee 1 or Ranged 10".
+// A bare number with no range word takes `fallback` (the power icon's kind: "20; +15 vs. Reflex"
+// after ➶ is ranged 20); a bare "15/30" (normal/long range) is always ranged.
+export function parseRangePart(rangePart: string, fallback = 'melee'): { rangeType: string; rangeValue: string; target: string; notes: string[] } {
   const segs = rangePart.split(/\s*;\s*/).map(s => s.trim()).filter(Boolean)
   let target = ''
   const notes: string[] = []
@@ -355,10 +373,13 @@ export function parseRangePart(rangePart: string): { rangeType: string; rangeVal
     // No range at all: "Targets the triggering enemy"
     target = first.replace(/^targets?\s+/i, '')
   } else {
-    rangeType = parseRangeType(first)
+    const bare = /^\d+(\/\d+)?\b/.test(first) && !/\b(close|area|ranged?|melee|reach)\b/i.test(first)
+    // "1 square within 10" (area icon) is an area burst 0 within 10.
+    const square = bare && /^1 square within \d+/i.test(first)
+    rangeType = square ? 'area-burst' : bare ? (/^\d+\/\d+/.test(first) ? 'ranged' : fallback) : parseRangeType(first)
     const paren = first.match(/\((.+)\)\s*$/)
     if (paren) target = paren[1].trim()
-    const value = parseRangeValue(first)
+    const value = parseRangeValue(square ? first.replace(/^1 square/i, '0') : first)
     const lead = value.match(/^(?:\d+(?:\/\d+)?(?:\s+within\s+\d+)?(?:\s+squares?)?|sight|touch)\b/i)
     rangeValue = lead ? lead[0].replace(/\s+squares?$/i, '') : ''
     const rest = lead ? value.substring(lead[0].length).replace(/^[\s,.]+/, '') : value
@@ -469,6 +490,7 @@ function parseOneAbility(headerHtml: string, bodyBlocks: string[], sectionDefaul
   // After a "Secondary Attack" line, the Hit/Miss/Effect lines that follow
   // belong to the secondary attack, not the primary one.
   let inSecondary = false
+  let attackName: string | undefined
   for (const blockHtml of bodyBlocks) {
     const labelMatch = blockHtml.match(/<i>([^<]+)<\/i>\s*/)
     if (labelMatch) {
@@ -485,6 +507,13 @@ function parseOneAbility(headerHtml: string, bodyBlocks: string[], sectionDefaul
         const sub = label.replace(/\s*\(.*$/, '')
         fields['secondary ' + sub] = value
       }
+      // A named or "Primary" attack line ("Tentacle Attack: +19 vs. Fortitude"), and an "Effect (No
+      // Action): Close burst 2 (...); +9 vs. Reflex" that is an attack, when there is no Attack line.
+      else if (!fields.attack && /^\w+ attack$/.test(label) && /\+\d+\s+vs\b/i.test(value)) {
+        fields.attack = value
+        if (!label.startsWith('primary')) attackName = labelMatch[1].replace(/\s*attack:?\s*$/i, '').trim()
+      }
+      else if (!fields.attack && !fields.effect && label.startsWith('effect') && /^[^;]+;\s*\+\d+\s+vs\b/i.test(value)) fields.attack = value
       else if (label.startsWith('attack')) fields.attack = (fields.attack ? fields.attack + ' ' : '') + value
       else if (label.startsWith('hit')) fields.hit = value
       else if (label.startsWith('miss')) fields.miss = value
@@ -562,6 +591,7 @@ function parseOneAbility(headerHtml: string, bodyBlocks: string[], sectionDefaul
 
   // ─── Build result from labeled fields ───
   let rangeType = icon === '➶' || icon === '✻' ? 'ranged' : icon === 'ᗕ' ? 'close-burst' : 'melee'
+  const iconRange = rangeType
   let rangeValue = ''
   let target = ''
   let attackBonus: number | null = null
@@ -580,7 +610,7 @@ function parseOneAbility(headerHtml: string, bodyBlocks: string[], sectionDefaul
   if (fields.attack) {
     const atkLabeled = fields.attack.match(/(.+?)\s*;\s*\+(\d+)\s+vs\.?\s*(\w+)/)
     if (atkLabeled) {
-      const r = parseRangePart(atkLabeled[1].trim())
+      const r = parseRangePart(atkLabeled[1].trim(), iconRange)
       rangeType = r.rangeType
       rangeValue = r.rangeValue
       target = r.target
@@ -591,6 +621,10 @@ function parseOneAbility(headerHtml: string, bodyBlocks: string[], sectionDefaul
       const tail = (atkLabeled[3].substring(defense.length) + fields.attack.substring(atkLabeled.index! + atkLabeled[0].length))
         .replace(/^[\s.;,]+/, '').trim()
       if (tail) notes.push(tail)
+    } else {
+      // A bare "+19 vs. Fortitude" (a named attack under an Effect): the power's range stands.
+      const bare = fields.attack.match(/^\+(\d+)\s+vs\.?\s*(\w+)/)
+      if (bare) { attackBonus = parseInt(bare[1]); defense = normalizeDefense(bare[2]) }
     }
   } else if (unlabeledText) {
     // Inline format
@@ -601,7 +635,7 @@ function parseOneAbility(headerHtml: string, bodyBlocks: string[], sectionDefaul
 
       const beforeAtk = unlabeledText.substring(0, atkRollMatch.index).trim().replace(/;$/, '').trim()
       if (beforeAtk) {
-        const r = parseRangePart(beforeAtk)
+        const r = parseRangePart(beforeAtk, iconRange)
         rangeType = r.rangeType
         rangeValue = r.rangeValue
         target = r.target
@@ -732,13 +766,14 @@ function parseOneAbility(headerHtml: string, bodyBlocks: string[], sectionDefaul
     rechargeCondition: rechargeCondition || undefined,
     encounterUses,
     keywords, rangeType, rangeValue, target, attackBonus, attackNotes: notes.join('; '), defense,
+    attackName,
     damage, hit: cap(hit), miss: cap(miss), effect: cap(effect),
     secondary: fields.secondary
       ? cap([fields.secondary, ...['hit', 'miss', 'effect'].filter(k => fields['secondary ' + k]).map(k => `${cap(k)}: ${fields['secondary ' + k]}`)].join(' '))
       : undefined,
     aftereffect: fields.aftereffect ? cap(fields.aftereffect) : undefined,
     critical: cleanCritical(critical) || undefined,
-    trigger: cap(trigger), requirement, sustain,
+    trigger: /^when\b/.test(trigger) ? trigger : cap(trigger), requirement, sustain,
     ...(options.printed ? { printed } : {}),
   }
 }
@@ -1086,9 +1121,9 @@ function parseSpeeds(speedStr: string): { land: number; speeds: Record<string, n
     speeds[key] = parseInt(m[2])
     if (m[3]) notes.push(key + ': ' + m[3])
   }
-  // Check for land speed note like "6 (clumsy)"
+  // A walk note ("6 (clumsy)") comes first, with no mode prefix.
   const landNote = speedStr.match(/^(\d+)\s*\(([^)]+)\)/)
-  if (landNote) notes.push('land: ' + landNote[2])
+  if (landNote) notes.unshift(landNote[2])
   return { land, speeds, speedNotes: notes.join('; ') }
 }
 
@@ -1147,8 +1182,9 @@ function parseActionParen(str: string): ParsedParen {
   else if (lower.includes('recharge')) usage = 'recharge'
 
   let trigger = ''
-  // Trigger can start with ", when ..." (after action type) or be the entire paren "when ..."
-  const triggerMatch = str.match(/(?:^|,)\s*when\s+(.+?)(?:;\s|,\s*(?:recharge|encounter|at-will|daily)|\s*$)/i)
+  // Trigger can start with ", when ..." (after action type) or be the entire paren "when ...";
+  // it keeps the printed "when".
+  const triggerMatch = str.match(/(?:^|,)\s*(when\s+.+?)(?:;\s|,\s*(?:recharge|encounter|at-will|daily)|\s*$)/i)
   if (triggerMatch) trigger = triggerMatch[1].trim().replace(/,\s*$/, '')
 
   let sustain = ''
@@ -1186,7 +1222,14 @@ function parseActionParen(str: string): ParsedParen {
     const s = seg.trim()
     if (!s) continue
 
-    if (actionPat.test(s) || usagePat.test(s) || sustainPat.test(s) || triggerPat.test(s)) continue
+    if (actionPat.test(s) || usagePat.test(s) || sustainPat.test(s) || triggerPat.test(s)) {
+      // A requirement printed in the same segment as the usage or action:
+      // "requires greataxe, recharge ⚄⚅", "usable only while bloodied, encounter", "requires a free hand".
+      for (const part of s.split(/,\s*/).map(p => p.trim())) {
+        if (requirementPat.test(part) && !/^when\b/i.test(part)) requirement = requirement ? requirement + '; ' + part : part
+      }
+      continue
+    }
     if (rechargePat.test(s)) continue
     if (atkBonusPat.test(s)) continue
     if (/^[⚔➶ᗕ✻☼⚀⚁⚂⚃⚄⚅\s]+$/.test(s)) continue

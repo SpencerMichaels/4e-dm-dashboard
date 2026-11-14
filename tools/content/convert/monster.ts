@@ -1,7 +1,7 @@
 // Parsed monster (html-parser output with `printed`) -> kit Monster.
 
 import {
-  ABILITIES, CREATURE_TYPES, ORIGINS, ROLES, SENSE_KINDS, SIZES, SKILLS, DAMAGE_TYPES, isOneOf,
+  ABILITIES, CLASS_ROLES, CREATURE_TYPES, ORIGINS, ROLES, SENSE_KINDS, SIZES, SKILLS, DAMAGE_TYPES, isOneOf,
   type Ability, type Attack, type Aura, type DamageType, type Monster, type Power, type Rank,
   type Sense, type Skill, type Speed, type Trait,
 } from '@kit'
@@ -57,12 +57,18 @@ export function convertMonster(id: string, parsed: any, ctx: ConvertContext): Mo
   const regen = sb.regeneration
   const regenTrait = (sb.actions ?? []).find((a: any) => a.entryType === 'trait' && /^regeneration/i.test(a.name))
   const regenText = sb.printed?.regeneration ?? regenTrait?.printed?.text ?? ''
+  const suppressedBy = (regen?.inhibitDamageTypes ?? []).filter((t: string) => isOneOf(DAMAGE_TYPES, t)) as DamageType[]
+  // A printed suppressor that is not a damage type (schema v12): "damage from a silvered weapon", "exposed to direct sunlight".
+  const suppressedText = suppressedBy.length === 0 && /does(?:n't| not) function|negates/i.test(regenText)
+    ? normText(regenText).match(/damage from (?:a )?silver(?:ed)? weapons?|exposed to (?:direct )?sunlight/i)?.[0]
+    : undefined
 
   const monster: Monster = {
     id,
     name: parsed.name,
     level: sb.level,
     role: isOneOf(ROLES, sb.role) ? sb.role : null,
+    classRole: isOneOf(CLASS_ROLES, sb.classRole) ? sb.classRole : undefined,
     rank,
     leader: sb.leader ? true : undefined,
     size: isOneOf(SIZES, size) ? size : 'medium',
@@ -71,6 +77,10 @@ export function convertMonster(id: string, parsed: any, ctx: ConvertContext): Mo
     keywords: (sb.subtypes ?? []).map((s: string) => s.toLowerCase()),
     xp: sb.xp,
     hp: rank === 'minion' ? 1 : parsed.hp,
+    // "HP 0; Bloodied 0 ; The colossus has infinite hit points; ..." (schema v13).
+    hpText: sb.hpText,
+    healingSurges: sb.healingSurges,
+    surgeValue: sb.surgeValue,
     initiative: sb.initiative,
     perception: sb.perception,
     senses: parseSenses(sb.senses ?? '', notes),
@@ -85,7 +95,8 @@ export function convertMonster(id: string, parsed: any, ctx: ConvertContext): Mo
     vulnerable: (sb.weaknesses ?? []).map((r: any) => damageModifier(r.type, r.value, r.note)),
     regeneration: regen ? {
       value: regen.value,
-      suppressedBy: (regen.inhibitDamageTypes ?? []).filter((t: string) => isOneOf(DAMAGE_TYPES, t)) as DamageType[],
+      suppressedBy,
+      suppressedText,
       text: normText(regenText),
     } : undefined,
     abilities,
@@ -163,6 +174,7 @@ export function convertPower(a: any, notes: Notes): Power {
     const hitText = p.hit
     const primary: Attack = compact({
       label: 'primary',
+      name: a.attackName,
       range: toRange(a.rangeType, a.rangeValue, a.attackNotes || undefined),
       target: a.target ?? '',
       bonus: { kind: 'fixed', value: a.attackBonus },
