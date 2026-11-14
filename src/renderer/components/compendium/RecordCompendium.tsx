@@ -96,11 +96,19 @@ export function RecordCompendium<T extends { id: string; name: string }>({ kind,
   const contentKind = contentKindFor(kind.type)
   const draftList = useAuthoringStore(s => s.list)
   const sessions = useMemo(() => draftList.filter(d => d.kind === contentKind && d.destinations?.some(x => x.id === campaignId)), [draftList, contentKind, campaignId])
+  // Such an entry's row comes from its working copy's content (the list of drafts has only names and levels).
+  const loadedDrafts = useAuthoringStore(s => s.drafts)
+  const unwritten = useMemo(() => sessions.filter(s => !s.destinations?.some(x => x.entityId)), [sessions])
+  useEffect(() => {
+    for (const s of unwritten) if (!loadedDrafts[s.id]) void window.api.authoring.call('get_draft', { id: s.id }).then(useAuthoringStore.getState().receive)
+  }, [unwritten])
   const custom = useMemo((): RecordRow[] => [
-    ...sessions.filter(s => !s.destinations?.some(x => x.entityId))
-      .map(s => ({ id: `ai:${s.id}`, name: s.name, level: s.level ?? 0, cells: kind.columns.map(() => ''), custom: true, ai: s })),
+    ...unwritten.map(s => {
+      const content = loadedDrafts[s.id]?.content as unknown as T | undefined
+      return { ...(content ? kind.row(content) : { name: s.name, level: s.level ?? 0, cells: kind.columns.map(() => '') }), id: `ai:${s.id}`, custom: true, ai: s }
+    }),
     ...records.map(r => ({ ...kind.row(r.content), id: r.id, custom: true })),
-  ], [records, sessions, kind])
+  ], [records, unwritten, loadedDrafts, kind])
   const filters = useDeferredValue({ search, levelStr, source, selects })
   const rows = useMemo(() => {
     const q = filters.search.toLowerCase()
