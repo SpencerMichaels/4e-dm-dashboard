@@ -13,7 +13,7 @@ Working with an AI agent needs no mode or separate page (2026-11-13; it was a "W
 
 Saved creatures open in the normal campaign view, and saved items, traps, diseases, templates, and themes appear as Custom entries on their compendium pages. Writes keep the entry's campaign imagery and metadata.
 
-A working copy can write into two campaigns at once (the agent passes both as `destinations`). Before each write, a change made to the entry another way is folded in: per top-level field, a field the working copy changed since the last write keeps its value, and any other takes the entry's.
+A working copy belongs to exactly one campaign entry, fixed when it is created: it cannot be moved (`/destinations` is not patchable); copy the entry instead. Deleting the entry or its campaign archives the working copy, and at startup the app archives any whose campaign or entry is gone (under `authoring/archive/`). Before each write, a change made to the entry another way is folded in: per top-level field, a field the working copy changed since the last write keeps its value, and any other takes the entry's.
 
 ## Agent connection
 

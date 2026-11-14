@@ -10,10 +10,12 @@ import { testPower } from '../../common/authoring/fixtures'
 let root: string
 beforeEach(async () => { root = await mkdtemp(join(tmpdir(), 'authoring-test-')) })
 afterEach(async () => { await rm(root, { recursive: true, force: true }) })
+/** Every working copy has one campaign; stores without a publisher never write to it. */
+function home() { return [{ type: 'campaign' as const, id: 'a' }] }
 function content() { const m = scaffold('monster', 'Synthetic shade', 7, 'lurker') as Monster; m.powers.push(testPower()); return m }
 describe('draft collaboration', () => {
   it('survives restart and preserves comments across independent content revisions', async () => {
-    const s = new DraftStore(root); const d = await s.create('monster', content())
+    const s = new DraftStore(root); const d = await s.create('monster', content(), '', home())
     await s.comment(d.id, 'Make it faster', '/', 'dm')
     const next = await s.patch({ id: d.id, revision: 1, changes: [{ path: '/content/speed/walk', value: 8 }] }, 'agent')
     expect(next.comments).toHaveLength(1)
@@ -25,7 +27,7 @@ describe('draft collaboration', () => {
     expect(restored.comments).toHaveLength(1)
   })
   it('rejects stale edits but lets the agent revise applied DM edits, which then stop counting as DM-authored', async () => {
-    const s = new DraftStore(root); const d = await s.create('monster', (() => { const m = content(); m.powers.push({ ...testPower(), name: 'Other power' }); return m })())
+    const s = new DraftStore(root); const d = await s.create('monster', (() => { const m = content(); m.powers.push({ ...testPower(), name: 'Other power' }); return m })(), '', home())
     await s.patch({ id: d.id, revision: 1, changes: [{ path: '/content/defenses/ac', value: 24 }, { path: '/content/hp', value: 50 }, { path: '/order/powers', value: d.nodes.powers }] }, 'dm')
     await expect(s.patch({ id: d.id, revision: 1, changes: [] }, 'agent')).rejects.toThrow('Revision conflict')
     // The agent is told what the DM changed since its version, and to ask before overwriting it.
@@ -39,7 +41,7 @@ describe('draft collaboration', () => {
   })
   it('retains semantic anchors through reordering and marks edited prose stale', async () => {
     const m = content(); m.powers.push({ ...testPower(), name: 'Other power' })
-    const s = new DraftStore(root); const d = await s.create('monster', m)
+    const s = new DraftStore(root); const d = await s.create('monster', m, '', home())
     const id = d.nodes.powers[0], path = `/content/powers/@${id}`
     await s.comment(d.id, 'Keep surge loss', path, 'dm')
     const changed = await s.patch({ id: d.id, revision: 1, changes: [{ path: '/order/powers', value: [...d.nodes.powers].reverse() }, { path: `${path}/attacks/0/hit/text`, value: 'The target loses one healing surge.' }] }, 'dm')
@@ -49,7 +51,7 @@ describe('draft collaboration', () => {
     await expect(s.patch({ id: d.id, revision: 2, changes: [{ path: '/content/powers/0/name', value: 'Bad' }] }, 'agent')).rejects.toThrow('stable')
   })
   it('lets the agent close only its own threads, and only with a reply; DM feedback stays DM-resolved', async () => {
-    const s = new DraftStore(root); const d = await s.create('monster', content())
+    const s = new DraftStore(root); const d = await s.create('monster', content(), '', home())
     const q = await s.comment(d.id, 'When does it act?', '/', 'agent', true)
     await expect(s.comment(d.id, '', '/', 'agent', false, q.comments[0].id, true)).rejects.toThrow('Resolving needs a reply')
     const answered = await s.comment(d.id, 'DM answer in chat: right after its creator.', '/', 'agent', false, q.comments[0].id, true)
@@ -63,7 +65,7 @@ describe('draft collaboration', () => {
     expect((await s.comment(d.id, '', '/', 'dm', false, dmThread, true)).comments[1].resolved).toBe(true)
   })
   it('opens drafts from compatible older kit schemas and still rejects incompatible ones', async () => {
-    const s = new DraftStore(root); const d = await s.create('monster', content())
+    const s = new DraftStore(root); const d = await s.create('monster', content(), '', home())
     const file = join(root, d.id, 'current.json')
     await writeFile(file, JSON.stringify({ ...d, schemaVersion: 4 }))
     expect((await s.get(d.id)).schemaVersion).toBe(SCHEMA_VERSION)
@@ -73,12 +75,12 @@ describe('draft collaboration', () => {
     await expect(s.get(d.id)).rejects.toThrow('schema migration')
   })
   it('rejects protected envelope fields, traversal and malicious paths', async () => {
-    const s = new DraftStore(root); const d = await s.create('monster', content())
+    const s = new DraftStore(root); const d = await s.create('monster', content(), '', home())
     await expect(s.get('../escape')).rejects.toThrow('Invalid identifier')
     for (const path of ['/receipt', '/revision', '/content/__proto__/x', '/content']) await expect(s.patch({ id: d.id, revision: 1, changes: [{ path, value: {} }] }, 'agent')).rejects.toThrow()
   })
   it('derives metadata under DM prose without discarding the DM-authored marker, and lets the agent revise DM-edited clauses', async () => {
-    const s = new DraftStore(root); const d = await s.create('monster', content())
+    const s = new DraftStore(root); const d = await s.create('monster', content(), '', home())
     const node = `/content/powers/@${d.nodes.powers[0]}`, path = `${node}/attacks/0/hit`
     const edited = await s.patch({ id: d.id, revision: 1, changes: [{ path, value: { text: 'The target loses one healing surge.', clauses: [] } }] }, 'dm')
     const derived = await s.patch({ id: d.id, revision: edited.revision, changes: [{ path: `${path}/clauses`, value: [{ kind: 'lose-healing-surge', count: 1, who: 'target', quote: 'loses one healing surge' }] }], reconciled: [node] }, 'agent')
@@ -190,6 +192,30 @@ describe('live writes into the campaign', () => {
     await s.writeUnwritten('a')
     const written = await s.get(old.id)
     expect(p.content(`a/${written.destinations[0].entityId}`)).toMatchObject({ name: 'Synthetic shade' })
+  })
+  it('gives every working copy exactly one campaign, fixed at creation', async () => {
+    const s = new DraftStore(root, publisher().p)
+    await expect(s.create('monster', content(), '', [])).rejects.toThrow('exactly one campaign')
+    await expect(s.create('monster', content(), '', [{ type: 'campaign', id: 'a' }, { type: 'campaign', id: 'b' }])).rejects.toThrow('exactly one campaign')
+    expect(await s.list()).toEqual([])
+    const d = await s.create('monster', content(), '', [{ type: 'campaign', id: 'a' }])
+    await expect(s.patch({ id: d.id, revision: 1, changes: [{ path: '/destinations', value: [] }] }, 'agent')).rejects.toThrow('stays with its campaign')
+  })
+  it('archives the working copies of a deleted campaign, and at startup those whose campaign or entry is gone', async () => {
+    const p = publisher(); const gone = new Set<string>()
+    p.p.check = async d => { if (gone.has(d.id)) throw new Error('Destination no longer exists') }
+    const s = new DraftStore(join(root, 'drafts'), p.p)
+    const [a, b, c, kept] = await Promise.all(['a', 'b', 'c', 'c'].map(id => s.create('monster', content(), '', [{ type: 'campaign', id }])))
+    await s.campaignDeleted('a')
+    expect((await s.list()).map(r => r.id).sort()).toEqual([b.id, c.id, kept.id].sort())
+    // Deleted while the app was closed: campaign b, and one of c's entries.
+    gone.add('b')
+    p.saved.delete(`c/${c.destinations[0].entityId}`)
+    // An old Workshop draft that never had a campaign.
+    const homeless = await new DraftStore(join(root, 'drafts')).create('monster', content(), '', home())
+    await writeFile(join(root, 'drafts', homeless.id, 'current.json'), JSON.stringify({ ...homeless, destinations: [] }))
+    expect((await s.archiveOrphans()).sort()).toEqual([b.id, c.id, homeless.id].sort())
+    expect((await s.list()).map(r => r.id)).toEqual([kept.id])
   })
   it('moves an archived session out of the drafts list, keeping its files', async () => {
     const s = new DraftStore(join(root, 'drafts'), publisher().p)

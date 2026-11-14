@@ -184,6 +184,31 @@ export class DraftStore {
   async entryDeleted(campaignId: string, entityId: string) {
     for (const row of await this.list()) if (row.destinations.some(x => x.id === campaignId && x.entityId === entityId)) await this.archive(row.id)
   }
+  /** A campaign was deleted: the working copies of its entries are archived with it. */
+  async campaignDeleted(campaignId: string) {
+    for (const row of await this.list()) if (row.destinations.some(x => x.id === campaignId)) await this.archive(row.id)
+  }
+  /**
+   * Archives working copies that have no home (run at startup): no destination (an old Workshop draft), a
+   * campaign that no longer exists, or an entry that was written once and has since been deleted outside the app.
+   */
+  async archiveOrphans() {
+    const archived: string[] = []
+    if (!this.publisher) return archived
+    for (const row of await this.list()) {
+      const d = await this.get(row.id)
+      if (await this.homeless(d)) { await this.archive(d.id); archived.push(d.id) }
+    }
+    return archived
+  }
+  private async homeless(d: Draft) {
+    const home = d.destinations[0]
+    if (!home) return true
+    try { await this.publisher!.check(home, d.kind) } catch { return true }
+    if (!home.entityId) return false
+    const written = (await this.syncState(d.id)).written?.[`${home.type}/${home.id}/${home.entityId}`]
+    return !!written && !await this.publisher!.read(home, home.entityId, d.kind)
+  }
   /** Ends a draft: its folder moves to `archive/` beside the drafts folder (kept on disk, out of every list). */
   archive(id: string) {
     return this.serial(async () => {
@@ -221,7 +246,8 @@ export class DraftStore {
     })
   }
   private checkDestinations(destinations: Destination[]) {
-    if (!Array.isArray(destinations) || destinations.length > 2) throw new Error('Select at most two destinations')
+    // One home per working copy, fixed at creation: an entry never floats free of its campaign.
+    if (!Array.isArray(destinations) || destinations.length !== 1) throw new Error('A working copy belongs to exactly one campaign')
     for (const d of destinations) {
       if (!d || d.type !== 'campaign') throw new Error('Invalid destination: content saves to a campaign')
       safeId(d.id)
@@ -235,7 +261,6 @@ export class DraftStore {
       // An agent working from an older version is told what the DM changed since, so it asks before overwriting it.
       if (actor === 'agent' && patch.revision !== current.revision) throw new Error(await this.conflict(current, patch.revision))
       const draft = applyPatch(current, patch, actor, randomUUID)
-      this.checkDestinations(draft.destinations)
       return this.persist(draft, actor, 'edited')
     })
   }

@@ -190,7 +190,7 @@ Implementation plan: [Agent-assisted content authoring](docs/agent-content-autho
 
 Plan: [docs/shared-library-plan.md](docs/shared-library-plan.md) (2026-11-14). A Library of custom entries of all six kinds, shared across campaigns and referenced live like published content; every custom entry and working copy has exactly one home (the Library or a campaign), shown in the UI. A future campaign export must bundle the Library entries it references.
 
-- [ ] Hardening: one fixed home per working copy (no `/destinations` patches), campaign deletion archives its working copies, startup orphan check
+- [x] Hardening: one fixed home per working copy (no `/destinations` patches), campaign deletion archives its working copies, startup orphan check (2026-11-14)
 - [ ] Library storage in main (`<userData>/library/`, art included), loaded and broadcast with or without an open campaign
 - [ ] Compendium pages: Library section, home labels, "+ New in ...", Copy to library / Copy to campaign, delete with a usage warning
 - [ ] Live references: `libraryId` in encounter rows, encounter/location traps and PC diseases; `library:<id>` templates and themes; pickers and search

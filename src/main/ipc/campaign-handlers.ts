@@ -4,7 +4,7 @@ import type { EntityType, PlayerCharacter } from '@common/types'
 import { applySnapshots, type ImportedFile, type ImportResult } from '@common/character/character-import'
 import { generateId } from '@common/utils/id'
 import { isRecordType, RECORD_STORAGE, RECORD_TYPES, type RecordType } from '@common/campaign-records'
-import { authoringCampaignOpened, authoringEntryChanged, authoringEntryDeleted } from './authoring-handlers'
+import { authoringCampaignDeleted, authoringCampaignOpened, authoringEntryChanged, authoringEntryDeleted } from './authoring-handlers'
 import * as store from '../data/campaign-store'
 import { broadcastToDm } from '../windows'
 import { invalidateCreatureIndex } from './compendium-handlers'
@@ -25,6 +25,7 @@ export function registerCampaignHandlers(): void {
 
   ipcMain.handle(CMD.CAMPAIGN_DELETE, async (_e, campaignId: string) => {
     await store.deleteCampaign(campaignId)
+    await authoringCampaignDeleted(campaignId)
     broadcastCampaignState()
   })
 

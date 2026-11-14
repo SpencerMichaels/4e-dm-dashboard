@@ -15,6 +15,8 @@ export let authoringEntryChanged: (campaignId: string, entityId: string) => void
 export let authoringEntryDeleted: (campaignId: string, entityId: string) => void = () => {}
 /** A campaign was opened: working copies bound to it but never written (old Workshop drafts) become its entries. */
 export let authoringCampaignOpened: (campaignId: string) => void = () => {}
+/** A campaign was deleted: its working copies are archived. */
+export let authoringCampaignDeleted: (campaignId: string) => Promise<void> = async () => {}
 /** Opens or closes the local agent connection (set once the service starts). */
 export let setAgentConnection: (on: boolean) => Promise<void> = async () => {}
 
@@ -29,6 +31,9 @@ export async function registerAuthoringHandlers() {
   authoringEntryChanged = (campaignId, entityId) => void service.drafts.entryChanged(campaignId, entityId).catch(() => {})
   authoringEntryDeleted = (campaignId, entityId) => void service.drafts.entryDeleted(campaignId, entityId).catch(() => {})
   authoringCampaignOpened = campaignId => void service.drafts.writeUnwritten(campaignId).catch(() => {})
+  authoringCampaignDeleted = campaignId => service.drafts.campaignDeleted(campaignId).catch(() => {})
+  // Working copies whose campaign or entry is gone (deleted before this check existed, or outside the app).
+  void service.drafts.archiveOrphans().catch(() => {})
   const open = (id?: string) => {
     getDmWindow()?.show(); getDmWindow()?.focus()
     broadcastToDm(SYNC.AUTHORING, { open: id ?? '' })
