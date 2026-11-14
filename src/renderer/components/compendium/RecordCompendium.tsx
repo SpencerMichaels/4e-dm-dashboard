@@ -182,7 +182,8 @@ export function RecordCompendium<T extends { id: string; name: string }>({ kind,
     setPreview(row.custom ? records.find(r => r.id === row.id)?.content ?? null : await kind.get(row.id))
     previewRef.current?.scrollTo(0, 0)
     // With the agent connection on, the preview shows the working copy (comment markers, the agent's edits live).
-    if (row.custom && agent) setCopyId(await loadCopy(row))
+    // An entry not yet in the campaign (an older working copy never written to it) has only its working copy.
+    if (row.custom && (agent || row.ai)) setCopyId(await loadCopy(row))
   }
   // A working copy to show (an agent's open_review, the command palette).
   useEffect(() => {
