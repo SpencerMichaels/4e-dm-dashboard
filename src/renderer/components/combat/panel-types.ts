@@ -30,7 +30,8 @@ export interface PluginCombatPanelProps {
   onToggleDisabled?: () => void
   /** Traps: a countermeasure's effect button or a skill challenge check (TrapCountermeasures). */
   onCountermeasure?: (use: import('./TrapCountermeasures').CountermeasureUse) => void
-  onApplyConditionToTargets: (condition: { conditionId: string; value?: number; customDescription?: string; sourceId?: string; duration?: { type: string; remaining?: number; expiresOnId?: string } }, multi: boolean) => void
+  /** Conditions clicked on a power card (a "save ends both" group together): select targets to apply them to. */
+  onApplyConditionToTargets: (conditions: import('./card-actions').PendingCondition[], multi: boolean) => void
   /** A disease named in a power: select PCs to expose (tracked on their PC records). */
   onApplyDiseaseToTargets?: (disease: import('@common/types').DiseaseRef, name: string, multi: boolean) => void
   /** When true, hide powers that require a standard, move, or minor action */

@@ -3,7 +3,8 @@
 // attribution ("+2 from Battle Champion"). Pure: returns a new monster.
 
 import { DAMAGE_TYPES, monsterXp } from '@kit'
-import type { Ability, Aura, Line, Monster, MonsterTemplate, MonsterTheme, Power, Rank, Skill, TemplatePrereq, Trait } from '@kit'
+import type { Ability, Aura, Clause, Line, Monster, MonsterTemplate, MonsterTheme, Power, Rank, Skill, TemplatePrereq, Trait } from '@kit'
+import { rebaseClauses } from '../authoring/clause-rebase'
 
 /** A numeric field change, named by the stat block field it shows on ("ac", "defenses.reflex", "skills.stealth"). */
 export interface FieldDiff { field: string; before: number; after: number; source: string; sourceIndex: number }
@@ -44,23 +45,50 @@ const modifier = (score: number | undefined) => Math.floor(((score ?? 10) - 10) 
 const tierOf = (level: number) => level <= 10 ? 'heroic' : level <= 20 ? 'paragon' : 'epic'
 
 /** "level + 3", "one-half its level", "Strength modifier" in template and theme text, for this monster. */
-function resolver(m: Monster) {
-  return (s: string) => s
-    .replace(/\blevel\s*\+\s*(\d+)\b/gi, (_, n) => String(m.level + parseInt(n)))
-    .replace(/\bone-half (?:this creature's |the \w+'s )?level\b/gi, String(Math.floor(m.level / 2)))
-    .replace(/\bhalf (?:its|this creature's) level\b/gi, String(Math.floor(m.level / 2)))
-    .replace(/(Strength|Constitution|Dexterity|Intelligence|Wisdom|Charisma) modifier/gi, (_, ab: string) => String(modifier(m.abilities[ab.toLowerCase().slice(0, 3) as Ability])))
+function resolver(m: Monster): (l: Line) => Line {
+  const rules: [RegExp, (...match: string[]) => string][] = [
+    [/\blevel\s*\+\s*(\d+)\b/gi, (_, n) => String(m.level + parseInt(n!))],
+    [/\bone-half (?:this creature's |the \w+'s )?level\b/gi, () => String(Math.floor(m.level / 2))],
+    [/\bhalf (?:its|this creature's) level\b/gi, () => String(Math.floor(m.level / 2))],
+    [/(Strength|Constitution|Dexterity|Intelligence|Wisdom|Charisma) modifier/gi, (_, ab) => String(modifier(m.abilities[ab!.toLowerCase().slice(0, 3) as Ability]))],
+  ]
+  // One substitution at a time, so each drops only the clauses whose words it changed (a damage
+  // clause quoting "level + 3"); the rest keep their spans.
+  return (l: Line) => {
+    let out = l
+    for (const [re, value] of rules) {
+      for (let at = 0, match: RegExpExecArray | null; (re.lastIndex = at, match = re.exec(out.text));) {
+        const replaced = value(...match)
+        out = retext(out, out.text.slice(0, match.index) + replaced + out.text.slice(match.index + match[0].length))
+        at = match.index + replaced.length
+      }
+    }
+    return out
+  }
+}
+
+/** The line with new text: the clauses the change left alone stay, with their spans moved (one edit). */
+function retext(l: Line, text: string): Line {
+  if (text === l.text) return l
+  const out = { text, clauses: structuredClone(l.clauses) }
+  rebaseClauses(l.text, out)
+  return out
+}
+
+/** The line from `start` on: clauses before it are dropped, the rest move back. */
+function lineFrom(l: Line, start: number): Line {
+  return { text: l.text.slice(start), clauses: structuredClone(l.clauses).filter(c => c.at[0] >= start).map(c => shiftClause(c, -start)) }
+}
+const shiftClause = (c: Clause, by: number): Clause => {
+  const out = { ...c, at: [c.at[0] + by, c.at[1] + by] } as Clause
+  if (out.kind === 'choice') out.options = out.options.map(o => o.map(x => ({ ...x, at: [x.at[0] + by, x.at[1] + by] })))
+  return out
 }
 
 /** A template or theme power with its level-relative numbers resolved for this monster. */
 function resolvePower(m: Monster, p: Power): Power {
   const resolve = resolver(m)
-  const line = (l: Line | undefined) => {
-    if (!l) return l
-    const text = resolve(l.text)
-    // Clause spans quote the printed text; they no longer apply once numbers are filled in.
-    return text === l.text ? l : { text, clauses: [] }
-  }
+  const line = (l: Line | undefined) => l && resolve(l)
   const { category: _c, recommendedFor: _r, recommendedText: _t, flavor: _f, ...power } = p as Power & Record<string, unknown>
   const out = structuredClone(power) as Power
   out.attacks = out.attacks.map(a => ({
@@ -121,9 +149,8 @@ function applyTemplate(m: Monster, t: MonsterTemplate, index: number, attr: Attr
   for (const p of t.powers) { attr.sources[`powers/${m.powers.length}`] = source; m.powers.push(resolvePower(m, p)) }
 }
 
-function resolveTrait<T extends Trait>(t: T, resolve: (s: string) => string): T {
-  const text = resolve(t.text.text)
-  return { ...structuredClone(t), text: text === t.text.text ? structuredClone(t.text) : { text, clauses: [] } }
+function resolveTrait<T extends Trait>(t: T, resolve: (l: Line) => Line): T {
+  return { ...structuredClone(t), text: structuredClone(resolve(t.text)) }
 }
 
 function applyTheme(m: Monster, o: NonNullable<EncounterAdjustments['theme']>, attr: Attribution) {
@@ -144,12 +171,11 @@ function applyTheme(m: Monster, o: NonNullable<EncounterAdjustments['theme']>, a
   const resolve = resolver(m)
   for (const p of theme.powers.filter(p => p.name === o.attack || p.name === o.utility)) {
     // Theme traits and auras are printed as no-action powers; an aura's text starts "Aura N; ".
-    const text = p.effect?.text ?? ''
+    const effect = p.effect ?? { text: '', clauses: [] }
     if (p.action === 'no-action' && !p.attacks.length && !p.trigger) {
-      const aura = text.match(/^Aura (\d+); ([\s\S]*)$/)
-      const line = (s: string) => ({ text: resolve(s), clauses: [] })
-      if (aura) { attr.sources[`auras/${m.auras.length}`] = source; m.auras.push({ name: p.name, keywords: [...p.keywords], text: line(aura[2]), range: Number(aura[1]) }) }
-      else { attr.sources[`traits/${m.traits.length}`] = source; m.traits.push({ name: p.name, keywords: [...p.keywords], text: line(text) }) }
+      const aura = effect.text.match(/^Aura (\d+); /)
+      if (aura) { attr.sources[`auras/${m.auras.length}`] = source; m.auras.push({ name: p.name, keywords: [...p.keywords], text: structuredClone(resolve(lineFrom(effect, aura[0].length))), range: Number(aura[1]) }) }
+      else { attr.sources[`traits/${m.traits.length}`] = source; m.traits.push({ name: p.name, keywords: [...p.keywords], text: structuredClone(resolve(effect)) }) }
       continue
     }
     attr.sources[`powers/${m.powers.length}`] = source
@@ -190,7 +216,7 @@ function applyLevelAdjust(m: Monster, delta: number, attr: Attribution) {
       if (a.bonus.kind === 'fixed') { a.bonus = { kind: 'fixed', value: a.bonus.value + delta }; attack = true }
       if (a.hit && damageDelta) {
         const text = adjustLeadingDamage(a.hit.text, damageDelta)
-        if (text !== a.hit.text) { a.hit = { text, clauses: [] }; damage = true }
+        if (text !== a.hit.text) { a.hit = retext(a.hit, text); damage = true }
       }
     }
     if (attack || damage) attr.levelAdjust[i] = { attackDelta: attack ? delta : 0, damageDelta: damage ? damageDelta : 0, source }

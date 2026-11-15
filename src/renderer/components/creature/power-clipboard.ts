@@ -15,6 +15,7 @@ export function copyPower(power: PowerEntry): void {
   delete clean._templateSourceIndex
   delete clean._templatePower
   delete clean._themeSource
+  delete clean._kit
   clipboard = clean
   listeners.forEach(fn => fn())
 }

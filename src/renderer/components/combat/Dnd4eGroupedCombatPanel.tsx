@@ -6,7 +6,6 @@ import type { CombatantState } from '@common/types'
 import { combatStatBlock } from './combat-view'
 import { PowerCardView, type PowerCardEntry } from '../creature/PowerCardView'
 import { sign } from '../creature/dnd4e-utils'
-import { detectConditions } from './condition-detection'
 import { ConditionPill, buildConditionLabel } from './ConditionPill'
 import { capitalize } from '@common/utils/format'
 import { normalizeStringArray } from '@common/utils/arrays'
@@ -230,7 +229,6 @@ export function Dnd4eGroupedCombatPanel({
             const key = `grouped:${baseName}:${a.entryType}:${idx}`
             const entry = toPowerCardEntry(a.entryType === 'aura' ? { ...a, rangeType: 'aura', rangeValue: String((a as any).auraSize ?? (a as any).auraRange ?? a.rangeValue ?? 1) } : a)
             return <PowerCardView key={key} entry={entry}
-              detectedConditions={a.entryType === 'action' ? detectConditions({ hit: a.hit, effect: a.effect, miss: a.miss, target: a.target }) : undefined}
               pinned={pinnedKeys.has(key)} onPin={() => onPinCard({ combatantName: baseName, title: a.name, content: entry, key })} />
           })}
         </div>

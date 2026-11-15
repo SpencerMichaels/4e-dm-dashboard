@@ -1,7 +1,7 @@
 import type { Monster, Power, Range } from '@kit'
 import type { Creature } from '../types/creature'
 
-function rangeText(r?: Range) {
+export function rangeText(r?: Range) {
   return r ? [r.reach ?? r.size, r.within ? `within ${r.within}` : '', r.note].filter(v => v !== undefined && v !== '').join(' ') : ''
 }
 /** "AC", "Fortitude": the printed defense names the legacy viewers and editors show. */

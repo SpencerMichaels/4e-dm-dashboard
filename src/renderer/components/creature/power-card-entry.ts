@@ -30,6 +30,7 @@ export function toPowerCardEntry(p: any, opts: { hideUsageKeywords?: boolean } =
     defense: isTrait ? undefined : p.defense,
     damage: isTrait ? undefined : p.damage,
     hit: isTrait ? undefined : p.hit,
+    ...(p._hitJoin !== undefined && !isTrait ? { hitJoin: p._hitJoin } : {}),
     critical: isTrait ? undefined : p.critical,
     secondary: isTrait ? undefined : p.secondary,
     aftereffect: isTrait ? undefined : p.aftereffect,
@@ -41,6 +42,8 @@ export function toPowerCardEntry(p: any, opts: { hideUsageKeywords?: boolean } =
     special: p.special,
     text: p.text,
     levelScaling: p.levelScaling,
+    // Kit content (kit-view's `_kit`): a power's card is drawn from it; a trait's or aura's line carries its clauses.
+    ...(p._kit ? (isTrait ? { kitLine: p._kit.text } : { kit: p._kit }) : {}),
     ...(p.encounterUses > 1 ? { encounterUses: p.encounterUses } : {}),
     ...(p.basicAttack ? { basic: p.basicAttack } : {}),
     // Encounter level adjustment, shown on the attack and damage numbers.

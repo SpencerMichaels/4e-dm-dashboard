@@ -1,6 +1,8 @@
 import type { Draft, Patch, Actor } from './types'
 import { normalizeContent, validate } from './core'
 import { reanchorClauses } from './quotes'
+import { rebaseClauses } from './clause-rebase'
+import type { Line } from '@kit'
 
 export const NODE_GROUPS = ['powers', 'traits', 'auras', 'stages', 'properties', 'countermeasures']
 const forbidden = new Set(['__proto__', 'prototype', 'constructor'])
@@ -96,10 +98,12 @@ export function applyPatch(current: Draft, patch: Patch, actor: Actor, newId: ()
       const previous = parent[last]
       parent[last] = normalizeContent(change.value)
       if (keys[0] === 'content') {
-        // Prose edits keep their clauses: spans move with the quoted words (the node is still marked stale).
+        // An agent's prose edit keeps its clauses: spans move with the quoted words (the node is still
+        // marked stale). The DM's keeps only the clauses the edit left alone (clause-rebase.ts).
         const linePath = path.replace(/\/text$/, '')
-        if (last === 'text' && Array.isArray(parent.clauses) && typeof previous === 'string' && !patch.changes.some(c => overlaps(c.path, `${linePath}/clauses`))) reanchorClauses(previous, parent)
-        else reanchorReplaced(previous, parent[last])
+        const rebase = actor === 'dm' ? rebaseClauses : reanchorClauses
+        if (last === 'text' && Array.isArray(parent.clauses) && typeof previous === 'string' && !patch.changes.some(c => overlaps(c.path, `${linePath}/clauses`))) rebase(previous, parent)
+        else reanchorReplaced(previous, parent[last], rebase)
       }
     }
     // Overrides record what the DM authored; an agent revision of that field (or anything under it) supersedes the record.
@@ -126,8 +130,8 @@ export function applyPatch(current: Draft, patch: Patch, actor: Actor, newId: ()
 
 const isLine = (v: any) => v && typeof v === 'object' && typeof v.text === 'string' && Array.isArray(v.clauses)
 /** In a replaced object, re-anchor each Line whose text changed but whose clauses were carried over unchanged. */
-export function reanchorReplaced(before: any, after: any) {
+export function reanchorReplaced(before: any, after: any, rebase: (oldText: string, line: Line) => void = reanchorClauses) {
   if (!before || !after || typeof before !== 'object' || typeof after !== 'object') return
-  if (isLine(before) && isLine(after)) { if (same(before.clauses, after.clauses)) reanchorClauses(before.text, after); return }
-  for (const key of Object.keys(after)) reanchorReplaced(before[key], after[key])
+  if (isLine(before) && isLine(after)) { if (same(before.clauses, after.clauses)) rebase(before.text, after); return }
+  for (const key of Object.keys(after)) reanchorReplaced(before[key], after[key], rebase)
 }

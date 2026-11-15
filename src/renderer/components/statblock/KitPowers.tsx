@@ -26,7 +26,7 @@ export function KitPowers<P extends Power>({ powers, onChange, level, role, blan
   // The rules normally load when a campaign opens; editors also work without one.
   useEffect(() => { if (onChange && !rules) void window.api.system.getRules().then(useUiStore.getState().setSystemPlugin) }, [onChange, rules])
   if (!onChange || !rules) return <>{powers.map((p, i) => <div key={i} style={{ position: 'relative' }}>
-    <PowerCardView entry={powerToLegacy(p) as PowerCardEntry} />
+    <PowerCardView entry={{ ...powerToLegacy(p), kit: p } as PowerCardEntry} />
     <Annotation anchor={{ kind: 'entry', entry: { entryType: 'action', name: p.name, _draftNode: node(p) } }} />
   </div>)}</>
   // Entries remember which power they came from (per list, so pasted entries never match the wrong one).
@@ -63,7 +63,7 @@ export function KitTraits({ traits, auras, onTraits, onAuras }: {
         </div>
         <div style={{ paddingLeft: 12 }}><LineText line={x.text} placeholder="Effect" onChange={text => ops.set!(i, { ...x, text })} /></div>
       </div>
-        : <PowerCardView entry={{ name: x.name, usage: 'trait', keywords: x.keywords, ...(kind === 'aura' ? { rangeType: 'aura', rangeValue: String((x as unknown as Aura).range) } : {}), effect: x.text.text } as PowerCardEntry} />}
+        : <PowerCardView entry={{ name: x.name, usage: 'trait', keywords: x.keywords, ...(kind === 'aura' ? { rangeType: 'aura', rangeValue: String((x as unknown as Aura).range) } : {}), effect: x.text.text, kitLine: x.text } as PowerCardEntry} />}
     </div>
     <Annotation anchor={{ kind: 'entry', entry: { entryType: kind, name: x.name, _draftNode: node(x) } }} />
   </div>

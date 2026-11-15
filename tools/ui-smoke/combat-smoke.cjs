@@ -216,8 +216,8 @@ app.whenReady().then(async () => {
 
     // The rat's turn: the disease named in its Bite applies like a condition: click the name, then the PC.
     await js(() => window.api.combat.endTurn())
-    await until(() => !!document.querySelector('.disease-chip') && [...document.querySelectorAll('span[title^="Click, then a PC"]')].some(s => s.textContent === 'dire rat filth fever'), 'the highlighted disease name')
-    await js(() => [...document.querySelectorAll('span[title^="Click, then a PC"]')].find(s => s.textContent === 'dire rat filth fever').click())
+    await until(() => !!document.querySelector('.disease-chip') && [...document.querySelectorAll('span[title^="Click, then a PC"]')].some(s => s.textContent.includes('dire rat filth fever')), 'the highlighted disease name')
+    await js(() => [...document.querySelectorAll('span[title^="Click, then a PC"]')].find(s => s.textContent.includes('dire rat filth fever')).click())
     await until(() => document.body.innerText.includes('Click a PC to expose to Dire Rat Filth Fever'), 'the expose banner')
     await js(() => [...document.querySelectorAll('*')].find(el => el.children.length === 0 && el.textContent.trim() === 'Hero').click())
     let heroRecord
@@ -256,6 +256,21 @@ app.whenReady().then(async () => {
     await until(() => document.body.innerText.includes('Countermeasures') && document.body.innerText.includes('Leg Breaker Trap'), 'the triggered trap panel')
     await sleep(300)
     await screenshot('out/combat-trap.png')
+    // Click-to-apply from effect clauses: "slowed and weakened (save ends both)" highlights as one group,
+    // and one click applies both, ended by one save.
+    const groupSpans = () => js(() => [...document.querySelectorAll('.power-card .pc-apply')].filter(s => s.title.startsWith('Click to apply Slowed and Weakened (save ends both)')).map(s => s.textContent))
+    if (JSON.stringify(await groupSpans()) !== JSON.stringify(['slowed', 'weakened (save ends both)'])) throw new Error('The save group spans: ' + JSON.stringify(await groupSpans()))
+    await js(() => [...document.querySelectorAll('.power-card .pc-apply')].find(s => s.textContent === 'slowed').dispatchEvent(new MouseEvent('mouseover', { bubbles: true })))
+    await until(() => document.querySelectorAll('.power-card .pc-apply-hover').length === 2, 'the save group lit up together')
+    await screenshot('out/combat-save-group.png')
+    await js(() => [...document.querySelectorAll('.power-card .pc-apply')].find(s => s.textContent === 'slowed').click())
+    await until(() => document.body.innerText.includes('Click a target to apply condition'), 'the apply banner')
+    await js(() => [...document.querySelectorAll('*')].find(el => el.children.length === 0 && el.textContent.trim() === 'Hero').click())
+    let grouped = []
+    for (let i = 0; i < 30 && grouped.length < 2; i++) { await sleep(100); grouped = (await current()).combatants[heroC.id].conditions.filter(c => c.conditionId === 'slowed' || c.conditionId === 'weakened') }
+    if (grouped.length !== 2 || !grouped[0].saveGroup || grouped[0].saveGroup !== grouped[1].saveGroup || grouped.some(c => c.duration?.type !== 'save-ends' || c.sourceId !== legBreaker.id))
+      throw new Error('The save group did not apply together: ' + JSON.stringify(grouped))
+    for (const c of grouped) await js((id, cid) => window.api.combat.removeCondition(id, cid), heroC.id, c.conditionId)
     await js(() => [...document.querySelectorAll('.triggered-trap button')].find(b => b.textContent === 'Disable').click())
     await until(() => [...document.querySelectorAll('.triggered-trap button')].some(b => b.textContent === 'Re-arm'), 'the disabled trap')
     state = await current()
@@ -324,7 +339,7 @@ app.whenReady().then(async () => {
 
     const confirms = await js(() => window.__confirms)
     clearTimeout(timeout)
-    console.log('COMBAT_SMOKE_OK: a Library creature resolving live in an encounter row, legacy creature converted on open, encounter row preview (template, level adjustment), the session board and level warnings, combat start in main with kit combatants (elite captain, troll regeneration, grouped minions), combat panel, recharge prompt, live pinned card, location trap stat blocks and search, location traps joining the encounter, encounter diseases, disease name in a power applied to a PC like a condition, the PCs library (search, sort, detail pane), PC lasting conditions (carried into combat, the encounter\'s on top on the Home board, disease stages, adding a condition), PC sheet import (row defenses, panel, PCs page), pinned cards popped out to an OS window and back, trap rows with XP and preview, hidden trap with initiative, triggered trap (Trigger, Disable), trap countermeasures from content-repo clauses (checks, action, part, strip actions, a skill challenge disabling the trap, logged); confirms: ' + confirms.length + '; screenshots out/home.png, out/pcs-levels.png, out/combat-encounter-preview.png, out/combat-panel.png, out/combat-trap.png, out/combat-trap-countermeasures.png, out/location-traps.png, out/combat-disease.png, out/pc-diseases.png, out/combat-pc-sheet.png, out/popout-pinned.png')
+    console.log('COMBAT_SMOKE_OK: a Library creature resolving live in an encounter row, legacy creature converted on open, encounter row preview (template, level adjustment), the session board and level warnings, combat start in main with kit combatants (elite captain, troll regeneration, grouped minions), combat panel, recharge prompt, live pinned card, location trap stat blocks and search, location traps joining the encounter, encounter diseases, disease name in a power applied to a PC like a condition, the PCs library (search, sort, detail pane), PC lasting conditions (carried into combat, the encounter\'s on top on the Home board, disease stages, adding a condition), PC sheet import (row defenses, panel, PCs page), pinned cards popped out to an OS window and back, trap rows with XP and preview, hidden trap with initiative, triggered trap (Trigger, Disable), trap countermeasures from content-repo clauses (checks, action, part, strip actions, a skill challenge disabling the trap, logged), click-to-apply from effect clauses (a save ends both group highlighted and applied together); confirms: ' + confirms.length + '; screenshots out/home.png, out/pcs-levels.png, out/combat-encounter-preview.png, out/combat-panel.png, out/combat-trap.png, out/combat-trap-countermeasures.png, out/combat-save-group.png, out/location-traps.png, out/combat-disease.png, out/pc-diseases.png, out/combat-pc-sheet.png, out/popout-pinned.png')
     finish(0)
   } catch (err) {
     console.error(err)

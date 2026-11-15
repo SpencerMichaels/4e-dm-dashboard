@@ -6,7 +6,7 @@ import type { Monster, Trap } from '@kit'
 import type { CombatantState } from '@common/types'
 import { combatEntries } from '@common/combat/facts'
 import { auraSize, powerToLegacy } from '@common/authoring/legacy'
-import { kitStatBlock } from '../creature/kit-view'
+import { kitStatBlock, withKit } from '../creature/kit-view'
 
 const cache = new WeakMap<object, Record<string, any>>()
 
@@ -39,7 +39,7 @@ export function trapStatBlock(t: Trap): Record<string, any> {
     xp: t.xp, initiative: t.initiative, hp: t.hp, hpText: t.hpText, noHitPoints: t.hp === undefined,
     speed: walk || undefined, speeds, speedNotes: notes,
     ac: t.defenses?.ac, defenses: t.defenses ?? {}, immunities: t.immune, resistances: t.resist, weaknesses: [],
-    actions: [
+    actions: withKit([
       ...t.traits.map(x => ({ name: x.name, entryType: 'trait', keywords: x.keywords, effect: x.text.text })),
       ...t.auras.map(x => ({ name: x.name, entryType: 'aura', keywords: x.keywords, auraRange: x.range, auraSize: auraSize(x), effect: x.text.text })),
       ...t.powers.map(powerToLegacy),
@@ -47,7 +47,7 @@ export function trapStatBlock(t: Trap): Record<string, any> {
       ...(t.detect.length ? [text('Detect', t.detect.map(d => `${cap(d.skill)}${d.dc === null ? '' : ` DC ${d.dc}`}: ${d.text}`).join('\n'))] : []),
       // The combat panel draws countermeasures with their checks and actions (TrapCountermeasures) instead.
       ...(t.countermeasures.length ? [{ ...text('Countermeasures', t.countermeasures.map(x => x.text).join('\n')), _countermeasures: true }] : []),
-    ],
+    ], [...t.traits, ...t.auras, ...t.powers]),
     description: [t.flavor, t.description].filter(Boolean).join('\n'),
     source: t.sources.map(s => `${s.book}${s.page ? ', ' + s.page : ''}`).join('; '),
   }

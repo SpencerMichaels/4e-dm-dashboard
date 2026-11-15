@@ -16,6 +16,8 @@ const stamp = (item: object, s: Source | undefined) => !s ? item
 
 export function kitStatBlock(m: Monster, attribution?: Attribution): Record<string, any> {
   const sb = monsterToCreature(m).statBlock as Record<string, any>
+  // Each entry carries its kit content (`_kit`): power cards draw from it and read its effect clauses.
+  sb.actions = withKit(sb.actions, [...m.traits, ...m.auras, ...m.powers])
   if (m.rank === 'minion') sb.isMinion = true
   if (m.hp === 0 && m.hpText) sb.noHitPoints = true
   if (!attribution) return sb
@@ -44,4 +46,9 @@ export function kitStatBlock(m: Monster, attribution?: Attribution): Record<stri
 /** The viewer's creature for an encounter or combat stat block. */
 export function kitViewCreature(m: Monster, attribution: Attribution | undefined, extra: Partial<Creature> = {}): Creature {
   return { id: m.id, name: m.name, hp: m.hp, maxHp: m.hp, createdAt: '', updatedAt: '', statBlock: kitStatBlock(m, attribution), ...extra }
+}
+
+/** Stat block entries with their kit trait, aura, or power attached as `_kit` (same order). */
+export function withKit(actions: Record<string, unknown>[], kit: object[]): Record<string, unknown>[] {
+  return actions.map((a, i) => kit[i] ? { ...a, _kit: kit[i] } : a)
 }

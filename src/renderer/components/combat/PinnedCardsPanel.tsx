@@ -3,7 +3,7 @@ import { PowerCardView, type PowerCardEntry } from '../creature/PowerCardView'
 import { FloatingPanel } from '../shared/FloatingPanel'
 import { Icon } from '../shared/Icon'
 import { useDiseaseNames } from '../disease/disease-refs'
-import { applyDetection, cardFor, detectIn, entryAt, maxUses, rechargeQueued, type ApplyHandlers } from './card-actions'
+import { applyCardApply, cardApplies, cardFor, entryAt, maxUses, rechargeQueued, type ApplyHandlers } from './card-actions'
 
 export interface PinnedCard {
   combatantName: string
@@ -45,9 +45,10 @@ export function PinnedCardsPanel({ cards, onUnpin, combat, handlers }: Props) {
     const isPower = m![2] === 'power'
     const used = c.usedPowers?.[index] ?? 0
     const max = maxUses(entry)
-    return <PowerCardView entry={cardFor(entry)} pinned onPin={() => onUnpin(card.key)}
-      detectedConditions={handlers ? detectIn(entry, diseaseNames) : undefined}
-      onConditionClick={handlers ? (det, multi) => applyDetection(c, det, multi, handlers) : undefined}
+    const shown = cardFor(entry)
+    return <PowerCardView entry={shown} pinned onPin={() => onUnpin(card.key)} selectedLevel={c.content?.level}
+      applies={handlers ? cardApplies(shown, diseaseNames, c.content?.level) : undefined}
+      onApply={handlers ? (a, multi) => applyCardApply(c, a, multi, handlers) : undefined}
       {...(isPower ? {
         uses: { used, max }, rechargeQueued: rechargeQueued(combat!, c.id, index),
         onUse: max !== Infinity ? () => void window.api.combat.usePower(c.id, index) : undefined,

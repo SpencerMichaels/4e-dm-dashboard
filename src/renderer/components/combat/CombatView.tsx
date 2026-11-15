@@ -4,7 +4,8 @@ import { useUiStore } from '../../stores/ui-store'
 import { useHotkeys } from '../../hooks/use-hotkeys'
 import { Dnd4eCombatPanel } from './Dnd4eCombatPanel'
 import { Dnd4eGroupedCombatPanel } from './Dnd4eGroupedCombatPanel'
-import type { CombatNotification, CombatantState, DiseaseRef } from '@common/types'
+import type { AppliedCondition, CombatNotification, CombatantState, DiseaseRef } from '@common/types'
+import type { PendingCondition } from './card-actions'
 import { exposePc } from '../disease/disease-refs'
 import { damageModifiers } from '@common/combat/facts'
 import { InitiativeEntry } from './InitiativeEntry'
@@ -56,7 +57,8 @@ export function CombatView() {
   const [contextMenu, setContextMenu] = useState<{ combatantId: string; x: number; y: number } | null>(null)
   const [attackMode, setAttackMode] = useState<AttackMode | null>(null)
   const [hideInspectedActions, setHideInspectedActions] = useState(true)
-  const [pendingCondition, setPendingCondition] = useState<{ conditionId: string; value?: number; customDescription?: string; sourceId?: string; duration?: any; multi: boolean; grantsCATo?: 'all' | 'source' | 'source-allies' } | null>(null)
+  // Conditions clicked on a power card, waiting for their targets (a "save ends both" group is several).
+  const [pendingCondition, setPendingCondition] = useState<{ conditions: PendingCondition[]; multi: boolean } | null>(null)
   // A disease clicked in a power: the next targets picked are exposed to it (PCs only; tracked on their records).
   const [pendingDisease, setPendingDisease] = useState<{ ref: DiseaseRef; name: string } | null>(null)
   const [pendingAction, setPendingAction] = useState<{ type: 'damage' | 'heal'; multi: boolean } | null>(null)
@@ -178,9 +180,9 @@ export function CombatView() {
     setAttackMode(null)
   }, [pendingDisease, combat, addEvent])
 
-  // Handler for applying a condition via target selection (from power card keyword click)
-  const handleApplyConditionToTargets = useCallback((condition: { conditionId: string; value?: number; duration?: any }, multi: boolean) => {
-    setPendingCondition({ ...condition, multi })
+  // Handler for applying conditions via target selection (from a power card click)
+  const handleApplyConditionToTargets = useCallback((conditions: PendingCondition[], multi: boolean) => {
+    setPendingCondition({ conditions, multi })
     // Enter target selection mode
     setAttackMode({ phase: 'select', targetIds: [], results: {}, currentIndex: 0, singleTarget: !multi })
   }, [])
@@ -303,37 +305,36 @@ export function CombatView() {
     setAttackMode({ phase: 'select', targetIds: [], results: {}, currentIndex: 0, singleTarget: !multi } as any)
   }, [combat])
 
-  // Resolve a condition's duration before applying. For EONT/SONT durations
-  // without an explicit expiresOnId, pin to the *source* (attacker) — the
-  // ambiguous case "the cultist's next turn" in a power written about the
-  // attacker's own creature type means the attacker's next turn, not the
-  // target's. Also: if the source is currently taking their turn, set
-  // remaining=1 so the condition survives this turn-end.
-  const resolveDurationForApply = useCallback((duration: any | undefined, sourceId?: string): any => {
-    const dur: any = { ...(duration ?? { type: 'save-ends' }) }
-    if ((dur.type === 'eont' || dur.type === 'sont') && !dur.expiresOnId && sourceId) {
-      dur.expiresOnId = sourceId
+  // Resolve a condition's duration before applying. EONT/SONT end on the turn the power names: the
+  // target's ("until the end of its next turn"), or else the *source's* (attacker) — also the ambiguous
+  // case "the cultist's next turn" in a power written about the attacker's own creature type. A "next
+  // turn" whose creature is taking its turn now gets remaining=1, so it survives this turn's end.
+  const resolveDurationForApply = useCallback((duration: PendingCondition['duration'] | undefined, sourceId: string | undefined, targetId: string): AppliedCondition['duration'] => {
+    const { whose, next, ...dur }: PendingCondition['duration'] & { expiresOnId?: string; remaining?: number } = { ...(duration ?? { type: 'save-ends' }) }
+    if ((dur.type === 'eont' || dur.type === 'sont') && !dur.expiresOnId) {
+      const on = whose === 'target' ? targetId : sourceId
+      if (on) dur.expiresOnId = on
     }
-    if (combat && (dur.type === 'eont' || dur.type === 'sont') && dur.expiresOnId) {
+    if (combat && (dur.type === 'eont' || dur.type === 'sont') && dur.expiresOnId && next !== false) {
       const currentId = combat.initiativeOrder[combat.turnIndex]
       if (dur.expiresOnId === currentId && dur.remaining == null) dur.remaining = 1
     }
     return dur
   }, [combat])
 
+  const applyPendingConditions = useCallback(async (ids: string[]) => {
+    if (!pendingCondition) return
+    for (const id of ids) for (const { duration, ...cond } of pendingCondition.conditions) {
+      await window.api.combat.addCondition(id, { ...cond, duration: resolveDurationForApply(duration, cond.sourceId, id) })
+    }
+  }, [pendingCondition, resolveDurationForApply])
+
   const attackModeToggleTarget = useCallback(async (id: string) => {
     if (!attackMode || attackMode.phase !== 'select') return
     if (attackMode.singleTarget) {
       if (pendingDisease) { await exposeTargets([id]); return }
       if (pendingCondition) {
-        await window.api.combat.addCondition(id, {
-          conditionId: pendingCondition.conditionId,
-          value: pendingCondition.value,
-          customDescription: pendingCondition.customDescription,
-          sourceId: pendingCondition.sourceId,
-          duration: resolveDurationForApply(pendingCondition.duration, pendingCondition.sourceId),
-          grantsCATo: pendingCondition.grantsCATo,
-        })
+        await applyPendingConditions([id])
         setPendingCondition(null)
         setAttackMode(null)
         return
@@ -356,23 +357,14 @@ export function CombatView() {
         return { ...prev, targetIds }
       })
     }
-  }, [attackMode, pendingDisease, exposeTargets])
+  }, [attackMode, pendingDisease, exposeTargets, pendingCondition, applyPendingConditions])
 
   const attackModeConfirmSelection = useCallback(async () => {
     if (!attackMode || attackMode.phase !== 'select' || attackMode.targetIds.length === 0) return
     if (pendingDisease) { await exposeTargets(attackMode.targetIds); return }
     if (pendingCondition) {
       // Condition apply mode: apply to all targets and exit
-      for (const id of attackMode.targetIds) {
-        await window.api.combat.addCondition(id, {
-          conditionId: pendingCondition.conditionId,
-          value: pendingCondition.value,
-          customDescription: pendingCondition.customDescription,
-          sourceId: pendingCondition.sourceId,
-          duration: resolveDurationForApply(pendingCondition.duration, pendingCondition.sourceId),
-          grantsCATo: pendingCondition.grantsCATo,
-        })
-      }
+      await applyPendingConditions(attackMode.targetIds)
       setPendingCondition(null)
       setAttackMode(null)
       return
@@ -387,7 +379,7 @@ export function CombatView() {
     const results: Record<string, 'hit' | 'miss' | null> = {}
     for (const id of attackMode.targetIds) results[id] = null
     setAttackMode({ ...attackMode, phase: 'resolve', results, currentIndex: 0, defense: 'AC' })
-  }, [attackMode, pendingDisease, exposeTargets])
+  }, [attackMode, pendingDisease, exposeTargets, pendingCondition, applyPendingConditions])
 
   const attackModeResolve = useCallback((result: 'hit' | 'miss') => {
     if (!attackMode || attackMode.phase !== 'resolve') return

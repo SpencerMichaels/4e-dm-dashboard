@@ -1,31 +1,21 @@
-/**
- * Detect condition keywords in power card text fields.
- * Returns structured data about which conditions a power applies and their durations.
- */
+// Click-to-apply's fallback for text no effect clause covers (src/common/combat/clause-effects.ts):
+// creatures made in the editor, parser-only entries, and words the DM added after an agent cleaned the
+// entry. Regex matches for condition keywords, ongoing damage, grants-CA, regeneration, and disease
+// names. The card runs it only on a power's Hit, Miss, and Effect lines (diseases on traits too),
+// and keeps only matches in text no clause covers.
 
-import { locateDiseaseMentions } from '@common/rules/diseases'
-import type { ConditionDef } from '@common/types/system-plugin'
+import { locateDiseaseMentions, type DiseaseName } from '@common/rules/diseases'
+import type { DiseaseRef, DurationType } from '@common/types'
 
 export interface DetectedCondition {
   conditionId: string
   conditionName: string
-  value?: number            // for ongoing damage
+  value?: number            // for ongoing damage and regeneration
   damageType?: string       // for ongoing damage: 'fire', 'necrotic', etc.
-  duration?: { type: import('@common/types/system-plugin').DurationType; remaining?: number; note?: string }
-  sourceField: 'hit' | 'effect' | 'miss'
-  matchStart: number        // character offset in the source field text
+  duration?: { type: DurationType; remaining?: number; note?: string }
+  matchStart: number        // character offset in the text
   matchEnd: number
-  matchText: string         // the matched substring
   grantsCATo?: 'all' | 'source' | 'source-allies'  // only for combat-advantage
-  /** A disease the power exposes its target to (conditionId 'disease'): applying it tracks the disease on the PC. */
-  disease?: import('@common/types').DiseaseRef
-}
-
-interface PowerFields {
-  hit?: string
-  effect?: string
-  miss?: string
-  target?: string           // if empty/missing, skip detection (self-referencing power)
 }
 
 // Conditions to detect — ordered by specificity (longer patterns first)
@@ -97,122 +87,35 @@ function extractDuration(text: string, afterPos: number, conditionId: string): D
   return CONDITION_DEFAULT_DURATION[conditionId] ?? FALLBACK_DURATION
 }
 
-function detectInField(
-  text: string,
-  field: 'hit' | 'effect' | 'miss',
-): DetectedCondition[] {
+/** Condition keywords in printed text, with the duration printed after them. */
+export function detectConditionsInText(text: string): DetectedCondition[] {
   if (!text) return []
   const results: DetectedCondition[] = []
-
   for (const matcher of CONDITION_MATCHERS) {
-    // Reset regex state
     matcher.pattern.lastIndex = 0
     let match: RegExpExecArray | null
     while ((match = matcher.pattern.exec(text)) !== null) {
-      // Check for exclusion context — look at the 40 chars before the match
+      // A reference ("while the target is slowed"), not an application.
       const before = text.substring(Math.max(0, match.index - 40), match.index)
       if (EXCLUSION_BEFORE.test(before)) continue
-
-      const duration = extractDuration(text, match.index + match[0].length, matcher.id)
-      // Highlight only the regex match itself — don't extend across intervening
-      // prose to a trailing duration phrase. The duration is still assigned;
-      // we just don't lie about what the click will apply.
+      // Highlight only the match itself; the duration printed after it is still assigned.
       const detected: DetectedCondition = {
-        conditionId: matcher.id,
-        conditionName: matcher.name,
-        sourceField: field,
-        matchStart: match.index,
-        matchEnd: match.index + match[0].length,
-        matchText: match[0],
-        duration,
+        conditionId: matcher.id, conditionName: matcher.name, matchStart: match.index, matchEnd: match.index + match[0].length,
+        duration: extractDuration(text, match.index + match[0].length, matcher.id),
       }
-
-      // For ongoing damage, extract the value and damage type
       if (matcher.id === 'ongoing-damage' && match[1]) {
         detected.value = parseInt(match[1])
         if (match[2]) detected.damageType = match[2].trim().toLowerCase()
       }
-
-      // For regenerating, extract the value
-      if (matcher.id === 'regenerating' && match[1]) {
-        detected.value = parseInt(match[1])
-      }
-
-      // For grants combat advantage, classify who the target grants CA to
-      if (matcher.id === 'combat-advantage') {
-        detected.grantsCATo = classifyGrantsCATarget(text.substring(match.index + match[0].length))
-      }
-
+      if (matcher.id === 'regenerating' && match[1]) detected.value = parseInt(match[1])
+      if (matcher.id === 'combat-advantage') detected.grantsCATo = classifyGrantsCATarget(text.substring(match.index + match[0].length))
       results.push(detected)
     }
   }
-
   return results
 }
 
-/**
- * Detect conditions applied by a power's hit/effect/miss text.
- * Skips powers that have no target and no attack — these are self-referencing.
- */
-export function detectConditions(power: PowerFields): DetectedCondition[] {
-  // Skip self-referencing powers: no target, no attack characteristics
-  const hasTarget = !!power.target?.trim()
-  const hasAttack = !!(power as any).attackBonus || !!(power as any).defense || !!(power as any).rangeType
-  if (!hasTarget && !hasAttack && !power.hit) return []
-
-  const results: DetectedCondition[] = []
-  if (power.hit) results.push(...detectInField(power.hit, 'hit'))
-  if (power.effect) results.push(...detectInField(power.effect, 'effect'))
-  if (power.miss) results.push(...detectInField(power.miss, 'miss'))
-  return results
-}
-
-/**
- * Given a text string and detected conditions within it, split into segments
- * for rendering with highlighted condition keywords.
- */
-export function splitTextWithHighlights(
-  text: string,
-  detections: DetectedCondition[],
-  field: 'hit' | 'effect' | 'miss',
-): { text: string; detection?: DetectedCondition }[] {
-  const fieldDetections = detections
-    .filter(d => d.sourceField === field)
-    .sort((a, b) => a.matchStart - b.matchStart)
-
-  if (fieldDetections.length === 0) return [{ text }]
-
-  const segments: { text: string; detection?: DetectedCondition }[] = []
-  let pos = 0
-  for (const d of fieldDetections) {
-    if (d.matchStart > pos) {
-      segments.push({ text: text.substring(pos, d.matchStart) })
-    }
-    segments.push({ text: d.matchText, detection: d })
-    pos = d.matchEnd
-  }
-  if (pos < text.length) {
-    segments.push({ text: text.substring(pos) })
-  }
-  return segments
-}
-
-/**
- * Disease names in a power's hit, effect, and miss text, as detections that highlight and apply like
- * conditions. Spans that overlap a condition detection are left to the condition.
- */
-export function detectDiseases(
-  power: PowerFields,
-  names: import('@common/rules/diseases').DiseaseName<import('@common/types').DiseaseRef>[],
-  conditions: DetectedCondition[] = [],
-): DetectedCondition[] {
-  const out: DetectedCondition[] = []
-  for (const field of ['hit', 'effect', 'miss'] as const) {
-    const text = power[field] ?? ''
-    for (const m of locateDiseaseMentions(text, names)) {
-      if (conditions.some(c => c.sourceField === field && m.start < c.matchEnd && m.end > c.matchStart)) continue
-      out.push({ conditionId: 'disease', conditionName: m.disease.name, sourceField: field, matchStart: m.start, matchEnd: m.end, matchText: text.slice(m.start, m.end), disease: m.disease.ref })
-    }
-  }
-  return out
+/** Disease names in printed text that talks about exposure. */
+export function detectDiseasesInText(text: string, names: DiseaseName<DiseaseRef>[]) {
+  return locateDiseaseMentions(text, names).map(m => ({ start: m.start, end: m.end, name: m.disease.name, ref: m.disease.ref }))
 }

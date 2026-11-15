@@ -227,6 +227,10 @@
 .power-card .pc-line b { color: var(--text-secondary); }
 .power-card .pc-levels { color: var(--text-secondary); font-size: 11px; }
 .power-card .pc-apply { text-decoration: underline dotted; cursor: pointer; color: var(--action-point); font-weight: 600; user-select: none; }
+/* A save group's spans light up together: one click applies them all. */
+.power-card .pc-apply:hover, .power-card .pc-apply.pc-apply-hover { background: color-mix(in srgb, var(--action-point) 26%, transparent); }
+/* An attack after the first sits in the body, under its label. */
+.power-card .pc-body .pc-subattack { margin: 1px 0 1px -8px; }
 .power-card .pc-adjusted { color: var(--notify); text-decoration: underline dotted; text-underline-offset: 2px; }
 /* A spent power keeps full contrast; the chip says USED and the name is struck through. */
 .power-card.spent .pc-name { text-decoration: line-through; text-decoration-thickness: 1px; }

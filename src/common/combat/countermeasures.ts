@@ -1,7 +1,7 @@
 // A trap's countermeasures as combat acts on them: each printed countermeasure line with the
 // structured countermeasure clauses in it (schema v15: what success does, the checks and DCs, the
 // check's action, a skill challenge's complexity, an attackable part's defenses and hit points).
-// Published traps carry these clauses when they come from the agent-cleaned content repo; a line
+// Published traps carry these clauses from the content pack (agent-cleaned); a line
 // without one is only text.
 
 import type { Ability, ActionType, CounterCheck, Defense, Trap } from '@kit'

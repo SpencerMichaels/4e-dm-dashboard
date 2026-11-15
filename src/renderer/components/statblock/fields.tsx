@@ -42,8 +42,8 @@ export function Prose({ value, onChange, placeholder, className, style, label }:
 }
 
 /**
- * A kit Line's printed text. Clauses ride along unchanged: the Workshop re-anchors them when the
- * patch is applied, and compendium saves re-anchor with reanchorEdited before writing.
+ * A kit Line's printed text. Clauses ride along unchanged: applying the DM's patch keeps the clauses
+ * the edit left alone and drops the rest (src/common/authoring/clause-rebase.ts).
  */
 export function LineText({ line, onChange, ...rest }: Base & { line: Line | undefined; onChange?: (l: Line) => void }) {
   return <Prose {...rest} value={line?.text} onChange={onChange && (text => onChange({ ...(line ?? { clauses: [] }), text }))} />

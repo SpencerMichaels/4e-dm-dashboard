@@ -11,6 +11,7 @@ import { createHash } from 'crypto'
 import type { MonsterTemplate, MonsterTheme } from '@kit'
 import { contentRepoDir, readRepoEntries } from '../../../tools/content/repo'
 import { creatureToMonster } from '../data/legacy-creatures'
+import { quotedLine } from '@common/authoring/fixtures'
 
 // Published templates and themes from the content repo; these tests skip without it.
 const templates = readRepoEntries<MonsterTemplate>('templates')
@@ -78,6 +79,24 @@ describe('encounter adjustments on kit monsters', () => {
     expect(monster.powers[0].attacks[0]).toMatchObject({ bonus: { value: 13 }, hit: { text: '2d6 + 5 damage.' } })
     expect(attribution.levelAdjust[0]).toEqual({ attackDelta: 3, damageDelta: 1, source: 'Level +3' })
     expect(adjustMonster(creatureToMonster(creature(5)), { levelAdjust: -2 }).monster.powers[0].attacks[0].hit?.text).toBe('2d6 + 3 damage.')
+  })
+
+  it('keeps the clauses a level adjustment or a resolved template number leaves alone', () => {
+    const base = creatureToMonster(creature(5))
+    base.powers[0].attacks[0].hit = quotedLine('2d6 + 4 damage, and the target is dazed (save ends).', [
+      { quote: '2d6 + 4 damage', kind: 'damage', dice: '2d6', plus: 4, types: [], who: 'target' },
+      { quote: 'dazed (save ends)', kind: 'condition', condition: 'dazed', who: 'target', duration: { kind: 'save-ends' } },
+    ])
+    const hit = adjustMonster(base, { levelAdjust: 3 }).monster.powers[0].attacks[0].hit!
+    expect(hit.clauses.map(c => [c.kind, hit.text.slice(...c.at)])).toEqual([['condition', 'dazed (save ends)']])
+    const trait = { name: 'Steady guard', keywords: [], text: quotedLine('Each enemy that ends its turn adjacent to it takes level + 2 damage and is slowed until the end of its next turn.', [
+      { quote: 'takes level + 2 damage', kind: 'damage', amount: 'level', plus: 2, types: [], who: 'target' },
+      { quote: 'slowed until the end of its next turn', kind: 'condition', condition: 'slowed', who: 'target', duration: { kind: 'turn-end', whose: 'target', next: true } },
+    ]) }
+    const template = { name: 'Invented', role: 'any', rankChange: 'up', senses: [], immune: [], resist: [], vulnerable: [], defenses: {}, savingThrows: 0, actionPoints: 0, hpPerLevel: 0, traits: [trait], auras: [], powers: [] } as unknown as MonsterTemplate
+    const resolved = adjustMonster(base, { templates: [template] }).monster.traits.at(-1)!.text
+    expect(resolved.text).toBe('Each enemy that ends its turn adjacent to it takes 7 damage and is slowed until the end of its next turn.')
+    expect(resolved.clauses.map(c => [c.kind, resolved.text.slice(...c.at)])).toEqual([['condition', 'slowed until the end of its next turn']])
   })
 
   it('minions have 1 HP and minion XP', () => {

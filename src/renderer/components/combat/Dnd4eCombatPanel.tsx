@@ -5,8 +5,7 @@ import { TrapCountermeasures } from './TrapCountermeasures'
 import type { PowerEntry } from '../creature/PowerEntryEditor'
 import { PowerCardView, type PowerCardEntry } from '../creature/PowerCardView'
 import { USAGE_COLORS, sign } from '../creature/dnd4e-utils'
-import type { DetectedCondition } from './condition-detection'
-import { applyDetection, cardFor, detectIn, maxUses, rechargeQueued } from './card-actions'
+import { applyCardApply, cardApplies, cardFor, maxUses, rechargeQueued, type CardApply } from './card-actions'
 import { useDiseaseNames } from '../disease/disease-refs'
 import { ConditionPill, buildConditionLabel } from './ConditionPill'
 import { Icon } from '../shared/Icon'
@@ -34,8 +33,8 @@ export function Dnd4eCombatPanel({
   const isTrap = c.kind === 'trap'
   const actions = Array.isArray(sb.actions) ? sb.actions as PowerEntry[] : []
   const diseaseNames = useDiseaseNames()
-  const detect = (p: PowerEntry) => detectIn(p, diseaseNames)
-  const apply = (det: DetectedCondition, multi: boolean) => applyDetection(c, det, multi, { onApplyConditionToTargets, onApplyDiseaseToTargets })
+  const detect = (card: PowerCardEntry) => cardApplies(card, diseaseNames, c.content?.level)
+  const apply = (a: CardApply, multi: boolean) => applyCardApply(c, a, multi, { onApplyConditionToTargets, onApplyDiseaseToTargets })
   const hpPct = hpPercentage(c.hp, c.maxHp)
   const usedPowers = c.usedPowers ?? {}
 
@@ -241,7 +240,7 @@ export function Dnd4eCombatPanel({
             const idx = actions.indexOf(t)
             const key = `${c.id}:${t.entryType}:${idx}`
             const entry = cardFor(t)
-            return <PowerCardView key={key} entry={entry} detectedConditions={detect(t)} onConditionClick={apply}
+            return <PowerCardView key={key} entry={entry} applies={detect(entry)} onApply={apply} selectedLevel={c.content?.level}
               pinned={pinnedKeys.has(key)} onPin={() => onPinCard({ combatantName: c.name, title: t.name, content: entry, key })} />
           })}
         </div>
@@ -256,7 +255,7 @@ export function Dnd4eCombatPanel({
             const max = maxUses(pow)
             const entry = toPowerCardEntry(pow)
             const key = `${c.id}:power:${globalIdx}`
-            return <PowerCardView key={globalIdx} entry={entry} detectedConditions={detect(pow)} onConditionClick={apply}
+            return <PowerCardView key={globalIdx} entry={entry} applies={detect(entry)} onApply={apply} selectedLevel={c.content?.level}
               uses={{ used: timesUsed, max }} rechargeQueued={rechargeQueued(combat, c.id, globalIdx)}
               onUse={max !== Infinity ? () => onUsePower(globalIdx) : undefined}
               onRestore={timesUsed > 0 ? () => onUnusePower(globalIdx) : undefined}

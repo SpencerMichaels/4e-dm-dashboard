@@ -15,7 +15,7 @@ function ItemView({ item: c }: { item: Item }) {
   const source = c.sources.map(s => `${s.book}${s.page ? ', ' + s.page : ''}`).join('; ')
   // With a working copy, powers carry its node ids (`_draftNode`) so comment markers anchor to the cards.
   const cards = (powers: Power[]) => powers.map((p, i) => <div key={i}>
-    <PowerCardView entry={powerToLegacy(p) as PowerCardEntry} />
+    <PowerCardView entry={{ ...powerToLegacy(p), kit: p } as PowerCardEntry} />
     <Annotation anchor={{ kind: 'entry', entry: { entryType: 'action', name: p.name, _draftNode: (p as { _draftNode?: string })._draftNode } }} />
   </div>)
   const levels = c.levels.map(l => ({ level: l.level, enhancement: l.enhancement ? `+${l.enhancement}` : undefined, price: l.price !== null ? `${l.price.toLocaleString('en-US')} gp` : l.priceText ?? 'Undecided' }))

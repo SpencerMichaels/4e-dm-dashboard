@@ -81,8 +81,8 @@ describe('native creature editor adapter', () => {
 
     const damage = edit(d, s => { power(s, 'Draining touch').damage = [{ expr: '2d6 + 3', type: 'necrotic', ongoing: false }] })
     expect(damage.changes).toEqual([{ path: '/content/powers/@p0/attacks/0/hit/text', value: '2d6 + 3 necrotic damage and the target loses one healing surge.' }])
-    // Clause metadata is kept for reconciliation; the node is marked stale.
-    expect(content(damage.next).powers[0].attacks[0].hit!.clauses).toHaveLength(1)
+    // The DM changed the words before the clause (who and what it hits), so the clause goes; the node is marked stale.
+    expect(content(damage.next).powers[0].attacks[0].hit!.clauses).toHaveLength(0)
     expect(damage.next.stale).toEqual(['/content/powers/@p0'])
 
     const burst = edit(d, s => { power(s, 'Gloom burst').damage = [{ expr: '3d6 + 4', type: 'cold', ongoing: false }, { expr: '5', type: 'cold', ongoing: true }] })
@@ -227,15 +227,15 @@ describe('clause spans after prose edits', () => {
     ]
   })
 
-  it('updates a whole-line unparsed clause when the DM rewords the line', () => {
+  it('drops a whole-line unparsed clause when the DM rewords the line', () => {
     const { next } = edit(withClauses(), s => { s.actions[0].effect = 'The shade can hide when it has only concealment, instead of total concealment.' })
     expect(validate('monster', next.content).errors).toEqual([])
-    expect(content(next).traits[0].text.clauses[0]).toMatchObject({ kind: 'unparsed', text: 'The shade can hide when it has only concealment, instead of total concealment.' })
+    expect(content(next).traits[0].text.clauses).toEqual([])
     expect(next.stale).toEqual(['/content/traits/@t0'])
   })
 
-  it('moves structured spans with their words and drops unparsed spans whose words are gone', () => {
-    const { next } = edit(withClauses(), s => { power(s, 'Draining touch').hit = 'and then the target loses one healing surge.' })
+  it('keeps the clauses the DM\'s edit left alone and drops the one it touched', () => {
+    const { next } = edit(withClauses(), s => { power(s, 'Draining touch').hit = 'and the target loses one healing surge. The shade shifts 3 squares.' })
     const hit = content(next).powers[0].attacks[0].hit!
     expect(validate('monster', next.content).errors).toEqual([])
     expect(hit.clauses).toHaveLength(1)
