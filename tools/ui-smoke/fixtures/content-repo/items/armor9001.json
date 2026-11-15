@@ -1,0 +1,38 @@
+{
+  "id": "armor9001",
+  "name": "Quilted Coat",
+  "category": "armor",
+  "level": 3,
+  "rarity": "uncommon",
+  "levels": [
+    {
+      "level": 3,
+      "enhancement": 1,
+      "price": 680
+    }
+  ],
+  "enhancementTargets": [
+    "ac"
+  ],
+  "slot": "body",
+  "itemType": "Cloth",
+  "properties": [
+    {
+      "text": "Gain a +1 item bonus to Endurance checks.",
+      "clauses": []
+    }
+  ],
+  "powers": [],
+  "flavor": "Layers of padded cloth.",
+  "description": [],
+  "sources": [
+    {
+      "book": "Fixture Guide",
+      "page": 51
+    }
+  ],
+  "provenance": {
+    "origin": "human",
+    "at": "2026-11-14"
+  }
+}

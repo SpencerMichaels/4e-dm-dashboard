@@ -1,0 +1,44 @@
+{
+  "id": "disease9002",
+  "name": "Grey Shakes",
+  "level": 5,
+  "endurance": {
+    "improveDc": 16,
+    "maintainDc": 11
+  },
+  "stages": [
+    {
+      "stage": 0,
+      "line": {
+        "text": "The target recovers.",
+        "clauses": []
+      }
+    },
+    {
+      "stage": 1,
+      "line": {
+        "text": "The target takes a -2 penalty to attack rolls.",
+        "clauses": []
+      }
+    },
+    {
+      "stage": 2,
+      "final": true,
+      "line": {
+        "text": "The target is slowed while the shakes last.",
+        "clauses": []
+      }
+    }
+  ],
+  "flavor": "Tremors that start in the hands.",
+  "sources": [
+    {
+      "book": "Fixture Guide",
+      "page": 40
+    }
+  ],
+  "provenance": {
+    "origin": "human",
+    "at": "2026-11-14"
+  }
+}

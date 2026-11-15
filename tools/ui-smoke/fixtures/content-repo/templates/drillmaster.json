@@ -1,0 +1,94 @@
+{
+  "id": "drillmaster",
+  "name": "Drillmaster",
+  "kind": "functional",
+  "role": "soldier",
+  "rankChange": "up",
+  "leader": true,
+  "prerequisite": {
+    "text": "Humanoid",
+    "check": {
+      "kind": "type",
+      "any": [
+        "humanoid"
+      ]
+    }
+  },
+  "senses": [],
+  "defenses": {
+    "ac": 2,
+    "fortitude": 2
+  },
+  "hpPerLevel": 8,
+  "savingThrows": 2,
+  "actionPoints": 1,
+  "immune": [],
+  "resist": [],
+  "vulnerable": [],
+  "traits": [
+    {
+      "name": "Rally Cry",
+      "keywords": [],
+      "text": {
+        "text": "Allies within 5 squares of the drillmaster gain a +1 bonus to attack rolls.",
+        "clauses": [
+          {
+            "at": [
+              43,
+              74
+            ],
+            "kind": "modifier",
+            "stat": "attack",
+            "value": 1,
+            "who": "ally",
+            "duration": {
+              "kind": "while-in-aura"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "Steady Hands",
+      "keywords": [],
+      "text": {
+        "text": "The drillmaster scores a critical hit on a roll of 19 or 20.",
+        "clauses": [
+          {
+            "at": [
+              16,
+              59
+            ],
+            "kind": "crit-range",
+            "min": 19,
+            "who": "self",
+            "duration": {
+              "kind": "permanent"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "Press the Line",
+      "keywords": [],
+      "text": {
+        "text": "When the drillmaster hits, one ally adjacent to it can shift 1 square as a free action.",
+        "clauses": []
+      }
+    }
+  ],
+  "auras": [],
+  "powers": [],
+  "description": "An invented functional template for the UI tests.",
+  "sources": [
+    {
+      "book": "Fixture Guide",
+      "page": 60
+    }
+  ],
+  "provenance": {
+    "origin": "human",
+    "at": "2026-11-14"
+  }
+}

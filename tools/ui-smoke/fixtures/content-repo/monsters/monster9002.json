@@ -1,0 +1,121 @@
+{
+  "size": "small",
+  "origin": "natural",
+  "type": "humanoid",
+  "keywords": [],
+  "perception": 2,
+  "senses": [],
+  "speed": {
+    "walk": 6
+  },
+  "savingThrowBonus": 0,
+  "actionPoints": 0,
+  "immune": [],
+  "resist": [],
+  "vulnerable": [],
+  "abilities": {
+    "str": 12,
+    "con": 12,
+    "dex": 12,
+    "int": 10,
+    "wis": 10,
+    "cha": 10
+  },
+  "skills": {},
+  "alignment": "unaligned",
+  "languages": "",
+  "equipment": "",
+  "traits": [],
+  "auras": [],
+  "description": "",
+  "provenance": {
+    "origin": "human",
+    "at": "2026-11-14"
+  },
+  "id": "monster9002",
+  "name": "Gutter Knifer",
+  "level": 1,
+  "role": "skirmisher",
+  "rank": "minion",
+  "xp": 25,
+  "hp": 1,
+  "initiative": 6,
+  "defenses": {
+    "ac": 16,
+    "fortitude": 12,
+    "reflex": 14,
+    "will": 12
+  },
+  "powers": [
+    {
+      "name": "Shiv",
+      "action": "standard",
+      "usage": "at-will",
+      "basic": "melee",
+      "keywords": [
+        "weapon"
+      ],
+      "attacks": [
+        {
+          "label": "primary",
+          "range": {
+            "kind": "melee",
+            "reach": 1
+          },
+          "target": "one creature",
+          "bonus": {
+            "kind": "fixed",
+            "value": 6
+          },
+          "vs": "ac",
+          "hit": {
+            "text": "4 damage.",
+            "clauses": [
+              {
+                "at": [
+                  0,
+                  8
+                ],
+                "kind": "damage",
+                "dice": "4",
+                "types": [],
+                "who": "target"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Duck and Weave",
+      "action": "immediate-reaction",
+      "usage": "at-will",
+      "keywords": [],
+      "trigger": {
+        "text": "when missed by a melee attack",
+        "clauses": []
+      },
+      "attacks": [],
+      "effect": {
+        "text": "The knifer shifts 1 square.",
+        "clauses": [
+          {
+            "at": [
+              11,
+              26
+            ],
+            "kind": "move",
+            "move": "shift",
+            "squares": 1,
+            "who": "self"
+          }
+        ]
+      }
+    }
+  ],
+  "sources": [
+    {
+      "book": "Dungeon Magazine 902"
+    }
+  ]
+}

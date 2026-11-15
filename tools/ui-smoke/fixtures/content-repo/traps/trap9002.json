@@ -1,0 +1,110 @@
+{
+  "kind": "trap",
+  "role": "lurker",
+  "rank": "standard",
+  "detect": [],
+  "immune": [],
+  "resist": [],
+  "traits": [],
+  "auras": [],
+  "countermeasures": [
+    {
+      "text": "A character can attack the arm (AC 20, other defenses 15; hp 30). Destroying it stops the blade.",
+      "clauses": [
+        {
+          "at": [
+            0,
+            65
+          ],
+          "kind": "countermeasure",
+          "effect": "destroy",
+          "defenses": {
+            "ac": 20,
+            "fortitude": 15,
+            "reflex": 15,
+            "will": 15
+          },
+          "hp": 30
+        },
+        {
+          "at": [
+            66,
+            96
+          ],
+          "kind": "unparsed",
+          "text": "Destroying it stops the blade."
+        }
+      ]
+    }
+  ],
+  "flavor": "",
+  "description": "",
+  "provenance": {
+    "origin": "human",
+    "at": "2026-11-14"
+  },
+  "id": "trap9002",
+  "name": "Swinging Blade",
+  "level": 6,
+  "xp": 250,
+  "initiative": 6,
+  "trigger": {
+    "text": "The blade swings when a creature crosses the marked tiles.",
+    "clauses": []
+  },
+  "powers": [
+    {
+      "name": "Sweep",
+      "action": "standard",
+      "usage": "at-will",
+      "keywords": [],
+      "attacks": [
+        {
+          "label": "primary",
+          "range": {
+            "kind": "melee",
+            "note": "touch"
+          },
+          "target": "one creature on the tiles",
+          "bonus": {
+            "kind": "fixed",
+            "value": 11
+          },
+          "vs": "ac",
+          "hit": {
+            "text": "2d6 + 4 damage, and the target falls prone.",
+            "clauses": [
+              {
+                "at": [
+                  0,
+                  14
+                ],
+                "kind": "damage",
+                "dice": "2d6+4",
+                "types": [],
+                "who": "target"
+              },
+              {
+                "at": [
+                  31,
+                  42
+                ],
+                "kind": "condition",
+                "condition": "prone",
+                "who": "target",
+                "duration": {
+                  "kind": "indefinite"
+                }
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ],
+  "sources": [
+    {
+      "book": "Dungeon Magazine 903"
+    }
+  ]
+}

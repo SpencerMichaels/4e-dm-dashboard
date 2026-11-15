@@ -1,0 +1,119 @@
+{
+  "id": "hollow-king",
+  "name": "Hollow King",
+  "kind": "functional",
+  "role": "controller",
+  "rankChange": "up",
+  "prerequisite": {
+    "text": "Level 11",
+    "check": {
+      "kind": "min-level",
+      "level": 11
+    }
+  },
+  "keyword": "undead",
+  "senses": [
+    {
+      "kind": "darkvision"
+    }
+  ],
+  "defenses": {
+    "ac": 2,
+    "fortitude": 4,
+    "will": 4
+  },
+  "hpPerLevel": 8,
+  "savingThrows": 2,
+  "actionPoints": 1,
+  "immune": [
+    {
+      "type": "poison"
+    }
+  ],
+  "resist": [
+    {
+      "type": "necrotic",
+      "byTier": {
+        "heroic": 5,
+        "paragon": 10,
+        "epic": 15
+      }
+    }
+  ],
+  "vulnerable": [],
+  "traits": [
+    {
+      "name": "Crown of Dust",
+      "keywords": [],
+      "text": {
+        "text": "The hollow king ignores difficult terrain made of rubble or sand.",
+        "clauses": []
+      }
+    }
+  ],
+  "auras": [
+    {
+      "name": "Withering Court",
+      "keywords": [
+        "necrotic"
+      ],
+      "range": 3,
+      "text": {
+        "text": "Each enemy that starts its turn in the aura takes 5 necrotic damage.",
+        "clauses": [
+          {
+            "at": [
+              44,
+              67
+            ],
+            "kind": "damage",
+            "dice": "5",
+            "types": [
+              "necrotic"
+            ],
+            "who": "enemies-in-area"
+          }
+        ]
+      }
+    }
+  ],
+  "powers": [
+    {
+      "name": "Grave Command",
+      "action": "minor",
+      "usage": "recharge",
+      "recharge": {
+        "kind": "roll",
+        "min": 5
+      },
+      "keywords": [],
+      "attacks": [],
+      "effect": {
+        "text": "One ally in the aura shifts 2 squares.",
+        "clauses": [
+          {
+            "at": [
+              21,
+              37
+            ],
+            "kind": "move",
+            "move": "shift",
+            "squares": 2,
+            "who": "ally"
+          }
+        ]
+      }
+    }
+  ],
+  "description": "An invented undead template for the UI tests.",
+  "sources": [
+    {
+      "book": "Fixture Guide",
+      "page": 61
+    }
+  ],
+  "provenance": {
+    "origin": "human",
+    "at": "2026-11-14"
+  }
+}

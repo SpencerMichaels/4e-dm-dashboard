@@ -1,0 +1,62 @@
+{
+  "id": "smoke-born",
+  "name": "Smoke-Born",
+  "description": "Creatures raised in the chimney warrens.",
+  "skills": {
+    "always": [
+      "stealth"
+    ],
+    "choices": [
+      [
+        "acrobatics"
+      ]
+    ],
+    "bonus": 2
+  },
+  "powers": [
+    {
+      "name": "Choking Cloud",
+      "action": "no-action",
+      "usage": "at-will",
+      "keywords": [],
+      "attacks": [],
+      "effect": {
+        "text": "When the creature hits, the target cannot see beyond 2 squares until the end of its next turn.",
+        "clauses": []
+      },
+      "category": "attack",
+      "recommendedFor": [
+        "brute",
+        "soldier"
+      ],
+      "flavor": ""
+    },
+    {
+      "name": "Ash Step",
+      "action": "no-action",
+      "usage": "at-will",
+      "keywords": [],
+      "attacks": [],
+      "effect": {
+        "text": "The creature can shift 1 square as a minor action.",
+        "clauses": []
+      },
+      "category": "utility",
+      "recommendedFor": [
+        "brute",
+        "soldier"
+      ],
+      "flavor": ""
+    }
+  ],
+  "sources": [
+    {
+      "book": "Fixture Guide",
+      "page": 70
+    }
+  ],
+  "provenance": {
+    "origin": "human",
+    "at": "2026-11-14"
+  }
+}

@@ -11,7 +11,7 @@ const root = mkdtempSync(join(tmpdir(), '4e-combat-ui-'))
 app.setPath('appData', root)
 mkdirSync(join(root, 'user'))
 app.setPath('userData', join(root, 'user'))
-// Published content: the content repo with the test fixtures over it (test-content.cjs), never the DM's install.
+// Published content: the invented fixture pack (test-content.cjs), never the DM's install.
 process.env.FOUR_E_CONTENT_DIR = require('./test-content.cjs').testContentDir()
 // The build to test: $FOUR_E_OUT_DIR (`npm run test:ui` builds a private one per run), else out/.
 require(join(process.env.FOUR_E_OUT_DIR || resolve(__dirname, '../../out'), 'main/index.js'))
@@ -38,17 +38,17 @@ const captain = {
 const encounter = {
   id: 'smoke-fight', name: 'Smoke Fight', tags: [], createdAt: now, updatedAt: now,
   creatures: [
-    { creatureId: 'captain', count: 1, monsterTemplates: ['Battle Champion'], levelAdjust: 1 },
-    { compendiumId: 'monster723', count: 1 },
-    { compendiumId: 'monster4742', count: 2 },
-    // Dire Rat: its bite exposes the target to dire rat filth fever.
-    { compendiumId: 'monster145', count: 1 },
+    { creatureId: 'captain', count: 1, monsterTemplates: ['Drillmaster'], levelAdjust: 1 },
+    { compendiumId: 'monster9001', count: 1 },
+    { compendiumId: 'monster9002', count: 2 },
+    // Mire Rat: its bite exposes the target to mire fever.
+    { compendiumId: 'monster9003', count: 1 },
   ],
   traps: [
-    { compendiumId: 'trap40', count: 1 },
+    { compendiumId: 'trap9001', count: 1 },
     { compendiumId: 'trap41', count: 1, visible: true },
   ],
-  // The location adds Ceiling Scythe (trap300); its other traps are already in the encounter.
+  // The location adds Swinging Blade (trap9002); its other traps are already in the encounter.
   locationId: 'vault',
 }
 // The hero starts with a lasting effect, which joins it in combat.
@@ -93,7 +93,7 @@ app.whenReady().then(async () => {
     await js(() => window.api.entity.delete('creature', 'shared-shade', 'library'))
 
     // ── A location notes its traps as stat blocks; the search adds another ──
-    await js(l => window.api.entity.save('location', l), { id: 'vault', name: 'Smoke Vault', description: '', tags: [], createdAt: now, updatedAt: now, traps: [{ compendiumId: 'trap41' }, { compendiumId: 'trap300' }], encounterIds: ['smoke-fight'] })
+    await js(l => window.api.entity.save('location', l), { id: 'vault', name: 'Smoke Vault', description: '', tags: [], createdAt: now, updatedAt: now, traps: [{ compendiumId: 'trap41' }, { compendiumId: 'trap9002' }], encounterIds: ['smoke-fight'] })
     // A second PC without a sheet, two levels below the hero: the party level stays the hero's (the higher on a tie) and both pages flag it.
     await js(p => window.api.entity.save('player-character', p), { id: 'squire', name: 'Squire', playerName: 'Guest', level: 2, createdAt: now, updatedAt: now })
     await sleep(300)
@@ -127,37 +127,37 @@ app.whenReady().then(async () => {
     await until(() => [...document.querySelectorAll('*')].some(el => el.children.length === 0 && el.textContent.trim() === 'Smoke Vault'), 'the location list')
     await js(() => [...document.querySelectorAll('*')].find(el => el.children.length === 0 && el.textContent.trim() === 'Smoke Vault').click())
     await until(() => document.querySelector('.location-trap')?.innerText.includes('Countermeasures'), 'the location trap stat block')
-    await js(() => { const i = document.querySelector('.location-traps .trap-search input'); i.focus(); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(i, 'Pyrotechnics'); i.dispatchEvent(new Event('input', { bubbles: true })) })
+    await js(() => { const i = document.querySelector('.location-traps .trap-search input'); i.focus(); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(i, 'Spark'); i.dispatchEvent(new Event('input', { bubbles: true })) })
     await until(() => !!document.querySelector('.location-traps .trap-search-results button'), 'the trap search results')
     await js(() => document.querySelector('.location-traps .trap-search-results button').click())
     await until(() => document.querySelectorAll('.location-trap').length === 3, 'the added trap')
     await sleep(300)
     const vault = await js(() => window.api.entity.get('location', 'vault'))
-    if (JSON.stringify(vault.traps) !== JSON.stringify([{ compendiumId: 'trap41' }, { compendiumId: 'trap300' }, { compendiumId: 'trap40' }])) throw new Error('Location traps were not saved: ' + JSON.stringify(vault.traps))
+    if (JSON.stringify(vault.traps) !== JSON.stringify([{ compendiumId: 'trap41' }, { compendiumId: 'trap9002' }, { compendiumId: 'trap9001' }])) throw new Error('Location traps were not saved: ' + JSON.stringify(vault.traps))
     await screenshot('out/location-traps.png')
 
     // ── Encounter editor: rows preview as adjusted kit monsters ──
     await js(() => [...document.querySelectorAll('button')].find(b => b.textContent.trim().endsWith('Encounters')).click())
     await until(() => [...document.querySelectorAll('*')].some(el => el.children.length === 0 && el.textContent.trim() === 'Smoke Fight'), 'the encounter list')
     await js(() => [...document.querySelectorAll('*')].find(el => el.children.length === 0 && el.textContent.trim() === 'Smoke Fight').click())
-    await until(() => document.body.innerText.includes('Smoke Captain') && document.body.innerText.includes('Troll'), 'the encounter rows')
+    await until(() => document.body.innerText.includes('Smoke Captain') && document.body.innerText.includes('Moss Troll'), 'the encounter rows')
     await js(() => [...document.querySelectorAll('*')].find(el => el.children.length === 0 && el.textContent.trim() === 'Smoke Captain').click())
     await until(() => document.body.innerText.includes('Level 6 Elite Soldier'), 'the row preview')
     const preview = await js(() => document.body.innerText)
-    for (const text of ['Battle Champion', 'Sweeping Cut', 'Level 6']) if (!preview.includes(text)) throw new Error(`Row preview is missing "${text}"`)
+    for (const text of ['Drillmaster', 'Sweeping Cut', 'Level 6']) if (!preview.includes(text)) throw new Error(`Row preview is missing "${text}"`)
     await screenshot('out/combat-encounter-preview.png')
 
     // Traps: rows with XP, and a trap row previews the trap stat block.
-    // The location's Ceiling Scythe shows as a read-only row; the other two location traps are the encounter's own.
+    // The location's Swinging Blade shows as a read-only row; the other two location traps are the encounter's own.
     await until(() => document.querySelectorAll('.encounter-trap-row').length === 3, 'the trap rows')
     const trapRows = await js(() => [...document.querySelectorAll('.encounter-trap-row')].map(r => r.innerText).join(' | '))
-    if (!trapRows.includes('175 XP') || !trapRows.includes('200 XP') || !/Ceiling Scythe[\s\S]*from Smoke Vault/.test(trapRows)) throw new Error('Trap rows wrong: ' + trapRows)
+    if (!trapRows.includes('175 XP') || !trapRows.includes('200 XP') || !/Swinging Blade[\s\S]*from Smoke Vault/.test(trapRows)) throw new Error('Trap rows wrong: ' + trapRows)
     const xpText = await js(() => (document.body.innerText.match(/[\d,]+ XP/g) ?? []).join(' '))
-    // Creatures 950 + dire rat 100; traps 175 + 200 + Ceiling Scythe 250.
+    // Creatures 950 + dire rat 100; traps 175 + 200 + Swinging Blade 250.
     if (!/\b1,?675 XP/.test(xpText)) throw new Error('Encounter XP does not include every trap: ' + xpText)
     // The encounter lists the diseases its creatures can expose a target to.
-    await until(() => document.querySelector('.encounter-diseases')?.innerText.includes('Dire Rat Filth Fever'), 'the encounter diseases')
-    if (!(await js(() => document.querySelector('.encounter-diseases').innerText.includes('from Dire Rat')))) throw new Error('Disease source missing')
+    await until(() => document.querySelector('.encounter-diseases')?.innerText.includes('Mire Fever'), 'the encounter diseases')
+    if (!(await js(() => document.querySelector('.encounter-diseases').innerText.includes('from Mire Rat')))) throw new Error('Disease source missing')
     await js(() => document.querySelectorAll('.encounter-trap-row')[1].click())
     await until(() => document.body.innerText.includes('Leg Breaker Trap') && document.body.innerText.includes('Countermeasures'), 'the trap preview')
 
@@ -169,18 +169,18 @@ app.whenReady().then(async () => {
     const combatants = Object.values(state.combatants)
     if (combatants.length !== 9) throw new Error('Expected 9 combatants, got ' + combatants.map(c => c.name).join(', '))
     const byName = name => combatants.filter(c => c.name === name)
-    const cap = byName('Smoke Captain')[0], troll = byName('Troll')[0], goblins = byName('Corrupt Goblin Cutter')
+    const cap = byName('Smoke Captain')[0], troll = byName('Moss Troll')[0], goblins = byName('Gutter Knifer')
     if (!cap || !troll || goblins.length !== 2) throw new Error('Missing combatants: ' + combatants.map(c => c.name).join(', '))
     if (combatants.some(c => !c.isPC && (!['creature', 'trap'].includes(c.kind) || !c.content) || 'statBlock' in c)) throw new Error('Combatants are not kit content')
     if (cap.content.rank !== 'elite' || cap.content.level !== 6 || cap.hp !== cap.content.hp) throw new Error('Captain adjustments missing: ' + JSON.stringify([cap.content.rank, cap.content.level, cap.hp]))
     if (troll.content.regeneration?.value !== 5 || JSON.stringify(troll.content.regeneration.suppressedBy) !== '["fire","acid"]') throw new Error('Troll regeneration wrong: ' + JSON.stringify(troll.content.regeneration))
     if (goblins.some(g => g.hp !== 1 || g.content.rank !== 'minion') || goblins[0].initiativeGroupId !== goblins[1].initiativeGroupId) throw new Error('Minions wrong')
     // Initiative in list order, captain first.
-    const jets = byName('Pyrotechnics Trap')[0], legBreaker = byName('Leg Breaker Trap')[0]
-    if (jets?.kind !== 'trap' || !jets.hidden || jets.content.initiative !== 6) throw new Error('Pyrotechnics Trap wrong: ' + JSON.stringify(jets && [jets.kind, jets.hidden, jets.content.initiative]))
+    const jets = byName('Spark Jets')[0], legBreaker = byName('Leg Breaker Trap')[0]
+    if (jets?.kind !== 'trap' || !jets.hidden || jets.content.initiative !== 6) throw new Error('Spark Jets wrong: ' + JSON.stringify(jets && [jets.kind, jets.hidden, jets.content.initiative]))
     if (legBreaker?.kind !== 'trap' || legBreaker.hidden || legBreaker.content.initiative !== undefined) throw new Error('Leg Breaker Trap wrong')
     if (!(await js(() => document.querySelector('.triggered-trap-note')?.textContent.includes('Leg Breaker Trap')))) throw new Error('Initiative entry does not list the triggered trap')
-    const scythe = byName('Ceiling Scythe')[0], rat = byName('Dire Rat')[0], heroC = combatants.find(c => c.isPC)
+    const scythe = byName('Swinging Blade')[0], rat = byName('Mire Rat')[0], heroC = combatants.find(c => c.isPC)
     if (scythe?.kind !== 'trap' || !scythe.hidden) throw new Error('The location trap did not join hidden')
     if (!heroC.conditions.some(c => c.carried && c.customName === 'Smoke Curse' && c.duration?.type === 'indefinite')) throw new Error('The hero\'s lasting effect did not join combat: ' + JSON.stringify(heroC.conditions))
     // Initiative: captain first, then the rat (whose bite carries the disease), then the rest.
@@ -192,7 +192,7 @@ app.whenReady().then(async () => {
     await screenshot('out/combat-panel.png')
     const panel = await js(() => document.body.innerText)
     // The template's traits appear with the creature's own powers.
-    for (const text of ['Longsword', 'Sweeping Cut', 'Battle Lord Tactics']) if (!panel.includes(text)) throw new Error(`Combat panel is missing "${text}"`)
+    for (const text of ['Longsword', 'Sweeping Cut', 'Rally Cry']) if (!panel.includes(text)) throw new Error(`Combat panel is missing "${text}"`)
     // Pin Sweeping Cut before using it: the pinned card is live, so it shows the power as used.
     await js(() => [...document.querySelectorAll('.power-card')].find(c => c.querySelector('.pc-name')?.textContent === 'Sweeping Cut').querySelector('.pc-pin').click())
     await until(() => document.querySelector('.pinned-cards')?.innerText.includes('Sweeping Cut'), 'the pinned card')
@@ -216,9 +216,9 @@ app.whenReady().then(async () => {
 
     // The rat's turn: the disease named in its Bite applies like a condition: click the name, then the PC.
     await js(() => window.api.combat.endTurn())
-    await until(() => !!document.querySelector('.disease-chip') && [...document.querySelectorAll('span[title^="Click, then a PC"]')].some(s => s.textContent.includes('dire rat filth fever')), 'the highlighted disease name')
-    await js(() => [...document.querySelectorAll('span[title^="Click, then a PC"]')].find(s => s.textContent.includes('dire rat filth fever')).click())
-    await until(() => document.body.innerText.includes('Click a PC to expose to Dire Rat Filth Fever'), 'the expose banner')
+    await until(() => !!document.querySelector('.disease-chip') && [...document.querySelectorAll('span[title^="Click, then a PC"]')].some(s => s.textContent.includes('mire fever')), 'the highlighted disease name')
+    await js(() => [...document.querySelectorAll('span[title^="Click, then a PC"]')].find(s => s.textContent.includes('mire fever')).click())
+    await until(() => document.body.innerText.includes('Click a PC to expose to Mire Fever'), 'the expose banner')
     await js(() => [...document.querySelectorAll('*')].find(el => el.children.length === 0 && el.textContent.trim() === 'Hero').click())
     let heroRecord
     const heroDiseases = r => (r?.conditions ?? []).filter(c => c.kind === 'disease')

@@ -144,7 +144,7 @@ Design: `docs/content-pack-plan.md`.
 - [ ] First run with no pack: prompt to download (hosting TBD)
 - [x] The app must run with an empty compendium; no crashes on missing data (2026-11-14)
 - [ ] "Check for content update" in Settings (hosting TBD)
-- [ ] UI suites on an invented fixture pack, so they run without the private content repo (CI, a public checkout)
+- [x] UI suites on an invented fixture pack, so they run without the private content repo (CI, a public checkout) (2026-11-14): `tools/ui-smoke/fixtures/content-repo`, written by `fixtures/make-content-repo.cjs` (invented names and text, validated by a unit test); the suites use its stand-ins (Moss Troll, Gutter Knifer, Mire Rat and Mire Fever, Spark Jets, Swinging Blade, Falling Rubble, Ember Weapon, the Drillmaster and Hollow King templates)
 
 **8.3 Clean the tree**
 - [x] `git rm -r --cached` the data dirs and gitignore them; the fonts are already removed in section 4 (2026-11-14: `content/`; checking out an older commit and back deletes the local files, and so does merging this into a branch that still tracks them, e.g. `content-v6`: back them up first)

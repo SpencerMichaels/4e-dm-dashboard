@@ -8,7 +8,7 @@ const root = mkdtempSync(join(tmpdir(), '4e-authoring-ui-'))
 app.setPath('appData', root)
 mkdirSync(join(root, 'user'))
 app.setPath('userData', join(root, 'user'))
-// Published content: the content repo with the test fixtures over it (test-content.cjs), never the DM's install.
+// Published content: the invented fixture pack (test-content.cjs), never the DM's install.
 process.env.FOUR_E_CONTENT_DIR = require('../ui-smoke/test-content.cjs').testContentDir()
 // The build to test: $FOUR_E_OUT_DIR (`npm run test:ui` builds a private one per run), else out/.
 require(join(process.env.FOUR_E_OUT_DIR || resolve(__dirname, '../../out'), 'main/index.js'))

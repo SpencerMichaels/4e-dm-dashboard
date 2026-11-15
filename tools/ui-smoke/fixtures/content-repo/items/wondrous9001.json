@@ -1,0 +1,40 @@
+{
+  "id": "wondrous9001",
+  "name": "Lantern of Paths",
+  "category": "item",
+  "level": 4,
+  "rarity": "uncommon",
+  "levels": [
+    {
+      "level": 4,
+      "price": 840
+    }
+  ],
+  "slot": "wondrous",
+  "properties": [],
+  "powers": [
+    {
+      "name": "Power",
+      "action": "minor",
+      "usage": "daily",
+      "keywords": [],
+      "attacks": [],
+      "effect": {
+        "text": "The lantern points toward the nearest exit.",
+        "clauses": []
+      }
+    }
+  ],
+  "flavor": "A tin lantern with a needle in its lid.",
+  "description": [],
+  "sources": [
+    {
+      "book": "Fixture Guide",
+      "page": 52
+    }
+  ],
+  "provenance": {
+    "origin": "human",
+    "at": "2026-11-14"
+  }
+}

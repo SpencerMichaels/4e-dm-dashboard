@@ -1,31 +1,182 @@
 {
-  "id": "trap41",
-  "name": "Leg Breaker Trap",
   "kind": "trap",
-  "level": 5,
   "role": "lurker",
   "rank": "standard",
-  "xp": 200,
-  "detect": [{ "skill": "perception", "dc": 17, "text": "The character spots the plate." }],
+  "detect": [
+    {
+      "skill": "perception",
+      "dc": 17,
+      "text": "The character spots the plate."
+    }
+  ],
   "immune": [],
   "resist": [],
-  "trigger": { "text": "The trap attacks a creature that steps on its plate.", "clauses": [] },
   "traits": [],
   "auras": [],
-  "powers": [{
-    "name": "Snap", "action": "opportunity", "usage": "at-will", "keywords": [],
-    "attacks": [{ "label": "primary", "range": { "kind": "melee" }, "target": "The triggering creature", "bonus": { "kind": "fixed", "value": 8 }, "vs": "reflex",
-      "hit": { "text": "1d10 + 4 damage, and the target is slowed and weakened (save ends both).", "clauses": [{ "at": [0, 15], "kind": "damage", "dice": "1d10", "plus": 4, "types": [], "who": "target" }, { "at": [35, 41], "kind": "condition", "condition": "slowed", "who": "target", "duration": { "kind": "save-ends" }, "saveGroup": "a" }, { "at": [46, 71], "kind": "condition", "condition": "weakened", "who": "target", "duration": { "kind": "save-ends" }, "saveGroup": "a" }] } },
-      { "label": "secondary", "after": "hit", "range": { "kind": "melee", "reach": 1 }, "target": "the same creature", "bonus": { "kind": "fixed", "value": 6 }, "vs": "fortitude",
-        "hit": { "text": "The target falls prone.", "clauses": [] } }]
-  }],
   "countermeasures": [
-    { "text": "Thievery DC 17: An adjacent character jams the plate.", "clauses": [{ "at": [0, 52], "kind": "countermeasure", "effect": "disable", "checks": [{ "skill": "thievery", "dc": 17 }], "action": "standard" }] },
-    { "text": "A character can smash the plate (AC 10, other defenses 10; hp 20).", "clauses": [{ "at": [0, 66], "kind": "countermeasure", "effect": "destroy", "defenses": { "ac": 10, "fortitude": 10, "reflex": 10, "will": 10 }, "hp": 20 }] },
-    { "text": "Dungeoneering DC 17: Three successes before two failures take the springs apart.", "clauses": [{ "at": [0, 81], "kind": "countermeasure", "effect": "disable", "checks": [{ "skill": "dungeoneering", "dc": 17 }], "complexity": { "successes": 3, "failures": 2 } }] }
+    {
+      "text": "Thievery DC 17: An adjacent character jams the plate.",
+      "clauses": [
+        {
+          "at": [
+            0,
+            53
+          ],
+          "kind": "countermeasure",
+          "effect": "disable",
+          "checks": [
+            {
+              "skill": "thievery",
+              "dc": 17
+            }
+          ],
+          "action": "standard"
+        }
+      ]
+    },
+    {
+      "text": "A character can smash the plate (AC 10, other defenses 10; hp 20).",
+      "clauses": [
+        {
+          "at": [
+            0,
+            66
+          ],
+          "kind": "countermeasure",
+          "effect": "destroy",
+          "defenses": {
+            "ac": 10,
+            "fortitude": 10,
+            "reflex": 10,
+            "will": 10
+          },
+          "hp": 20
+        }
+      ]
+    },
+    {
+      "text": "Dungeoneering DC 17: Three successes before two failures take the springs apart.",
+      "clauses": [
+        {
+          "at": [
+            0,
+            80
+          ],
+          "kind": "countermeasure",
+          "effect": "disable",
+          "checks": [
+            {
+              "skill": "dungeoneering",
+              "dc": 17
+            }
+          ],
+          "complexity": {
+            "successes": 3,
+            "failures": 2
+          }
+        }
+      ]
+    }
   ],
   "flavor": "",
-  "description": "A smoke-test stand-in for the published trap, with structured countermeasures and a \"save ends both\" hit.",
-  "sources": [{ "book": "UI smoke fixture" }],
-  "provenance": { "origin": "human", "at": "2026-11-14" }
+  "description": "An invented trap for the UI tests.",
+  "provenance": {
+    "origin": "human",
+    "at": "2026-11-14"
+  },
+  "id": "trap41",
+  "name": "Leg Breaker Trap",
+  "level": 5,
+  "xp": 200,
+  "trigger": {
+    "text": "The trap attacks a creature that steps on its plate.",
+    "clauses": []
+  },
+  "powers": [
+    {
+      "name": "Snap",
+      "action": "opportunity",
+      "usage": "at-will",
+      "keywords": [],
+      "attacks": [
+        {
+          "label": "primary",
+          "range": {
+            "kind": "melee"
+          },
+          "target": "The triggering creature",
+          "bonus": {
+            "kind": "fixed",
+            "value": 8
+          },
+          "vs": "reflex",
+          "hit": {
+            "text": "1d10 + 4 damage, and the target is slowed and weakened (save ends both).",
+            "clauses": [
+              {
+                "at": [
+                  0,
+                  15
+                ],
+                "kind": "damage",
+                "dice": "1d10+4",
+                "types": [],
+                "who": "target"
+              },
+              {
+                "at": [
+                  35,
+                  41
+                ],
+                "kind": "condition",
+                "condition": "slowed",
+                "who": "target",
+                "duration": {
+                  "kind": "save-ends"
+                },
+                "saveGroup": "a"
+              },
+              {
+                "at": [
+                  46,
+                  71
+                ],
+                "kind": "condition",
+                "condition": "weakened",
+                "who": "target",
+                "duration": {
+                  "kind": "save-ends"
+                },
+                "saveGroup": "a"
+              }
+            ]
+          }
+        },
+        {
+          "label": "secondary",
+          "after": "hit",
+          "range": {
+            "kind": "melee",
+            "reach": 1
+          },
+          "target": "the same creature",
+          "bonus": {
+            "kind": "fixed",
+            "value": 6
+          },
+          "vs": "fortitude",
+          "hit": {
+            "text": "The target falls prone.",
+            "clauses": []
+          }
+        }
+      ]
+    }
+  ],
+  "sources": [
+    {
+      "book": "Fixture Guide",
+      "page": 9
+    }
+  ]
 }

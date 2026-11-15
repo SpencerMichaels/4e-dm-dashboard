@@ -1,0 +1,90 @@
+{
+  "id": "weapon9001",
+  "name": "Ember Weapon",
+  "category": "weapon",
+  "level": 5,
+  "rarity": "uncommon",
+  "levels": [
+    {
+      "level": 5,
+      "enhancement": 1,
+      "price": 1000
+    },
+    {
+      "level": 10,
+      "enhancement": 2,
+      "price": 5000
+    },
+    {
+      "level": 15,
+      "enhancement": 3,
+      "price": 25000
+    }
+  ],
+  "enhancementTargets": [
+    "attack",
+    "damage"
+  ],
+  "slot": "weapon",
+  "itemType": "Any",
+  "critical": {
+    "text": "+1d6 fire damage per plus",
+    "clauses": []
+  },
+  "properties": [],
+  "powers": [
+    {
+      "name": "Power",
+      "action": "free",
+      "usage": "at-will",
+      "keywords": [
+        "fire"
+      ],
+      "attacks": [],
+      "effect": {
+        "text": "The weapon glows with banked coals, or stops glowing.",
+        "clauses": []
+      }
+    },
+    {
+      "name": "Power",
+      "action": "free",
+      "usage": "daily",
+      "keywords": [
+        "fire"
+      ],
+      "trigger": {
+        "text": "You hit with the weapon.",
+        "clauses": []
+      },
+      "attacks": [],
+      "effect": {
+        "text": "The target takes ongoing 5 fire damage (save ends).",
+        "clauses": []
+      },
+      "levelSteps": [
+        {
+          "level": 15,
+          "text": "Ongoing 10 fire damage."
+        }
+      ]
+    }
+  ],
+  "flavor": "Warm to the touch, even in snow.",
+  "description": [
+    {
+      "type": "text",
+      "text": "An invented weapon for the UI tests."
+    }
+  ],
+  "sources": [
+    {
+      "book": "Fixture Guide",
+      "page": 50
+    }
+  ],
+  "provenance": {
+    "origin": "human",
+    "at": "2026-11-14"
+  }
+}

@@ -126,11 +126,13 @@ tests point at a fixture pack's install folder):
 
 ## Tests and fixtures
 
-- The UI suites run on the private content repo with the invented fixtures in
-  `tools/ui-smoke/fixtures/content-repo` laid over it (`content:pack --overlay ... --install <dir>`,
-  through `tools/ui-smoke/test-content.cjs`), pointing `FOUR_E_CONTENT_DIR` at the install: they
-  assert on many published entries, so an invented fixture pack would mean rewriting them. That is
-  still to do before they can run without the content repo (CI, a public checkout).
+- The UI suites run on an invented content repo, `tools/ui-smoke/fixtures/content-repo` (2026-11-14),
+  written by `tools/ui-smoke/fixtures/make-content-repo.cjs`: a handful of monsters, traps, diseases,
+  items, templates and themes with invented names and text, shaped like the real pack and checked by
+  the validator (`tools/content/validate/fixture-repo.test.ts`). `tools/ui-smoke/test-content.cjs`
+  packs and installs it (`content:pack --repo ... --install <dir>`) and the suites point
+  `FOUR_E_CONTENT_DIR` at the install, so they run without the private content repo (CI, a public
+  checkout).
 - Vitest suites that ran over the published templates and themes run over the content repo instead
   (`tools/content/repo.ts`: `$CONTENT_REPO` or `~/Projects/4e-content`) and skip when it is absent;
   the encounter-adjustment snapshot holds hashes of power and trait text, not the text. The

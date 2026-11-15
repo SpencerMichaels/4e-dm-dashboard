@@ -1,0 +1,101 @@
+{
+  "kind": "trap",
+  "role": "lurker",
+  "rank": "standard",
+  "detect": [
+    {
+      "skill": "perception",
+      "dc": 16,
+      "text": "The character notices scorched nozzles in the wall."
+    }
+  ],
+  "immune": [],
+  "resist": [],
+  "traits": [],
+  "auras": [],
+  "countermeasures": [
+    {
+      "text": "Thievery DC 16: An adjacent character plugs a nozzle.",
+      "clauses": [
+        {
+          "at": [
+            0,
+            53
+          ],
+          "kind": "countermeasure",
+          "effect": "disable",
+          "checks": [
+            {
+              "skill": "thievery",
+              "dc": 16
+            }
+          ],
+          "action": "standard"
+        }
+      ]
+    }
+  ],
+  "flavor": "",
+  "description": "",
+  "provenance": {
+    "origin": "human",
+    "at": "2026-11-14"
+  },
+  "id": "trap9001",
+  "name": "Spark Jets",
+  "level": 4,
+  "xp": 175,
+  "initiative": 6,
+  "trigger": {
+    "text": "The jets fire when a creature enters the hall.",
+    "clauses": []
+  },
+  "powers": [
+    {
+      "name": "Gout",
+      "action": "standard",
+      "usage": "at-will",
+      "keywords": [
+        "fire"
+      ],
+      "attacks": [
+        {
+          "label": "primary",
+          "range": {
+            "kind": "close-blast",
+            "size": 3
+          },
+          "target": "each creature in the blast",
+          "bonus": {
+            "kind": "fixed",
+            "value": 7
+          },
+          "vs": "reflex",
+          "hit": {
+            "text": "2d6 + 3 fire damage.",
+            "clauses": [
+              {
+                "at": [
+                  0,
+                  19
+                ],
+                "kind": "damage",
+                "dice": "2d6+3",
+                "types": [
+                  "fire"
+                ],
+                "who": "target"
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ],
+  "sources": [
+    {
+      "book": "Fixture Guide",
+      "page": 3
+    }
+  ]
+}

@@ -1,0 +1,70 @@
+{
+  "kind": "trap",
+  "role": "lurker",
+  "rank": "standard",
+  "detect": [],
+  "immune": [],
+  "resist": [],
+  "traits": [],
+  "auras": [],
+  "countermeasures": [],
+  "flavor": "",
+  "description": "",
+  "provenance": {
+    "origin": "human",
+    "at": "2026-11-14"
+  },
+  "id": "trap9005",
+  "name": "Snare Line",
+  "level": 3,
+  "xp": 150,
+  "trigger": {
+    "text": "A creature that walks into the cord trips it.",
+    "clauses": []
+  },
+  "powers": [
+    {
+      "name": "Snap Shut",
+      "action": "opportunity",
+      "usage": "at-will",
+      "keywords": [],
+      "attacks": [
+        {
+          "label": "primary",
+          "range": {
+            "kind": "melee"
+          },
+          "target": "the triggering creature",
+          "bonus": {
+            "kind": "fixed",
+            "value": 6
+          },
+          "vs": "reflex",
+          "hit": {
+            "text": "The target is immobilized (save ends).",
+            "clauses": [
+              {
+                "at": [
+                  14,
+                  37
+                ],
+                "kind": "condition",
+                "condition": "immobilized",
+                "who": "target",
+                "duration": {
+                  "kind": "save-ends"
+                }
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ],
+  "sources": [
+    {
+      "book": "Fixture Guide",
+      "page": 8
+    }
+  ]
+}

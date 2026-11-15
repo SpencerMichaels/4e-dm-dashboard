@@ -1,0 +1,122 @@
+{
+  "size": "small",
+  "origin": "natural",
+  "type": "beast",
+  "keywords": [],
+  "perception": 5,
+  "senses": [
+    {
+      "kind": "low-light-vision"
+    }
+  ],
+  "speed": {
+    "walk": 6,
+    "climb": 3
+  },
+  "savingThrowBonus": 0,
+  "actionPoints": 0,
+  "immune": [],
+  "resist": [],
+  "vulnerable": [],
+  "abilities": {
+    "str": 12,
+    "con": 12,
+    "dex": 12,
+    "int": 10,
+    "wis": 10,
+    "cha": 10
+  },
+  "skills": {},
+  "alignment": "unaligned",
+  "languages": "",
+  "equipment": "",
+  "traits": [],
+  "auras": [],
+  "description": "",
+  "provenance": {
+    "origin": "human",
+    "at": "2026-11-14"
+  },
+  "id": "monster9003",
+  "name": "Mire Rat",
+  "level": 1,
+  "role": "brute",
+  "rank": "standard",
+  "xp": 100,
+  "hp": 38,
+  "initiative": 2,
+  "defenses": {
+    "ac": 13,
+    "fortitude": 13,
+    "reflex": 11,
+    "will": 9
+  },
+  "powers": [
+    {
+      "name": "Bite",
+      "action": "standard",
+      "usage": "at-will",
+      "basic": "melee",
+      "keywords": [
+        "disease"
+      ],
+      "attacks": [
+        {
+          "label": "primary",
+          "range": {
+            "kind": "melee",
+            "reach": 1
+          },
+          "target": "one creature",
+          "bonus": {
+            "kind": "fixed",
+            "value": 6
+          },
+          "vs": "ac",
+          "hit": {
+            "text": "1d10 + 5 damage. At the end of the encounter, the target makes a saving throw. On a failure, the target contracts mire fever (stage 1).",
+            "clauses": [
+              {
+                "at": [
+                  0,
+                  8
+                ],
+                "kind": "damage",
+                "dice": "1d10+5",
+                "types": [],
+                "who": "target"
+              },
+              {
+                "at": [
+                  46,
+                  77
+                ],
+                "kind": "saving-throw",
+                "who": "target",
+                "if": "At the end of the encounter"
+              },
+              {
+                "at": [
+                  93,
+                  134
+                ],
+                "kind": "disease",
+                "disease": "mire fever",
+                "diseaseId": "disease9001",
+                "stage": 1,
+                "who": "target",
+                "if": "On a failure"
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ],
+  "sources": [
+    {
+      "book": "Fixture Bestiary",
+      "page": 30
+    }
+  ]
+}

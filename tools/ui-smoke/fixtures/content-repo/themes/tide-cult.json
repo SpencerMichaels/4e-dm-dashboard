@@ -1,0 +1,62 @@
+{
+  "id": "tide-cult",
+  "name": "Tide Cult",
+  "description": "Followers of a drowned shrine.",
+  "skills": {
+    "always": [
+      "nature"
+    ],
+    "choices": [
+      [
+        "athletics"
+      ]
+    ],
+    "bonus": 2
+  },
+  "powers": [
+    {
+      "name": "Undertow",
+      "action": "no-action",
+      "usage": "at-will",
+      "keywords": [],
+      "attacks": [],
+      "effect": {
+        "text": "When the creature hits, it can pull the target 1 square.",
+        "clauses": []
+      },
+      "category": "attack",
+      "recommendedFor": [
+        "brute",
+        "soldier"
+      ],
+      "flavor": ""
+    },
+    {
+      "name": "Salt Ward",
+      "action": "no-action",
+      "usage": "at-will",
+      "keywords": [],
+      "attacks": [],
+      "effect": {
+        "text": "The creature gains a +2 bonus to saving throws.",
+        "clauses": []
+      },
+      "category": "utility",
+      "recommendedFor": [
+        "brute",
+        "soldier"
+      ],
+      "flavor": ""
+    }
+  ],
+  "sources": [
+    {
+      "book": "Fixture Guide",
+      "page": 71
+    }
+  ],
+  "provenance": {
+    "origin": "human",
+    "at": "2026-11-14"
+  }
+}

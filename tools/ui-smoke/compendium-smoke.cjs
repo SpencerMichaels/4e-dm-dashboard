@@ -10,7 +10,7 @@ const root = mkdtempSync(join(tmpdir(), '4e-compendium-ui-'))
 app.setPath('appData', root)
 mkdirSync(join(root, 'user'))
 app.setPath('userData', join(root, 'user'))
-// Published content: the content repo with the test fixtures over it (test-content.cjs), never the DM's install.
+// Published content: the invented fixture pack (test-content.cjs), never the DM's install.
 process.env.FOUR_E_CONTENT_DIR = require('./test-content.cjs').testContentDir()
 // The build to test: $FOUR_E_OUT_DIR (`npm run test:ui` builds a private one per run), else out/.
 require(join(process.env.FOUR_E_OUT_DIR || resolve(__dirname, '../../out'), 'main/index.js'))
@@ -63,7 +63,7 @@ app.whenReady().then(async () => {
     }
     const rowNames = () => js(() => [...document.querySelectorAll('.record-row .record-name')].map(n => n.textContent))
     await js(() => [...document.querySelectorAll('button')].find(b => b.textContent.trim().endsWith('Traps')).click())
-    await until(() => document.querySelectorAll('.record-row').length > 10, 'the trap list without a campaign')
+    await until(() => document.querySelectorAll('.record-row').length > 3, 'the trap list without a campaign')
     await js(() => [...document.querySelectorAll('.record-compendium button')].find(b => b.textContent.trim() === 'New').click())
     await until(() => !!document.querySelector('.compendium-preview input.sb-name'), 'the new Library trap editor')
     if (await homeChip() !== 'New' || !(await homeChipTitle()).includes('as a shared entry')) throw new Error('A new entry without a campaign does not say it goes into the Library')
@@ -84,7 +84,7 @@ app.whenReady().then(async () => {
     // Published narrows by book; a magazine's issues are one choice.
     await search('')
     await filterSource('published')
-    await until(() => !!document.querySelector('.record-compendium select[aria-label="Book"]') && document.querySelectorAll('.record-row').length > 10, 'the book filter and every published trap')
+    await until(() => !!document.querySelector('.record-compendium select[aria-label="Book"]') && document.querySelectorAll('.record-row').length > 3, 'the book filter and every published trap')
     const bookList = await js(() => [...document.querySelectorAll('.record-compendium select[aria-label="Book"] option')].map(o => o.value))
     if (!bookList.includes('Dungeon Magazine') || bookList.some(b => /Magazine \d/.test(b))) throw new Error('Book options: ' + JSON.stringify(bookList.slice(0, 20)))
     const allPublished = await js(() => document.querySelector('.record-count').textContent)
@@ -98,11 +98,11 @@ app.whenReady().then(async () => {
 
     // ── Traps: a published entry is read-only; editing it clones on the first change ──
     await js(() => [...document.querySelectorAll('button')].find(b => b.textContent.trim().endsWith('Traps')).click())
-    await until(() => document.querySelectorAll('.record-row').length > 10, 'the trap list')
-    await js(() => { const i = document.querySelector('.record-compendium input.sb-name'); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(i, 'Collapsing Ceiling'); i.dispatchEvent(new Event('input', { bubbles: true })) })
+    await until(() => document.querySelectorAll('.record-row').length > 3, 'the trap list')
+    await js(() => { const i = document.querySelector('.record-compendium input.sb-name'); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(i, 'Falling Rubble'); i.dispatchEvent(new Event('input', { bubbles: true })) })
     await until(() => [...document.querySelectorAll('.record-row')].some(r => r.textContent.includes('Hazard')), 'the search result')
     await js(() => [...document.querySelectorAll('.record-row')].find(r => r.textContent.includes('Hazard')).click())
-    await until(() => document.querySelector('.compendium-preview .kit-statblock .sb-name')?.textContent === 'Collapsing Ceiling', 'the published preview')
+    await until(() => document.querySelector('.compendium-preview .kit-statblock .sb-name')?.textContent === 'Falling Rubble', 'the published preview')
     const published = await js(() => document.querySelector('.compendium-preview').innerText)
     if (!published.includes('Trigger') || !published.includes('Countermeasures')) throw new Error('Published trap preview is missing sections')
     if (await js(() => !!document.querySelector('.compendium-preview input'))) throw new Error('Published preview is editable')
@@ -111,10 +111,10 @@ app.whenReady().then(async () => {
     await until(() => !!document.querySelector('.compendium-preview input.sb-name'), 'the editor')
     if (await homeChip() !== 'New' || !(await homeChipTitle()).includes('Your first change adds it to Compendium smoke')) throw new Error('Clone is not marked as an unsaved draft')
     if ((await records('trap')).length) throw new Error('Cloning saved before any edit')
-    await typeInto('.compendium-preview input.sb-name', 'Collapsing Vault')
+    await typeInto('.compendium-preview input.sb-name', 'Falling Slab')
     await sleep(900)
     let saved = await records('trap')
-    if (saved.length !== 1 || saved[0].content.name !== 'Collapsing Vault' || !/^published\/trap\//.test(saved[0].basedOn ?? '')) throw new Error('First edit did not save the clone: ' + JSON.stringify(saved.map(r => [r.content.name, r.basedOn])))
+    if (saved.length !== 1 || saved[0].content.name !== 'Falling Slab' || !/^published\/trap\//.test(saved[0].basedOn ?? '')) throw new Error('First edit did not save the clone: ' + JSON.stringify(saved.map(r => [r.content.name, r.basedOn])))
     const original = await js(id => window.api.compendium.kitGet('trap', id), saved[0].basedOn.split('/').pop())
     if (JSON.stringify(saved[0].content.powers) !== JSON.stringify(original.powers) || saved[0].content.countermeasures.length !== original.countermeasures.length) throw new Error('The clone lost published mechanics')
     if (!(await js(() => document.activeElement === document.querySelector('.compendium-preview input.sb-name')))) throw new Error('Saving the clone moved focus out of the editor')
@@ -135,11 +135,11 @@ app.whenReady().then(async () => {
 
     // Back to the preview: the copy is listed as a campaign entry; delete it from the context menu.
     await done()
-    await js(() => { const i = document.querySelector('.record-compendium input.sb-name'); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(i, 'Collapsing'); i.dispatchEvent(new Event('input', { bubbles: true })) })
-    await until(() => [...document.querySelectorAll('.record-row')].some(r => r.textContent.includes('Collapsing Vault')), 'the campaign row')
-    // Custom content sorts in with published entries (by level, then name: the level-2 copy between the two published Collapsing Ceilings).
-    if (JSON.stringify((await rowNames()).slice(0, 2)) !== JSON.stringify(['Collapsing Ceiling', 'Collapsing Vault'])) throw new Error('Custom rows do not sort with published ones: ' + JSON.stringify(await rowNames()))
-    await js(() => { const r = [...document.querySelectorAll('.record-row')].find(r => r.textContent.includes('Collapsing Vault')); r.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, clientX: 300, clientY: 300 })) })
+    await js(() => { const i = document.querySelector('.record-compendium input.sb-name'); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(i, 'Falling'); i.dispatchEvent(new Event('input', { bubbles: true })) })
+    await until(() => [...document.querySelectorAll('.record-row')].some(r => r.textContent.includes('Falling Slab')), 'the campaign row')
+    // Custom content sorts in with published entries (by level, then name: the level-2 copy between the two published Falling Rubbles).
+    if (JSON.stringify((await rowNames()).slice(0, 2)) !== JSON.stringify(['Falling Rubble', 'Falling Slab'])) throw new Error('Custom rows do not sort with published ones: ' + JSON.stringify(await rowNames()))
+    await js(() => { const r = [...document.querySelectorAll('.record-row')].find(r => r.textContent.includes('Falling Slab')); r.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, clientX: 300, clientY: 300 })) })
     await until(() => !!document.querySelector('.record-menu'), 'the context menu')
     const items = await js(() => [...document.querySelectorAll('.record-menu button')].map(b => b.textContent.trim()))
     if (JSON.stringify(items) !== JSON.stringify(['Shared with every campaign', 'Duplicate', 'Delete'])) throw new Error('Entry menu: ' + JSON.stringify(items))
@@ -192,7 +192,7 @@ app.whenReady().then(async () => {
     await search('Snare')
     await until(() => document.querySelectorAll('.record-row').length === 2, 'the Library entry and its copy (Library filter)')
     await filterSource('custom')
-    await until(() => JSON.stringify([...document.querySelectorAll('.record-row .record-name')].map(n => n.textContent)) === JSON.stringify(['Shared Snare', 'Shared Snare (copy)']), 'custom snares only (no published Field of Snares)')
+    await until(() => JSON.stringify([...document.querySelectorAll('.record-row .record-name')].map(n => n.textContent)) === JSON.stringify(['Shared Snare', 'Shared Snare (copy)']), 'custom snares only (no published Snare Line)')
     await filterSource('custom', 'library')
     await sleep(500); await screenshot('out/compendium-library.png')
     await menuItem('Delete')
@@ -203,7 +203,7 @@ app.whenReady().then(async () => {
 
     // ── Diseases: new disease, add a stage, set the DCs ──
     await js(() => [...document.querySelectorAll('button')].find(b => b.textContent.trim().endsWith('Diseases')).click())
-    await until(() => document.querySelectorAll('.record-row').length > 10, 'the disease list')
+    await until(() => document.querySelectorAll('.record-row').length > 1, 'the disease list')
     await newEntry()
     await until(() => !!document.querySelector('.compendium-preview input.sb-name'), 'the new disease editor')
     await typeInto('.compendium-preview input.sb-name', 'Grave Cough')
@@ -218,10 +218,10 @@ app.whenReady().then(async () => {
 
     // ── Items: published entries clone losslessly; the item editor types normally ──
     await js(() => [...document.querySelectorAll('button')].find(b => b.textContent.trim().endsWith('Items')).click())
-    await until(() => document.querySelectorAll('.record-row').length > 10, 'the item list')
-    await js(() => { const i = document.querySelector('.record-compendium input.sb-name'); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(i, 'Flaming Weapon'); i.dispatchEvent(new Event('input', { bubbles: true })) })
-    await until(() => [...document.querySelectorAll('.record-row .record-name')].some(n => n.textContent === 'Flaming Weapon'), 'the Flaming Weapon row')
-    await js(() => [...document.querySelectorAll('.record-row')].find(r => r.querySelector('.record-name').textContent === 'Flaming Weapon').dispatchEvent(new MouseEvent('dblclick', { bubbles: true })))
+    await until(() => document.querySelectorAll('.record-row').length > 2, 'the item list')
+    await js(() => { const i = document.querySelector('.record-compendium input.sb-name'); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(i, 'Ember Weapon'); i.dispatchEvent(new Event('input', { bubbles: true })) })
+    await until(() => [...document.querySelectorAll('.record-row .record-name')].some(n => n.textContent === 'Ember Weapon'), 'the Ember Weapon row')
+    await js(() => [...document.querySelectorAll('.record-row')].find(r => r.querySelector('.record-name').textContent === 'Ember Weapon').dispatchEvent(new MouseEvent('dblclick', { bubbles: true })))
     await until(() => !!document.querySelector('.compendium-preview input.sb-name'), 'the item editor')
     await typeInto('.compendium-preview input.sb-name', 'Searing Weapon')
     // One character at a time, as a person types: the spaces must survive.
@@ -229,25 +229,25 @@ app.whenReady().then(async () => {
     for (const ch of 'Any heavy blade') await wc.insertText(ch)
     let searing
     for (let i = 0; i < 30 && !(searing = (await records('item')).find(r => r.content.name === 'Searing Weapon' && r.content.itemType === 'Any heavy blade')); i++) await sleep(100)
-    const flaming = await js(id => window.api.compendium.kitGet('item', id), (searing?.basedOn ?? '').split('/').pop())
-    if (!searing || JSON.stringify(searing.content.powers) !== JSON.stringify(flaming.powers) || JSON.stringify(searing.content.critical) !== JSON.stringify(flaming.critical)) throw new Error('Item clone was not saved losslessly: ' + JSON.stringify(searing?.content.name))
+    const ember = await js(id => window.api.compendium.kitGet('item', id), (searing?.basedOn ?? '').split('/').pop())
+    if (!searing || JSON.stringify(searing.content.powers) !== JSON.stringify(ember.powers) || JSON.stringify(searing.content.critical) !== JSON.stringify(ember.critical)) throw new Error('Item clone was not saved losslessly: ' + JSON.stringify(searing?.content.name))
     const typedType = await js(() => [...document.querySelectorAll('.compendium-preview input')].find(i => i.placeholder === 'Any melee')?.value)
     if (typedType !== 'Any heavy blade' || searing.content.itemType !== 'Any heavy blade') throw new Error('Typing lost characters: ' + JSON.stringify([typedType, searing.content.itemType]))
     await screenshot('out/compendium-item-edit.png')
 
     // ── Templates and themes: published entries clone into campaign records ──
     await js(() => [...document.querySelectorAll('button')].find(b => b.textContent.trim().endsWith('Templates')).click())
-    await until(() => [...document.querySelectorAll('.record-row')].some(r => r.textContent.includes('Lich')), 'the template list')
-    await js(() => [...document.querySelectorAll('.record-row')].find(r => r.querySelector('.record-name').textContent === 'Lich').dispatchEvent(new MouseEvent('dblclick', { bubbles: true })))
+    await until(() => [...document.querySelectorAll('.record-row')].some(r => r.textContent.includes('Hollow King')), 'the template list')
+    await js(() => [...document.querySelectorAll('.record-row')].find(r => r.querySelector('.record-name').textContent === 'Hollow King').dispatchEvent(new MouseEvent('dblclick', { bubbles: true })))
     await until(() => !!document.querySelector('.compendium-preview input.sb-name'), 'the template editor')
-    await typeInto('.compendium-preview input.sb-name', 'Dust Lich')
+    await typeInto('.compendium-preview input.sb-name', 'Dust King')
     await sleep(900)
-    const lich = (await records('template'))[0]
-    const publishedLich = await js(() => window.api.compendium.kitGet('template', 'lich'))
-    if (lich?.content.name !== 'Dust Lich' || JSON.stringify(lich.content.powers) !== JSON.stringify(publishedLich.powers) || lich.content.hpPerLevel !== publishedLich.hpPerLevel) throw new Error('Template clone was not saved losslessly: ' + JSON.stringify(lich?.content.name))
+    const king = (await records('template'))[0]
+    const publishedKing = await js(() => window.api.compendium.kitGet('template', 'hollow-king'))
+    if (king?.content.name !== 'Dust King' || JSON.stringify(king.content.powers) !== JSON.stringify(publishedKing.powers) || king.content.hpPerLevel !== publishedKing.hpPerLevel) throw new Error('Template clone was not saved losslessly: ' + JSON.stringify(king?.content.name))
     await screenshot('out/compendium-template-edit.png')
     await js(() => [...document.querySelectorAll('button')].find(b => b.textContent.trim().endsWith('Themes')).click())
-    await until(() => document.querySelectorAll('.record-row').length > 5, 'the theme list')
+    await until(() => document.querySelectorAll('.record-row').length > 1, 'the theme list')
     await newEntry()
     await until(() => !!document.querySelector('.compendium-preview input.sb-name'), 'the new theme editor')
     await typeInto('.compendium-preview input.sb-name', 'Ashen Court')
@@ -258,12 +258,12 @@ app.whenReady().then(async () => {
 
     // ── Creatures: the shared page with the creature viewer, art, pop-outs, and the benchmark editor ──
     // A published monster's art is a compendium annotation; a copy takes it into the record's art.
-    await js(() => window.api.annotation.save('monster145', { imageId: 'rat-art' }))
+    await js(() => window.api.annotation.save('monster9003', { imageId: 'rat-art' }))
     await js(() => [...document.querySelectorAll('button')].find(b => b.textContent.trim().endsWith('Creatures')).click())
-    await until(() => document.querySelectorAll('.record-row').length > 10, 'the creature list')
-    await js(() => { const i = document.querySelector('.record-compendium input.sb-name'); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(i, 'Dire Rat'); i.dispatchEvent(new Event('input', { bubbles: true })) })
-    await until(() => [...document.querySelectorAll('.record-row .record-name')].some(n => n.textContent === 'Dire Rat'), 'the Dire Rat row')
-    await js(() => [...document.querySelectorAll('.record-row')].find(r => r.querySelector('.record-name').textContent === 'Dire Rat').click())
+    await until(() => document.querySelectorAll('.record-row').length > 2, 'the creature list')
+    await js(() => { const i = document.querySelector('.record-compendium input.sb-name'); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(i, 'Mire Rat'); i.dispatchEvent(new Event('input', { bubbles: true })) })
+    await until(() => [...document.querySelectorAll('.record-row .record-name')].some(n => n.textContent === 'Mire Rat'), 'the Mire Rat row')
+    await js(() => [...document.querySelectorAll('.record-row')].find(r => r.querySelector('.record-name').textContent === 'Mire Rat').click())
     await until(() => document.querySelector('.compendium-preview')?.innerText.includes('Bite'), 'the published creature preview')
     if (await js(() => !!document.querySelector('.compendium-preview input.sb-name'))) throw new Error('Published creature preview is editable')
     // The title bar: a published entry has no home chip or menu; every control is a same-size icon.
@@ -278,8 +278,8 @@ app.whenReady().then(async () => {
     let sewer
     for (let i = 0; i < 30 && !(sewer = (await records('creature')).find(r => r.content.name === 'Sewer Rat')); i++) await sleep(100)
     if ((await records('creature')).length !== 1) throw new Error('Editing the copy did not update it in place')
-    const direRat = await js(() => window.api.compendium.kitGet('monster', 'monster145'))
-    if (!sewer || sewer.basedOn !== 'published/creature/monster145' || sewer.art?.imageId !== 'rat-art') throw new Error('Creature copy wrong: ' + JSON.stringify(sewer && [sewer.basedOn, sewer.art]))
+    const direRat = await js(() => window.api.compendium.kitGet('monster', 'monster9003'))
+    if (!sewer || sewer.basedOn !== 'published/creature/monster9003' || sewer.art?.imageId !== 'rat-art') throw new Error('Creature copy wrong: ' + JSON.stringify(sewer && [sewer.basedOn, sewer.art]))
     if (JSON.stringify(sewer.content.powers) !== JSON.stringify(direRat.powers) || sewer.content.hp !== direRat.hp) throw new Error('Creature copy was not lossless')
     await screenshot('out/compendium-creature-edit.png')
     const heights = await js(() => [...document.querySelectorAll('.compendium-preview .sb-header-actions > *')].map(e => Math.round(e.getBoundingClientRect().height)))

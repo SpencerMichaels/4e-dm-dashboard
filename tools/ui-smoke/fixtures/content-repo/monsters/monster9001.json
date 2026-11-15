@@ -1,0 +1,147 @@
+{
+  "size": "large",
+  "origin": "natural",
+  "type": "humanoid",
+  "keywords": [],
+  "perception": 6,
+  "senses": [],
+  "speed": {
+    "walk": 8
+  },
+  "savingThrowBonus": 0,
+  "actionPoints": 0,
+  "immune": [],
+  "resist": [],
+  "vulnerable": [],
+  "abilities": {
+    "str": 12,
+    "con": 12,
+    "dex": 12,
+    "int": 10,
+    "wis": 10,
+    "cha": 10
+  },
+  "skills": {},
+  "alignment": "unaligned",
+  "languages": "",
+  "equipment": "",
+  "traits": [
+    {
+      "name": "Regrowth",
+      "keywords": [],
+      "text": {
+        "text": "The troll has regeneration 5. Fire or acid damage stops its regeneration until the end of its next turn.",
+        "clauses": [
+          {
+            "at": [
+              10,
+              28
+            ],
+            "kind": "regeneration",
+            "value": 5,
+            "who": "self",
+            "duration": {
+              "kind": "permanent"
+            }
+          },
+          {
+            "at": [
+              30,
+              104
+            ],
+            "kind": "unparsed",
+            "text": "Fire or acid damage stops its regeneration until the end of its next turn."
+          }
+        ]
+      }
+    }
+  ],
+  "auras": [],
+  "description": "",
+  "provenance": {
+    "origin": "human",
+    "at": "2026-11-14"
+  },
+  "id": "monster9001",
+  "name": "Moss Troll",
+  "level": 9,
+  "role": "brute",
+  "rank": "standard",
+  "xp": 400,
+  "hp": 120,
+  "initiative": 8,
+  "defenses": {
+    "ac": 21,
+    "fortitude": 22,
+    "reflex": 18,
+    "will": 18
+  },
+  "regeneration": {
+    "value": 5,
+    "suppressedBy": [
+      "fire",
+      "acid"
+    ],
+    "text": "Fire or acid damage stops its regeneration until the end of its next turn."
+  },
+  "powers": [
+    {
+      "name": "Raking Claw",
+      "action": "standard",
+      "usage": "at-will",
+      "basic": "melee",
+      "keywords": [],
+      "attacks": [
+        {
+          "label": "primary",
+          "range": {
+            "kind": "melee",
+            "reach": 2
+          },
+          "target": "one creature",
+          "bonus": {
+            "kind": "fixed",
+            "value": 14
+          },
+          "vs": "ac",
+          "hit": {
+            "text": "3d6 + 7 damage, and the target is knocked prone.",
+            "clauses": [
+              {
+                "at": [
+                  0,
+                  14
+                ],
+                "kind": "damage",
+                "dice": "3d6+7",
+                "types": [],
+                "who": "target"
+              },
+              {
+                "at": [
+                  34,
+                  47
+                ],
+                "kind": "condition",
+                "condition": "prone",
+                "who": "target",
+                "duration": {
+                  "kind": "indefinite"
+                }
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ],
+  "sources": [
+    {
+      "book": "Fixture Bestiary",
+      "page": 12
+    },
+    {
+      "book": "Dungeon Magazine 901"
+    }
+  ]
+}

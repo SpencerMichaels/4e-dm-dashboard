@@ -12,7 +12,7 @@ const root = mkdtempSync(join(tmpdir(), '4e-button-ui-'))
 app.setPath('appData', root)
 mkdirSync(join(root, 'user'))
 app.setPath('userData', join(root, 'user'))
-// Published content: the content repo with the test fixtures over it (test-content.cjs), never the DM's install.
+// Published content: the invented fixture pack (test-content.cjs), never the DM's install.
 process.env.FOUR_E_CONTENT_DIR = require('./test-content.cjs').testContentDir()
 // The build to test: $FOUR_E_OUT_DIR (`npm run test:ui` builds a private one per run), else out/.
 require(join(process.env.FOUR_E_OUT_DIR || resolve(__dirname, '../../out'), 'main/index.js'))
@@ -23,10 +23,10 @@ const timeout = setTimeout(() => { console.error('Button smoke timed out'); fini
 const now = new Date().toISOString()
 const encounter = {
   id: 'smoke-fight', name: 'Smoke Fight', tags: [], createdAt: now, updatedAt: now, locationId: 'vault',
-  creatures: [{ compendiumId: 'monster723', count: 1 }, { compendiumId: 'monster4742', count: 2 }, { compendiumId: 'monster145', count: 1 }],
-  traps: [{ compendiumId: 'trap40', count: 1 }, { compendiumId: 'trap41', count: 1, visible: true }],
+  creatures: [{ compendiumId: 'monster9001', count: 1 }, { compendiumId: 'monster9002', count: 2 }, { compendiumId: 'monster9003', count: 1 }],
+  traps: [{ compendiumId: 'trap9001', count: 1 }, { compendiumId: 'trap41', count: 1, visible: true }],
 }
-const hero = { id: 'hero', name: 'Hero', playerName: 'Player', active: true, createdAt: now, updatedAt: now, conditions: [{ kind: 'disease', diseaseId: 'disease1', stage: 'exposed', since: now }] }
+const hero = { id: 'hero', name: 'Hero', playerName: 'Player', active: true, createdAt: now, updatedAt: now, conditions: [{ kind: 'disease', diseaseId: 'disease9001', stage: 'exposed', since: now }] }
 const vault = { id: 'vault', name: 'Smoke Vault', description: '', tags: [], createdAt: now, updatedAt: now, traps: [{ compendiumId: 'trap41' }], encounterIds: ['smoke-fight'] }
 
 app.whenReady().then(async () => {
@@ -104,9 +104,9 @@ app.whenReady().then(async () => {
     await until(() => document.body.innerText.includes('Smoke Fight'), 'the encounter list')
     await audit('encounter list')
     await clickText('Smoke Fight')
-    await until(() => document.body.innerText.includes('Troll'), 'the encounter editor')
+    await until(() => document.body.innerText.includes('Moss Troll'), 'the encounter editor')
     await audit('encounter editor')
-    await clickText('Troll')
+    await clickText('Moss Troll')
     await sleep(300)
     await audit('encounter editor with a preview')
     await js(() => [...document.querySelectorAll('button')].find(b => b.textContent.includes('Start Combat')).click())

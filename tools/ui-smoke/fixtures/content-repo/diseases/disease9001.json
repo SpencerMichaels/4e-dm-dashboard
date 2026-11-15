@@ -1,0 +1,51 @@
+{
+  "id": "disease9001",
+  "name": "Mire Fever",
+  "level": 1,
+  "endurance": {
+    "improveDc": 12,
+    "maintainDc": 8
+  },
+  "stages": [
+    {
+      "stage": 0,
+      "line": {
+        "text": "The target recovers.",
+        "clauses": []
+      }
+    },
+    {
+      "stage": 1,
+      "line": {
+        "text": "The target feels feverish and loses a healing surge.",
+        "clauses": []
+      }
+    },
+    {
+      "stage": 2,
+      "line": {
+        "text": "The target is weakened while the fever lasts.",
+        "clauses": []
+      }
+    },
+    {
+      "stage": 3,
+      "final": true,
+      "line": {
+        "text": "The target is bedridden until cured.",
+        "clauses": []
+      }
+    }
+  ],
+  "flavor": "A sweating sickness carried by swamp vermin.",
+  "sources": [
+    {
+      "book": "Fixture Bestiary",
+      "page": 31
+    }
+  ],
+  "provenance": {
+    "origin": "human",
+    "at": "2026-11-14"
+  }
+}

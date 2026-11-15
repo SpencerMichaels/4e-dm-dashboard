@@ -1,0 +1,104 @@
+{
+  "kind": "hazard",
+  "role": "lurker",
+  "rank": "standard",
+  "detect": [],
+  "immune": [],
+  "resist": [],
+  "traits": [],
+  "auras": [],
+  "countermeasures": [
+    {
+      "text": "Dungeoneering DC 14: A character props up the arch.",
+      "clauses": [
+        {
+          "at": [
+            0,
+            51
+          ],
+          "kind": "countermeasure",
+          "effect": "disable",
+          "checks": [
+            {
+              "skill": "dungeoneering",
+              "dc": 14
+            }
+          ],
+          "action": "standard"
+        }
+      ]
+    }
+  ],
+  "flavor": "",
+  "description": "",
+  "provenance": {
+    "origin": "human",
+    "at": "2026-11-14"
+  },
+  "id": "trap9003",
+  "name": "Falling Rubble",
+  "level": 2,
+  "xp": 125,
+  "trigger": {
+    "text": "Loose stones fall when a creature steps under the cracked arch.",
+    "clauses": []
+  },
+  "powers": [
+    {
+      "name": "Rockfall",
+      "action": "opportunity",
+      "usage": "at-will",
+      "keywords": [],
+      "attacks": [
+        {
+          "label": "primary",
+          "range": {
+            "kind": "area-burst",
+            "size": 1
+          },
+          "target": "each creature in the burst",
+          "bonus": {
+            "kind": "fixed",
+            "value": 7
+          },
+          "vs": "reflex",
+          "hit": {
+            "text": "2d6 damage, and the target is dazed until the end of its next turn.",
+            "clauses": [
+              {
+                "at": [
+                  0,
+                  10
+                ],
+                "kind": "damage",
+                "dice": "2d6",
+                "types": [],
+                "who": "target"
+              },
+              {
+                "at": [
+                  30,
+                  66
+                ],
+                "kind": "condition",
+                "condition": "dazed",
+                "who": "target",
+                "duration": {
+                  "kind": "turn-end",
+                  "whose": "target",
+                  "next": true
+                }
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ],
+  "sources": [
+    {
+      "book": "Dungeon Magazine 904",
+      "page": 20
+    }
+  ]
+}

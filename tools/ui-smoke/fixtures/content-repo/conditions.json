@@ -1,0 +1,23 @@
+{
+  "combat-advantage": "Fixture summary of combat advantage.",
+  "blinded": "Fixture summary of blinded.",
+  "dazed": "Fixture summary of dazed.",
+  "dominated": "Fixture summary of dominated.",
+  "dying": "Fixture summary of dying.",
+  "grabbed": "Fixture summary of grabbed.",
+  "helpless": "Fixture summary of helpless.",
+  "immobilized": "Fixture summary of immobilized.",
+  "invisible": "Fixture summary of invisible.",
+  "marked": "Fixture summary of marked.",
+  "petrified": "Fixture summary of petrified.",
+  "prone": "Fixture summary of prone.",
+  "restrained": "Fixture summary of restrained.",
+  "slowed": "Fixture summary of slowed.",
+  "stunned": "Fixture summary of stunned.",
+  "surprised": "Fixture summary of surprised.",
+  "unconscious": "Fixture summary of unconscious.",
+  "weakened": "Fixture summary of weakened.",
+  "bloodied": "Fixture summary of bloodied.",
+  "ongoing-damage": "Fixture summary of ongoing damage.",
+  "regenerating": "Fixture summary of regenerating."
+}
