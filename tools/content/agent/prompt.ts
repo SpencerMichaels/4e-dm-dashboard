@@ -55,9 +55,9 @@ const KIND_ONLY_DECLS: Record<string, AgentKind[]> = { CounterCheck: ['traps'], 
 
 const rawCache = new Map<string, Record<string, string>>()
 
-export function rawHtml(kind: AgentKind, id: string): string {
-  for (const file of RAW_FILES[kind]) {
-    if (!rawCache.has(file)) rawCache.set(file, JSON.parse(readFileSync(join(RAW, file), 'utf-8')))
+export function rawHtml(kind: AgentKind, id: string, dir = RAW): string {
+  for (const file of RAW_FILES[kind].map(f => join(dir, f))) {
+    if (!rawCache.has(file)) rawCache.set(file, JSON.parse(readFileSync(file, 'utf-8')))
     const html = rawCache.get(file)![id]
     if (html) return html
   }
@@ -222,7 +222,7 @@ function entryValues(kind: AgentKind, id: string, p: BriefPaths): Record<string,
   const json = JSON.parse(readFileSync(join(p.repo, kind, `${id}.json`), 'utf-8'))
   const current = atToQuote(json)
   return {
-    ID: id, SOURCE_TEXT: RAW_FILES[kind].length > 0 ? htmlToText(rawHtml(kind, id)) : entryText(json), CURRENT_JSON: compactJson(current, '', 140),
+    ID: id, SOURCE_TEXT: RAW_FILES[kind].length > 0 ? htmlToText(rawHtml(kind, id, p.raw)) : entryText(json), CURRENT_JSON: compactJson(current, '', 140),
     REPLY_PATH: p.reply, CHECK_COMMAND: checkCommand(kind, id, p),
   }
 }
@@ -234,6 +234,8 @@ export interface BriefPaths {
   reply: string
   /** The app checkout. */
   app: string
+  /** Raw HTML files (default the checkout's `content/raw`). */
+  raw?: string
 }
 
 /**

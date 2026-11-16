@@ -22,11 +22,14 @@ const disease: Disease = {
   provenance: { origin: 'parser', by: 'tools/content@test', at: '2026-11-12' },
 }
 
-/** A content repo holding the test disease. */
+/** A content repo holding the test disease, with invented raw HTML in `raw/` (the checkout's `content/raw` is local only). */
 function repoWithDisease(): string {
   const repo = mkdtempSync(join(tmpdir(), 'content-'))
   mkdirSync(join(repo, 'diseases'))
   writeFileSync(join(repo, 'diseases', 'disease11.json'), JSON.stringify(disease))
+  mkdirSync(join(repo, 'raw'))
+  const html = (id: string) => `<h1>Test Rot (${id})</h1><p>Level 4 Disease</p><p>The target is weakened.</p>`
+  writeFileSync(join(repo, 'raw', 'disease.json'), JSON.stringify({ disease11: html('disease11'), disease20: html('disease20') }))
   return repo
 }
 
@@ -170,11 +173,12 @@ describe('brief', () => {
   it('fills every placeholder, keeps only the kind\'s blocks, and gives the check command', () => {
     const repo = repoWithDisease()
     const reply = join(repo, 'pilot', 'responses-2', 'diseases', 'disease11.json')
-    const brief = buildBrief('diseases', 'disease11', { repo, reply, app: '/src/app' })
+    const brief = buildBrief('diseases', 'disease11', { repo, reply, app: '/src/app', raw: join(repo, 'raw') })
     expect(brief).not.toMatch(/\{\{[#/]?\w+\}\}/)
     expect(brief).not.toContain('<!--')
     expect(brief).not.toContain('Aura traits')
     expect(brief).toContain('"id": "disease11"')
+    expect(brief).toContain('Test Rot (disease11)')
     expect(brief).toContain('interface Disease')
     expect(brief).toContain(reply)
     expect(brief).toContain(`nix develop /src/app -c npm --prefix /src/app run -s content:agent:apply -- diseases disease11 ${reply} --repo ${repo} --check`)
@@ -200,7 +204,7 @@ describe('brief', () => {
     expect(rules).toContain('# Rules for cleaning disease entries (diseases)')
     for (const s of ['## Steps', '## Rules', '## Schema', 'interface Disease', '**Quote rules**', '"unless"']) expect(rules).toContain(s)
     for (const s of ['## Entry', 'Source text', 'Read the rules file', '"not: ']) expect(rules).not.toContain(s)
-    const brief = buildBatchBrief('diseases', [{ id: 'disease11', reply: reply('disease11') }, { id: 'disease20', reply: reply('disease20') }], { repo, app: '/a' }, 'batch 1', rulesPath)
+    const brief = buildBatchBrief('diseases', [{ id: 'disease11', reply: reply('disease11') }, { id: 'disease20', reply: reply('disease20') }], { repo, app: '/a', raw: join(repo, 'raw') }, 'batch 1', rulesPath)
     expect(brief).not.toMatch(/\{\{[#/]?\w+\}\}/)
     expect(brief).not.toContain('<!--')
     expect(brief.startsWith('# Clean 2 disease entries (diseases, batch 1)\n')).toBe(true)
@@ -215,7 +219,7 @@ describe('brief', () => {
       expect(brief).toContain(`"id": "${id}"`)
     }
     // The single-entry brief keeps its layout.
-    const single = buildBrief('diseases', 'disease11', { repo, reply: reply('disease11'), app: '/a' })
+    const single = buildBrief('diseases', 'disease11', { repo, reply: reply('disease11'), app: '/a', raw: join(repo, 'raw') })
     expect(single).not.toContain('## Entry')
     expect(single.indexOf('## Source text')).toBeLessThan(single.indexOf('## Schema'))
     expect(packBatches([1, 2, 3, 4, 5, 6, 7], () => 1, 5, 100)).toEqual([[1, 2, 3, 4, 5], [6, 7]])
