@@ -1,0 +1,50 @@
+# Native distributables (BUILDING.md). No content is packaged: the DM imports a content pack.
+appId: io.github.spencermichaels.4e-dm-dashboard
+productName: 4e DM Dashboard
+
+directories:
+  output: release
+  buildResources: resources
+
+# The bundles in out/ inline everything but nanoid (main's only external require), so the
+# renderer-only dependencies (React, Lucide, fonts) and the bundled MCP SDK stay out.
+files:
+  - out/main/**/*
+  - out/preload/**/*
+  - out/renderer/**/*
+  - package.json
+  - "!node_modules/**/*"
+  - node_modules/nanoid/**/*
+
+asar: true
+artifactName: "4e-dm-dashboard-${version}-${os}-${arch}.${ext}"
+
+mac:
+  category: public.app-category.games
+  icon: icon.png
+  target:
+    - target: dmg
+      arch: [universal]
+    - target: zip
+      arch: [universal]
+
+win:
+  icon: icon.png
+  target:
+    - target: nsis
+      arch: [x64]
+    - target: portable
+      arch: [x64]
+
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+
+linux:
+  icon: icon.png
+  category: Game
+  executableName: 4e-dm-dashboard
+  synopsis: DM toolkit for D&D 4th Edition
+  target:
+    - target: AppImage
+      arch: [x64]

@@ -32,6 +32,8 @@ const run = join(runs, `${new Date().toISOString().replace(/[:.]/g, '-')}-${proc
 const build = join(run, 'build')
 mkdirSync(join(run, 'out'), { recursive: true })
 
+// Wayland locally; CI runs X11 under xvfb (FOUR_E_OZONE_PLATFORM=x11).
+const ozone = process.env.FOUR_E_OZONE_PLATFORM || 'wayland'
 const bin = name => join(root, 'node_modules', '.bin', name)
 const step = (cmd, args, opts) => spawnSync(cmd, args, { stdio: 'inherit', ...opts }).status ?? 1
 
@@ -44,7 +46,7 @@ try {
   for (const name of suites) {
     console.log(`\n== ${name}`)
     const env = { ...process.env, FOUR_E_HIDDEN_WINDOWS: '1', FOUR_E_OUT_DIR: build, FOUR_E_TEST_CONTENT: content }
-    if (step(bin('electron'), [join(root, SUITES[name]), '--ozone-platform=wayland', '--no-sandbox'], { cwd: run, env }) !== 0) failed.push(name)
+    if (step(bin('electron'), [join(root, SUITES[name]), `--ozone-platform=${ozone}`, '--no-sandbox'], { cwd: run, env }) !== 0) failed.push(name)
   }
 } catch (e) {
   if (!failed.length) { failed = ['setup']; console.error(e.message) }

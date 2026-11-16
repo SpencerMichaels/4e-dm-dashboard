@@ -4,7 +4,7 @@ import { existsSync } from 'fs'
 import { join } from 'path'
 import { agentHome, AuthoringService } from '../authoring/service'
 import { startBridge } from '../authoring/bridge'
-import { mcpSetupCommand } from '../authoring/connection'
+import { mcpSetupCommand, type McpServer } from '../authoring/connection'
 import { getDmWindow, broadcastToDm } from '../windows'
 import { getActiveCampaignId } from '../data/campaign-store'
 import { getAppSettings } from '../data/app-settings-store'
@@ -59,9 +59,13 @@ export async function registerAuthoringHandlers() {
   ipcMain.handle(CMD.AUTHORING_CALL, async (event, method: string, args: any) => {
     if (event.sender !== getDmWindow()?.webContents || event.senderFrame !== event.sender.mainFrame) throw new Error('DM window required')
     if (method === 'connection') {
-      // From a source checkout (dev), the MCP server runs from source in the Nix shell; installed, it is 4e-dm-dashboard-mcp.
-      const sourceRoot = existsSync(join(app.getAppPath(), 'tools', 'authoring', 'cli.ts')) ? app.getAppPath() : null
-      return { connectionFile, mcpSetup: mcpSetupCommand(sourceRoot, connectionFile) }
+      // From a source checkout (dev), the MCP server runs from source in the Nix shell; an electron-builder build
+      // is its own server (`--mcp`, src/main/index.ts), started from the AppImage or portable exe when it is one;
+      // the Nix package has 4e-dm-dashboard-mcp.
+      const server: McpServer = existsSync(join(app.getAppPath(), 'tools', 'authoring', 'cli.ts')) ? { sourceRoot: app.getAppPath() }
+        : app.isPackaged ? { launcher: process.env.APPIMAGE || process.env.PORTABLE_EXECUTABLE_FILE || process.execPath, platform: process.platform }
+        : null
+      return { connectionFile, mcpSetup: mcpSetupCommand(server, connectionFile) }
     }
     // What the DM has open, for the agent's current_entry (only the dashboard sets it).
     if (method === 'focus') { service.focus = args.kind ? args : null; return null }

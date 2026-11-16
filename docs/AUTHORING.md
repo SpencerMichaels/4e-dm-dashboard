@@ -21,7 +21,7 @@ The app starts a local authenticated socket bridge while Settings › AI agent �
 
 ### Connecting an MCP client
 
-The installed app (`./install.sh`, `default.nix`) includes the MCP server as the command `4e-dm-dashboard-mcp`: the bundled `tools/authoring/cli.ts` (`out/main/authoring-cli.js`) run by the app's own Electron as plain Node (`ELECTRON_RUN_AS_NODE`), with no window, repository, or Nix shell. Each MCP client needs it registered once. **Copy setup for Claude Code** in Settings › AI agent copies the line to run in a terminal (then restart Claude Code and check with `/mcp`):
+The Nix package (`./install.sh`, `default.nix`) includes the MCP server as the command `4e-dm-dashboard-mcp`: the bundled `tools/authoring/cli.ts` (`out/main/authoring-cli.js`) run by the app's own Electron as plain Node (`ELECTRON_RUN_AS_NODE`), with no window, repository, or Nix shell. Each MCP client needs it registered once. **Copy setup for Claude Code** in Settings › AI agent copies the line to run in a terminal (then restart Claude Code and check with `/mcp`):
 
 ```sh
 claude mcp add 4e-dashboard -- 4e-dm-dashboard-mcp --mcp
@@ -31,6 +31,13 @@ Other clients take the same command in their stdio server settings:
 
 ```json
 { "command": "4e-dm-dashboard-mcp", "args": ["--mcp"] }
+```
+
+The packaged builds (AppImage, DMG/ZIP, Windows installer or portable EXE; `BUILDING.md`) are their own MCP server: started with `--mcp`, the app reruns itself as Node on the same bundled CLI and opens no window. The copied setup names the app's own file, for example:
+
+```sh
+claude mcp add 4e-dashboard -- ~/Apps/4e-dm-dashboard-0.1.0-linux-x86_64.AppImage --mcp
+claude mcp add 4e-dashboard -- '/Applications/4e DM Dashboard.app/Contents/MacOS/4e DM Dashboard' --mcp
 ```
 
 When the dashboard runs from a source checkout (`./launch.sh`), the copied setup runs the server from source in the Nix shell instead (`nix develop` must run in the repository, not with `path:.`; `--silent` keeps npm banners out of the protocol):

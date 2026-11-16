@@ -16,15 +16,24 @@ export function defaultConnectionFile(env: NodeJS.ProcessEnv = process.env, plat
 }
 
 const shellQuote = (s: string) => /^[\w./-]+$/.test(s) ? s : `'${s.replace(/'/g, `'\\''`)}'`
+// cmd and PowerShell both take a double-quoted path; Windows paths can't contain '"'.
+const windowsQuote = (s: string) => /^[\w.:\\/-]+$/.test(s) ? s : `"${s}"`
+
+/** How the app was installed, which decides how the MCP server is started. */
+export type McpServer =
+  | { sourceRoot: string }                       // a source checkout: from source, in the Nix dev shell
+  | { launcher: string, platform: NodeJS.Platform } // an electron-builder build: the app itself with --mcp
+  | null                                         // the Nix package: its 4e-dm-dashboard-mcp command
 
 /**
- * The `claude mcp add` line for Settings › AI agent. From a source checkout (`sourceRoot`, the app path
- * when it holds the CLI's source) the server runs in the Nix dev shell; otherwise it is the installed command.
- * A connection file other than the default is passed along.
+ * The `claude mcp add` line for Settings › AI agent. A connection file other than the default is passed along.
  */
-export function mcpSetupCommand(sourceRoot: string | null, connectionFile: string, defaultFile = defaultConnectionFile()): string {
-  const connection = connectionFile === defaultFile ? '' : ` --connection ${shellQuote(connectionFile)}`
-  if (!sourceRoot) return `claude mcp add 4e-dashboard -- ${MCP_COMMAND} --mcp${connection}`
+export function mcpSetupCommand(server: McpServer, connectionFile: string, defaultFile = defaultConnectionFile()): string {
+  const quote = server && 'launcher' in server && server.platform === 'win32' ? windowsQuote : shellQuote
+  const connection = connectionFile === defaultFile ? '' : ` --connection ${quote(connectionFile)}`
+  if (!server) return `claude mcp add 4e-dashboard -- ${MCP_COMMAND} --mcp${connection}`
+  if ('launcher' in server) return `claude mcp add 4e-dashboard -- ${quote(server.launcher)} --mcp${connection}`
+  const { sourceRoot } = server
   const inner = `cd ${shellQuote(sourceRoot)} && exec nix develop --quiet -c npm run --silent authoring -- --mcp${connection}`
   return `claude mcp add 4e-dashboard -- bash -c ${shellQuote(inner)}`
 }

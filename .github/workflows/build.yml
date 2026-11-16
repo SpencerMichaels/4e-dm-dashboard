@@ -1,0 +1,104 @@
+name: Build
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      # The suites that read the private content repo skip without it.
+      - run: npm test
+      # typecheck:web has known older errors (AGENTS.md, Known Issues); not gated.
+      - run: npm run typecheck:node
+      # The UI suites run on an invented content pack; Electron needs a display, so X11 under xvfb.
+      - name: UI suites
+        run: xvfb-run --auto-servernum npm run test:ui
+        env:
+          FOUR_E_OZONE_PLATFORM: x11
+
+  dist:
+    name: ${{ matrix.name }}
+    needs: test
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Linux x64
+            os: ubuntu-latest
+            command: npm run dist:linux
+          - name: macOS universal
+            os: macos-latest
+            command: npm run dist:mac
+          - name: Windows x64
+            os: windows-latest
+            command: npm run dist:win
+    runs-on: ${{ matrix.os }}
+    permissions:
+      contents: write
+    env:
+      # Unsigned builds: no code signing or notarization.
+      CSC_IDENTITY_AUTO_DISCOVERY: "false"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: ${{ matrix.command }} -- --publish never
+      # The packaged app is its own MCP server (src/main/index.ts): it must answer an initialize.
+      - name: Packaged MCP server
+        if: runner.os == 'Linux'
+        run: |
+          (printf '%s\n' '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"ci","version":"1"}}}'; sleep 5) \
+            | timeout 60 release/linux-unpacked/4e-dm-dashboard --no-sandbox --mcp | tee mcp.out
+          grep -q '"4e-dm-authoring"' mcp.out
+      - uses: actions/upload-artifact@v4
+        with:
+          name: 4e-dm-dashboard-${{ runner.os }}
+          path: |
+            release/*.AppImage
+            release/*.dmg
+            release/*.zip
+            release/*.exe
+          if-no-files-found: error
+      - name: Attach to the tagged release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            release/*.AppImage
+            release/*.dmg
+            release/*.zip
+            release/*.exe
+
+  nix:
+    name: Nix package
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+      - uses: cachix/install-nix-action@v31
+        with:
+          github_access_token: ${{ secrets.GITHUB_TOKEN }}
+      - run: nix build --print-build-logs
