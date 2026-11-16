@@ -164,7 +164,7 @@ Design: `docs/content-pack-plan.md`.
 ## 9. Packaging and publishing
 - [x] Publish `4e-kit` (github.com/SpencerMichaels/4e-kit, public) and point both apps' submodule URLs at it
 - [x] Rework `codex/cross-platform-packaging` onto the renamed, 4e-only, pack-loading app (2026-11-16): electron-builder (`electron-builder.yml`: AppImage, universal DMG/ZIP, NSIS/portable, unsigned; only `out/` and `nanoid` packaged, no content), the CI workflow (`.github/workflows/build.yml`: unit tests, `typecheck:node`, the UI suites under xvfb, the three native builds plus a packaged `--mcp` check on Linux, `nix build`; `v*` tags attach builds to the release), `BUILDING.md`, a README, and the GPL-3.0 `LICENSE`. Packaged builds pin userData to `<appData>/4e-dm-dashboard` and are their own MCP server (`<app> --mcp`, shown in Settings › AI agent). `roadmap`'s Nix files stay; the branch's flake, `package.nix` and `shell.nix` were not taken. The branch can be deleted
-- [ ] Add the public remote (github.com/SpencerMichaels/4e-dm-dashboard) and push
+- [x] Add the public remote (github.com/SpencerMichaels/4e-dm-dashboard) and push (2026-11-16: `roadmap` as `main`; `content-v6`, `master` and the packaging branch stay local)
 - [ ] First CI run: check the macOS and Windows builds and the packaged MCP check, which can't run locally on NixOS
 
 ## 10. Agent-assisted content authoring
