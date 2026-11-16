@@ -136,6 +136,49 @@ app.whenReady().then(async () => {
     if (JSON.stringify(vault.traps) !== JSON.stringify([{ compendiumId: 'trap41' }, { compendiumId: 'trap9002' }, { compendiumId: 'trap9001' }])) throw new Error('Location traps were not saved: ' + JSON.stringify(vault.traps))
     await screenshot('out/location-traps.png')
 
+    // ── Treasure: added on the location, budgeted on the Treasure page (party of one at level 4) ──
+    const setInput = (sel, value) => js((s, v) => { const i = document.querySelector(s); i.focus(); const proto = i instanceof HTMLSelectElement ? HTMLSelectElement.prototype : HTMLInputElement.prototype; Object.getOwnPropertyDescriptor(proto, 'value').set.call(i, v); i.dispatchEvent(new Event(i instanceof HTMLSelectElement ? 'change' : 'input', { bubbles: true })) }, sel, value)
+    const treasures = () => js(() => window.api.entity.list('treasure'))
+    await setInput('.treasure-section .item-search input', 'Lantern')
+    await until(() => !!document.querySelector('.treasure-section .item-search-results button'), 'the item search results')
+    await js(() => document.querySelector('.treasure-section .item-search-results button').click())
+    await until(() => document.querySelectorAll('.treasure-section .treasure-row').length === 1, 'the added item treasure')
+    await js(() => [...document.querySelectorAll('.treasure-section button')].find(b => b.textContent.trim() === '+ Money').click())
+    await until(() => document.querySelectorAll('.treasure-section .treasure-row').length === 2, 'the added money treasure')
+    await setInput('.treasure-section input[aria-label="Monetary treasure"]', 'a silver idol')
+    await setInput('.treasure-section input[aria-label="Value in gp"]', '250')
+    await sleep(300)
+    let placed = await treasures()
+    const lantern = placed.find(t => t.item?.compendiumId === 'wondrous9001')
+    if (placed.length !== 2 || !lantern || lantern.level !== 4 || lantern.item.itemLevel !== 4 || placed.some(t => t.locationId !== 'vault') || !placed.some(t => t.money?.text === 'a silver idol' && t.money.gp === 250))
+      throw new Error('Location treasure was not saved: ' + JSON.stringify(placed))
+    await js(() => [...document.querySelectorAll('nav button')].find(b => b.textContent.trim().endsWith('Treasure')).click())
+    await until(() => document.querySelector('.treasure-level-row[aria-selected="true"]')?.textContent.startsWith('Level 4 (party)'), 'the Treasure page at the party level')
+    // DMG parcels for one PC (DMG p. 125): parcel 3 (a level 6 item) and parcels 6-10 (420 + 280 + 280 + 140 + 90 gp).
+    if (await js(() => [...document.querySelectorAll('.treasure-slot')].map(s => s.dataset.slot).join()) !== 'dmg:3,dmg:6,dmg:7,dmg:8,dmg:9,dmg:10') throw new Error('The DMG slots for a party of one are wrong')
+    const meter = () => js(() => [...document.querySelectorAll('.treasure-bar')].map(b => `${b.getAttribute('aria-valuenow')}/${b.getAttribute('aria-valuemax')}`).join())
+    if (await meter() !== '1/1,250/1210') throw new Error('The treasure meter is wrong: ' + await meter())
+    // The location's treasure shows here, placed in its location.
+    if (!await js(() => [...document.querySelectorAll('.treasure-others .treasure-row')].some(r => r.textContent.includes('Lantern of Paths') && r.querySelector('select[aria-label="Placed in"]').selectedOptions[0].textContent === 'Smoke Vault'))) throw new Error('The location treasure is not on the Treasure page')
+    // Suggest fills the money parcels as printed; the fixture pack has no permanent level 6 item, so parcel 3 stays open.
+    await js(() => [...document.querySelectorAll('.treasure-level button')].find(b => b.textContent.trim() === 'Suggest').click())
+    await until(() => document.querySelectorAll('.treasure-slot .treasure-row').length === 5, 'the suggested money parcels')
+    if (await meter() !== '1/1,1460/1210') throw new Error('The meter does not count the suggested parcels: ' + await meter())
+    await js(() => document.querySelector('.treasure-others .treasure-row input[aria-label="Found"]').click())
+    await until(() => document.querySelector('.treasure-others .treasure-row input[aria-label="Found"]').checked, 'the found mark')
+    await sleep(300)
+    await screenshot('out/treasure-dmg.png')
+    // RC rolls: ten rolled treasures become the slots; the DMG-slotted treasure stays at the level, outside them.
+    await setInput('.treasure-level select[aria-label="Budget"]', 'rc')
+    await until(() => [...document.querySelectorAll('.treasure-level button')].some(b => b.textContent.trim() === 'Roll'), 'the Roll button')
+    await js(() => [...document.querySelectorAll('.treasure-level button')].find(b => b.textContent.trim() === 'Roll').click())
+    await until(() => document.querySelectorAll('.treasure-slot[data-slot^="rc:"]').length > 0, 'the rolled slots')
+    const plan = await js(() => window.api.entity.get('level', '4'))
+    if (plan?.treasure?.mode !== 'rc' || !plan.treasure.rolled?.length || plan.treasure.rolled.some(s => s.kind === 'item' && (s.itemLevel < 5 || s.itemLevel > 8))) throw new Error('The rolled plan was not saved: ' + JSON.stringify(plan))
+    if (await js(() => document.querySelectorAll('.treasure-others .treasure-row').length) !== 7) throw new Error('The DMG-slotted treasure is not listed outside the rolled slots')
+    await sleep(300)
+    await screenshot('out/treasure-rc.png')
+
     // ── Encounter editor: rows preview as adjusted kit monsters ──
     await js(() => [...document.querySelectorAll('button')].find(b => b.textContent.trim().endsWith('Encounters')).click())
     await until(() => [...document.querySelectorAll('*')].some(el => el.children.length === 0 && el.textContent.trim() === 'Smoke Fight'), 'the encounter list')
@@ -146,6 +189,7 @@ app.whenReady().then(async () => {
     const preview = await js(() => document.body.innerText)
     for (const text of ['Drillmaster', 'Sweeping Cut', 'Level 6']) if (!preview.includes(text)) throw new Error(`Row preview is missing "${text}"`)
     await screenshot('out/combat-encounter-preview.png')
+    if (!await js(() => document.querySelector('.treasure-section .sb-label')?.textContent === 'Treasure')) throw new Error('The encounter editor has no Treasure section')
 
     // Traps: rows with XP, and a trap row previews the trap stat block.
     // The location's Swinging Blade shows as a read-only row; the other two location traps are the encounter's own.
@@ -339,7 +383,7 @@ app.whenReady().then(async () => {
 
     const confirms = await js(() => window.__confirms)
     clearTimeout(timeout)
-    console.log('COMBAT_SMOKE_OK: a Library creature resolving live in an encounter row, legacy creature converted on open, encounter row preview (template, level adjustment), the session board and level warnings, combat start in main with kit combatants (elite captain, troll regeneration, grouped minions), combat panel, recharge prompt, live pinned card, location trap stat blocks and search, location traps joining the encounter, encounter diseases, disease name in a power applied to a PC like a condition, the PCs library (search, sort, detail pane), PC lasting conditions (carried into combat, the encounter\'s on top on the Home board, disease stages, adding a condition), PC sheet import (row defenses, panel, PCs page), pinned cards popped out to an OS window and back, trap rows with XP and preview, hidden trap with initiative, triggered trap (Trigger, Disable), trap countermeasures from content-repo clauses (checks, action, part, strip actions, a skill challenge disabling the trap, logged), click-to-apply from effect clauses (a save ends both group highlighted and applied together); confirms: ' + confirms.length + '; screenshots out/home.png, out/pcs-levels.png, out/combat-encounter-preview.png, out/combat-panel.png, out/combat-trap.png, out/combat-trap-countermeasures.png, out/combat-save-group.png, out/location-traps.png, out/combat-disease.png, out/pc-diseases.png, out/combat-pc-sheet.png, out/popout-pinned.png')
+    console.log('COMBAT_SMOKE_OK: a Library creature resolving live in an encounter row, legacy creature converted on open, encounter row preview (template, level adjustment), the session board and level warnings, combat start in main with kit combatants (elite captain, troll regeneration, grouped minions), combat panel, recharge prompt, live pinned card, location trap stat blocks and search, treasure (added on a location, the Treasure page\'s DMG slots for a party of one, meter, Suggest, found, RC rolls), location traps joining the encounter, encounter diseases, disease name in a power applied to a PC like a condition, the PCs library (search, sort, detail pane), PC lasting conditions (carried into combat, the encounter\'s on top on the Home board, disease stages, adding a condition), PC sheet import (row defenses, panel, PCs page), pinned cards popped out to an OS window and back, trap rows with XP and preview, hidden trap with initiative, triggered trap (Trigger, Disable), trap countermeasures from content-repo clauses (checks, action, part, strip actions, a skill challenge disabling the trap, logged), click-to-apply from effect clauses (a save ends both group highlighted and applied together); confirms: ' + confirms.length + '; screenshots out/home.png, out/pcs-levels.png, out/combat-encounter-preview.png, out/combat-panel.png, out/combat-trap.png, out/combat-trap-countermeasures.png, out/combat-save-group.png, out/location-traps.png, out/treasure-dmg.png, out/treasure-rc.png, out/combat-disease.png, out/pc-diseases.png, out/combat-pc-sheet.png, out/popout-pinned.png')
     finish(0)
   } catch (err) {
     console.error(err)

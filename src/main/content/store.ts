@@ -14,7 +14,7 @@ import {
 import { ENTRY_ID, PACK_DIRS, PackError, dirOf, readPack, type PackDir, type PackKind, type PackManifest } from './pack'
 
 /** Bump when the index row shapes change, so installed indexes are rebuilt. */
-const INDEX_VERSION = 1
+const INDEX_VERSION = 2
 
 export type GlossaryEntry = { name: string; category: string; definition: string; source: string }
 

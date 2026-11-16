@@ -1,4 +1,5 @@
 import { LocationTraps } from './LocationTraps'
+import { TreasureSection } from '../treasure/TreasureSection'
 import { useState, useEffect } from 'react'
 import type { Location } from '@common/types'
 import { Icon } from '../shared/Icon'
@@ -171,6 +172,8 @@ export function LocationEditor({ locationId }: Props) {
       </div>
 
       <LocationTraps traps={location.traps ?? []} onChange={traps => save({ ...location, traps: traps.length ? traps : undefined })} label={sectionLabel('Traps')} />
+
+      <TreasureSection place={{ locationId: location.id }} label={sectionLabel('Treasure')} />
 
       {/* Encounters */}
       <div style={{ marginBottom: 'var(--space-3)' }}>

@@ -31,6 +31,17 @@ describe('references follow a shared entry', () => {
     expect(rehomeRefs('disease', pc, 'rot', false)).toBe(true)
     expect(pc).toEqual({ conditions: [{ kind: 'disease', diseaseId: 'rot', stage: 1 }, { kind: 'effect', id: 'rot', name: 'Cursed' }] })
     expect(rehomeRefs('disease', pc, 'rot', false)).toBe(false)
+    const treasure = { level: 5, item: { itemId: 'sword', itemLevel: 6 }, locationId: 'l1' }
+    expect(rehomeRefs('item', treasure, 'sword', true)).toBe(true)
+    expect(treasure).toEqual({ level: 5, item: { libraryId: 'sword', itemLevel: 6 }, locationId: 'l1' })
+    expect(rehomeRefs('item', { money: { text: '40 gp', gp: 40 } }, 'sword', true)).toBe(false)
+  })
+
+  it('counts treasure as a use of a Library item', async () => {
+    const c = await store.createCampaign('Hoard')
+    await store.openCampaign(c.id)
+    await store.saveEntity('treasure', { id: 't1', level: 3, item: { libraryId: 'lamp' }, createdAt: '', updatedAt: '' })
+    expect(await library.libraryUsage('item', 'lamp')).toEqual([{ campaignId: c.id, name: 'Hoard', uses: 1 }])
   })
 })
 

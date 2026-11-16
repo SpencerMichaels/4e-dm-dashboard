@@ -14,6 +14,7 @@ import { parseSkillModifications, type MonsterTheme, type ThemePower } from '../
 import { findByRef, useTemplateCatalog } from '../creature/template-catalog'
 import { kitViewCreature } from '../creature/kit-view'
 import { EncounterTraps, trapKey, useTrapRows } from './EncounterTraps'
+import { TreasureSection } from '../treasure/TreasureSection'
 import { useTrap, useTraps } from '../trap/trap-refs'
 import { EncounterDiseases } from '../disease/disease-refs'
 import { contentText } from '@common/rules/diseases'
@@ -756,6 +757,7 @@ export function Dnd4eEncounterEditor({ encounter, onSave, creatures, onNavigate 
           selectedKey={selectedTrapKey}
           onSelect={key => { setSelectedTrapKey(key); if (key) { setSelectedRowKey(null); setPreviewId(null); setPreviewCreature(null) } }} />
         <EncounterDiseases sources={diseaseSources} />
+        <TreasureSection place={{ encounterId: encounter.id }} encounterStyle />
 
         {/* Bottom toolbar: background image picker + start combat */}
         <div style={{

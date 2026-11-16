@@ -44,7 +44,10 @@ export function itemIndexRow(i: Item): ItemIndexEntry {
     priceGp: lowest?.price ?? null,
     consumable: /^(consumable|ammunition)$/i.test(i.subtype ?? '') || i.powers.some(p => p.usage === 'consumable'),
   }
-  if (i.levels.length > 1) row.maxLevel = Math.max(...i.levels.map(l => l.level))
+  if (i.levels.length > 1) {
+    row.maxLevel = Math.max(...i.levels.map(l => l.level))
+    row.versions = [...i.levels].sort((a, b) => a.level - b.level).map(l => ({ level: l.level, gp: l.price }))
+  }
   if (i.subtype) row.subtype = i.subtype
   if (i.tier) row.tier = i.tier
   if (lowest?.enhancement !== undefined) row.enhancement = lowest.enhancement

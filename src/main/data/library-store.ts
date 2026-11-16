@@ -47,7 +47,7 @@ export async function ensureLibrary(): Promise<void> {
 }
 
 /**
- * The campaigns that use a Library entry (encounter rows and their templates and themes, location traps,
+ * The campaigns that use a Library entry (encounter rows and their templates and themes, location traps, treasure,
  * PC diseases), so deleting it can say where it will show as missing. Copies (`basedOn`) are not uses.
  */
 export async function libraryUsage(type: RecordType, id: string): Promise<{ campaignId: string; name: string; uses: number }[]> {
@@ -63,6 +63,7 @@ export async function libraryUsage(type: RecordType, id: string): Promise<{ camp
       case 'disease': return [...(v.diseases ?? []), ...(v.conditions ?? []).filter((c: any) => c?.kind === 'disease')].filter((d: any) => d?.libraryId === id).length
       case 'template': return (v.creatures ?? []).filter((c: any) => (c?.monsterTemplates ?? []).includes(ref)).length
       case 'theme': return (v.creatures ?? []).filter((c: any) => c?.monsterTheme?.name === ref).length
+      case 'item': return v.item?.libraryId === id ? 1 : 0
       default: return 0
     }
   }

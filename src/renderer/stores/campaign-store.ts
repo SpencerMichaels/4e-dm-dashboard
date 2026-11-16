@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import type { Campaign, CreatureRecord, Encounter, Location, PlayerCharacter, CompendiumAnnotation, MapData, ItemRecord, TrapRecord, DiseaseRecord, TemplateRecord, ThemeRecord } from '@common/types'
+import type { Campaign, CreatureRecord, Encounter, Location, PlayerCharacter, CompendiumAnnotation, MapData, ItemRecord, TrapRecord, DiseaseRecord, TemplateRecord, ThemeRecord, Treasure, LevelPlan } from '@common/types'
 
 export interface CampaignState {
   campaignId: string | null
@@ -10,6 +10,9 @@ export interface CampaignState {
   maps: MapData[]
   items: ItemRecord[]
   playerCharacters: PlayerCharacter[]
+  // Treasure by level frame, and per-level plans (treasure mode, rolled slots)
+  treasures: Treasure[]
+  levelPlans: LevelPlan[]
   annotations: Record<string, CompendiumAnnotation>
   // Kit-native campaign records (CampaignRecord envelopes)
   traps: TrapRecord[]
@@ -31,6 +34,8 @@ const initialState = {
   maps: [] as MapData[],
   items: [] as ItemRecord[],
   playerCharacters: [] as PlayerCharacter[],
+  treasures: [] as Treasure[],
+  levelPlans: [] as LevelPlan[],
   annotations: {} as Record<string, CompendiumAnnotation>,
   traps: [] as TrapRecord[],
   diseases: [] as DiseaseRecord[],

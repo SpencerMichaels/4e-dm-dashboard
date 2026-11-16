@@ -39,6 +39,8 @@ export interface ItemIndexEntry {
   category: string    // item, weapon, armor, implement, ritual, set
   level: number
   maxLevel?: number   // highest level variant (if multi-level)
+  /** Each version of a multi-level item: its level and price in gp (null when none is printed). */
+  versions?: { level: number; gp: number | null }[]
   rarity: string
   price: string
   slot: string

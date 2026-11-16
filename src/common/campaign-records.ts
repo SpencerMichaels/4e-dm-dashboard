@@ -55,12 +55,14 @@ export const ENTITY_DIRS: Record<EntityType, string> = {
   disease: RECORD_STORAGE.disease.dir,
   template: RECORD_STORAGE.template.dir,
   theme: RECORD_STORAGE.theme.dir,
+  treasure: 'treasure',
+  level: 'levels',
 }
 
-/** Where a campaign refers to each record type: encounter rows (and their templates and themes), traps, PC diseases. */
+/** Where a campaign refers to each record type: encounter rows (and their templates and themes), traps, PC diseases, treasure items. */
 export const REFERENCED_FROM: Record<RecordType, EntityType[]> = {
   creature: ['encounter'], trap: ['encounter', 'location'], disease: ['player-character'],
-  template: ['encounter'], theme: ['encounter'], item: [],
+  template: ['encounter'], theme: ['encounter'], item: ['treasure'],
 }
 
 /**
@@ -80,6 +82,7 @@ export function rehomeRefs(type: RecordType, value: unknown, id: string, toLibra
     case 'creature': swap(v.creatures, 'creatureId'); break
     case 'trap': swap(v.traps, 'trapId'); break
     case 'disease': swap((v.conditions ?? []).filter((c: any) => c?.kind === 'disease'), 'diseaseId'); break
+    case 'item': swap(v.item ? [v.item] : [], 'itemId'); break
     case 'template':
       for (const c of v.creatures ?? []) if (c?.monsterTemplates?.includes(oldRef)) { c.monsterTemplates = c.monsterTemplates.map((t: string) => t === oldRef ? newRef : t); changed = true }
       break

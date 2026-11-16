@@ -1,4 +1,4 @@
-// Button affordance smoke test: tours the DM window (home, settings, encounters, combat, PCs,
+// Button affordance smoke test: tours the DM window (home, settings, encounters, combat, treasure, PCs,
 // locations, maps, every compendium page in preview and edit) and fails if any button with text reads as
 // plain text before it is hovered (see button-audit.cjs). Windows are hidden and render offscreen.
 // Run with `npm run test:buttons:ui` after `npm run build`.
@@ -91,6 +91,13 @@ app.whenReady().then(async () => {
     await clickText('Smoke Vault')
     await until(() => !!document.querySelector('.location-trap'), 'the location page')
     await audit('location page')
+
+    await clickButton('Treasure')
+    await until(() => !!document.querySelector('.treasure-level'), 'the Treasure page')
+    await audit('treasure page')
+    await js(() => [...document.querySelectorAll('.treasure-level button')].find(b => b.textContent.trim() === 'Suggest').click())
+    await until(() => !!document.querySelector('.treasure-slot .treasure-row'), 'the suggested treasure')
+    await audit('treasure page with treasure')
 
     await clickButton('Maps')
     await sleep(300)
