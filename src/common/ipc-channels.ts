@@ -55,6 +55,7 @@ export const CMD = {
   COMBAT_SET_SURPRISE: 'combat:set-surprise',
   COMBAT_REORDER: 'combat:reorder',
   COMBAT_PREVIEW_ROW: 'combat:preview-row',
+  COMBAT_ENCOUNTER_XP: 'combat:encounter-xp',
 
   // System
   SYSTEM_GET_RULES: 'system:get-rules',

@@ -6,7 +6,8 @@ import type { CreatureRecord, Encounter } from '@common/types'
 import { legacyCreatureToRecord } from '../data/legacy-creatures'
 import { scaffold } from '@common/authoring/core'
 import type { MonsterTemplate } from '@kit'
-import { encounterCombatants, resolveRow, type EncounterSources } from './encounter-combatants'
+import { encounterCombatants, encounterXp, resolveRow, type EncounterSources } from './encounter-combatants'
+import { monsterXp } from '@kit'
 
 const published = { ...(scaffold('monster', 'Goblin Cutter', 3, 'skirmisher') as Monster), id: 'monster1' }
 const custom: CreatureRecord = legacyCreatureToRecord({ id: 'c1', name: 'Captain', hp: 60, maxHp: 60, imageId: 'img', createdAt: '', updatedAt: '', statBlock: { level: 5, role: 'soldier', creatureType: 'humanoid', origin: 'natural', ac: 21, defenses: { fortitude: 18, reflex: 17, will: 16 }, abilities: { con: 14 }, actions: [] } })
@@ -82,5 +83,20 @@ describe('Library entries', () => {
     expect(shade).toMatchObject({ name: 'Shared Shade', imageId: 'shade-art', entityId: 'lib1' })
     expect(shade.content).toMatchObject({ rank: 'elite' })
     expect(trap).toMatchObject({ kind: 'trap', name: 'Shared Snare', entityId: 'lib2' })
+  })
+})
+
+describe('encounter XP', () => {
+  it('adds each row\'s adjusted monster XP and each trap\'s, the location\'s too, times the count', () => {
+    const encounter = { id: 'e', name: 'E', tags: [], createdAt: '', updatedAt: '', creatures: [
+      { compendiumId: 'monster1', count: 4, isMinion: true },
+      { creatureId: 'c1', count: 1, monsterTemplates: ['Test Champion'], levelAdjust: 1 },
+      { compendiumId: 'missing', count: 2 },
+    ], traps: [{ trapId: 'pit', count: 2 }] } as Encounter
+    const pit = sources.traps[0].xp
+    const expected = 4 * monsterXp(3, 'minion') + monsterXp(6, 'elite') + 2 * pit
+    expect(encounterXp(encounter, sources)).toBe(expected)
+    expect(encounterXp(encounter, { ...sources, locationTraps: [{ compendiumId: 'trap40' }, { trapId: 'pit' }] }))
+      .toBe(expected + sources.publishedTrap('trap40')!.xp)
   })
 })

@@ -4,6 +4,8 @@ import type { Item as KitItem, Monster } from '@kit'
 import { newRecord } from '@common/campaign-records'
 import { scaffold } from '@common/authoring/core'
 import { generateId } from '@common/utils/id'
+import { partyLevel } from '@common/rules/party'
+import { useCampaignStore } from '../stores/campaign-store'
 
 // Convenience wrappers around window.api for use in components
 
@@ -22,12 +24,15 @@ export function useCampaignActions() {
     return creature
   }, [])
 
-  const createEncounter = useCallback(async (name: string): Promise<Encounter> => {
+  /** `level`: the party level it is planned for (default the party's level now). */
+  const createEncounter = useCallback(async (name: string, level?: number): Promise<Encounter> => {
     const now = new Date().toISOString()
     const encounter: Encounter = {
       id: generateId(),
       name,
       creatures: [],
+      // Planned for the party's level now (its level frame), so its difficulty holds as the party levels up.
+      level: level ?? partyLevel(useCampaignStore.getState().playerCharacters),
       tags: [],
       createdAt: now,
       updatedAt: now,

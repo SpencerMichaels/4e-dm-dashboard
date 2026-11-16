@@ -97,6 +97,7 @@ const api = {
     /** The encounter editor's preview of a row (null theme: none; omitted: the row's own). */
     previewRow: (row: EncounterCreature, theme?: { name: string; attackPower: string; utilityPower: string; skillChoice?: number } | null) =>
       ipcRenderer.invoke(CMD.COMBAT_PREVIEW_ROW, row, theme),
+    encounterXp: () => ipcRenderer.invoke(CMD.COMBAT_ENCOUNTER_XP) as Promise<Record<string, number>>,
     removeCombatant: (combatantId: string) => ipcRenderer.invoke(CMD.COMBAT_REMOVE_COMBATANT, combatantId),
     updateCombatant: (combatantId: string, updates: Partial<CombatantState>) =>
       ipcRenderer.invoke(CMD.COMBAT_UPDATE_COMBATANT, combatantId, updates),

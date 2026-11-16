@@ -5,7 +5,7 @@ import { useCampaignActions } from '../../hooks/use-campaign'
 import { useHotkeys } from '../../hooks/use-hotkeys'
 import { RecordCompendium } from '../compendium/RecordCompendium'
 import { RECORD_KINDS } from '../compendium/record-kinds'
-import type { EntityType } from '@common/types'
+import type { Encounter, EntityType } from '@common/types'
 import { ConfirmDialog } from '../shared/ConfirmDialog'
 import { Icon } from '../shared/Icon'
 import { PCListView } from './PCListView'
@@ -119,6 +119,7 @@ export function EntityList({ entityType }: Props) {
                 }}
               >
                 {e.name || 'Untitled'}
+                {entityType === 'encounter' && (e as Encounter).level != null && <span className="encounter-list-level" style={{ color: 'var(--muted)', marginLeft: 'var(--space-2)', fontSize: 'var(--font-size-sm)' }}>Level {(e as Encounter).level}</span>}
               </button>
               <button
                 onClick={(ev) => {

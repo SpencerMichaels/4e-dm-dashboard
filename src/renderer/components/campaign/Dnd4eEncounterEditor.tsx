@@ -121,10 +121,12 @@ export function Dnd4eEncounterEditor({ encounter, onSave, creatures, onNavigate 
 
   // The Library's creatures (shared by every campaign): rows use them by libraryId, live.
   const libraryCreatures = useLibraryStore(s => s.creatures)
-  // Party size and level are derived from the active PCs (party level: their most common level).
+  // Party size is the active PCs'; the level is the encounter's own (set when it was made), else the active PCs' most common level.
   const playerCharacters = useCampaignStore(s => s.playerCharacters)
   const partySize = playerCharacters.filter(isActivePc).length
-  const partyLevel = derivePartyLevel(playerCharacters)
+  const currentPartyLevel = derivePartyLevel(playerCharacters)
+  // The budget's level: the level the encounter is planned for (its level frame), else the party's level now.
+  const partyLevel = encounter.level ?? currentPartyLevel
   const partyReady = partySize > 0 && partyLevel != null && partyLevel > 0
 
   const save = (patch: Partial<Encounter>) => {
@@ -447,9 +449,16 @@ export function Dnd4eEncounterEditor({ encounter, onSave, creatures, onNavigate 
         {/* Subheader: party info + XP */}
         <div className="sb-subheader" style={{ gap: 8 }}>
           <span style={{ display: 'flex', alignItems: 'baseline', gap: 4 }}>
-            {partyReady
-              ? <>Party of <b>{partySize}</b> at level <b>{partyLevel}</b></>
-              : <span style={{ fontStyle: 'italic', opacity: 0.7 }}>Mark active PCs and give them levels on the PCs page</span>}
+            {partySize > 0
+              ? <>Party of <b>{partySize}</b> at level</>
+              : <span style={{ fontStyle: 'italic', opacity: 0.7 }}>No active PCs (mark them on the PCs page); planned for level</span>}
+            <input className="ghost header-input encounter-level" type="number" min={1} max={30} value={encounter.level ?? ''} placeholder={currentPartyLevel != null ? String(currentPartyLevel) : '–'}
+              onChange={e => { const l = Number(e.target.value); save({ level: Number.isInteger(l) && l >= 1 && l <= 30 ? l : undefined }) }}
+              aria-label="Planned for party level" title="The party level this encounter is planned for: its budget and difficulty use it (empty: the party's level now)"
+              style={{ width: '3ch', color: 'inherit', fontWeight: 700, textAlign: 'center', fieldSizing: 'fixed' } as React.CSSProperties} />
+            {encounter.level != null && currentPartyLevel != null && encounter.level !== currentPartyLevel && (
+              <span className="encounter-level-note" title="Difficulty is for the level this encounter is planned for">(the party is level {currentPartyLevel})</span>
+            )}
           </span>
           {totalXP > 0 && (
             <span style={{ whiteSpace: 'nowrap' }}>
@@ -757,7 +766,7 @@ export function Dnd4eEncounterEditor({ encounter, onSave, creatures, onNavigate 
           selectedKey={selectedTrapKey}
           onSelect={key => { setSelectedTrapKey(key); if (key) { setSelectedRowKey(null); setPreviewId(null); setPreviewCreature(null) } }} />
         <EncounterDiseases sources={diseaseSources} />
-        <TreasureSection place={{ encounterId: encounter.id }} encounterStyle />
+        <TreasureSection place={{ encounterId: encounter.id }} level={partyLevel} encounterStyle />
 
         {/* Bottom toolbar: background image picker + start combat */}
         <div style={{

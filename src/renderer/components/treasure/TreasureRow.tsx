@@ -1,5 +1,5 @@
 // One treasure as a row: found, what it is (an item, or monetary treasure as text and gp), its value,
-// optionally its level frame, where it is placed, and remove. Shared by the Treasure page and the
+// optionally its level frame, where it is placed, and remove. Shared by the Rewards page and the
 // location and encounter pages.
 
 import type { Treasure, TreasureSlot } from '@common/types'
@@ -17,7 +17,7 @@ export function TreasureRow({ treasure, facts, showLevel, showPlace = true, slot
   /** Show the level frame (an input), where rows from several levels mix. */
   showLevel?: boolean
   showPlace?: boolean
-  /** Empty slots this treasure could fill, for a slot picker (on the Treasure page). */
+  /** Empty slots this treasure could fill, for a slot picker (on the Rewards page). */
   slots?: TreasureSlot[]
 }) {
   const [t, update] = useLiveTreasure(treasure)

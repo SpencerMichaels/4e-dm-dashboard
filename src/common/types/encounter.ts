@@ -34,6 +34,8 @@ export interface Encounter {
   creatures: EncounterCreature[]
   traps?: EncounterTrap[]
   locationId?: string
+  /** The party level this encounter is planned for (its level frame); without one, the party's current level. */
+  level?: number
   backgroundImageId?: string  // encounter-specific background for player display
   tags: string[]
   createdAt: string

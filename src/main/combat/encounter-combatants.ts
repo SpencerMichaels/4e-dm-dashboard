@@ -101,6 +101,14 @@ export function encounterTrapRows(encounter: Encounter, locationTraps: TrapRef[]
   return [...own, ...locationTraps.filter(r => !own.some(t => key(t) === key(r))).map(r => ({ ...r, count: 1 }))]
 }
 
+
+/** An encounter's XP: each creature row's adjusted monster's, and each of its traps' (its own and its location's), times the row's count. */
+export function encounterXp(encounter: Encounter, s: EncounterSources): number {
+  let xp = 0
+  for (const ec of encounter.creatures) xp += (resolveRow(ec, s)?.monster.xp ?? 0) * ec.count
+  for (const et of encounterTrapRows(encounter, s.locationTraps ?? [])) xp += (rowTrap(et, s)?.xp ?? 0) * et.count
+  return xp
+}
 function trapCombatants(encounter: Encounter, s: EncounterSources): CombatantState[] {
   return encounterTrapRows(encounter, s.locationTraps ?? []).flatMap(et => {
     const trap = rowTrap(et, s)

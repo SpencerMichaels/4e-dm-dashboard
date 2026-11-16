@@ -6,7 +6,7 @@ import { LocationEditor } from '../campaign/LocationEditor'
 import { MapEditor } from '../campaign/MapEditor'
 import { EntityList } from '../campaign/EntityList'
 import { CombatView } from '../combat/CombatView'
-import { TreasureView } from '../treasure/TreasureView'
+import { RewardsView } from '../rewards/RewardsView'
 import { RecordCompendium } from '../compendium/RecordCompendium'
 import { RECORD_KINDS } from '../compendium/record-kinds'
 
@@ -31,8 +31,8 @@ export function ContentArea() {
       return <LocationEditor locationId={view.locationId} key={view.locationId} />
     case 'map':
       return <MapEditor mapId={view.mapId} key={view.mapId} />
-    case 'treasure':
-      return <TreasureView initialLevel={view.level} key={view.level ?? ''} />
+    case 'rewards':
+      return <RewardsView initialLevel={view.level} key={view.level ?? ''} />
     case 'combat':
       return <CombatView />
     case 'entity-list':

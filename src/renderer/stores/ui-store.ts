@@ -10,8 +10,8 @@ export type ViewMode =
   | { type: 'location'; locationId?: string }
   | { type: 'map'; mapId?: string }
   | { type: 'combat' }
-  /** Treasure by level frame; `level` selects a level. */
-  | { type: 'treasure'; level?: number }
+  /** Rewards (experience and treasure) by level frame; `level` selects a level. */
+  | { type: 'rewards'; level?: number }
   | { type: 'entity-list'; entityType: EntityType }
   /** A kind's compendium page: published and campaign entries, and Workshop drafts. `id` selects a campaign entry, `draftId` a draft. */
   | { type: 'compendium'; kind: RecordType; id?: string; draftId?: string }

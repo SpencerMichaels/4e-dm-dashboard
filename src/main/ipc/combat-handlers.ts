@@ -6,10 +6,10 @@ import { carriedConditions, diseaseKey, pcDiseases } from '@common/rules/pc-cond
 import { getLibraryRecord } from '../data/library-store'
 import { getKitEntry } from '../compendium/kit'
 import * as engine from '../combat/combat-engine'
-import { getActiveCampaignId, getEntity } from '../data/campaign-store'
+import { getActiveCampaignId, getEntity, listEntities } from '../data/campaign-store'
 import { broadcastToAll, broadcastToPlayer, getPlayerWindow, createPlayerWindow } from '../windows'
 import { setCurrentScene } from './system-handlers'
-import { campaignSources, encounterCombatants, resolveRow, type RowTheme } from '../combat/encounter-combatants'
+import { campaignSources, encounterCombatants, encounterXp, resolveRow, type RowTheme } from '../combat/encounter-combatants'
 
 function handlePostResolve(): void {
   const state = engine.getCombatState()
@@ -174,6 +174,12 @@ export function registerCombatHandlers(): void {
   // The encounter editor's preview of a row: the adjusted kit monster and what each adjustment changed.
   ipcMain.handle(CMD.COMBAT_PREVIEW_ROW, async (_e, row: EncounterCreature, theme?: RowTheme) =>
     resolveRow(row, await campaignSources(), theme === undefined ? row.monsterTheme : theme))
+
+  // Every encounter's XP, by id, for the Rewards page (sources read once; each encounter gets its location's traps).
+  ipcMain.handle(CMD.COMBAT_ENCOUNTER_XP, async () => {
+    const [sources, encounters, locations] = await Promise.all([campaignSources(), listEntities<Encounter>('encounter'), listEntities<Location>('location')])
+    return Object.fromEntries(encounters.map(e => [e.id, encounterXp(e, { ...sources, locationTraps: locations.find(l => l.id === e.locationId)?.traps ?? [] })]))
+  })
 }
 
 /** The kit diseases a PC's conditions name, looked up for carriedConditions (null: the entry is gone). */
