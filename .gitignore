@@ -18,6 +18,7 @@ result
 
 # Reference PDFs (bulky, not part of the source tree)
 4eBooks/
+docs/*.pdf
 
 # Local portrait/asset working directory (not bundled into the repo)
 images/
