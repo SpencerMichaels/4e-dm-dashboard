@@ -35,10 +35,16 @@ mkdirSync(join(run, 'out'), { recursive: true })
 // Wayland locally; CI runs X11 under xvfb (FOUR_E_OZONE_PLATFORM=x11).
 const ozone = process.env.FOUR_E_OZONE_PLATFORM || 'wayland'
 const bin = name => join(root, 'node_modules', '.bin', name)
+// Per suite (FOUR_E_SUITE_TIMEOUT_MS overrides it); a whole run of all four takes about six minutes here.
+const SUITE_TIMEOUT_MS = Number(process.env.FOUR_E_SUITE_TIMEOUT_MS) || 10 * 60 * 1000
 const step = (cmd, args, opts) => spawnSync(cmd, args, { stdio: 'inherit', ...opts }).status ?? 1
 
 let failed = []
 try {
+  // A suite that doesn't parse never runs its own code: Electron shows its "JavaScript error in the main
+  // process" dialog and waits, so the run would hang with a dialog on the desktop. Check them first.
+  for (const name of suites) if (step(process.execPath, ['--check', join(root, SUITES[name])]) !== 0) failed.push(name)
+  if (failed.length) throw new Error('suite syntax')
   console.log(`Building into ${build}`)
   if (step(bin('electron-vite'), ['build', '--outDir', build], { cwd: root }) !== 0) { failed = ['build']; throw new Error('build failed') }
   // The published content every suite reads (test-content.cjs), built once and deleted with the build.
@@ -46,7 +52,11 @@ try {
   for (const name of suites) {
     console.log(`\n== ${name}`)
     const env = { ...process.env, FOUR_E_HIDDEN_WINDOWS: '1', FOUR_E_OUT_DIR: build, FOUR_E_TEST_CONTENT: content }
-    if (step(bin('electron'), [join(root, SUITES[name]), `--ozone-platform=${ozone}`, '--no-sandbox'], { cwd: run, env }) !== 0) failed.push(name)
+    // Any other hang fails the suite instead of blocking the run.
+    const result = spawnSync(bin('electron'), [join(root, SUITES[name]), `--ozone-platform=${ozone}`, '--no-sandbox'],
+      { cwd: run, env, stdio: 'inherit', timeout: SUITE_TIMEOUT_MS, killSignal: 'SIGKILL' })
+    if (result.signal === 'SIGKILL') console.error(`${name}: no result after ${SUITE_TIMEOUT_MS / 60000} minutes; stopped`)
+    if (result.status !== 0) failed.push(name)
   }
 } catch (e) {
   if (!failed.length) { failed = ['setup']; console.error(e.message) }
