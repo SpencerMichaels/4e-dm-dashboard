@@ -80,4 +80,12 @@ describe('item editor adapter', () => {
     expect(item.slot).toBeUndefined()
     expect(item.subtype).toBe('Consumable')
   })
+
+  it('shows and edits what the enhancement applies to', () => {
+    // Printed targets win over what the category implies (an armor that also raises the defenses).
+    const view = draftToItemEditor(draft(i => { i.enhancementTargets = ['ac', 'fortitude', 'reflex', 'will'] }))
+    expect(view.extra.enhancement).toBe('AC, Fortitude, Reflex, and Will')
+    expect(edit(draft(), x => { x.enhancement = 'AC' }).item.enhancementTargets).toEqual(['ac'])
+    expect(edit(draft(i => { i.enhancementTargets = ['attack', 'damage'] }), x => { x.enhancement = '' }).item.enhancementTargets).toBeUndefined()
+  })
 })

@@ -72,6 +72,7 @@ const IMPLEMENT_GROUPS = [
 ]
 
 const CRIT_DICE = ['1d6', '1d8', '1d10', '1d12']
+const ENHANCEMENT_CHOICES = ['attack rolls and damage rolls', 'AC', 'Fortitude, Reflex, and Will']
 const DAMAGE_TYPES = ['', 'acid', 'cold', 'fire', 'force', 'lightning', 'necrotic', 'poison', 'psychic', 'radiant', 'thunder']
 
 // Standard magic item prices by level (DMG p.223)
@@ -444,9 +445,9 @@ export function Dnd4eItemEditor({ item, onSave }: Props) {
               {' '}
               <select className="ghost" value={str('enhancement')} onChange={e => u('enhancement', e.target.value)}>
                 <option value="">—</option>
-                <option value="attack rolls and damage rolls">attack rolls and damage rolls</option>
-                <option value="AC">AC</option>
-                <option value="Fortitude, Reflex, and Will">Fortitude, Reflex, and Will</option>
+                {ENHANCEMENT_CHOICES.map(t => <option key={t} value={t}>{t}</option>)}
+                {/* A printed set the three choices don't cover ("AC, Fortitude, Reflex, and Will") */}
+                {str('enhancement') && !ENHANCEMENT_CHOICES.includes(str('enhancement')) && <option value={str('enhancement')}>{str('enhancement')}</option>}
               </select>
             </div>
           )}

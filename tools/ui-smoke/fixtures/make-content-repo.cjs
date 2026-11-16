@@ -167,6 +167,10 @@ const items = [
   { id: 'wondrous9001', name: 'Lantern of Paths', category: 'item', level: 4, rarity: 'uncommon',
     levels: [{ level: 4, price: 840 }], slot: 'wondrous', properties: [], powers: [{ name: 'Power', action: 'minor', usage: 'daily', keywords: [], attacks: [], effect: line('The lantern points toward the nearest exit.') }],
     flavor: 'A tin lantern with a needle in its lid.', description: [], sources: [{ book: 'Fixture Guide', page: 52 }], provenance },
+  // Unpriced and consumable: sorts after every price, and is the one item the "use" filter's Consumable keeps.
+  { id: 'item9001', name: 'Ashen Draught', category: 'item', level: 6, rarity: 'common',
+    levels: [{ level: 6, price: null, priceText: 'Special' }], subtype: 'Consumable', properties: [], powers: [{ name: 'Power', action: 'minor', usage: 'consumable', keywords: ['healing'], attacks: [], effect: line('Drink the draught: you regain 10 hit points.') }],
+    flavor: 'Grey and bitter.', description: [], sources: [{ book: 'Fixture Guide', page: 53 }], provenance },
 ]
 
 const templates = [

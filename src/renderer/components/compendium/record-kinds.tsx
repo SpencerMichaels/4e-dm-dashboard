@@ -6,6 +6,7 @@ import type { CompendiumEntry, DiseaseIndexEntry, ItemIndexEntry, TrapIndexEntry
 import { scaffold } from '@common/authoring/core'
 import { decorate } from '@common/authoring/kit-editor-adapter'
 import type { RecordType } from '@common/campaign-records'
+import { itemIndexRow } from '@common/compendium-index'
 import { TrapStatblock } from '../trap/TrapStatblock'
 import { DiseaseStatblock } from '../disease/DiseaseStatblock'
 import { TemplateStatblock } from '../template/TemplateStatblock'
@@ -62,15 +63,17 @@ export const THEME_KIND: RecordKind<MonsterTheme> = {
   levelless: true,
 }
 
-const itemPrice = (i: Item) => i.levels[0] ? (i.levels[0].price !== null ? `${i.levels[0].price.toLocaleString('en-US')} gp` : i.levels[0].priceText ?? '') : ''
-const itemSlot = (i: Item) => i.slot === 'wondrous' ? 'Wondrous Item' : i.slot ? cap(i.slot) : i.subtype ?? ''
+/** An item row from its index entry, the same for published and custom items: price sorts by gold pieces
+ *  (unpriced last), and consumables filter apart from permanent items. */
+const itemRow = (e: ItemIndexEntry) => ({ name: e.name, level: e.level, cells: [cap(e.category), e.slot, e.rarity, e.price],
+  sortKeys: [undefined, undefined, undefined, e.priceGp], facets: [e.consumable ? 'Consumable' : 'Permanent'] })
 
 export const ITEM_KIND: RecordKind<Item> = {
   type: 'item', singular: 'item', plural: 'items',
   columns: [{ label: 'Category', width: '75px' }, { label: 'Slot', width: '90px' }, { label: 'Rarity', width: '75px' }, { label: 'Price', width: '80px' }],
-  filters: [{ label: 'category', column: 0 }, { label: 'slot', column: 1 }, { label: 'rarity', column: 2 }],
-  index: async () => (await window.api.compendium.itemIndex() as ItemIndexEntry[]).map(e => ({ id: e.id, name: e.name, level: e.level, cells: [cap(e.category), e.slot, e.rarity, e.price], book: e.source })),
-  row: i => ({ name: i.name, level: i.level, cells: [cap(i.category), itemSlot(i), i.rarity ? cap(i.rarity) : '', itemPrice(i)] }),
+  filters: [{ label: 'category', column: 0 }, { label: 'slot', column: 1 }, { label: 'rarity', column: 2 }, { label: 'use', facet: 0 }],
+  index: async () => (await window.api.compendium.itemIndex() as ItemIndexEntry[]).map(e => ({ id: e.id, book: e.source, ...itemRow(e) })),
+  row: i => itemRow(itemIndexRow(i)),
   get: id => window.api.compendium.kitGet('item', id),
   blank: () => scaffold('item', 'New Item', 1) as Item,
   Statblock: ({ value, draft }) => <ItemStatblock item={draft ? decorate<Item>(draft) : value} />,

@@ -52,3 +52,27 @@ export function itemBenchmarks(level: number) {
     assumptions: 'Permanent items (PHB p. 223, RC p. 278). Enhancement bonuses only for weapons, armor, implements, and neck items (PHB p. 224–225). Consumables cost much less and have no rule table; use precedents.',
   }
 }
+
+export type EnhancementTarget = 'attack' | 'damage' | 'ac' | 'fortitude' | 'reflex' | 'will'
+const TARGETS: EnhancementTarget[] = ['attack', 'damage', 'ac', 'fortitude', 'reflex', 'will']
+const TARGET_TEXT: Record<EnhancementTarget, string> = { attack: 'attack rolls', damage: 'damage rolls', ac: 'AC', fortitude: 'Fortitude', reflex: 'Reflex', will: 'Will' }
+
+/** What an enhancement bonus applies to when the item doesn't say: weapons and implements attack and
+ *  damage rolls, armor AC, neck items Fortitude, Reflex and Will (PHB p. 224). */
+export function impliedEnhancementTargets(category: string, slot?: string): EnhancementTarget[] | undefined {
+  return category === 'weapon' || category === 'implement' ? ['attack', 'damage'] : category === 'armor' ? ['ac']
+    : slot === 'neck' ? ['fortitude', 'reflex', 'will'] : undefined
+}
+
+/** The printed enhancement line after the bonus: "attack rolls and damage rolls", "Fortitude, Reflex, and Will". */
+export function enhancementTargetsText(targets: readonly EnhancementTarget[]): string {
+  const words = TARGETS.filter(t => targets.includes(t)).map(t => TARGET_TEXT[t])
+  return words.length < 3 ? words.join(' and ') : `${words.slice(0, -1).join(', ')}, and ${words[words.length - 1]}`
+}
+
+/** The targets a line of that text names, in kit order; undefined when it names none. */
+export function parseEnhancementTargets(text: string): EnhancementTarget[] | undefined {
+  const t = text.toLowerCase()
+  const found = TARGETS.filter(k => k === 'ac' ? /\bac\b/.test(t) : t.includes(k))
+  return found.length ? found : undefined
+}

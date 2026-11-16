@@ -8,6 +8,7 @@ import type { Item } from '../types/item'
 import type { Change, Draft } from './types'
 import { entryToPower, equal, powerToEntry, textLine } from './power-adapter'
 import { decorate, kitEditorChanges } from './kit-editor-adapter'
+import { enhancementTargetsText, impliedEnhancementTargets, parseEnhancementTargets } from '../rules/items'
 
 const SLOTS: ItemSlot[] = ['head', 'neck', 'arms', 'hands', 'waist', 'feet', 'ring', 'body', 'weapon', 'implement', 'tattoo', 'wondrous', 'mount', 'ki-focus']
 const cap = (s: string) => s ? s[0].toUpperCase() + s.slice(1) : s
@@ -17,9 +18,8 @@ const CRIT = /^\+?(\d+d\d+)\s+(?:(\w+)\s+)?damage per plus\b\s*(.*)$/i
 const sourceText = (s: { book: string; page?: number | string }) => `${s.book}${s.page ? ', ' + s.page : ''}`
 /** The editor prints its own "gp" after the price field. */
 const priceText = (l: KitItem['levels'][number] | undefined) => !l ? '' : l.price !== null ? l.price.toLocaleString('en-US') : l.priceText ?? ''
-/** What the item enhancement applies to; the kit implies it from the category. */
-const enhancementTarget = (it: KitItem) => it.category === 'weapon' || it.category === 'implement' ? 'attack rolls and damage rolls'
-  : it.category === 'armor' ? 'AC' : it.slot === 'neck' ? 'Fortitude, Reflex, and Will' : ''
+/** What the item enhancement applies to: the item's own targets, else what its category implies. */
+const enhancementTarget = (it: KitItem) => enhancementTargetsText(it.enhancementTargets ?? impliedEnhancementTargets(it.category, it.slot) ?? [])
 
 /** A kit item as the item editor's model. */
 export function itemToEditor(it: KitItem, id = it.id, at = ''): Item {
@@ -85,6 +85,10 @@ export function itemFromEditor(source: KitItem, before: Item, after: Item): KitI
     const first = { ...(it.levels[0] ?? { level: it.level }), ...(gp ? { price: Number(gp[1].replace(/,/g, '')) } : { price: null, priceText: text }) }
     if (gp) delete (first as { priceText?: string }).priceText
     set('levels', [first, ...it.levels.slice(1)])
+  }
+  if (changed('enhancement')) {
+    const targets = parseEnhancementTargets(str('enhancement'))
+    if (targets) set('enhancementTargets', targets); else if (it.enhancementTargets) unset('enhancementTargets')
   }
   if (changed('critDie') || changed('critType') || changed('critExtra')) {
     const die = str('critDie')

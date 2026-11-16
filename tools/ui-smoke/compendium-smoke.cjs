@@ -219,6 +219,22 @@ app.whenReady().then(async () => {
     // ── Items: published entries clone losslessly; the item editor types normally ──
     await js(() => [...document.querySelectorAll('button')].find(b => b.textContent.trim().endsWith('Items')).click())
     await until(() => document.querySelectorAll('.record-row').length > 2, 'the item list')
+    // Price sorts by gold pieces, the unpriced Ashen Draught last either way; "use" keeps consumables.
+    const priceOrder = order => until(o => JSON.stringify([...document.querySelectorAll('.record-row .record-name')].map(n => n.textContent).filter(t => o.includes(t))) === JSON.stringify(o), 'items in price order ' + order.join(', '), order)
+      .catch(async e => { throw new Error(e.message + '; rows: ' + JSON.stringify(await rowNames())) })
+    // The innermost span is the header's (its column wrapper has no handler).
+    const clickPrice = () => js(() => [...document.querySelectorAll('.record-compendium span')].filter(s => s.textContent.trim().startsWith('Price')).pop().click())
+    await clickPrice()
+    await priceOrder(['Quilted Coat', 'Lantern of Paths', 'Ember Weapon', 'Ashen Draught'])
+    await clickPrice()
+    await priceOrder(['Ember Weapon', 'Lantern of Paths', 'Quilted Coat', 'Ashen Draught'])
+    const setUse = v => js(v => { const s = document.querySelector('select[aria-label="use"]'); Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value').set.call(s, v); s.dispatchEvent(new Event('change', { bubbles: true })) }, v)
+    await setUse('Consumable')
+    await until(() => JSON.stringify([...document.querySelectorAll('.record-row .record-name')].map(n => n.textContent)) === '["Ashen Draught"]', 'only the consumable')
+    await setUse('')
+    // The enhancement line: the selected version's bonus, then the printed targets.
+    await js(() => [...document.querySelectorAll('.record-row')].find(r => r.querySelector('.record-name').textContent === 'Ember Weapon').click())
+    await until(() => document.querySelector('.compendium-preview')?.textContent.includes('Enhancement +1 attack rolls and damage rolls'), 'the Ember Weapon enhancement line')
     await js(() => { const i = document.querySelector('.record-compendium input.sb-name'); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(i, 'Ember Weapon'); i.dispatchEvent(new Event('input', { bubbles: true })) })
     await until(() => [...document.querySelectorAll('.record-row .record-name')].some(n => n.textContent === 'Ember Weapon'), 'the Ember Weapon row')
     await js(() => [...document.querySelectorAll('.record-row')].find(r => r.querySelector('.record-name').textContent === 'Ember Weapon').dispatchEvent(new MouseEvent('dblclick', { bubbles: true })))
@@ -337,7 +353,7 @@ app.whenReady().then(async () => {
     await until(() => document.querySelector('.compendium-preview')?.innerText.includes('Bog Horror'), 'the agent edit in the preview')
     const confirms = await js(() => window.__confirms)
     if (confirms.length) throw new Error('Unexpected confirmation prompts: ' + JSON.stringify(confirms))
-    console.log('COMPENDIUM_SMOKE_OK: the entry controls in the stat block title bar (same-height icons), an editor popped out into an OS window (same controls, edits reach the entry, its own e key), the Library (new entry with no campaign open, listed in a campaign, Duplicate with its source, delete with a warning), sharing an entry with every campaign and back (references and working copy follow), the open creature as current_entry with agent edits reaching the open editor, the entry, and the preview (with comment markers), published trap preview, clone on first edit (lossless, focus kept), in-place edits with autosave, Custom listing, delete, new trap and disease saved by their first edit, item clone with typed edits, template clone and new theme, creatures (published preview, art carried into a lossless copy, new creature); screenshots out/compendium-trap-edit.png, out/compendium-disease-edit.png')
+    console.log('COMPENDIUM_SMOKE_OK: the entry controls in the stat block title bar (same-height icons), an editor popped out into an OS window (same controls, edits reach the entry, its own e key), the Library (new entry with no campaign open, listed in a campaign, Duplicate with its source, delete with a warning), sharing an entry with every campaign and back (references and working copy follow), the open creature as current_entry with agent edits reaching the open editor, the entry, and the preview (with comment markers), published trap preview, clone on first edit (lossless, focus kept), in-place edits with autosave, Custom listing, delete, new trap and disease saved by their first edit, item price sort, use filter and enhancement line, item clone with typed edits, template clone and new theme, creatures (published preview, art carried into a lossless copy, new creature); screenshots out/compendium-trap-edit.png, out/compendium-disease-edit.png')
     clearTimeout(timeout); finish(0)
   } catch (e) { console.error(e); clearTimeout(timeout); finish(1) }
 })

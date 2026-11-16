@@ -33,6 +33,8 @@ export interface RecordRow {
   /** A custom entry: the open campaign's, or the Library's (`library`). */
   custom?: boolean
   library?: boolean
+  /** Sort values for columns whose text doesn't sort (a price); null sorts last either way. */
+  sortKeys?: (number | null | undefined)[]
   /** Filterable values that aren't shown as columns (a creature's rank, size, origin). */
   facets?: string[]
   /** A published entry's sourcebook ("Monster Manual", "Dragon Magazine 384"), for the book filter. */
@@ -127,8 +129,14 @@ export function RecordCompendium<T extends { id: string; name: string }>({ kind,
       && inSource(r, filters.source, filters.within)
       && kind.filters.every((f, i) => !filters.selects[i] || filterValue(r, f) === filters.selects[i]))
     const dir = sort.asc ? 1 : -1
-    const value = (r: RecordRow) => sort.key === -1 ? r.level : sort.key === -2 ? r.name.toLowerCase() : r.cells[sort.key] ?? ''
-    return all.sort((a, b) => (value(a) < value(b) ? -dir : value(a) > value(b) ? dir : 0) || a.name.localeCompare(b.name))
+    const keyed = sort.key >= 0 && all.some(r => r.sortKeys?.[sort.key] !== undefined)
+    const value = (r: RecordRow) => sort.key === -1 ? r.level : sort.key === -2 ? r.name.toLowerCase() : keyed ? r.sortKeys?.[sort.key] ?? null : r.cells[sort.key] ?? ''
+    const compare = (a: RecordRow, b: RecordRow) => {
+      const x = value(a), y = value(b)
+      if (x === null || y === null) return x === y ? 0 : x === null ? 1 : -1
+      return x < y ? -dir : x > y ? dir : 0
+    }
+    return all.sort((a, b) => compare(a, b) || a.name.localeCompare(b.name))
   }, [custom, published, filters, sort, kind])
   const options = useMemo(() => kind.filters.map(f => [...new Set([...custom, ...(published ?? [])].map(r => filterValue(r, f)).filter(Boolean))].sort()), [custom, published, kind])
   const books = useMemo(() => [...new Set((published ?? []).map(bookOf).filter(Boolean))].sort(), [published])

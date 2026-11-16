@@ -1,0 +1,43 @@
+{
+  "id": "item9001",
+  "name": "Ashen Draught",
+  "category": "item",
+  "level": 6,
+  "rarity": "common",
+  "levels": [
+    {
+      "level": 6,
+      "price": null,
+      "priceText": "Special"
+    }
+  ],
+  "subtype": "Consumable",
+  "properties": [],
+  "powers": [
+    {
+      "name": "Power",
+      "action": "minor",
+      "usage": "consumable",
+      "keywords": [
+        "healing"
+      ],
+      "attacks": [],
+      "effect": {
+        "text": "Drink the draught: you regain 10 hit points.",
+        "clauses": []
+      }
+    }
+  ],
+  "flavor": "Grey and bitter.",
+  "description": [],
+  "sources": [
+    {
+      "book": "Fixture Guide",
+      "page": 53
+    }
+  ],
+  "provenance": {
+    "origin": "human",
+    "at": "2026-11-14"
+  }
+}

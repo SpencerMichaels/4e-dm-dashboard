@@ -6,10 +6,15 @@ import { powerToLegacy } from '@common/authoring/legacy'
 import { Dnd4eItemViewer } from '../compendium/Dnd4eItemViewer'
 import { PowerCardView, type PowerCardEntry } from '../creature/PowerCardView'
 import { Annotation } from '../creature/annotations'
+import { enhancementForLevel, enhancementTargetsText, impliedEnhancementTargets } from '@common/rules/items'
 
 export function ItemStatblock({ item }: { item: Item }) {
   return <ItemView item={item} />
 }
+
+/** What the enhancement bonus applies to, for an item with one: its own targets, else what its category implies (a custom item). */
+const enhancement = (c: Item) => !c.enhancementTargets && !c.levels.some(l => l.enhancement) ? ''
+  : enhancementTargetsText(c.enhancementTargets ?? impliedEnhancementTargets(c.category, c.slot) ?? [])
 
 function ItemView({ item: c }: { item: Item }) {
   const source = c.sources.map(s => `${s.book}${s.page ? ', ' + s.page : ''}`).join('; ')
@@ -18,10 +23,11 @@ function ItemView({ item: c }: { item: Item }) {
     <PowerCardView entry={{ ...powerToLegacy(p), kit: p } as PowerCardEntry} />
     <Annotation anchor={{ kind: 'entry', entry: { entryType: 'action', name: p.name, _draftNode: (p as { _draftNode?: string })._draftNode } }} />
   </div>)
-  const levels = c.levels.map(l => ({ level: l.level, enhancement: l.enhancement ? `+${l.enhancement}` : undefined, price: l.price !== null ? `${l.price.toLocaleString('en-US')} gp` : l.priceText ?? 'Undecided' }))
+  // A version with targets but no stored bonus (a custom item; the editor shows it from the level) has its level's, PHB p. 225.
+  const levels = c.levels.map(l => ({ level: l.level, enhancement: l.enhancement ? `+${l.enhancement}` : c.enhancementTargets ? `+${enhancementForLevel(l.level)}` : undefined, price: l.price !== null ? `${l.price.toLocaleString('en-US')} gp` : l.priceText ?? 'Undecided' }))
   const descriptionParts = c.description.filter(p => p.type !== 'power').map(p => p.type === 'table' ? p : { type: 'text' as const, text: p.type === 'properties' ? p.items.join('; ') : 'text' in p ? p.text : '' })
   return <article>
-    <Dnd4eItemViewer item={{ name: c.name, category: c.category, level: c.level, rarity: c.rarity ?? '', price: levels[0]?.price ?? '', flavor: c.flavor, slot: c.slot ?? '', itemType: c.itemType ?? c.subtype ?? '', enhancement: levels[0]?.enhancement ?? '', critical: c.critical?.text ?? '', properties: c.properties.map(p => p.text), propertyScaling: c.propertyLevelSteps, powers: [], groups: c.weapon?.groups ?? [], source, description: '', descriptionParts, levels, damage: c.weapon?.damage, proficiency: c.weapon ? `+${c.weapon.proficiency}` : undefined, range: c.weapon?.range, weight: c.weight ?? c.weapon?.weight, weaponCategory: c.weapon?.category, special: c.special?.text, requirement: c.requirement?.text, itemSet: c.itemSet, alchemicalType: c.alchemical?.type, formulaCost: c.alchemical?.formulaCost, keySkill: c.ritual?.keySkill, castTime: c.ritual?.castTime, duration: c.ritual?.duration, componentCost: c.ritual?.componentCost, ritualCategory: c.ritual?.category } as never} />
+    <Dnd4eItemViewer item={{ name: c.name, category: c.category, level: c.level, rarity: c.rarity ?? '', price: levels[0]?.price ?? '', flavor: c.flavor, slot: c.slot ?? '', itemType: c.itemType ?? c.subtype ?? '', enhancement: enhancement(c), critical: c.critical?.text ?? '', properties: c.properties.map(p => p.text), propertyScaling: c.propertyLevelSteps, powers: [], groups: c.weapon?.groups ?? [], source, description: '', descriptionParts, levels, damage: c.weapon?.damage, proficiency: c.weapon ? `+${c.weapon.proficiency}` : undefined, range: c.weapon?.range, weight: c.weight ?? c.weapon?.weight, weaponCategory: c.weapon?.category, special: c.special?.text, requirement: c.requirement?.text, itemSet: c.itemSet, alchemicalType: c.alchemical?.type, formulaCost: c.alchemical?.formulaCost, keySkill: c.ritual?.keySkill, castTime: c.ritual?.castTime, duration: c.ritual?.duration, componentCost: c.ritual?.componentCost, ritualCategory: c.ritual?.category } as never} />
     {c.armor && <p><b>Armor:</b> {c.armor.category}; AC +{c.armor.acBonus}; check {c.armor.check ?? 0}; speed {c.armor.speed ?? 0}{c.armor.minEnhancement ? `; minimum enhancement +${c.armor.minEnhancement}` : ''}</p>}
     {c.weapon?.properties.length ? <p><b>Weapon properties:</b> {c.weapon.properties.join(', ')}</p> : null}
     {c.tier && <p><b>Tier:</b> {c.tier}</p>}

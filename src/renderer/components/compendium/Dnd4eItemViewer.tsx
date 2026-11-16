@@ -16,6 +16,7 @@ interface ParsedItem {
   flavor: string
   slot: string
   itemType: string
+  /** What the enhancement bonus applies to ("attack rolls and damage rolls"); the bonus is per version, in `levels`. */
   enhancement: string
   critical: string
   properties: string[]
@@ -87,7 +88,8 @@ export function Dnd4eItemViewer({ item, tooltip: tip, onSelectItem }: { item: Pa
   const levelLabel = hasLevels
     ? `Level ${selectedLevel}${item.rarity ? ' ' + item.rarity : ''}`
     : item.level > 0 ? `Level ${item.level}${item.rarity ? ' ' + item.rarity : ''}` : (item.rarity || '')
-  const displayEnhancement = selectedTier?.enhancement ?? item.enhancement
+  // The bonus of the selected version (or the only one), then what it applies to: "+2 attack rolls and damage rolls"
+  const displayEnhancement = [item.levels?.[hasLevels ? selectedLevelIdx : 0]?.enhancement, item.enhancement].filter(Boolean).join(' ')
   const displayPrice = selectedTier?.price ?? item.price
 
   return (
@@ -191,11 +193,7 @@ export function Dnd4eItemViewer({ item, tooltip: tip, onSelectItem }: { item: Pa
       {(displayEnhancement || item.critical) && (
         <div className="sb-section">
           <Annotation anchor={{ kind: 'stat', key: 'item-critical' }} />
-          {displayEnhancement && <div className="sb-row"><span><b className="sb-label">Enhancement</b> {
-            selectedTier?.enhancement
-              ? `${selectedTier.enhancement} ${item.enhancement}`
-              : item.enhancement
-          }</span></div>}
+          {displayEnhancement && <div className="sb-row"><span><b className="sb-label">Enhancement</b> {displayEnhancement}</span></div>}
           {item.critical && <div className="sb-row"><span><b className="sb-label">Critical</b> {item.critical}</span></div>}
         </div>
       )}
