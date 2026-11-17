@@ -168,7 +168,25 @@ const entityTypeToStoreKey: Record<EntityType, string> = {
   ...Object.fromEntries(Object.entries(RECORD_STORAGE).map(([type, s]) => [type, s.storeKey])) as Record<RecordType, string>,
 }
 
-export async function broadcastEntityUpdate(entityType: EntityType): Promise<void> {
+// One entity type's update at a time: saves don't wait for their broadcast, so two listings could overlap
+// and a slow one that started earlier arrive last, hiding newer records. A request while one runs runs
+// once more after it, so the last update sent always comes from a listing started after the last change.
+const broadcasting = new Map<EntityType, { running: Promise<void>; again: boolean }>()
+
+export function broadcastEntityUpdate(entityType: EntityType): Promise<void> {
+  const current = broadcasting.get(entityType)
+  if (current) { current.again = true; return current.running }
+  const state = { running: Promise.resolve(), again: false }
+  state.running = (async () => {
+    try {
+      do { state.again = false; await sendEntityUpdate(entityType) } while (state.again)
+    } finally { broadcasting.delete(entityType) }
+  })()
+  broadcasting.set(entityType, state)
+  return state.running
+}
+
+async function sendEntityUpdate(entityType: EntityType): Promise<void> {
   const campaignId = store.getActiveCampaignId()
   if (!campaignId) return
 

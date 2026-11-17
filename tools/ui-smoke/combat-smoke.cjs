@@ -168,7 +168,10 @@ app.whenReady().then(async () => {
     if (await js(() => { const b = document.querySelector('.rewards-bar[aria-label="Experience"]'); return `${b.getAttribute('aria-valuenow')}/${b.getAttribute('aria-valuemax')}` }) !== `${fightXp}/1750`) throw new Error('The experience bar does not show the encounter XP per PC against the next level')
     // Suggest fills the money parcels as printed; the fixture pack has no permanent level 6 item, so parcel 3 stays open.
     await js(() => [...document.querySelectorAll('.rewards-level button')].find(b => b.textContent.trim() === 'Suggest').click())
-    await until(() => document.querySelectorAll('.treasure-slot .treasure-row').length === 5, 'the suggested money parcels')
+    try { await until(() => document.querySelectorAll('.treasure-slot .treasure-row').length === 5, 'the suggested money parcels') } catch (e) {
+      // Main's records against the page's, to tell a lost save from a stale page.
+      throw new Error(e.message.split('\n')[0] + '; main has ' + JSON.stringify((await treasures()).map(t => t.slot ?? t.money?.text ?? t.item?.compendiumId)) + ', the page ' + JSON.stringify(await js(() => [...document.querySelectorAll('.treasure-slot')].map(s => s.dataset.slot + (s.querySelector('.treasure-row') ? '+' : '')))))
+    }
     if (await meter() !== '1/1,1460/1210') throw new Error('The meter does not count the suggested parcels: ' + await meter())
     await js(() => document.querySelector('.treasure-others .treasure-row input[aria-label="Found"]').click())
     await until(() => document.querySelector('.treasure-others .treasure-row input[aria-label="Found"]').checked, 'the found mark')
