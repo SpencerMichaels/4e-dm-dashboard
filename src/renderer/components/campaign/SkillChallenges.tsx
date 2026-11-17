@@ -1,9 +1,9 @@
-// Skill challenges (RC pp. 157-159): either part of a combat encounter (its section in the encounter editor)
+// Skill challenges (RC pp. 157-159): either part of a combat encounter (its section in the encounter builder)
 // or standing on their own on a location ("a skill challenge to cross the bridge in B6"). A standalone
 // challenge is stored as an encounter holding only the challenge, so it has a level, variants, treasure,
 // XP on the Rewards page and a done flag like any encounter; the location page lists and edits it in place.
-// While one runs, ChallengeCounter counts its successes and failures (on the challenge, so the location
-// page, the encounter editor and the combat strip show the same count).
+// While one runs, ChallengeCounter counts its successes and failures (on the challenge): a standalone one on
+// its location's page (the at-table reference), one in a fight in the combat strip. The builder only builds.
 
 import type { Encounter, Location, SkillChallenge } from '@common/types'
 import { challengeOutcome, challengeSuccesses, challengeXp, CHALLENGE_FAILURES, isSkillChallenge, recordChallengeCheck } from '@common/rules/rewards'
@@ -60,7 +60,6 @@ export function EncounterChallenge({ encounter, frame, save }: { encounter: Enco
               title="A skill challenge during this encounter: complexity x a monster of its level in XP (RC pp. 157-159)">+ Skill challenge</button>}
       </div>
       {c && <ChallengeFields challenge={c} named={!alone} onChange={challenge => save({ challenge })} />}
-      {c && <ChallengeCounter challenge={c} onChange={challenge => save(alone ? { challenge, done: challengeDone(challenge, encounter.done) } : { challenge })} />}
     </div>
   )
 }

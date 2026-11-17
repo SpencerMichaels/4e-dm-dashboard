@@ -11,20 +11,15 @@
 // annotations for published entries). Without an open campaign the page browses published entries and works on
 // the Library.
 
-import { useDeferredValue, useEffect, useMemo, useRef, useState, type ComponentType } from 'react'
-import type { CampaignRecord, RecordArt } from '@common/types'
-import { LIBRARY, RECORD_STORAGE, type RecordType } from '@common/campaign-records'
+import { useEffect, useRef, useState, type ComponentType } from 'react'
+import type { RecordArt } from '@common/types'
+import { LIBRARY, type RecordType } from '@common/campaign-records'
 import { useCampaignStore } from '@renderer/stores/campaign-store'
-import { useLibraryStore } from '@renderer/stores/library-store'
-import { useContentStore } from '@renderer/stores/content-store'
-import { NoContentNotice, useNoContent } from '../content/ContentPack'
 import { useHotkeys } from '@renderer/hooks/use-hotkeys'
 import type { Draft } from '@common/authoring/types'
 import '../authoring/authoring.css'
-import { VirtualizedList } from '../shared/VirtualizedList'
-import { Icon } from '../shared/Icon'
-import { parseLevelFilter } from './use-compendium'
 import { EntryMenu, EntryView, PoppedEntry, useEntryPane, type PaneState } from './EntryPane'
+import { RecordListPanel, useRecordList } from './RecordList'
 import '../creature/statblock.css'
 
 /** A list row; `cells` line up with the kind's columns. */
@@ -68,22 +63,6 @@ export interface RecordKind<T extends { id: string; name: string }> {
   art?: true
 }
 
-const filterValue = (r: RecordRow, f: RecordKind<any>['filters'][number]) => 'facet' in f ? r.facets?.[f.facet] ?? '' : r.cells[f.column] ?? ''
-/**
- * A row's book for the filter: its first source without the stray trailing period some index entries have, and
- * a magazine's issues and annual count as the magazine ("Dragon Magazine 378, Dungeon Magazine 170" → "Dragon Magazine").
- */
-const bookOf = (r: RecordRow) => (r.book ?? '').split(/[,;] /)[0].trim().replace(/\.$/, '').replace(/^((?:Dragon|Dungeon) Magazine)(?: \d+| Annual)$/, '$1')
-/**
- * The source filter: Published or Custom, each narrowed by a second dropdown. Published: a book (bookOf).
- * Custom: shared entries (`library`) or the campaign (`campaign`).
- */
-function inSource(r: RecordRow, source: string, within: string) {
-  if (source === 'published') return !r.custom && (!within || bookOf(r) === within)
-  if (source === 'custom') return !!r.custom && (!within || (within === 'library') === !!r.library)
-  return true
-}
-
 export function RecordCompendium<T extends { id: string; name: string }>({ kind, initialId, draftId }: {
   kind: RecordKind<T>
   /** A campaign entry to select on open (from the command palette). */
@@ -91,17 +70,8 @@ export function RecordCompendium<T extends { id: string; name: string }>({ kind,
   /** A Workshop draft to open (an agent's open_review, the command palette). */
   draftId?: string
 }) {
-  const storeKey = RECORD_STORAGE[kind.type].storeKey
-  const records = useCampaignStore(s => (s as unknown as Record<string, CampaignRecord<T>[]>)[storeKey]) ?? []
-  const libraryRecords = useLibraryStore(s => (s as unknown as Record<string, CampaignRecord<T>[]>)[storeKey]) ?? []
-  const [published, setPublished] = useState<RecordRow[] | null>(null)
-  const [search, setSearch] = useState('')
-  const [levelStr, setLevelStr] = useState('')
-  const [source, setSource] = useState('')
-  /** The second source dropdown: a book (Published), or a home (Custom). */
-  const [within, setWithin] = useState('')
-  const [selects, setSelects] = useState<string[]>(kind.filters.map(() => ''))
-  const [sort, setSort] = useState<{ key: number; asc: boolean }>({ key: kind.levelless ? -2 : -1, asc: true })
+  const list = useRecordList(kind)
+  const { custom } = list
   /** A row's right-click menu (custom entries). */
   const [menu, setMenu] = useState<{ row: RecordRow; x: number; y: number } | null>(null)
   // The page's preview pane, and the entries popped out into windows of their own.
@@ -109,37 +79,8 @@ export function RecordCompendium<T extends { id: string; name: string }>({ kind,
   const [poppedOut, setPoppedOut] = useState<{ key: string; initial: PaneState<T> }[]>([])
   const popCount = useRef(0)
 
-  const contentVersion = useContentStore(s => s.version)
-  const noContent = useNoContent()
-  useEffect(() => { void kind.index().then(setPublished) }, [kind, contentVersion])
-
-  // ── Rows: published, Library, and campaign entries together; filtered (a source filter for custom content) and sorted ──
   const campaignId = useCampaignStore(s => s.campaignId)
   const campaignName = useCampaignStore(s => s.campaign?.name) ?? 'Campaign'
-  const custom = useMemo((): RecordRow[] => [
-    ...records.map(r => ({ ...kind.row(r.content), id: r.id, custom: true })),
-    ...libraryRecords.map(r => ({ ...kind.row(r.content), id: r.id, custom: true, library: true })),
-  ], [records, libraryRecords, kind])
-  const filters = useDeferredValue({ search, levelStr, source, within, selects })
-  const rows = useMemo(() => {
-    const q = filters.search.toLowerCase()
-    const level = parseLevelFilter(filters.levelStr)
-    const all = [...custom, ...(published ?? [])].filter(r =>
-      (!q || r.name.toLowerCase().includes(q)) && (!filters.levelStr || r.level <= 0 || level(r.level))
-      && inSource(r, filters.source, filters.within)
-      && kind.filters.every((f, i) => !filters.selects[i] || filterValue(r, f) === filters.selects[i]))
-    const dir = sort.asc ? 1 : -1
-    const keyed = sort.key >= 0 && all.some(r => r.sortKeys?.[sort.key] !== undefined)
-    const value = (r: RecordRow) => sort.key === -1 ? r.level : sort.key === -2 ? r.name.toLowerCase() : keyed ? r.sortKeys?.[sort.key] ?? null : r.cells[sort.key] ?? ''
-    const compare = (a: RecordRow, b: RecordRow) => {
-      const x = value(a), y = value(b)
-      if (x === null || y === null) return x === y ? 0 : x === null ? 1 : -1
-      return x < y ? -dir : x > y ? dir : 0
-    }
-    return all.sort((a, b) => compare(a, b) || a.name.localeCompare(b.name))
-  }, [custom, published, filters, sort, kind])
-  const options = useMemo(() => kind.filters.map(f => [...new Set([...custom, ...(published ?? [])].map(r => filterValue(r, f)).filter(Boolean))].sort()), [custom, published, kind])
-  const books = useMemo(() => [...new Set((published ?? []).map(bookOf).filter(Boolean))].sort(), [published])
   const newHome = campaignId ?? LIBRARY
 
   /** Pop out: the shown entry moves, as shown (preview or editor), into a window of its own; the preview empties. */
@@ -170,55 +111,14 @@ export function RecordCompendium<T extends { id: string; name: string }>({ kind,
   // e: Edit, and done again (outside a text field). A popped-out window handles its own.
   useHotkeys([{ key: 'e', handler: () => pane.toggleEdit() }])
 
-  const cols = `1fr ${kind.columns.map(c => c.width).join(' ')}${kind.levelless ? '' : ' 34px'}`
-  const header = (label: string, key: number) => <span style={{ cursor: 'pointer', whiteSpace: 'nowrap' }}
-    onClick={() => setSort(s => ({ key, asc: s.key === key ? !s.asc : true }))}>{label}{sort.key === key && <>{' '}<Icon name={sort.asc ? 'chevron-up' : 'chevron-down'} label={sort.asc ? 'ascending' : 'descending'} style={{ verticalAlign: '-0.125em' }} /></>}</span>
-
   return <div className="stat-block-4e compendium-split record-compendium">
-    <div className="compendium-list">
-      <div className="sb-header" style={{ flexShrink: 0 }}>
-        <input className="ghost sb-name" value={search} placeholder="Search..." aria-label={`Search ${kind.plural}`} onChange={e => setSearch(e.target.value)} style={{ color: 'inherit', flex: 1 }} />
-        <span style={{ display: 'flex', alignItems: 'baseline', gap: 4, whiteSpace: 'nowrap' }}>
-          {!kind.levelless && <>Level <input className="ghost" value={levelStr} placeholder="1–30" aria-label="Level filter" onChange={e => setLevelStr(e.target.value.replace(/-/g, '–'))} style={{ width: 40, color: 'inherit', textAlign: 'center' }} /></>}
-          {/* New goes into the open campaign (or the Library without one); sharing it later moves it. */}
-          <button className="btn btn-sm" onClick={() => pane.startNew(newHome)} style={{ color: 'inherit', font: 'inherit' }}
-            title={campaignId ? `Create a new ${kind.singular} in ${campaignName}` : `Create a new ${kind.singular}, shared across every campaign`}>New</button>
-        </span>
-      </div>
-      <div className="sb-subheader" style={{ flexShrink: 0, gap: 8, justifyContent: 'flex-start' }}>
-        {kind.filters.map((f, i) => <select key={f.label} className="ghost" value={selects[i]} aria-label={f.label} style={{ color: 'inherit' }}
-          onChange={e => setSelects(s => s.map((v, j) => j === i ? e.target.value : v))}>
-          <option value="">{f.label}</option>{options[i].map(o => <option key={o} value={o}>{o}</option>)}
-        </select>)}
-        {/* Where entries come from (rows carry no home label; the stat block's title bar does), then, beside it,
-            which book (Published) or which home (Custom, with a campaign open). */}
-        <select className="ghost" value={source} aria-label="Source" onChange={e => { setSource(e.target.value); setWithin('') }} style={{ color: 'inherit' }}>
-          <option value="">source</option><option value="published">Published</option><option value="custom">Custom</option>
-        </select>
-        {source === 'published' && <select className="ghost" value={within} aria-label="Book" onChange={e => setWithin(e.target.value)} style={{ color: 'inherit' }}>
-          <option value="">book</option>{books.map(b => <option key={b} value={b}>{b}</option>)}
-        </select>}
-        {source === 'custom' && campaignId && <select className="ghost" value={within} aria-label="Custom source" onChange={e => setWithin(e.target.value)} style={{ color: 'inherit' }}>
-          <option value="">all custom</option><option value="library">Shared</option><option value="campaign">{campaignName}</option>
-        </select>}
-      </div>
-      <div className="record-columns" style={{ gridTemplateColumns: cols }}>
-        {header('Name', -2)}{kind.columns.map((c, i) => <span key={c.label}>{header(c.label, i)}</span>)}{!kind.levelless && header('Level', -1)}
-      </div>
-      {published === null ? <div className="record-empty">Loading {kind.plural}…</div>
-        : noContent && rows.length === 0 ? <NoContentNotice />
-        : <VirtualizedList items={rows} renderRow={(r: RecordRow) => {
-          const active = r.id === current?.id && !!r.library === !!current?.library
-          return <div className={`record-row${active ? ' active' : ''}`} style={{ gridTemplateColumns: cols }}
-            onClick={() => void pane.select(r)} onDoubleClick={() => void pane.startEdit(r)}
-            onContextMenu={e => { if (r.custom) { e.preventDefault(); setMenu({ row: r, x: e.clientX, y: e.clientY }) } }}>
-            <span className="record-name">{r.name}</span>
-            {r.cells.map((c, i) => <span key={i} className="record-cell">{c}</span>)}
-            {!kind.levelless && <span>{r.level > 0 ? r.level : ''}</span>}
-          </div>
-        }} />}
-      <div className="record-count">{published === null ? ' ' : `${rows.length.toLocaleString()} of ${(published.length + custom.length).toLocaleString()}`}</div>
-    </div>
+    <RecordListPanel list={list}
+      isActive={r => r.id === current?.id && !!r.library === !!current?.library}
+      onSelect={r => void pane.select(r)} onActivate={r => void pane.startEdit(r)}
+      onContextMenu={(r, e) => { if (r.custom) { e.preventDefault(); setMenu({ row: r, x: e.clientX, y: e.clientY }) } }}
+      headerExtra={/* New goes into the open campaign (or the Library without one); sharing it later moves it. */
+        <button className="btn btn-sm" onClick={() => pane.startNew(newHome)} style={{ color: 'inherit', font: 'inherit' }}
+          title={campaignId ? `Create a new ${kind.singular} in ${campaignName}` : `Create a new ${kind.singular}, shared across every campaign`}>New</button>} />
 
     <EntryView pane={pane} onPopout={popOut} emptyText={`Click a ${kind.singular} to preview`} />
 

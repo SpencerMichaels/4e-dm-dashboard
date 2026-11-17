@@ -13,10 +13,14 @@ import type { MonsterTemplate } from '../creature/template-types'
 import { parseSkillModifications, type MonsterTheme, type ThemePower } from '../creature/template-types'
 import { findByRef, useTemplateCatalog } from '../creature/template-catalog'
 import { kitViewCreature } from '../creature/kit-view'
-import { EncounterTraps, trapKey, useTrapRows } from './EncounterTraps'
+import { EncounterTraps, trapKey, useTrapRows, withTrap } from './EncounterTraps'
 import { TreasureSection } from '../treasure/TreasureSection'
 import { EncounterVariants } from './EncounterVariants'
 import { EncounterChallenge } from './SkillChallenges'
+import { ItemPreview, RecordSelector, SelectorTabs, itemRefOf, trapRefOf, type SelectorPick, type SelectorTab } from './EncounterSelectors'
+import { useRecordList } from '../compendium/RecordList'
+import { ITEM_KIND, TRAP_KIND } from '../compendium/record-kinds'
+import { createTreasure } from '../treasure/treasure-data'
 import { challengeXp, isSkillChallenge } from '@common/rules/rewards'
 import { useTrap, useTraps } from '../trap/trap-refs'
 import { EncounterDiseases } from '../disease/disease-refs'
@@ -171,6 +175,15 @@ export function Dnd4eEncounterEditor({ encounter, onSave, creatures, onNavigate 
     ...encounterTraps.map(t => ({ from: t.name, text: contentText(t) })),
   ], [encounter.creatures, rowPreviews, encounterTraps])
   const [selectedTrapKey, setSelectedTrapKey] = useState<string | null>(null)
+  // The selectors under the encounter (Monsters, Traps, Items) and what the Traps or Items tab has picked to preview.
+  const [selectorTab, setSelectorTab] = useState<SelectorTab>('monsters')
+  const trapList = useRecordList(TRAP_KIND)
+  const itemList = useRecordList(ITEM_KIND)
+  const [selectorPick, setSelectorPick] = useState<SelectorPick | null>(null)
+  const pickFromSelector = (p: SelectorPick) => { setSelectorPick(p); setSelectedTrapKey(null); setSelectedRowKey(null) }
+  // Picking anything else (a row, a trap row, a monster) previews that instead.
+  useEffect(() => { if (selectedRowKey || selectedTrapKey || previewId) setSelectorPick(null) }, [selectedRowKey, selectedTrapKey, previewId])
+  const pick = !templateModeKey && selectorTab !== 'monsters' ? selectorPick : null
 
   // Calculate total XP: 1 template = elite (2×), 2 templates = solo (5×), minion = standard / 4
   const totalXP = useMemo(() => {
@@ -544,6 +557,8 @@ export function Dnd4eEncounterEditor({ encounter, onSave, creatures, onNavigate 
           </div>
         )}
 
+        {/* What the encounter holds, in one scrolling body: creatures, traps, its skill challenge, treasure, diseases. */}
+        <div className="encounter-body" style={{ flex: 1, minHeight: 0, overflowX: 'hidden', overflowY: 'auto' }}>
         {/* Creature list — column headers */}
         {encounter.creatures.length > 0 && (
           <div style={{
@@ -565,10 +580,10 @@ export function Dnd4eEncounterEditor({ encounter, onSave, creatures, onNavigate 
         )}
 
         {/* Creature list */}
-        <div className="striped-rows" style={{ borderTop: encounter.creatures.length === 0 ? '1px solid var(--sb-separator)' : 'none', flex: 1, overflowX: 'hidden', overflowY: 'auto', minHeight: 0 }}>
+        <div className="striped-rows encounter-creatures" style={{ borderTop: encounter.creatures.length === 0 ? '1px solid var(--sb-separator)' : 'none' }}>
           {encounter.creatures.length === 0 ? (
             <div className="sb-row" style={{ color: 'var(--muted)', fontStyle: 'italic' }}>
-              Add creatures from the compendium →
+              Add creatures from the Monsters tab below
             </div>
           ) : (
             encounter.creatures.map((ec) => {
@@ -782,8 +797,10 @@ export function Dnd4eEncounterEditor({ encounter, onSave, creatures, onNavigate 
           selectedKey={selectedTrapKey}
           onSelect={key => { setSelectedTrapKey(key); if (key) { setSelectedRowKey(null); setPreviewId(null); setPreviewCreature(null) } }} />
         <EncounterChallenge encounter={encounter} frame={partyLevel} save={save} />
+        <TreasureSection place={{ encounterId: encounter.id }} level={partyLevel} encounterStyle search={false} />
         <EncounterDiseases sources={diseaseSources} />
-        <TreasureSection place={{ encounterId: encounter.id }} level={partyLevel} encounterStyle />
+
+        </div>{/* end encounter body */}
 
         {/* Bottom toolbar: background image picker + start combat */}
         <div style={{
@@ -796,9 +813,6 @@ export function Dnd4eEncounterEditor({ encounter, onSave, creatures, onNavigate 
             onChange={id => save({ backgroundImageId: id || undefined })}
           />
           <span style={{ flex: 1 }} />
-          <label className="encounter-done" title="The party has overcome this encounter: its XP counts as earned on the Rewards page (ending its combat sets this)" style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-            <input type="checkbox" checked={!!encounter.done} onChange={e => save({ done: e.target.checked || undefined })} />Done
-          </label>
           {(encounter.creatures.length > 0 || allTraps.length > 0) && (
             <button onClick={startCombat}
               title="Start combat with this encounter" className="btn btn-primary"
@@ -825,15 +839,25 @@ export function Dnd4eEncounterEditor({ encounter, onSave, creatures, onNavigate 
           />
         )
       })() : (
-        <CompendiumSearchPanel comp={comp} onActivate={addCreature} onSelect={selectPreview}
-          selectedId={previewId} maxCreatureXP={targetXP} tooltip={tooltip} />
+        <>
+          <SelectorTabs tab={selectorTab} onTab={setSelectorTab} />
+          {selectorTab === 'monsters'
+            ? <CompendiumSearchPanel comp={comp} onActivate={addCreature} onSelect={selectPreview}
+                selectedId={previewId} maxCreatureXP={targetXP} tooltip={tooltip} />
+            : selectorTab === 'traps'
+              ? <RecordSelector kind="trap" list={trapList} pick={selectorPick} onPick={pickFromSelector}
+                  onAdd={r => save({ traps: withTrap(encounter.traps ?? [], trapRefOf(r)) })} />
+              : <RecordSelector kind="item" list={itemList} pick={selectorPick} onPick={pickFromSelector}
+                  onAdd={r => void createTreasure(partyLevel ?? 1, { item: itemRefOf(r), encounterId: encounter.id })} />}
+        </>
       )}
       </div>{/* end left column */}
 
       {/* ─── Right column: preview ─── */}
       <div ref={previewRef} className="stat-block-4e" style={{ flex: '1 1 320px', minWidth: 280, overflow: 'auto', minHeight: 0, fontSize: 12 }}>
-        {selectedTrapKey && !templateModeKey ? <TrapPreview row={allTraps.find(t => trapKey(t) === selectedTrapKey)} /> : null}
-        {selectedTrapKey && !templateModeKey ? null : (() => {
+        {pick ? (pick.kind === 'trap' ? <TrapPreview row={{ ...pick.ref, count: 1 }} /> : <ItemPreview item={pick.ref} />)
+          : selectedTrapKey && !templateModeKey ? <TrapPreview row={allTraps.find(t => trapKey(t) === selectedTrapKey)} /> : null}
+        {pick || (selectedTrapKey && !templateModeKey) ? null : (() => {
           // Template mode: live merged preview of the target row + (optional) hovered template
           if (templateModeKey) {
             const targetEc = templateTarget

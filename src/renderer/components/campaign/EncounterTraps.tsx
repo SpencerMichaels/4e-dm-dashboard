@@ -1,10 +1,10 @@
-// Traps and hazards in an encounter: rows (count, rename, visible to players, remove), a search over
-// published and Custom traps to add one, and each row's level, role, and XP for the encounter budget.
+// Traps and hazards in an encounter: rows (count, rename, visible to players, remove) and each row's level,
+// role, and XP for the encounter budget. They're added from the builder's Traps tab (`withTrap`).
 
 import { useMemo } from 'react'
 import type { EncounterTrap, TrapRef } from '@common/types'
 import { Icon } from '../shared/Icon'
-import { customTrap, TrapSearch, trapKey, useTrapSources } from '../trap/trap-refs'
+import { customTrap, trapKey, useTrapSources } from '../trap/trap-refs'
 
 export interface TrapRowInfo { key: string; name: string; level: number; role: string; kind: string; xp: number }
 
@@ -37,19 +37,13 @@ export function EncounterTraps({ traps, onChange, selectedKey, onSelect, locatio
   const fromLocation = (location?.traps ?? []).map(r => ({ ...r, count: 1 }))
   const rows = useTrapRows([...traps, ...fromLocation])
   const update = (key: string, patch: Partial<EncounterTrap>) => onChange(traps.map(t => trapKey(t) === key ? { ...t, ...patch } : t))
-  const add = (ref: TrapRef) => {
-    const key = trapKey(ref)
-    const existing = traps.find(t => trapKey(t) === key)
-    if (existing) update(key, { count: existing.count + 1 })
-    else onChange([...traps, { ...ref, count: 1 }])
-  }
   const small = { fontSize: 'var(--font-size-xs)' }
+  if (!traps.length && !fromLocation.length) return null
 
   return (
     <div className="encounter-traps" style={{ borderTop: '1px solid var(--sb-separator)' }}>
-      <div className="sb-row" style={{ justifyContent: 'space-between', gap: 6 }}>
+      <div className="sb-row" style={{ gap: 6 }}>
         <b className="sb-label">Traps and hazards</b>
-        <TrapSearch onAdd={add} style={{ flex: 1, maxWidth: 220 }} />
       </div>
       {traps.map(et => {
         const key = trapKey(et)
@@ -83,4 +77,10 @@ export function EncounterTraps({ traps, onChange, selectedKey, onSelect, locatio
       })}
     </div>
   )
+}
+
+/** The encounter's trap rows with one more of `ref` (another row, or one more on its row). */
+export function withTrap(traps: EncounterTrap[], ref: TrapRef): EncounterTrap[] {
+  const key = trapKey(ref)
+  return traps.some(t => trapKey(t) === key) ? traps.map(t => trapKey(t) === key ? { ...t, count: t.count + 1 } : t) : [...traps, { ...ref, count: 1 }]
 }

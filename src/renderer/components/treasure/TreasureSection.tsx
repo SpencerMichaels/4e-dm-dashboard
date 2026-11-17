@@ -11,8 +11,12 @@ import { createTreasure, useParty } from './treasure-data'
 
 type Place = { locationId: string } | { encounterId: string } | { questId: string }
 
-/** `level`: the level frame new treasure here is planned for (an encounter's own level); default the party's level now. */
-export function TreasureSection({ place, label, encounterStyle, level: frame }: { place: Place; label?: React.ReactNode; encounterStyle?: boolean; level?: number }) {
+/**
+ * `level`: the level frame new treasure here is planned for (an encounter's own level); default the party's level now.
+ * `search`: an item search here (the encounter builder adds items from its Items tab instead). Rows have no place
+ * picker: the place is this one (moving treasure elsewhere is the Rewards page's).
+ */
+export function TreasureSection({ place, label, encounterStyle, level: frame, search = true }: { place: Place; label?: React.ReactNode; encounterStyle?: boolean; level?: number; search?: boolean }) {
   const treasures = useCampaignStore(s => s.treasures)
   const facts = useItemFacts()
   const party = useParty()
@@ -25,7 +29,7 @@ export function TreasureSection({ place, label, encounterStyle, level: frame }: 
   const toPage = () => setView({ type: 'rewards', level: here[0]?.level ?? level })
   const controls = (
     <span style={{ display: 'flex', alignItems: 'center', gap: 6, flex: 1, justifyContent: 'flex-end' }}>
-      <ItemSearch onAdd={item => add({ item })} level={level} style={{ flex: 1, maxWidth: 220 }} />
+      {search && <ItemSearch onAdd={item => add({ item })} level={level} style={{ flex: 1, maxWidth: 220 }} />}
       <button className="btn btn-sm" onClick={() => add({ money: { text: '', gp: 0 } })} title="Add coins, gems, or art objects">+ Money</button>
       <button className="sb-icon-btn" onClick={toPage} title="Open the Rewards page at this level" aria-label="Open the Rewards page"><Icon name="coins" /></button>
     </span>
@@ -35,7 +39,7 @@ export function TreasureSection({ place, label, encounterStyle, level: frame }: 
       {encounterStyle
         ? <div className="sb-row" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6 }}><b className="sb-label">Treasure</b>{controls}</div>
         : <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>{label}{controls}</div>}
-      {here.map(t => <TreasureRow key={t.id} treasure={t} facts={t.item ? facts(t.item) : undefined} showLevel />)}
+      {here.map(t => <TreasureRow key={t.id} treasure={t} facts={t.item ? facts(t.item) : undefined} showLevel showPlace={false} />)}
     </div>
   )
 }
