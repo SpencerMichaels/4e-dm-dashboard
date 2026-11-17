@@ -1,5 +1,5 @@
 const str = { type: 'string' }, num = { type: 'integer' }, obj = { type: 'object' }
-const kind = { type: 'string', enum: ['monster', 'item', 'trap', 'disease', 'template', 'theme'] }
+const kind = { type: 'string', enum: ['monster', 'item', 'trap', 'disease', 'template', 'theme', 'challenge'] }
 function tool(name: string, description: string, properties: Record<string, unknown>, required: string[] = [], readOnly = true) {
   return { name, description, inputSchema: { type: 'object' as const, properties, required, additionalProperties: false }, annotations: { readOnlyHint: readOnly, destructiveHint: false, openWorldHint: false } }
 }

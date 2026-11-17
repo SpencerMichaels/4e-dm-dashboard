@@ -19,6 +19,7 @@ import { migrateLegacyItems } from './legacy-items'
 import { migrateLegacyCreatures } from './legacy-creatures'
 import { migratePartyLevel } from './legacy-party-level'
 import { migrateLegacyPcDiseases } from './legacy-pc-diseases'
+import { migrateLegacyEncounterChallenges } from './legacy-encounter-challenge'
 import { RECORD_STORAGE, checkRecord, isLibrary, isRecordType } from '@common/campaign-records'
 import { monsterIndexRow } from '@common/compendium-index'
 
@@ -73,11 +74,13 @@ export async function openCampaign(campaignId: string): Promise<Campaign | null>
   // Items and creatures became kit records (2026-11-13); convert any legacy files once.
   // The campaign-wide party level became each PC's own level (2026-11-14).
   // PC diseases became one kind of lasting condition (2026-11-14).
+  // An encounter's inline skill challenge became a challenge record and a row (2026-11-17).
   await withWriteLock(getCampaignMetaPath(campaignId), async () => {
     await migrateLegacyItems(getEntityDir(campaignId, 'item'))
     await migrateLegacyCreatures(getEntityDir(campaignId, 'creature'))
     if (meta.partyLevel != null) await migratePartyLevel(getEntityDir(campaignId, 'player-character'), meta.partyLevel)
     await migrateLegacyPcDiseases(getEntityDir(campaignId, 'player-character'))
+    await migrateLegacyEncounterChallenges(getEntityDir(campaignId, 'encounter'), getEntityDir(campaignId, 'challenge'))
     delete meta.partyLevel
   })
 

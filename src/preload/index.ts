@@ -144,8 +144,8 @@ const api = {
     glossary: () => ipcRenderer.invoke(CMD.COMPENDIUM_GLOSSARY),
     trapIndex: () => ipcRenderer.invoke(CMD.COMPENDIUM_TRAP_INDEX),
     diseaseIndex: () => ipcRenderer.invoke(CMD.COMPENDIUM_DISEASE_INDEX),
-    kitGet: (kind: 'monster' | 'item' | 'trap' | 'disease' | 'template' | 'theme', id: string) => ipcRenderer.invoke(CMD.COMPENDIUM_KIT_GET, kind, id),
-    kitIndex: (kind: 'template' | 'theme') => ipcRenderer.invoke(CMD.COMPENDIUM_KIT_INDEX, kind),
+    kitGet: (kind: 'monster' | 'item' | 'trap' | 'disease' | 'template' | 'theme' | 'challenge', id: string) => ipcRenderer.invoke(CMD.COMPENDIUM_KIT_GET, kind, id),
+    kitIndex: (kind: 'template' | 'theme' | 'challenge') => ipcRenderer.invoke(CMD.COMPENDIUM_KIT_INDEX, kind),
     kitList: (kind: 'template' | 'theme') => ipcRenderer.invoke(CMD.COMPENDIUM_KIT_LIST, kind),
   },
 

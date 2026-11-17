@@ -8,7 +8,7 @@ import { readZip, ZipError, type ZipFile } from './zip'
 export const PACK_FORMAT = 1
 
 /** Entry folders, as in the content repo, and the kit kind each holds. */
-export const PACK_DIRS = { monsters: 'monster', items: 'item', traps: 'trap', diseases: 'disease', templates: 'template', themes: 'theme' } as const
+export const PACK_DIRS = { monsters: 'monster', items: 'item', traps: 'trap', diseases: 'disease', templates: 'template', themes: 'theme', challenges: 'challenge' } as const
 export type PackDir = keyof typeof PACK_DIRS
 export type PackKind = (typeof PACK_DIRS)[PackDir]
 export const dirOf = (kind: PackKind): PackDir => (Object.keys(PACK_DIRS) as PackDir[]).find(d => PACK_DIRS[d] === kind)!

@@ -1,6 +1,6 @@
 import { ROLES, RANKS, monsterXp, type Item, type Monster, type Role, type Rank } from '@kit'
 import * as bench from '../rules/benchmarks'
-import { Checker, monsterShape, itemShape, trapShape, diseaseShape, templateShape, themeShape } from './shape'
+import { Checker, monsterShape, itemShape, trapShape, diseaseShape, templateShape, themeShape, challengeShape } from './shape'
 import { checkSpans } from './spans'
 import { checkItemBands, checkMonsterBands } from './bands'
 import { MAGIC_ITEM_VALUE } from '../rules/items'
@@ -43,6 +43,8 @@ export function scaffold(kind: ContentKind, name: string, level = 1, role: Role 
   if (kind === 'item') return { ...base, category: 'item', rarity: null, levels: MAGIC_ITEM_VALUE[level] ? [{ level, price: MAGIC_ITEM_VALUE[level] }] : [], properties: [], powers: [], flavor: '', description: [] }
   if (kind === 'trap') return { ...base, kind: 'trap', role: 'obstacle', rank: 'standard', xp: monsterXp(level, 'standard'), detect: [], immune: [], resist: [], traits: [], auras: [], powers: [], countermeasures: [], flavor: '', description: '' }
   if (kind === 'disease') return { ...base, endurance: { improveDc: b.dc.hard, maintainDc: b.dc.moderate }, stages: [{ stage: 0, line: { text: 'Cured.', clauses: [] } }], flavor: '' }
+  // A new skill challenge follows the party's level (level null) until the DM fixes one.
+  if (kind === 'challenge') return { ...base, level: null, complexity: 1, setup: '', primarySkills: [], secondarySkills: [], success: '', failure: '', flavor: '' }
   // Templates and themes have no level.
   const { level: _level, ...unleveled } = base
   if (kind === 'template') return { ...unleveled, kind: 'functional', role: 'any', rankChange: 'up', prerequisite: { text: '' }, senses: [], defenses: {}, hpPerLevel: 8, savingThrows: 2, actionPoints: 1, immune: [], resist: [], vulnerable: [], traits: [], auras: [], powers: [], description: '' }
@@ -56,7 +58,7 @@ const MARKDOWN = /^#{1,6} |^\s*[-+] |^\s*\d+\. |\*\*[^*\n]+\*\*|\[[^\]\n]+\]\([^
 /** `recipe` lets the HP band honor a recorded hpMultiplier (a deliberate, explained HP choice). */
 export function validate(kind: ContentKind, content: unknown, recipe?: { hpMultiplier?: number }): Validation {
   const c = new Checker()
-  const shape = ({ monster: monsterShape, item: itemShape, trap: trapShape, disease: diseaseShape, template: templateShape, theme: themeShape } as Record<string, (c: Checker, v: unknown) => void>)[kind]
+  const shape = ({ monster: monsterShape, item: itemShape, trap: trapShape, disease: diseaseShape, template: templateShape, theme: themeShape, challenge: challengeShape } as Record<string, (c: Checker, v: unknown) => void>)[kind]
   if (!shape) return { errors: [{ path: '$', message: 'Unknown content kind' }], flags: [] }
   shape(c, content)
   // Original homebrew has no publication. Keep the batch parser's stricter source requirement.

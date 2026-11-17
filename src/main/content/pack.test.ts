@@ -57,7 +57,7 @@ describe('zip', () => {
 describe('content packs', () => {
   it('builds a pack with a manifest of every file and its sha256', async () => {
     const { zip, manifest, warnings } = buildPack(goodRepo(), 'test-1')
-    expect(warnings).toEqual(['traps/ is missing', 'diseases/ is missing', 'themes/ is missing'])
+    expect(warnings).toEqual(['traps/ is missing', 'diseases/ is missing', 'themes/ is missing', 'challenges/ is missing'])
     expect(manifest).toMatchObject({ format: PACK_FORMAT, content: 'test-1', schema: SCHEMA_VERSION })
     expect(Object.keys(manifest.files).sort()).toEqual(['conditions.json', 'glossary.json', 'items/item9001.json', 'monsters/monster9001.json', 'templates/lantern-keeper.json'])
     const { files } = await readPack(zip)
@@ -91,7 +91,7 @@ describe('the installed pack', () => {
 
   it('is empty before any import: no indexes, entries, glossary, or condition text', () => {
     expect(store.contentVersion()).toBeNull()
-    expect(store.publishedIndexes()).toEqual({ monsters: [], items: [], traps: [], diseases: [], templates: [], themes: [] })
+    expect(store.publishedIndexes()).toEqual({ monsters: [], items: [], traps: [], diseases: [], templates: [], themes: [], challenges: [] })
     expect(store.readEntry('monster', 'monster9001')).toBeNull()
     expect(store.publishedGlossary()).toEqual({})
     expect(store.conditionDescriptions()).toEqual({})

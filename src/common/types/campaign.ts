@@ -58,6 +58,7 @@ export type EntityType =
   | 'disease'
   | 'template'
   | 'theme'
+  | 'challenge'
   // Treasure (per level frame) and per-level plans
   | 'treasure'
   | 'level'

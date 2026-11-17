@@ -43,6 +43,12 @@ export const STAT_ANCHOR_PATHS: Record<string, string[]> = {
   'theme-header': ['name'],
   'theme-text': ['description'],
   'theme-mods': ['originChange', 'skills'],
+  // Skill challenges
+  'challenge-header': ['name', 'level', 'complexity'],
+  'challenge-setup': ['setup', 'flavor', 'primarySkills', 'secondarySkills'],
+  'challenge-success': ['success'],
+  'challenge-failure': ['failure'],
+  'challenge-special': ['special'],
 }
 const STAT_LABELS: Record<string, string> = {
   header: 'Name and role', senses: 'Initiative and senses', saves: 'Saves and action points', hp: 'Hit points', resistances: 'Immunities and resistances',
@@ -51,6 +57,7 @@ const STAT_LABELS: Record<string, string> = {
   'disease-header': 'Name and level', 'disease-text': 'Description', 'disease-check': 'Endurance check', 'disease-attack': 'Attack',
   'template-header': 'Name, role, and prerequisite', 'template-text': 'Description', 'template-stats': 'Template adjustments',
   'theme-header': 'Name', 'theme-text': 'Description', 'theme-mods': 'Origin and skills',
+  'challenge-header': 'Name, level, and complexity', 'challenge-setup': 'Setup and skills', 'challenge-success': 'Success', 'challenge-failure': 'Failure', 'challenge-special': 'Special',
 }
 const GROUPS: Record<string, string> = { trait: 'traits', aura: 'auras', action: 'powers', countermeasure: 'countermeasures', stage: 'stages', property: 'properties' }
 

@@ -3,7 +3,7 @@ import type { Change, Content, ContentKind, Draft } from './types'
 import { POLICY, scaffold } from './core'
 import { applyPatch, NODE_GROUPS } from './patch'
 
-const NAMES: Record<ContentKind, string> = { monster: 'New Creature', item: 'New Item', trap: 'New Trap', disease: 'New Disease', template: 'New Template', theme: 'New Theme' }
+const NAMES: Record<ContentKind, string> = { monster: 'New Creature', item: 'New Item', trap: 'New Trap', disease: 'New Disease', template: 'New Template', theme: 'New Theme', challenge: 'New Skill Challenge' }
 
 /** A working copy that exists only in the editor until its first edit creates it: a blank entry, or a copy of `from`. */
 export function unsavedDraft(kind: ContentKind, from?: Content): Draft {

@@ -303,7 +303,7 @@ function LastingDisease({ carried, chip }: { carried: PcDisease; chip: (classNam
     <>{disease?.name ?? 'Unknown disease'} <span style={{ color: 'var(--muted)' }}>{carried.stage === 'exposed' ? 'exposed' : `stage ${carried.stage}`}</span></>)
 }
 
-const RECORD_LABELS: Record<RecordType, string> = { creature: 'Creatures', item: 'Items', trap: 'Traps', disease: 'Diseases', template: 'Templates', theme: 'Themes' }
+const RECORD_LABELS: Record<RecordType, string> = { creature: 'Creatures', item: 'Items', trap: 'Traps', disease: 'Diseases', template: 'Templates', theme: 'Themes', challenge: 'Skill Challenges' }
 // Every row has this height, so the rows that fit the remaining height can be counted.
 const ROW_HEIGHT = 24
 

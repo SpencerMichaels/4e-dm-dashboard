@@ -3,7 +3,7 @@ import { createContext, useContext, type ReactNode } from 'react'
 /** Stat block rows that can carry annotations (comments, review findings). */
 export type StatAnchor = 'header' | 'senses' | 'speed' | 'saves' | 'hp' | 'defenses' | 'resistances' | 'skills' | 'abilities' | 'alignment' | 'languages' | 'equipment'
   // Other kinds' sections (see STAT_ANCHOR_PATHS in common/authoring/anchors.ts): 'trap-detect', 'disease-check', …
-  | `${'item' | 'trap' | 'disease' | 'template' | 'theme'}-${string}`
+  | `${'item' | 'trap' | 'disease' | 'template' | 'theme' | 'challenge'}-${string}`
   // Hosts that render the description outside the stat block (the Workshop) anchor it here.
   | 'description'
 /** An entry anchor is the stat block's own action entry; the provider maps it back to its source. */

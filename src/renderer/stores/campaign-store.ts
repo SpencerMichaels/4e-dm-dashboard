@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import type { Campaign, CreatureRecord, Encounter, Location, PlayerCharacter, CompendiumAnnotation, MapData, ItemRecord, TrapRecord, DiseaseRecord, TemplateRecord, ThemeRecord, Treasure, LevelPlan, Quest } from '@common/types'
+import type { Campaign, CreatureRecord, Encounter, Location, PlayerCharacter, CompendiumAnnotation, MapData, ItemRecord, TrapRecord, DiseaseRecord, TemplateRecord, ThemeRecord, ChallengeRecord, Treasure, LevelPlan, Quest } from '@common/types'
 
 export interface CampaignState {
   campaignId: string | null
@@ -20,6 +20,7 @@ export interface CampaignState {
   diseases: DiseaseRecord[]
   templates: TemplateRecord[]
   themes: ThemeRecord[]
+  challenges: ChallengeRecord[]
 
   // Actions — populated from IPC broadcasts, not local mutations
   setCampaignState: (state: Partial<CampaignState>) => void
@@ -43,6 +44,7 @@ const initialState = {
   diseases: [] as DiseaseRecord[],
   templates: [] as TemplateRecord[],
   themes: [] as ThemeRecord[],
+  challenges: [] as ChallengeRecord[],
 }
 
 export const useCampaignStore = create<CampaignState>()((set) => ({

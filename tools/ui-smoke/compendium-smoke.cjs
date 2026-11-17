@@ -353,7 +353,25 @@ app.whenReady().then(async () => {
     await until(() => document.querySelector('.compendium-preview')?.innerText.includes('Bog Horror'), 'the agent edit in the preview')
     const confirms = await js(() => window.__confirms)
     if (confirms.length) throw new Error('Unexpected confirmation prompts: ' + JSON.stringify(confirms))
-    console.log('COMPENDIUM_SMOKE_OK: the entry controls in the stat block title bar (same-height icons), an editor popped out into an OS window (same controls, edits reach the entry, its own e key), the Library (new entry with no campaign open, listed in a campaign, Duplicate with its source, delete with a warning), sharing an entry with every campaign and back (references and working copy follow), the open creature as current_entry with agent edits reaching the open editor, the entry, and the preview (with comment markers), published trap preview, clone on first edit (lossless, focus kept), in-place edits with autosave, Custom listing, delete, new trap and disease saved by their first edit, item price sort, use filter and enhancement line, item clone with typed edits, template clone and new theme, creatures (published preview, art carried into a lossless copy, new creature); screenshots out/compendium-trap-edit.png, out/compendium-disease-edit.png')
+    // ── Skill challenges: a compendium page of their own. A new one follows the party's level (no PCs here, so 1);
+    //    a skill's DC is a tier of that level (moderate at 1: DC 12, RC p. 126). ──
+    await js(() => [...document.querySelectorAll('nav button')].find(b => b.textContent.trim().endsWith('Skill Challenges')).click())
+    await until(() => !!document.querySelector('.record-compendium input[aria-label="Search skill challenges"]'), 'the Skill Challenges page')
+    await newEntry()
+    await until(() => !!document.querySelector('.compendium-preview input[aria-label="Skill challenge name"]'), 'the new skill challenge editor')
+    await typeInto('.compendium-preview input[aria-label="Skill challenge name"]', 'Haggle at the market')
+    await js(() => [...document.querySelectorAll('.compendium-preview .sb-add')].find(b => b.textContent.trim() === '+ skill').click())
+    await until(() => !!document.querySelector('.compendium-preview input[aria-label="Skill"]'), 'the new skill')
+    await typeInto('.compendium-preview input[aria-label="Skill"]', 'Diplomacy')
+    let haggle
+    for (let i = 0; i < 40 && !(haggle = (await records('challenge')).find(r => r.content.name === 'Haggle at the market' && r.content.primarySkills[0]?.skill === 'Diplomacy')); i++) await sleep(100)
+    if (!haggle || haggle.content.level !== null || haggle.content.primarySkills[0].dc !== 'moderate') throw new Error('The new skill challenge was not saved: ' + JSON.stringify(haggle))
+    await done()
+    await until(() => document.querySelector('.compendium-preview .challenge-statblock')?.textContent.includes('Diplomacy (DC 12, moderate)'), 'the party-level DC')
+    await sleep(300)
+    await screenshot('out/compendium-challenge.png')
+
+    console.log('COMPENDIUM_SMOKE_OK: the entry controls in the stat block title bar (same-height icons), an editor popped out into an OS window (same controls, edits reach the entry, its own e key), the Library (new entry with no campaign open, listed in a campaign, Duplicate with its source, delete with a warning), sharing an entry with every campaign and back (references and working copy follow), the open creature as current_entry with agent edits reaching the open editor, the entry, and the preview (with comment markers), published trap preview, clone on first edit (lossless, focus kept), in-place edits with autosave, Custom listing, delete, new trap and disease saved by their first edit, item price sort, use filter and enhancement line, item clone with typed edits, template clone and new theme, a new skill challenge (following the party, a skill with its DC at the party level), creatures (published preview, art carried into a lossless copy, new creature); screenshots out/compendium-trap-edit.png, out/compendium-disease-edit.png')
     clearTimeout(timeout); finish(0)
   } catch (e) { console.error(e); clearTimeout(timeout); finish(1) }
 })

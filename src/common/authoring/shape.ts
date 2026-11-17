@@ -935,3 +935,28 @@ export function themeShape(c: Checker, t: unknown): void {
   sources(c, t.sources, '$.sources')
   provenance(c, t.provenance, '$.provenance')
 }
+
+/** A skill challenge (kit v16): level a number or null (follows the party's), complexity 1-5, skills with DC tiers. */
+export function challengeShape(c: Checker, s: unknown): void {
+  if (!c.obj(s, '$')) return
+  c.keys(s, ['id', 'name', 'level', 'complexity', 'setup', 'primarySkills', 'secondarySkills', 'success', 'failure', 'special', 'flavor', 'sources', 'provenance'], '$')
+  c.str(s.id, '$.id', { nonEmpty: true })
+  c.str(s.name, '$.name', { nonEmpty: true })
+  if (s.level !== null) c.int(s.level, '$.level', { min: 1, max: 30 })
+  c.int(s.complexity, '$.complexity', { min: 1, max: 5 })
+  c.str(s.setup, '$.setup')
+  for (const group of ['primarySkills', 'secondarySkills'] as const) list(c, s[group], `$.${group}`, (k, p) => {
+    if (!c.obj(k, p)) return
+    c.keys(k, ['skill', 'dc', 'text', 'maxSuccesses'], p)
+    c.str(k.skill, `${p}.skill`, { nonEmpty: true })
+    c.optional(k, 'dc', p, (v, q) => { if (typeof v === 'number') c.int(v, q, { min: 0 }); else c.oneOf(['easy', 'moderate', 'hard'], v, q) })
+    c.str(k.text, `${p}.text`)
+    c.optional(k, 'maxSuccesses', p, (v, q) => c.int(v, q, { min: 1 }))
+  })
+  c.str(s.success, '$.success')
+  c.str(s.failure, '$.failure')
+  c.optional(s, 'special', '$', (v, p) => c.str(v, p))
+  c.str(s.flavor, '$.flavor')
+  sources(c, s.sources, '$.sources')
+  provenance(c, s.provenance, '$.provenance')
+}

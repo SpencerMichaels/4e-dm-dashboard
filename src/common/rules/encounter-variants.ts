@@ -39,7 +39,7 @@ export function groupVariants(all: Encounter[], partyLevel: number | undefined):
 /**
  * A copy of `e` planned for `level`: a new id, the same group (`e`'s, or `e`'s id when it had none, which
  * `e` then takes too), and each creature row's level adjustment shifted by the difference from `e`'s level
- * (`from`, its frame), as is its skill challenge's level. Treasure is not copied: each variant has its own.
+ * (`from`, its frame), as are its skill challenges' own levels (their progress isn't copied). Treasure is not copied: each variant has its own.
  */
 export function makeVariant(e: Encounter, level: number, from: number, id: string, now: string): { variant: Encounter; original: Encounter } {
   const group = e.variantGroup ?? e.id
@@ -51,8 +51,8 @@ export function makeVariant(e: Encounter, level: number, from: number, id: strin
       const { levelAdjust: _old, ...rest } = structuredClone(c)
       return levelAdjust ? { ...rest, levelAdjust } : rest
     }),
-    // A skill challenge moves by the same difference.
-    ...(e.challenge ? { challenge: { ...e.challenge, level: Math.min(30, Math.max(1, e.challenge.level + delta)) } } : {}),
+    // A skill challenge with its own level here moves by the same difference; one without follows the variant's level.
+    ...(e.challenges ? { challenges: e.challenges.map(({ successes: _s, failures: _f, ...c }) => c.level != null ? { ...c, level: Math.min(30, Math.max(1, c.level + delta)) } : c) } : {}),
   }
   return { variant, original: { ...e, level: e.level ?? from, variantGroup: group } }
 }

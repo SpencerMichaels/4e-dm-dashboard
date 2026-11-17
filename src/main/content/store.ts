@@ -6,15 +6,15 @@ import { app } from 'electron'
 import { existsSync, readdirSync, readFileSync } from 'fs'
 import { mkdir, readFile, rename, rm, writeFile } from 'fs/promises'
 import { dirname, join } from 'path'
-import type { Disease, Item, Monster, MonsterTemplate, MonsterTheme, Trap } from '@kit'
+import type { Disease, Item, Monster, MonsterTemplate, MonsterTheme, SkillChallenge, Trap } from '@kit'
 import {
-  EMPTY_INDEXES, diseaseIndexRow, itemIndexRow, monsterIndexRow, sortIndexes, templateIndexRow, themeIndexRow, trapIndexRow,
+  EMPTY_INDEXES, challengeIndexRow, diseaseIndexRow, itemIndexRow, monsterIndexRow, sortIndexes, templateIndexRow, themeIndexRow, trapIndexRow,
   type PublishedIndexes,
 } from '@common/compendium-index'
 import { ENTRY_ID, PACK_DIRS, PackError, dirOf, readPack, type PackDir, type PackKind, type PackManifest } from './pack'
 
 /** Bump when the index row shapes change, so installed indexes are rebuilt. */
-const INDEX_VERSION = 2
+const INDEX_VERSION = 3
 
 export type GlossaryEntry = { name: string; category: string; definition: string; source: string }
 
@@ -60,7 +60,7 @@ export function readAllEntries<T = unknown>(kind: PackKind): T[] {
 }
 
 function buildIndexes(entriesOf: (dir: PackDir) => Iterable<unknown>): PublishedIndexes {
-  const ix: PublishedIndexes = { monsters: [], items: [], traps: [], diseases: [], templates: [], themes: [] }
+  const ix: PublishedIndexes = { monsters: [], items: [], traps: [], diseases: [], templates: [], themes: [], challenges: [] }
   // A malformed entry is left out of the index rather than failing the whole build.
   const each = <T>(dir: PackDir, row: (e: T) => void) => { for (const e of entriesOf(dir)) { try { row(e as T) } catch { /* skip */ } } }
   each<Monster>('monsters', m => ix.monsters.push(monsterIndexRow(m, m.id, m.sources[0]?.book ?? '')))
@@ -69,6 +69,7 @@ function buildIndexes(entriesOf: (dir: PackDir) => Iterable<unknown>): Published
   each<Disease>('diseases', d => ix.diseases.push(diseaseIndexRow(d)))
   each<MonsterTemplate>('templates', t => ix.templates.push(templateIndexRow(t)))
   each<MonsterTheme>('themes', t => ix.themes.push(themeIndexRow(t)))
+  each<SkillChallenge>('challenges', c => ix.challenges.push(challengeIndexRow(c)))
   return sortIndexes(ix)
 }
 

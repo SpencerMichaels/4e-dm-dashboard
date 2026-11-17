@@ -3,7 +3,9 @@
 // Encounters are planned for a party level (their level frame, `Encounter.level`); one without its own
 // level counts at the party's level now, as the encounter editor budgets it.
 
-import type { Encounter, QuestKind, SkillChallenge } from '../types'
+import type { Encounter, EncounterChallenge, QuestKind } from '../types'
+import type { ChallengeSkill, SkillChallenge } from '@kit'
+import { dcTable } from './benchmarks'
 import { monsterXp } from '@kit'
 
 /** Total XP to reach each level (PHB p. 29, RC p. 85). */
@@ -39,25 +41,39 @@ export const challengeSuccesses = (complexity: number) => 2 * Math.min(5, Math.m
 export const CHALLENGE_FAILURES = 3
 
 /** A skill challenge's XP: as many standard monsters of its level as its complexity (RC pp. 293-294, DMG p. 121). */
-export const challengeXp = (c: Pick<SkillChallenge, 'level' | 'complexity'>) => Math.min(5, Math.max(1, c.complexity)) * monsterXp(Math.min(30, Math.max(1, c.level)), 'standard')
+export const challengeXp = (level: number, complexity: number) => Math.min(5, Math.max(1, complexity)) * monsterXp(Math.min(30, Math.max(1, level)), 'standard')
 
-/** An encounter that is only a skill challenge (no creatures or traps), standing on its own. */
-export const isSkillChallenge = (e: Pick<Encounter, 'challenge' | 'creatures' | 'traps'>) => !!e.challenge && e.creatures.length === 0 && !e.traps?.length
+/**
+ * A challenge's level in an encounter: the row's own, else the challenge's, else (a challenge that follows the
+ * party's level) the encounter's frame.
+ */
+export const challengeLevel = (row: Pick<EncounterChallenge, 'level'>, challenge: Pick<SkillChallenge, 'level'> | null | undefined, frame: number | undefined): number =>
+  row.level ?? challenge?.level ?? frame ?? 1
+
+/** A skill check's DC at a level: a tier of the DC by Level table (RC p. 126), or the printed number. */
+export const challengeDc = (dc: ChallengeSkill['dc'], level: number): number | undefined =>
+  typeof dc === 'number' ? dc : dc ? dcTable[Math.min(30, Math.max(1, level))][dc] : undefined
+
+/** An encounter that is only skill challenges (no creatures or traps), standing on its own. */
+export const isSkillChallenge = (e: Pick<Encounter, 'challenges' | 'creatures' | 'traps'>) => !!e.challenges?.length && e.creatures.length === 0 && !e.traps?.length
+
+/** A challenge's progress: checks that succeeded and failed so far. */
+export type ChallengeProgress = Pick<EncounterChallenge, 'successes' | 'failures'>
 
 /**
  * How a skill challenge ended, from its progress: success at its complexity's successes, failure at three
  * failures (RC p. 158), or undefined while it runs. Either way the party completes it and earns its XP (RC p. 158).
  */
-export function challengeOutcome(c: Pick<SkillChallenge, 'complexity' | 'successes' | 'failures'>): 'success' | 'failure' | undefined {
-  if ((c.successes ?? 0) >= challengeSuccesses(c.complexity)) return 'success'
-  if ((c.failures ?? 0) >= CHALLENGE_FAILURES) return 'failure'
+export function challengeOutcome(complexity: number, p: ChallengeProgress): 'success' | 'failure' | undefined {
+  if ((p.successes ?? 0) >= challengeSuccesses(complexity)) return 'success'
+  if ((p.failures ?? 0) >= CHALLENGE_FAILURES) return 'failure'
   return undefined
 }
 
 /** Counts one check (delta 1) or takes one back (-1); no new checks count once the challenge has ended. */
-export function recordChallengeCheck<C extends SkillChallenge>(c: C, outcome: 'success' | 'failure', delta: 1 | -1): C {
-  if (delta > 0 && challengeOutcome(c)) return c
+export function recordChallengeCheck<P extends ChallengeProgress>(complexity: number, p: P, outcome: 'success' | 'failure', delta: 1 | -1): P {
+  if (delta > 0 && challengeOutcome(complexity, p)) return p
   const key = outcome === 'success' ? 'successes' : 'failures'
-  const n = Math.max(0, (c[key] ?? 0) + delta)
-  return { ...c, [key]: n || undefined }
+  const n = Math.max(0, (p[key] ?? 0) + delta)
+  return { ...p, [key]: n || undefined }
 }

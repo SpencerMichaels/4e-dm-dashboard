@@ -64,6 +64,7 @@ export async function libraryUsage(type: RecordType, id: string): Promise<{ camp
       case 'template': return (v.creatures ?? []).filter((c: any) => (c?.monsterTemplates ?? []).includes(ref)).length
       case 'theme': return (v.creatures ?? []).filter((c: any) => c?.monsterTheme?.name === ref).length
       case 'item': return v.item?.libraryId === id ? 1 : 0
+      case 'challenge': return (v.challenges ?? []).filter((c: any) => c?.libraryId === id).length
       default: return 0
     }
   }

@@ -1,8 +1,8 @@
-// Kit-native campaign record kinds: creatures, items, traps, diseases, templates, themes.
+// Kit-native campaign record kinds: creatures, items, traps, diseases, templates, themes, skill challenges.
 
 import type { CampaignRecord, EntityType } from './types'
 
-export const RECORD_TYPES = ['creature', 'item', 'trap', 'disease', 'template', 'theme'] as const satisfies readonly EntityType[]
+export const RECORD_TYPES = ['creature', 'item', 'trap', 'disease', 'template', 'theme', 'challenge'] as const satisfies readonly EntityType[]
 export type RecordType = (typeof RECORD_TYPES)[number]
 
 /** Campaign directory and renderer store key for each record type. */
@@ -13,6 +13,7 @@ export const RECORD_STORAGE: Record<RecordType, { dir: string; storeKey: string 
   disease: { dir: 'diseases', storeKey: 'diseases' },
   template: { dir: 'templates', storeKey: 'templates' },
   theme: { dir: 'themes', storeKey: 'themes' },
+  challenge: { dir: 'challenges', storeKey: 'challenges' },
 }
 
 export const isRecordType = (t: string): t is RecordType => (RECORD_TYPES as readonly string[]).includes(t)
@@ -55,15 +56,16 @@ export const ENTITY_DIRS: Record<EntityType, string> = {
   disease: RECORD_STORAGE.disease.dir,
   template: RECORD_STORAGE.template.dir,
   theme: RECORD_STORAGE.theme.dir,
+  challenge: RECORD_STORAGE.challenge.dir,
   treasure: 'treasure',
   level: 'levels',
   quest: 'quests',
 }
 
-/** Where a campaign refers to each record type: encounter rows (and their templates and themes), traps, PC diseases, treasure items. */
+/** Where a campaign refers to each record type: encounter rows (and their templates and themes), traps, PC diseases, treasure items, encounter skill challenges. */
 export const REFERENCED_FROM: Record<RecordType, EntityType[]> = {
   creature: ['encounter'], trap: ['encounter', 'location'], disease: ['player-character'],
-  template: ['encounter'], theme: ['encounter'], item: ['treasure'],
+  template: ['encounter'], theme: ['encounter'], item: ['treasure'], challenge: ['encounter'],
 }
 
 /**
@@ -84,6 +86,7 @@ export function rehomeRefs(type: RecordType, value: unknown, id: string, toLibra
     case 'trap': swap(v.traps, 'trapId'); break
     case 'disease': swap((v.conditions ?? []).filter((c: any) => c?.kind === 'disease'), 'diseaseId'); break
     case 'item': swap(v.item ? [v.item] : [], 'itemId'); break
+    case 'challenge': swap(v.challenges, 'challengeId'); break
     case 'template':
       for (const c of v.creatures ?? []) if (c?.monsterTemplates?.includes(oldRef)) { c.monsterTemplates = c.monsterTemplates.map((t: string) => t === oldRef ? newRef : t); changed = true }
       break

@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import type { CreatureRecord, ItemRecord, TrapRecord, DiseaseRecord, TemplateRecord, ThemeRecord } from '@common/types'
+import type { CreatureRecord, ItemRecord, TrapRecord, DiseaseRecord, TemplateRecord, ThemeRecord, ChallengeRecord } from '@common/types'
 
 /**
  * The Library: custom entries shared by every campaign, with or without one open. Keyed like the
@@ -12,10 +12,11 @@ export interface LibraryState {
   diseases: DiseaseRecord[]
   templates: TemplateRecord[]
   themes: ThemeRecord[]
+  challenges: ChallengeRecord[]
   set: (state: Partial<Omit<LibraryState, 'set'>>) => void
 }
 
 export const useLibraryStore = create<LibraryState>(set => ({
-  creatures: [], items: [], traps: [], diseases: [], templates: [], themes: [],
+  creatures: [], items: [], traps: [], diseases: [], templates: [], themes: [], challenges: [],
   set: state => set(state),
 }))

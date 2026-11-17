@@ -1,16 +1,17 @@
 // Kind adapters for RecordCompendium: where each kind's published entries come from, how a row
 // reads, and which statblock shows and edits it.
 
-import type { Disease, Item, Monster, MonsterTemplate, MonsterTheme, Trap } from '@kit'
+import type { Disease, Item, Monster, MonsterTemplate, MonsterTheme, SkillChallenge, Trap } from '@kit'
 import type { CompendiumEntry, DiseaseIndexEntry, ItemIndexEntry, TrapIndexEntry } from '@common/types'
 import { scaffold } from '@common/authoring/core'
 import { decorate } from '@common/authoring/kit-editor-adapter'
 import type { RecordType } from '@common/campaign-records'
-import { itemIndexRow } from '@common/compendium-index'
+import { itemIndexRow, type KitIndexRow } from '@common/compendium-index'
 import { TrapStatblock } from '../trap/TrapStatblock'
 import { DiseaseStatblock } from '../disease/DiseaseStatblock'
 import { TemplateStatblock } from '../template/TemplateStatblock'
 import { ThemeStatblock } from '../theme/ThemeStatblock'
+import { ChallengeStatblock } from '../challenge/ChallengeStatblock'
 import { ItemStatblock } from '../item/ItemStatblock'
 import { MonsterStatblock } from '../creature/MonsterStatblock'
 import { isMinionEntry } from './use-compendium'
@@ -63,6 +64,20 @@ export const THEME_KIND: RecordKind<MonsterTheme> = {
   levelless: true,
 }
 
+
+/** Skill challenges: complexity and level (one that follows the party's level has none of its own: "Party"). */
+export const CHALLENGE_KIND: RecordKind<SkillChallenge> = {
+  type: 'challenge', singular: 'skill challenge', plural: 'skill challenges',
+  columns: [{ label: 'Complexity', width: '80px' }, { label: 'Level', width: '50px' }],
+  filters: [{ label: 'complexity', column: 0 }],
+  index: async () => (await window.api.compendium.kitIndex('challenge') as KitIndexRow[]).map(e => ({ ...e, cells: challengeCells(e.level || null, Number(e.cells[1])) })),
+  row: c => ({ name: c.name, level: c.level ?? 0, cells: challengeCells(c.level, c.complexity) }),
+  get: id => window.api.compendium.kitGet('challenge', id),
+  blank: () => scaffold('challenge', 'New Skill Challenge') as SkillChallenge,
+  Statblock: ({ value, draft }) => <ChallengeStatblock challenge={draft ? decorate<SkillChallenge>(draft) : value} />,
+  levelless: true,
+}
+const challengeCells = (level: number | null, complexity: number) => [String(complexity), level == null ? 'Party' : String(level)]
 /** An item row from its index entry, the same for published and custom items: price sorts by gold pieces
  *  (unpriced last), and consumables filter apart from permanent items. */
 const itemRow = (e: ItemIndexEntry) => ({ name: e.name, level: e.level, cells: [cap(e.category), e.slot, e.rarity, e.price],
@@ -98,5 +113,5 @@ export const MONSTER_KIND: RecordKind<Monster> = {
 
 /** Every kind's page, by record type. */
 export const RECORD_KINDS: Record<RecordType, RecordKind<any>> = {
-  creature: MONSTER_KIND, item: ITEM_KIND, trap: TRAP_KIND, disease: DISEASE_KIND, template: TEMPLATE_KIND, theme: THEME_KIND,
+  creature: MONSTER_KIND, item: ITEM_KIND, trap: TRAP_KIND, disease: DISEASE_KIND, template: TEMPLATE_KIND, theme: THEME_KIND, challenge: CHALLENGE_KIND,
 }

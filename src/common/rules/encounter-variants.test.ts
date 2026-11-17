@@ -21,7 +21,7 @@ describe('encounter variants', () => {
     expect(original.creatures[1].levelAdjust).toBe(-2)
     // An encounter without its own level is copied from its frame (the party's level), which it then keeps.
     expect(makeVariant(enc('loose'), 2, 4, 'loose-2', 'now').original.level).toBe(4)
-    expect(makeVariant(enc('bridge', { level: 3, challenge: { level: 3, complexity: 2 } }), 5, 3, 'bridge-5', 'now').variant.challenge).toEqual({ level: 5, complexity: 2 })
+    expect(makeVariant(enc('bridge', { level: 3, challenges: [{ challengeId: 'c', level: 3, successes: 2 }, { compendiumId: 'p' }] }), 5, 3, 'bridge-5', 'now').variant.challenges).toEqual([{ challengeId: 'c', level: 5 }, { compendiumId: 'p' }])
   })
 
   it('lists a group by level and picks the variant for the party\'s level', () => {

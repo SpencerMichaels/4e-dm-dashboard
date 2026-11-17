@@ -1,7 +1,7 @@
 // Compendium index rows from kit entries: the published content pack's (built when a pack is
 // installed, src/main/content/store.ts) and the campaign's and Library's custom creatures.
 
-import type { Disease, Item, Monster, MonsterTemplate, MonsterTheme, Trap } from '@kit'
+import type { Disease, Item, Monster, MonsterTemplate, MonsterTheme, SkillChallenge, Trap } from '@kit'
 import type { CompendiumEntry, DiseaseIndexEntry, ItemIndexEntry, TrapIndexEntry } from './types/compendium'
 
 const cap = (s: string | null | undefined) => s ? s[0].toUpperCase() + s.slice(1) : ''
@@ -67,6 +67,9 @@ export const templateIndexRow = (t: MonsterTemplate): KitIndexRow =>
   ({ id: t.id, name: t.name, level: 0, cells: [t.role, firstBook(t)], book: firstBook(t) })
 export const themeIndexRow = (t: MonsterTheme): KitIndexRow =>
   ({ id: t.id, name: t.name, level: 0, cells: [firstBook(t)], book: firstBook(t) })
+/** A skill challenge row: level (0 when it follows the party's), complexity. */
+export const challengeIndexRow = (c: SkillChallenge): KitIndexRow =>
+  ({ id: c.id, name: c.name, level: c.level ?? 0, cells: [c.level == null ? 'Party' : String(c.level), String(c.complexity)], book: firstBook(c) })
 
 // Same-named entries (reprints) keep a stable order: by id, numbers compared as numbers (trap40 before trap266).
 const byId = (a: { id: string }, b: { id: string }) => a.id.localeCompare(b.id, 'en', { numeric: true })
@@ -81,9 +84,10 @@ export interface PublishedIndexes {
   diseases: DiseaseIndexEntry[]
   templates: KitIndexRow[]
   themes: KitIndexRow[]
+  challenges: KitIndexRow[]
 }
 
-export const EMPTY_INDEXES: PublishedIndexes = { monsters: [], items: [], traps: [], diseases: [], templates: [], themes: [] }
+export const EMPTY_INDEXES: PublishedIndexes = { monsters: [], items: [], traps: [], diseases: [], templates: [], themes: [], challenges: [] }
 
 export function sortIndexes(ix: PublishedIndexes): PublishedIndexes {
   return {
@@ -93,5 +97,6 @@ export function sortIndexes(ix: PublishedIndexes): PublishedIndexes {
     diseases: ix.diseases.sort(byLevelName),
     templates: ix.templates.sort(byName),
     themes: ix.themes.sort(byName),
+    challenges: ix.challenges.sort(byName),
   }
 }

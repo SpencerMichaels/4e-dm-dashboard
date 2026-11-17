@@ -1,4 +1,4 @@
-import type { Disease, Monster, MonsterTemplate, MonsterTheme, Trap, Item as KitItem } from '@kit'
+import type { Disease, Monster, MonsterTemplate, MonsterTheme, SkillChallenge, Trap, Item as KitItem } from '@kit'
 
 /** Campaign presentation that isn't part of the kit content: artwork and its map token. */
 export interface RecordArt {
@@ -10,7 +10,7 @@ export interface RecordArt {
 }
 
 /**
- * A campaign's own creature, item, trap, disease, template, or theme: kit content in an envelope.
+ * A campaign's own creature, item, trap, disease, template, theme, or skill challenge: kit content in an envelope.
  * Bookkeeping stays outside `content`, so the content validates against the kit schema
  * and goes to agents or packs unchanged. Stored at campaigns/<id>/<kind dir>/<id>.json.
  */
@@ -30,3 +30,4 @@ export type TrapRecord = CampaignRecord<Trap>
 export type DiseaseRecord = CampaignRecord<Disease>
 export type TemplateRecord = CampaignRecord<MonsterTemplate>
 export type ThemeRecord = CampaignRecord<MonsterTheme>
+export type ChallengeRecord = CampaignRecord<SkillChallenge>

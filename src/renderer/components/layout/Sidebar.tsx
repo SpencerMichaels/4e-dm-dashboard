@@ -31,6 +31,7 @@ const navSections: { title: string; campaign?: true; items: NavItem[] }[] = [
       { icon: '👹', label: 'Creatures', view: { type: 'compendium', kind: 'creature' } },
       { icon: '🎒', label: 'Items', view: { type: 'compendium', kind: 'item' } },
       { icon: '🪤', label: 'Traps', view: { type: 'compendium', kind: 'trap' } },
+      { icon: '🧗', label: 'Skill Challenges', view: { type: 'compendium', kind: 'challenge' } },
       { icon: '🦠', label: 'Diseases', view: { type: 'compendium', kind: 'disease' } },
       { icon: '🧬', label: 'Templates', view: { type: 'compendium', kind: 'template' } },
       { icon: '🎭', label: 'Themes', view: { type: 'compendium', kind: 'theme' } },

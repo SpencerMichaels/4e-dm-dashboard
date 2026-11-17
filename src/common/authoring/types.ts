@@ -1,8 +1,8 @@
-import type { Monster, Item, Trap, Disease, MonsterTemplate, MonsterTheme } from '@kit'
+import type { Monster, Item, Trap, Disease, MonsterTemplate, MonsterTheme, SkillChallenge } from '@kit'
 
-export type ContentKind = 'monster' | 'item' | 'trap' | 'disease' | 'template' | 'theme'
-export const CONTENT_KINDS: readonly ContentKind[] = ['monster', 'item', 'trap', 'disease', 'template', 'theme']
-export type Content = Monster | Item | Trap | Disease | MonsterTemplate | MonsterTheme
+export type ContentKind = 'monster' | 'item' | 'trap' | 'disease' | 'template' | 'theme' | 'challenge'
+export const CONTENT_KINDS: readonly ContentKind[] = ['monster', 'item', 'trap', 'disease', 'template', 'theme', 'challenge']
+export type Content = Monster | Item | Trap | Disease | MonsterTemplate | MonsterTheme | SkillChallenge
 export type Actor = 'dm' | 'agent'
 export interface Destination {
   /** A campaign (`id`: its id), or the Library (`id`: "library"): custom entries shared by every campaign. */

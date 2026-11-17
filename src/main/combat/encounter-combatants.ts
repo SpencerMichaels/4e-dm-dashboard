@@ -3,11 +3,12 @@
 // templates, theme, level adjustment, and minion setting applied. Library entries are used live, like
 // published ones: an edit to one shows in every campaign's encounters (combat keeps what it started with).
 
-import type { Monster, MonsterTemplate, MonsterTheme, Trap } from '@kit'
-import type { CampaignRecord, CombatantState, CompendiumAnnotation, CreatureRecord, Encounter, EncounterCreature, EncounterRowPreview, EncounterTrap, Location, TrapRef } from '@common/types'
+import type { Monster, MonsterTemplate, MonsterTheme, SkillChallenge, Trap } from '@kit'
+import type { CampaignRecord, ChallengeRecord, CombatantState, CompendiumAnnotation, CreatureRecord, Encounter, EncounterChallenge, EncounterCreature, EncounterRowPreview, EncounterTrap, Location, PlayerCharacter, TrapRef } from '@common/types'
 import { generateId } from '@common/utils/id'
 import { adjustMonster, templateAllowed } from '@common/rules/adjust-monster'
-import { challengeXp, isSkillChallenge } from '@common/rules/rewards'
+import { challengeLevel, challengeXp, isSkillChallenge } from '@common/rules/rewards'
+import { partyLevel } from '@common/rules/party'
 import { getKitEntry, publishedTemplateList, publishedThemeList } from '../compendium/kit'
 import { getActiveCampaignId, getEntity, listEntities, loadAnnotations } from '../data/campaign-store'
 import { listLibrary } from '../data/library-store'
@@ -22,6 +23,12 @@ export interface EncounterSources {
   annotations: Record<string, CompendiumAnnotation>
   traps: Trap[]
   publishedTrap: (id: string) => Trap | null
+  /** Skill challenges: campaign records, the Library's, and a published one by id. */
+  challenges?: ChallengeRecord[]
+  libraryChallenges?: ChallengeRecord[]
+  publishedChallenge?: (id: string) => SkillChallenge | null
+  /** The party's level now: the level of an encounter without its own (for challenges that follow the party). */
+  partyLevel?: number
   /** Traps noted on the encounter's location; they join its combat hidden. */
   locationTraps?: TrapRef[]
 }
@@ -103,13 +110,23 @@ export function encounterTrapRows(encounter: Encounter, locationTraps: TrapRef[]
 }
 
 
+/** A challenge row's challenge: a campaign record, a Library one, or a published one. */
+export function rowChallenge(row: EncounterChallenge, s: EncounterSources): SkillChallenge | null {
+  if (row.challengeId) return s.challenges?.find(r => r.id === row.challengeId)?.content ?? null
+  if (row.libraryId) return s.libraryChallenges?.find(r => r.id === row.libraryId)?.content ?? null
+  return row.compendiumId ? s.publishedChallenge?.(row.compendiumId) ?? null : null
+}
+
 /** An encounter's XP: each creature row's adjusted monster's and each of its traps' (its own and its location's), times the row's count, and its skill challenge's. */
 export function encounterXp(encounter: Encounter, s: EncounterSources): number {
   let xp = 0
   for (const ec of encounter.creatures) xp += (resolveRow(ec, s)?.monster.xp ?? 0) * ec.count
   // A skill challenge standing on its own is no fight: its location's traps don't join it.
   for (const et of encounterTrapRows(encounter, isSkillChallenge(encounter) ? [] : s.locationTraps ?? [])) xp += (rowTrap(et, s)?.xp ?? 0) * et.count
-  if (encounter.challenge) xp += challengeXp(encounter.challenge)
+  for (const row of encounter.challenges ?? []) {
+    const c = rowChallenge(row, s)
+    if (c) xp += challengeXp(challengeLevel(row, c, encounter.level ?? s.partyLevel), c.complexity)
+  }
   return xp
 }
 function trapCombatants(encounter: Encounter, s: EncounterSources): CombatantState[] {
@@ -129,7 +146,7 @@ function trapCombatants(encounter: Encounter, s: EncounterSources): CombatantSta
 /** The active campaign's creatures, templates, themes, traps, and compendium annotations, the Library's, and the traps on `locationId`. */
 export async function campaignSources(locationId?: string): Promise<EncounterSources> {
   const campaignId = getActiveCampaignId()
-  const [creatures, templates, themes, annotations, traps, libCreatures, libTemplates, libThemes, libTraps] = await Promise.all([
+  const [creatures, templates, themes, annotations, traps, libCreatures, libTemplates, libThemes, libTraps, challenges, libChallenges, pcs] = await Promise.all([
     listEntities<CreatureRecord>('creature'),
     listEntities<CampaignRecord<MonsterTemplate>>('template'),
     listEntities<CampaignRecord<MonsterTheme>>('theme'),
@@ -139,6 +156,9 @@ export async function campaignSources(locationId?: string): Promise<EncounterSou
     listLibrary<MonsterTemplate>('template'),
     listLibrary<MonsterTheme>('theme'),
     listLibrary<Trap>('trap'),
+    listEntities<ChallengeRecord>('challenge'),
+    listLibrary<SkillChallenge>('challenge'),
+    listEntities<PlayerCharacter>('player-character'),
   ])
   const location = locationId ? await getEntity<Location>('location', locationId) : null
   return {
@@ -151,5 +171,8 @@ export async function campaignSources(locationId?: string): Promise<EncounterSou
     traps: traps.map(r => r.content),
     publishedTrap: id => getKitEntry('trap', id) as Trap | null,
     locationTraps: location?.traps ?? [],
+    challenges, libraryChallenges: libChallenges,
+    publishedChallenge: id => getKitEntry('challenge', id) as SkillChallenge | null,
+    partyLevel: partyLevel(pcs),
   }
 }

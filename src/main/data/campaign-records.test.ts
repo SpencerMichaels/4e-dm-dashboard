@@ -45,7 +45,7 @@ describe('kit-native campaign records', () => {
   it('lists records from campaigns made before the record folders existed', async () => {
     rmSync(join(root, 'campaigns', store.getActiveCampaignId()!, 'templates'), { recursive: true })
     expect(await store.listEntities('template')).toEqual([])
-    expect(RECORD_TYPES).toEqual(['creature', 'item', 'trap', 'disease', 'template', 'theme'])
+    expect(RECORD_TYPES).toEqual(['creature', 'item', 'trap', 'disease', 'template', 'theme', 'challenge'])
     expect(() => checkRecord('trap', null)).toThrow('needs an id')
   })
 })

@@ -61,7 +61,7 @@ export function registerCompendiumHandlers(): void {
   // Published monsters reach the renderer as kit content (COMPENDIUM_KIT_GET 'monster').
 
   ipcMain.handle(CMD.COMPENDIUM_KIT_GET, async (_e, kind: KitKind, id: string) => getKitEntry(kind, id))
-  ipcMain.handle(CMD.COMPENDIUM_KIT_INDEX, async (_e, kind: 'template' | 'theme') => getKitIndex(kind))
+  ipcMain.handle(CMD.COMPENDIUM_KIT_INDEX, async (_e, kind: 'template' | 'theme' | 'challenge') => getKitIndex(kind))
   ipcMain.handle(CMD.COMPENDIUM_KIT_LIST, async (_e, kind: 'template' | 'theme') => kind === 'template' ? publishedTemplateList() : publishedThemeList())
 
   // Annotations (campaign-specific)

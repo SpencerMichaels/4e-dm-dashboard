@@ -16,12 +16,13 @@ import { kitViewCreature } from '../creature/kit-view'
 import { EncounterTraps, trapKey, useTrapRows, withTrap } from './EncounterTraps'
 import { TreasureSection } from '../treasure/TreasureSection'
 import { EncounterVariants } from './EncounterVariants'
-import { EncounterChallenge } from './SkillChallenges'
-import { ItemPreview, RecordSelector, SelectorTabs, itemRefOf, trapRefOf, type SelectorPick, type SelectorTab } from './EncounterSelectors'
+import { ChallengePreview, EncounterChallenges, createChallenge, withChallenge } from './SkillChallenges'
+import { challengeKey, useChallengeFacts } from '../challenge/challenge-refs'
+import { ItemPreview, RecordSelector, SelectorTabs, challengeRefOf, itemRefOf, trapRefOf, type SelectorPick, type SelectorTab } from './EncounterSelectors'
 import { useRecordList } from '../compendium/RecordList'
-import { ITEM_KIND, TRAP_KIND } from '../compendium/record-kinds'
+import { CHALLENGE_KIND, ITEM_KIND, TRAP_KIND } from '../compendium/record-kinds'
 import { createTreasure } from '../treasure/treasure-data'
-import { challengeXp, isSkillChallenge } from '@common/rules/rewards'
+import { challengeLevel, challengeXp, isSkillChallenge } from '@common/rules/rewards'
 import { useTrap, useTraps } from '../trap/trap-refs'
 import { EncounterDiseases } from '../disease/disease-refs'
 import { contentText } from '@common/rules/diseases'
@@ -175,14 +176,19 @@ export function Dnd4eEncounterEditor({ encounter, onSave, creatures, onNavigate 
     ...encounterTraps.map(t => ({ from: t.name, text: contentText(t) })),
   ], [encounter.creatures, rowPreviews, encounterTraps])
   const [selectedTrapKey, setSelectedTrapKey] = useState<string | null>(null)
-  // The selectors under the encounter (Monsters, Traps, Items) and what the Traps or Items tab has picked to preview.
+  // The encounter's skill challenge row shown in the right pane.
+  const [selectedChallengeKey, setSelectedChallengeKey] = useState<string | null>(null)
+  const challengeFacts = useChallengeFacts()
+  // The selectors under the encounter (Monsters, Traps, Skill challenges, Items) and what a list tab has picked to preview.
   const [selectorTab, setSelectorTab] = useState<SelectorTab>('monsters')
   const trapList = useRecordList(TRAP_KIND)
   const itemList = useRecordList(ITEM_KIND)
+  const challengeList = useRecordList(CHALLENGE_KIND)
   const [selectorPick, setSelectorPick] = useState<SelectorPick | null>(null)
-  const pickFromSelector = (p: SelectorPick) => { setSelectorPick(p); setSelectedTrapKey(null); setSelectedRowKey(null) }
+  const pickFromSelector = (p: SelectorPick) => { setSelectorPick(p); setSelectedTrapKey(null); setSelectedRowKey(null); setSelectedChallengeKey(null) }
+  const selectChallenge = (key: string | null) => { setSelectedChallengeKey(key); if (key) { setSelectedRowKey(null); setSelectedTrapKey(null); setPreviewId(null); setPreviewCreature(null); setSelectorPick(null) } }
   // Picking anything else (a row, a trap row, a monster) previews that instead.
-  useEffect(() => { if (selectedRowKey || selectedTrapKey || previewId) setSelectorPick(null) }, [selectedRowKey, selectedTrapKey, previewId])
+  useEffect(() => { if (selectedRowKey || selectedTrapKey || previewId) { setSelectorPick(null); setSelectedChallengeKey(null) } }, [selectedRowKey, selectedTrapKey, previewId])
   const pick = !templateModeKey && selectorTab !== 'monsters' ? selectorPick : null
 
   // Calculate total XP: 1 template = elite (2×), 2 templates = solo (5×), minion = standard / 4
@@ -206,10 +212,10 @@ export function Dnd4eEncounterEditor({ encounter, onSave, creatures, onNavigate 
     }
     // Traps count like monsters of their level and rank (their XP is printed).
     for (const et of allTraps) xp += (trapRows.find(r => r.key === trapKey(et))?.xp ?? 0) * et.count
-    // A skill challenge counts as complexity x a standard monster of its level (RC p. 293).
-    if (encounter.challenge) xp += challengeXp(encounter.challenge)
+    // Each skill challenge counts as complexity x a standard monster of its level here (RC p. 293).
+    for (const row of encounter.challenges ?? []) { const f = challengeFacts(row); if (f) xp += challengeXp(challengeLevel(row, f, partyLevel), f.complexity) }
     return xp
-  }, [encounter.creatures, encounter.challenge, allTraps, resolveInfo, trapRows])
+  }, [encounter.creatures, encounter.challenges, challengeFacts, partyLevel, allTraps, resolveInfo, trapRows])
 
   // Actual encounter level from creatures currently added
   const actualEL = partyReady && totalXP > 0 ? encounterLevel(totalXP, partySize!) : undefined
@@ -796,7 +802,7 @@ export function Dnd4eEncounterEditor({ encounter, onSave, creatures, onNavigate 
           location={location && locationTraps.length ? { name: location.name, traps: locationTraps } : undefined}
           selectedKey={selectedTrapKey}
           onSelect={key => { setSelectedTrapKey(key); if (key) { setSelectedRowKey(null); setPreviewId(null); setPreviewCreature(null) } }} />
-        <EncounterChallenge encounter={encounter} frame={partyLevel} save={save} />
+        <EncounterChallenges encounter={encounter} frame={partyLevel} save={save} selectedKey={selectedChallengeKey} onSelect={selectChallenge} />
         <TreasureSection place={{ encounterId: encounter.id }} level={partyLevel} encounterStyle search={false} />
         <EncounterDiseases sources={diseaseSources} />
 
@@ -844,6 +850,11 @@ export function Dnd4eEncounterEditor({ encounter, onSave, creatures, onNavigate 
           {selectorTab === 'monsters'
             ? <CompendiumSearchPanel comp={comp} onActivate={addCreature} onSelect={selectPreview}
                 selectedId={previewId} maxCreatureXP={targetXP} tooltip={tooltip} />
+            : selectorTab === 'challenges'
+              ? <RecordSelector kind="challenge" list={challengeList} pick={selectorPick} onPick={pickFromSelector}
+                  onAdd={r => save({ challenges: withChallenge(encounter.challenges ?? [], challengeRefOf(r)) })}
+                  headerExtra={<button className="btn btn-sm" title="A new skill challenge in this campaign, added to the encounter (it follows the party's level; edit it on the Skill Challenges page)"
+                    onClick={async () => { const c = await createChallenge(); save({ challenges: withChallenge(encounter.challenges ?? [], { challengeId: c.challengeId }) }); selectChallenge(challengeKey({ challengeId: c.challengeId })) }}>New</button>} />
             : selectorTab === 'traps'
               ? <RecordSelector kind="trap" list={trapList} pick={selectorPick} onPick={pickFromSelector}
                   onAdd={r => save({ traps: withTrap(encounter.traps ?? [], trapRefOf(r)) })} />
@@ -855,9 +866,10 @@ export function Dnd4eEncounterEditor({ encounter, onSave, creatures, onNavigate 
 
       {/* ─── Right column: preview ─── */}
       <div ref={previewRef} className="stat-block-4e" style={{ flex: '1 1 320px', minWidth: 280, overflow: 'auto', minHeight: 0, fontSize: 12 }}>
-        {pick ? (pick.kind === 'trap' ? <TrapPreview row={{ ...pick.ref, count: 1 }} /> : <ItemPreview item={pick.ref} />)
+        {pick ? (pick.kind === 'trap' ? <TrapPreview row={{ ...pick.ref, count: 1 }} /> : pick.kind === 'challenge' ? <ChallengePreview challenge={pick.ref} /> : <ItemPreview item={pick.ref} />)
+          : selectedChallengeKey && !templateModeKey ? (() => { const row = (encounter.challenges ?? []).find(r => challengeKey(r) === selectedChallengeKey); return row ? <ChallengePreview challenge={row} level={challengeLevel(row, challengeFacts(row), partyLevel)} /> : null })()
           : selectedTrapKey && !templateModeKey ? <TrapPreview row={allTraps.find(t => trapKey(t) === selectedTrapKey)} /> : null}
-        {pick || (selectedTrapKey && !templateModeKey) ? null : (() => {
+        {pick || ((selectedTrapKey || selectedChallengeKey) && !templateModeKey) ? null : (() => {
           // Template mode: live merged preview of the target row + (optional) hovered template
           if (templateModeKey) {
             const targetEc = templateTarget

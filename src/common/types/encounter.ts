@@ -27,22 +27,21 @@ export interface EncounterTrap extends TrapRef {
   visible?: boolean
 }
 
+
 /**
- * A skill challenge (RC pp. 157-159): a series of skill checks to reach a goal, ended by its complexity's
- * successes or three failures. It stands on its own as a noncombat encounter (an encounter holding only
- * the challenge) or is part of a combat encounter (RC p. 157).
+ * A skill challenge in an encounter (RC p. 157: on its own as a noncombat encounter, or part of a combat one),
+ * by reference like a trap: a campaign challenge record, a Library one, or a published one.
  */
-export interface SkillChallenge {
-  /** Its goal, e.g. "Cross the rope bridge". The encounter's name when it stands alone. */
-  name?: string
-  level: number
-  /** 1-5: 4, 6, 8, 10 or 12 successes before 3 failures (RC p. 159). */
-  complexity: number
+export interface EncounterChallenge {
+  challengeId?: string
+  /** A Library entry (shared by every campaign), used live like a published one. */
+  libraryId?: string
+  compendiumId?: string
+  /** Its level here: default the challenge's own, or for one that follows the party's, the encounter's. */
+  level?: number
   /** Progress while it runs: checks that succeeded and failed so far. */
   successes?: number
   failures?: number
-  /** Primary skills, DCs, consequences: the DM's notes. */
-  notes?: string
 }
 
 export interface Encounter {
@@ -51,8 +50,8 @@ export interface Encounter {
   description?: string
   creatures: EncounterCreature[]
   traps?: EncounterTrap[]
-  /** A skill challenge in this encounter; with no creatures or traps, the encounter is the challenge. */
-  challenge?: SkillChallenge
+  /** Its skill challenges; with no creatures or traps, the encounter is a skill challenge on its own. */
+  challenges?: EncounterChallenge[]
   locationId?: string
   /** The party level this encounter is planned for (its level frame); without one, the party's current level. */
   level?: number

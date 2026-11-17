@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import { tmpdir } from 'os'
 vi.mock('electron', () => ({ app: { getPath: () => tmpdir(), getAppPath: () => tmpdir() } }))
-import type { Monster, Trap } from '@kit'
+import type { Monster, SkillChallenge, Trap } from '@kit'
 import type { CreatureRecord, Encounter } from '@common/types'
 import { legacyCreatureToRecord } from '../data/legacy-creatures'
 import { scaffold } from '@common/authoring/core'
@@ -98,9 +98,15 @@ describe('encounter XP', () => {
     expect(encounterXp(encounter, sources)).toBe(expected)
     expect(encounterXp(encounter, { ...sources, locationTraps: [{ compendiumId: 'trap40' }, { trapId: 'pit' }] }))
       .toBe(expected + sources.publishedTrap('trap40')!.xp)
-    // A skill challenge in the encounter adds complexity x a standard monster of its level (RC p. 293).
-    expect(encounterXp({ ...encounter, challenge: { level: 7, complexity: 3 } }, sources)).toBe(expected + 900)
+    // Skill challenges add complexity x a standard monster of their level each (RC p. 293): a campaign one at its
+    // own level 7 (900), and a published one that follows the party, at the encounter's level 2 (2 x 125).
+    const bridge = scaffold('challenge', 'Cross the Bridge') as SkillChallenge
+    const ritual = { ...(scaffold('challenge', 'Stop the Ritual') as SkillChallenge), id: 'ritual', complexity: 2 }
+    const withChallenges = { ...sources, challenges: [{ id: 'bridge', createdAt: '', updatedAt: '', content: { ...bridge, id: 'bridge', level: 7, complexity: 3 } }], publishedChallenge: (id: string) => id === 'ritual' ? ritual : null, partyLevel: 2 }
+    expect(encounterXp({ ...encounter, challenges: [{ challengeId: 'bridge' }, { compendiumId: 'ritual' }] }, withChallenges)).toBe(expected + 900 + 250)
+    // A row's own level wins; a missing challenge adds nothing.
+    expect(encounterXp({ ...encounter, level: 5, challenges: [{ compendiumId: 'ritual', level: 9 }, { challengeId: 'gone' }] }, withChallenges)).toBe(expected + 800)
     // Standing alone, a challenge doesn't take its location's traps.
-    expect(encounterXp({ ...encounter, creatures: [], traps: [], challenge: { level: 7, complexity: 3 } }, { ...sources, locationTraps: [{ compendiumId: 'trap40' }] })).toBe(900)
+    expect(encounterXp({ ...encounter, creatures: [], traps: [], challenges: [{ challengeId: 'bridge' }] }, { ...withChallenges, locationTraps: [{ compendiumId: 'trap40' }] })).toBe(900)
   })
 })

@@ -1,15 +1,16 @@
-// Workshop editing for kit-native kinds (traps, diseases, templates, themes) with the same
+// Workshop editing for kit-native kinds (traps, diseases, templates, themes, skill challenges) with the same
 // statblock component the compendium uses, and items with the item editor. Edits go into the
 // draft as you make them, as field-level patches, like the creature editor (see live-edits).
 
 import { type ReactNode } from 'react'
-import type { Disease, MonsterTemplate, MonsterTheme, Trap } from '@kit'
+import type { Disease, MonsterTemplate, MonsterTheme, SkillChallenge, Trap } from '@kit'
 import type { Change, Content, Draft } from '@common/authoring/types'
 import { decorate, kitEditorChanges } from '@common/authoring/kit-editor-adapter'
 import { TrapStatblock } from '../trap/TrapStatblock'
 import { DiseaseStatblock } from '../disease/DiseaseStatblock'
 import { TemplateStatblock } from '../template/TemplateStatblock'
 import { ThemeStatblock } from '../theme/ThemeStatblock'
+import { ChallengeStatblock } from '../challenge/ChallengeStatblock'
 import { Dnd4eItemEditor } from '../campaign/Dnd4eItemEditor'
 import { draftToItemEditor, itemEditorChanges } from '@common/authoring/item-editor-adapter'
 import { useLiveEdits, type EditStatus } from './live-edits'
@@ -21,10 +22,11 @@ export function KitStatblock({ kind, content, onChange }: { kind: Draft['kind'];
   if (kind === 'disease') return <DiseaseStatblock disease={content as Disease} onChange={change} />
   if (kind === 'template') return <TemplateStatblock template={content as MonsterTemplate} onChange={change} />
   if (kind === 'theme') return <ThemeStatblock theme={content as MonsterTheme} onChange={change} />
+  if (kind === 'challenge') return <ChallengeStatblock challenge={content as SkillChallenge} onChange={change} />
   return null
 }
 
-export const isKitNative = (kind: Draft['kind']) => kind === 'trap' || kind === 'disease' || kind === 'template' || kind === 'theme'
+export const isKitNative = (kind: Draft['kind']) => kind === 'trap' || kind === 'disease' || kind === 'template' || kind === 'theme' || kind === 'challenge'
 
 interface Props {
   draft: Draft
