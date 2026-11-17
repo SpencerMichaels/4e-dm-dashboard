@@ -35,6 +35,7 @@ export async function deleteFile(filePath: string): Promise<void> {
 export async function listJsonFiles(dirPath: string): Promise<string[]> {
   try {
     const files = await readdir(dirPath)
+    // Files starting with "_" are the app's own (`_legacy-*.json` backups); entity ids never start with it (`generateId`).
     return files.filter(f => f.endsWith('.json') && !f.startsWith('_'))
   } catch {
     return []
