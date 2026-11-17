@@ -180,10 +180,14 @@ app.whenReady().then(async () => {
     // RC rolls: ten rolled treasures become the slots; the DMG-slotted treasure stays at the level, outside them.
     await setInput('.rewards-level select[aria-label="Budget"]', 'rc')
     await until(() => [...document.querySelectorAll('.rewards-level button')].some(b => b.textContent.trim() === 'Roll'), 'the Roll button')
+    // A party of one rolls at -8 (RC p. 299), so a level can come up empty (about 1 in 14): every die rolls its highest here,
+    // a natural 20 on each line: 5d6 x 10 gp, three 100 gp gems, two 250 gp art objects, and a rare item of level 1d4 + 4 = 8.
+    await js(() => { window.__random = Math.random; Math.random = () => 0.999 })
     await js(() => [...document.querySelectorAll('.rewards-level button')].find(b => b.textContent.trim() === 'Roll').click())
     await until(() => document.querySelectorAll('.treasure-slot[data-slot^="rc:"]').length > 0, 'the rolled slots')
     const plan = await js(() => window.api.entity.get('level', '4'))
-    if (plan?.treasure?.mode !== 'rc' || !plan.treasure.rolled?.length || plan.treasure.rolled.some(s => s.kind === 'item' && (s.itemLevel < 5 || s.itemLevel > 8))) throw new Error('The rolled plan was not saved: ' + JSON.stringify(plan))
+    await js(() => { Math.random = window.__random })
+    if (plan?.treasure?.mode !== 'rc' || plan.treasure.rolled?.length !== 20 || plan.treasure.rolled.some(s => s.kind === 'item' ? s.itemLevel !== 8 || s.rarity !== 'rare' : s.gp !== 5 * 6 * 10 + 3 * 100 + 2 * 250)) throw new Error('The rolled plan was not saved: ' + JSON.stringify(plan))
     if (await js(() => document.querySelectorAll('.treasure-others .treasure-row').length) !== 7) throw new Error('The DMG-slotted treasure is not listed outside the rolled slots')
     await sleep(300)
     await screenshot('out/treasure-rc.png')
