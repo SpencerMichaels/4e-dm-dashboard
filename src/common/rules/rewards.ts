@@ -18,6 +18,9 @@ export const ADVANCEMENT_XP: Record<number, number> = {
 /** XP a character earns from reaching `level` to reaching the next; undefined at 30. */
 export const xpToNextLevel = (level: number): number | undefined => level >= 30 ? undefined : ADVANCEMENT_XP[level + 1] - ADVANCEMENT_XP[level]
 
+/** The party size an encounter is planned for: its own, else the active party's size now. */
+export const encounterPartySize = (e: Pick<Encounter, 'partySize'>, partySize: number): number => e.partySize ?? partySize
+
 /** The level an encounter is planned for: its own, else the party's level now. */
 export const encounterFrame = (e: Pick<Encounter, 'level'>, partyLevel: number | undefined): number | undefined => e.level ?? partyLevel
 

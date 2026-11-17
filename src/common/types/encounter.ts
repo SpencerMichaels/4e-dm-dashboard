@@ -55,6 +55,8 @@ export interface Encounter {
   locationId?: string
   /** The party level this encounter is planned for (its level frame); without one, the party's current level. */
   level?: number
+  /** The number of PCs it's planned for (with `level`, its frame); without one, the active party's size now. */
+  partySize?: number
   /** Level variants of one encounter (the same encounter for several party levels) share this id. */
   variantGroup?: string
   /** The party has overcome it (set when its combat ends; the DM can change it). */

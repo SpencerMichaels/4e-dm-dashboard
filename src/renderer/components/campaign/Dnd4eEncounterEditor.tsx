@@ -131,9 +131,10 @@ export function Dnd4eEncounterEditor({ encounter, onSave, creatures, onNavigate 
 
   // The Library's creatures (shared by every campaign): rows use them by libraryId, live.
   const libraryCreatures = useLibraryStore(s => s.creatures)
-  // Party size is the active PCs'; the level is the encounter's own (set when it was made), else the active PCs' most common level.
+  // The party it's planned for (its frame): its own size and level, set when it was made, else the active party's now.
   const playerCharacters = useCampaignStore(s => s.playerCharacters)
-  const partySize = playerCharacters.filter(isActivePc).length
+  const currentPartySize = playerCharacters.filter(isActivePc).length
+  const partySize = encounter.partySize ?? currentPartySize
   const currentPartyLevel = derivePartyLevel(playerCharacters)
   // The budget's level: the level the encounter is planned for (its level frame), else the party's level now.
   const partyLevel = encounter.level ?? currentPartyLevel
@@ -481,16 +482,26 @@ export function Dnd4eEncounterEditor({ encounter, onSave, creatures, onNavigate 
         {/* Subheader: party info + XP */}
         <div className="sb-subheader" style={{ gap: 8 }}>
           <span style={{ display: 'flex', alignItems: 'baseline', gap: 4 }}>
-            {partySize > 0
-              ? <>Party of <b>{partySize}</b> at level</>
-              : <span style={{ fontStyle: 'italic', opacity: 0.7 }}>No active PCs (mark them on the PCs page); planned for level</span>}
+            {/* The party it's built for ("6 level 8 PCs"): empty fields are the active party's now. */}
+            Party of
+            <input className="ghost header-input encounter-party-size" type="number" min={1} max={12} value={encounter.partySize ?? ''} placeholder={currentPartySize ? String(currentPartySize) : '–'}
+              onChange={e => { const n = Number(e.target.value); save({ partySize: Number.isInteger(n) && n >= 1 && n <= 12 ? n : undefined }) }}
+              aria-label="Planned party size" title="The number of PCs this encounter is planned for: its budget and difficulty use it (empty: the active party's size now)"
+              style={{ width: '3ch', color: 'inherit', fontWeight: 700, textAlign: 'center', fieldSizing: 'fixed' } as React.CSSProperties} />
+            at level
             <input className="ghost header-input encounter-level" type="number" min={1} max={30} value={encounter.level ?? ''} placeholder={currentPartyLevel != null ? String(currentPartyLevel) : '–'}
               onChange={e => { const l = Number(e.target.value); save({ level: Number.isInteger(l) && l >= 1 && l <= 30 ? l : undefined }) }}
               aria-label="Planned for party level" title="The party level this encounter is planned for: its budget and difficulty use it (empty: the party's level now)"
               style={{ width: '3ch', color: 'inherit', fontWeight: 700, textAlign: 'center', fieldSizing: 'fixed' } as React.CSSProperties} />
-            {encounter.level != null && currentPartyLevel != null && encounter.level !== currentPartyLevel && (
-              <span className="encounter-level-note" title="Difficulty is for the level this encounter is planned for">(the party is level {currentPartyLevel})</span>
-            )}
+            {(() => {
+              const sizeOff = encounter.partySize != null && currentPartySize > 0 && encounter.partySize !== currentPartySize
+              const levelOff = encounter.level != null && currentPartyLevel != null && encounter.level !== currentPartyLevel
+              if (!sizeOff && !levelOff) return null
+              const size = `${currentPartySize} ${currentPartySize === 1 ? 'PC' : 'PCs'}`
+              return <span className="encounter-level-note" title="Budget and difficulty are for the party this encounter is planned for">
+                (the party is {sizeOff && levelOff ? `${size} at level ${currentPartyLevel}` : sizeOff ? size : `level ${currentPartyLevel}`})
+              </span>
+            })()}
           </span>
           {totalXP > 0 && (
             <span style={{ whiteSpace: 'nowrap' }}>
@@ -499,7 +510,7 @@ export function Dnd4eEncounterEditor({ encounter, onSave, creatures, onNavigate 
           )}
         </div>
 
-        <EncounterVariants encounter={encounter} frame={partyLevel} partyLevel={currentPartyLevel} formOpen={variantFormOpen}
+        <EncounterVariants encounter={encounter} frame={{ level: partyLevel, size: partySize }} party={{ level: currentPartyLevel, size: currentPartySize }} formOpen={variantFormOpen}
           onCloseForm={() => setVariantFormOpen(false)} onSave={save} />
 
         {/* Difficulty bar */}

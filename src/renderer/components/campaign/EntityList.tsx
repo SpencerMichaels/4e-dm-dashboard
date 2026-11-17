@@ -9,9 +9,9 @@ import type { Encounter, EntityType } from '@common/types'
 import { ConfirmDialog } from '../shared/ConfirmDialog'
 import { Icon } from '../shared/Icon'
 import { PCListView } from './PCListView'
-import { groupVariants } from '@common/rules/encounter-variants'
+import { groupVariants, variantLabel } from '@common/rules/encounter-variants'
 import { encounterFrame, isSkillChallenge } from '@common/rules/rewards'
-import { partyLevel } from '@common/rules/party'
+import { isActivePc, partyLevel } from '@common/rules/party'
 
 interface Props {
   entityType: EntityType
@@ -44,7 +44,8 @@ export function EntityList({ entityType }: Props) {
   const entities = entitiesMap[entityType] ?? []
   // Encounters: one row per group of level variants, showing the variant for the party's level.
   const currentPartyLevel = partyLevel(playerCharacters)
-  const groups = entityType === 'encounter' ? groupVariants(encounters, currentPartyLevel) : null
+  const party = { level: currentPartyLevel, size: playerCharacters.filter(isActivePc).length }
+  const groups = entityType === 'encounter' ? groupVariants(encounters, party) : null
   const rows = groups ? groups.map(g => g.shown) : entities
   const variantsOfRow = (id: string) => groups?.find(g => g.shown.id === id)?.variants ?? []
 
@@ -133,8 +134,8 @@ export function EntityList({ entityType }: Props) {
               {variantsOfRow(e.id).length > 1 && (
                 <span className="encounter-variant-chips" style={{ display: 'inline-flex', gap: 4, paddingRight: 'var(--space-2)' }}>
                   {variantsOfRow(e.id).map(v => {
-                    const l = encounterFrame(v, currentPartyLevel)
-                    return <button key={v.id} className={`btn btn-sm${v.id === e.id ? ' btn-primary' : ''}`} onClick={() => navigateTo(v.id)} title={`Open the level ${l ?? '?'} variant`}>L{l ?? '?'}</button>
+                    const l = variantLabel(v, variantsOfRow(e.id), party)
+                    return <button key={v.id} className={`btn btn-sm${v.id === e.id ? ' btn-primary' : ''}`} onClick={() => navigateTo(v.id)} title={`Open the ${l} variant`}>{l}</button>
                   })}
                 </span>
               )}

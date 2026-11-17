@@ -5,9 +5,8 @@ import { LocationChallenges } from './SkillChallenges'
 import { isSkillChallenge } from '@common/rules/rewards'
 import { useState, useEffect } from 'react'
 import type { Encounter, Location } from '@common/types'
-import { groupVariants } from '@common/rules/encounter-variants'
-import { encounterFrame } from '@common/rules/rewards'
-import { partyLevel } from '@common/rules/party'
+import { groupVariants, variantLabel } from '@common/rules/encounter-variants'
+import { isActivePc, partyLevel } from '@common/rules/party'
 import { Icon } from '../shared/Icon'
 import { useCampaignStore } from '../../stores/campaign-store'
 import { useUiStore } from '../../stores/ui-store'
@@ -55,11 +54,12 @@ export function LocationEditor({ locationId }: Props) {
 
   // Encounters by group of level variants: a group is linked, listed, and unlinked together.
   const currentPartyLevel = partyLevel(playerCharacters)
+  const party = { level: currentPartyLevel, size: playerCharacters.filter(isActivePc).length }
   const linkedEncounters = (location.encounterIds ?? [])
     .map(id => encounters.find(e => e.id === id))
     .filter((e): e is Encounter => !!e && !isSkillChallenge(e))
-  const linkedGroups = groupVariants(linkedEncounters, currentPartyLevel)
-  const unlinkedGroups = groupVariants(encounters.filter(e => !(location.encounterIds ?? []).includes(e.id) && !isSkillChallenge(e)), currentPartyLevel)
+  const linkedGroups = groupVariants(linkedEncounters, party)
+  const unlinkedGroups = groupVariants(encounters.filter(e => !(location.encounterIds ?? []).includes(e.id) && !isSkillChallenge(e)), party)
 
   const addEncounters = async (group: Encounter[]) => {
     save({ ...location, encounterIds: [...(location.encounterIds ?? []), ...group.map(e => e.id)] })
@@ -211,8 +211,8 @@ export function LocationEditor({ locationId }: Props) {
                   {enc.name}
                 </button>
                 {variants.length > 1 && variants.map(v => {
-                  const l = encounterFrame(v, currentPartyLevel)
-                  return <button key={v.id} className={`btn btn-sm${v.id === enc.id ? ' btn-primary' : ''}`} onClick={() => setView({ type: 'encounter', encounterId: v.id })} title={`Open the level ${l ?? '?'} variant`}>L{l ?? '?'}</button>
+                  const l = variantLabel(v, variants, party)
+                  return <button key={v.id} className={`btn btn-sm${v.id === enc.id ? ' btn-primary' : ''}`} onClick={() => setView({ type: 'encounter', encounterId: v.id })} title={`Open the ${l} variant`}>{l}</button>
                 })}
                 <button onClick={() => void removeEncounters(variants)} title={variants.length > 1 ? 'Unlink the encounter and its level variants' : 'Unlink encounter'} aria-label="Unlink encounter"
                   style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--muted)', fontSize: 'var(--font-size-xs)', padding: 2, display: 'inline-flex' }}>

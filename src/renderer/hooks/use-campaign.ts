@@ -4,7 +4,7 @@ import type { Item as KitItem, Monster } from '@kit'
 import { newRecord } from '@common/campaign-records'
 import { scaffold } from '@common/authoring/core'
 import { generateId } from '@common/utils/id'
-import { partyLevel } from '@common/rules/party'
+import { isActivePc, partyLevel } from '@common/rules/party'
 import { useCampaignStore } from '../stores/campaign-store'
 
 // Convenience wrappers around window.api for use in components
@@ -33,6 +33,8 @@ export function useCampaignActions() {
       creatures: [],
       // Planned for the party's level now (its level frame), so its difficulty holds as the party levels up.
       level: level ?? partyLevel(useCampaignStore.getState().playerCharacters),
+      // And for the active party's size now (with the level, its frame).
+      partySize: useCampaignStore.getState().playerCharacters.filter(isActivePc).length || undefined,
       tags: [],
       createdAt: now,
       updatedAt: now,

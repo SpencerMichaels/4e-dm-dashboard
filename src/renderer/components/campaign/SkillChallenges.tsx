@@ -13,6 +13,7 @@ import { challengeLevel, challengeOutcome, challengeSuccesses, challengeXp, CHAL
 import { newRecord } from '@common/campaign-records'
 import { scaffold } from '@common/authoring/core'
 import { generateId } from '@common/utils/id'
+import { isActivePc } from '@common/rules/party'
 import { useCampaignStore } from '../../stores/campaign-store'
 import { useLibraryStore } from '../../stores/library-store'
 import { useUiStore } from '../../stores/ui-store'
@@ -144,6 +145,8 @@ export function LocationChallenges({ location, label, onLocation }: { location: 
     const e: Encounter = { id: generateId(), name, creatures: [], tags: [], challenges: [ref], locationId: location.id, createdAt: now(), updatedAt: now() }
     // Planned for the party's level now, like any new encounter (a challenge that follows the party runs at it).
     if (party.level != null) e.level = party.level
+    const active = useCampaignStore.getState().playerCharacters.filter(isActivePc).length
+    if (active) e.partySize = active
     await window.api.entity.save('encounter', e as unknown as Record<string, unknown>)
     onLocation({ encounterIds: [...(location.encounterIds ?? []), e.id] })
   }

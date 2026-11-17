@@ -10,7 +10,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { Encounter, LevelPlan, Treasure, TreasureMode, TreasureSlot } from '@common/types'
 import { MODE_LABELS, planSlots, rollRcLevel, tallyTreasure, treasureBudget, treasureShare, type ItemFacts, type TreasureTally } from '@common/rules/treasure'
-import { encounterFrame, isSkillChallenge, questXp, xpToNextLevel } from '@common/rules/rewards'
+import { encounterFrame, encounterPartySize, isSkillChallenge, questXp, xpToNextLevel } from '@common/rules/rewards'
 import { useCampaignStore } from '../../stores/campaign-store'
 import { useLibraryStore } from '../../stores/library-store'
 import { useUiStore } from '../../stores/ui-store'
@@ -30,9 +30,9 @@ interface LevelSummary {
   level: number
   plan: LevelPlan
   encounters: Encounter[]
-  /** XP of the level's encounters and quests, all PCs together, and the part already earned (done). */
-  xp: number
-  earnedXp: number
+  /** XP per PC from the level's encounters (each divided among the party it's planned for) and quests, and the part already earned (done). */
+  xpPerPc: number
+  earnedPerPc: number
   slots: TreasureSlot[]
   budget: { items: number; gp: number }
   tally: TreasureTally
@@ -69,6 +69,7 @@ export function RewardsView({ initialLevel }: { initialLevel?: number }) {
 
   const summaries = useMemo(() => {
     const frameOf = (e: Encounter) => encounterFrame(e, party.level)
+    const perPc = (e: Encounter) => (encounterXp[e.id] ?? 0) / encounterPartySize(e, party.size)
     const levels = new Set<number>([...treasures.map(t => t.level), ...plans.map(p => p.level), ...encounters.flatMap(e => frameOf(e) ?? []), ...quests.map(q => q.level), level])
     if (party.level != null) levels.add(party.level)
     return [...levels].sort((a, b) => a - b).map((l): LevelSummary => {
@@ -78,8 +79,8 @@ export function RewardsView({ initialLevel }: { initialLevel?: number }) {
       const fights = encounters.filter(e => frameOf(e) === l)
       return {
         level: l, plan, treasures: here, encounters: fights,
-        xp: fights.reduce((sum, e) => sum + (encounterXp[e.id] ?? 0), 0) + quests.filter(q => q.level === l).reduce((sum, q) => sum + questXp(q.kind, q.level, party.size), 0),
-        earnedXp: fights.filter(e => e.done).reduce((sum, e) => sum + (encounterXp[e.id] ?? 0), 0) + quests.filter(q => q.level === l && q.done).reduce((sum, q) => sum + questXp(q.kind, q.level, party.size), 0),
+        xpPerPc: fights.reduce((sum, e) => sum + perPc(e), 0) + quests.filter(q => q.level === l).reduce((sum, q) => sum + questXp(q.kind, q.level, party.size) / party.size, 0),
+        earnedPerPc: fights.filter(e => e.done).reduce((sum, e) => sum + perPc(e), 0) + quests.filter(q => q.level === l && q.done).reduce((sum, q) => sum + questXp(q.kind, q.level, party.size) / party.size, 0),
         slots: planSlots(mode, l, party.size, plan.treasure?.rolled),
         budget: treasureBudget(mode, l, party.size, plan.treasure?.rolled),
         tally: tallyTreasure(here, t => t.item ? facts(t.item) : undefined, t => !!placeOf(t)),
@@ -109,7 +110,7 @@ export function RewardsView({ initialLevel }: { initialLevel?: number }) {
                 <div key={s.level} role="listitem" className="sb-list-row rewards-level-row" aria-selected={s.level === level} onClick={() => setLevel(s.level)}
                   style={{ gridTemplateColumns: LIST_COLUMNS, cursor: 'pointer', padding: '3px var(--space-2)', background: s.level === level ? 'var(--active)' : undefined, fontWeight: s.level === level ? 600 : undefined }}>
                   <span>Level {s.level}{s.level === party.level ? ' (party)' : ''}</span>
-                  <span>{Math.round(s.xp / party.size).toLocaleString('en-US')}{need != null ? ` / ${need.toLocaleString('en-US')}` : ''}</span>
+                  <span>{Math.round(s.xpPerPc).toLocaleString('en-US')}{need != null ? ` / ${need.toLocaleString('en-US')}` : ''}</span>
                   <span>{items} / {s.budget.items}</span>
                   <span>{gp(money)} / {gp(s.budget.gp)}</span>
                   <span style={{ color: 'var(--muted)' }}>{MODE_LABELS[planMode(s.plan)]}</span>
@@ -180,7 +181,7 @@ function LevelPane({ summary: s, encounterXp, partySize, isPartyLevel, facts, on
         <span>Party of {partySize}{need != null ? `; the next level takes ${need.toLocaleString('en-US')} XP per PC (PHB p. 29)` : ''}</span>
       </div>
 
-      <RewardsMeter xp={need != null ? { perPc: s.xp / partySize, earnedPerPc: s.earnedXp / partySize, need } : undefined} tally={s.tally} budget={s.budget} budgetLabel={mode === 'free' ? 'DMG budget' : 'budget'} />
+      <RewardsMeter xp={need != null ? { perPc: s.xpPerPc, earnedPerPc: s.earnedPerPc, need } : undefined} tally={s.tally} budget={s.budget} budgetLabel={mode === 'free' ? 'DMG budget' : 'budget'} />
 
       <LevelEncounters level={s.level} encounters={s.encounters} encounterXp={encounterXp} partySize={partySize} />
 
@@ -262,7 +263,7 @@ function LevelEncounters({ level, encounters, encounterXp, partySize }: { level:
                 style={{ display: 'flex', gap: 'var(--space-2)' }}>
                 <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis' }}>{e.name || 'Untitled'}{isSkillChallenge(e) ? ' (skill challenge)' : ''}{e.level == null ? ' (party level)' : ''}</span>
                 {location && <span style={{ color: 'var(--muted)' }}>{location.name}</span>}
-                <span style={{ color: 'var(--muted)', whiteSpace: 'nowrap' }}>{xp != null ? `${xp.toLocaleString('en-US')} XP (${Math.round(xp / partySize).toLocaleString('en-US')} each)` : ''}</span>
+                <span style={{ color: 'var(--muted)', whiteSpace: 'nowrap' }}>{xp != null ? `${xp.toLocaleString('en-US')} XP (${Math.round(xp / encounterPartySize(e, partySize)).toLocaleString('en-US')} each for ${encounterPartySize(e, partySize)} ${encounterPartySize(e, partySize) === 1 ? 'PC' : 'PCs'})` : ''}</span>
               </button>
             </div>
           )
