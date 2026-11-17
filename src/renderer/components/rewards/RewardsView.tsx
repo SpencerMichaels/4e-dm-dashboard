@@ -30,8 +30,9 @@ interface LevelSummary {
   level: number
   plan: LevelPlan
   encounters: Encounter[]
-  /** XP of the level's encounters and quests, all PCs together. */
+  /** XP of the level's encounters and quests, all PCs together, and the part already earned (done). */
   xp: number
+  earnedXp: number
   slots: TreasureSlot[]
   budget: { items: number; gp: number }
   tally: TreasureTally
@@ -78,6 +79,7 @@ export function RewardsView({ initialLevel }: { initialLevel?: number }) {
       return {
         level: l, plan, treasures: here, encounters: fights,
         xp: fights.reduce((sum, e) => sum + (encounterXp[e.id] ?? 0), 0) + quests.filter(q => q.level === l).reduce((sum, q) => sum + questXp(q.kind, q.level, party.size), 0),
+        earnedXp: fights.filter(e => e.done).reduce((sum, e) => sum + (encounterXp[e.id] ?? 0), 0) + quests.filter(q => q.level === l && q.done).reduce((sum, q) => sum + questXp(q.kind, q.level, party.size), 0),
         slots: planSlots(mode, l, party.size, plan.treasure?.rolled),
         budget: treasureBudget(mode, l, party.size, plan.treasure?.rolled),
         tally: tallyTreasure(here, t => t.item ? facts(t.item) : undefined, t => !!placeOf(t)),
@@ -178,7 +180,7 @@ function LevelPane({ summary: s, encounterXp, partySize, isPartyLevel, facts, on
         <span>Party of {partySize}{need != null ? `; the next level takes ${need.toLocaleString('en-US')} XP per PC (PHB p. 29)` : ''}</span>
       </div>
 
-      <RewardsMeter xp={need != null ? { perPc: s.xp / partySize, need } : undefined} tally={s.tally} budget={s.budget} budgetLabel={mode === 'free' ? 'DMG budget' : 'budget'} />
+      <RewardsMeter xp={need != null ? { perPc: s.xp / partySize, earnedPerPc: s.earnedXp / partySize, need } : undefined} tally={s.tally} budget={s.budget} budgetLabel={mode === 'free' ? 'DMG budget' : 'budget'} />
 
       <LevelEncounters level={s.level} encounters={s.encounters} encounterXp={encounterXp} partySize={partySize} />
 
@@ -252,7 +254,9 @@ function LevelEncounters({ level, encounters, encounterXp, partySize }: { level:
           const xp = encounterXp[e.id]
           const location = locations.find(l => l.id === e.locationId)
           return (
-            <div key={e.id} role="listitem" className="sb-list-row sb-row-link level-encounter-row" style={{ height: 22 }}>
+            <div key={e.id} role="listitem" className="sb-list-row sb-row-link level-encounter-row" style={{ height: 22, display: 'flex', alignItems: 'center' }}>
+              <input type="checkbox" checked={!!e.done} aria-label="Done" title="The party has overcome this encounter (set when its combat ends)" style={{ margin: '0 0 0 var(--space-2)' }}
+                onChange={ev => void window.api.entity.save('encounter', { ...e, done: ev.target.checked || undefined, updatedAt: new Date().toISOString() } as unknown as Record<string, unknown>)} />
               <button className="sb-row-button" onClick={() => setView({ type: 'encounter', encounterId: e.id })}
                 title={e.level == null ? 'No level of its own: counted at the party\'s level' : undefined}
                 style={{ display: 'flex', gap: 'var(--space-2)' }}>

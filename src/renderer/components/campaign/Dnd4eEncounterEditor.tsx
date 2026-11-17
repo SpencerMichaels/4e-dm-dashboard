@@ -789,6 +789,9 @@ export function Dnd4eEncounterEditor({ encounter, onSave, creatures, onNavigate 
             onChange={id => save({ backgroundImageId: id || undefined })}
           />
           <span style={{ flex: 1 }} />
+          <label className="encounter-done" title="The party has overcome this encounter: its XP counts as earned on the Rewards page (ending its combat sets this)" style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+            <input type="checkbox" checked={!!encounter.done} onChange={e => save({ done: e.target.checked || undefined })} />Done
+          </label>
           {(encounter.creatures.length > 0 || allTraps.length > 0) && (
             <button onClick={startCombat}
               title="Start combat with this encounter" className="btn btn-primary"

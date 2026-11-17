@@ -45,7 +45,7 @@ export function makeVariant(e: Encounter, level: number, from: number, id: strin
   const group = e.variantGroup ?? e.id
   const delta = level - from
   const variant: Encounter = {
-    ...structuredClone(e), id, level, variantGroup: group, createdAt: now, updatedAt: now,
+    ...structuredClone(e), id, level, variantGroup: group, done: undefined, createdAt: now, updatedAt: now,
     creatures: e.creatures.map(c => {
       const levelAdjust = (c.levelAdjust ?? 0) + delta
       const { levelAdjust: _old, ...rest } = structuredClone(c)

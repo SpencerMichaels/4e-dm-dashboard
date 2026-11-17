@@ -15,15 +15,15 @@ const xpText = (n: number) => `${Math.round(n).toLocaleString('en-US')} XP`
 
 export function RewardsMeter({ xp, tally, budget, budgetLabel }: {
   /** XP per PC from the level's encounters and quests, and what reaching the next level takes (none at 30). */
-  xp?: { perPc: number; need: number }
+  xp?: { perPc: number; earnedPerPc: number; need: number }
   tally: TreasureTally
   budget: { items: number; gp: number }
   budgetLabel: string
 }) {
   return (
     <div className="rewards-meter" style={{ padding: '4px var(--space-2)', display: 'grid', gridTemplateColumns: 'max-content 1fr max-content', gap: '4px var(--space-2)', alignItems: 'center', fontSize: 'var(--font-size-xs)' }}>
-      {xp && <Bar label="Experience" segments={[{ value: xp.perPc, opacity: 1, label: 'per PC from this level\'s encounters and quests' }]} target={xp.need} format={xpText}
-        title={`${xpText(xp.perPc)} per PC from this level's encounters and quests; the next level takes ${xpText(xp.need)} (PHB p. 29)`} />}
+      {xp && <Bar label="Experience" segments={[{ value: xp.earnedPerPc, opacity: 1, label: 'earned' }, { value: xp.perPc - xp.earnedPerPc, opacity: 0.3, label: 'planned' }]} target={xp.need} format={xpText}
+        title={`${xpText(xp.perPc)} per PC from this level's encounters and quests (${xpText(xp.earnedPerPc)} earned, from those done); the next level takes ${xpText(xp.need)} (PHB p. 29)`} />}
       <Bar label="Magic items" segments={stages(tally.items, String)} target={budget.items} format={String} budgetLabel={budgetLabel} />
       <Bar label="Monetary" segments={stages(tally.gp, gp)} target={budget.gp} format={gp} budgetLabel={budgetLabel} />
     </div>

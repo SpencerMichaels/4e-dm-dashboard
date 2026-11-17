@@ -38,6 +38,8 @@ export interface Encounter {
   level?: number
   /** Level variants of one encounter (the same encounter for several party levels) share this id. */
   variantGroup?: string
+  /** The party has overcome it (set when its combat ends; the DM can change it). */
+  done?: boolean
   backgroundImageId?: string  // encounter-specific background for player display
   tags: string[]
   createdAt: string

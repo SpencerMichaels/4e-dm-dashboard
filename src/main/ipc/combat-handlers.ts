@@ -6,9 +6,10 @@ import { carriedConditions, diseaseKey, pcDiseases } from '@common/rules/pc-cond
 import { getLibraryRecord } from '../data/library-store'
 import { getKitEntry } from '../compendium/kit'
 import * as engine from '../combat/combat-engine'
-import { getActiveCampaignId, getEntity, listEntities } from '../data/campaign-store'
+import { getActiveCampaignId, getEntity, listEntities, saveEntity } from '../data/campaign-store'
 import { broadcastToAll, broadcastToPlayer, getPlayerWindow, createPlayerWindow } from '../windows'
 import { setCurrentScene } from './system-handlers'
+import { broadcastEntityUpdate } from './campaign-handlers'
 import { campaignSources, encounterCombatants, encounterXp, resolveRow, type RowTheme } from '../combat/encounter-combatants'
 
 function handlePostResolve(): void {
@@ -133,9 +134,17 @@ export function registerCombatHandlers(): void {
     broadcastCombatState()
   })
 
+  // Ending a combat started from an encounter marks that encounter done (its XP earned on the Rewards page);
+  // the DM can clear it in the encounter editor or on the Rewards page.
   ipcMain.handle(CMD.COMBAT_END, async () => {
+    const encounterId = engine.getCombatState()?.encounterId
     engine.endCombat()
     broadcastCombatState()
+    const encounter = encounterId ? await getEntity<Encounter>('encounter', encounterId) : null
+    if (encounter && !encounter.done) {
+      await saveEntity('encounter', { ...encounter, done: true, updatedAt: new Date().toISOString() })
+      await broadcastEntityUpdate('encounter')
+    }
   })
 
   ipcMain.handle(CMD.COMBAT_SET_SURPRISE, async (_e, enabled: boolean, actorIds?: string[]) => {
