@@ -210,7 +210,20 @@ const glossary = {
   'fixture term': { name: 'Fixture Term', category: 'other', definition: 'An invented glossary entry for the UI tests.', source: 'Fixture Guide, page(s) 1' },
 }
 
-for (const [dir, entries] of Object.entries({ monsters, traps, diseases, items, templates, themes })) {
+// An invented published skill challenge: generic (its level follows the party's), DCs as tiers.
+const challenges = [
+  { id: 'ford-the-river', name: 'Ford the River', level: null, complexity: 2,
+    setup: 'The bridge is out and the river runs high. The party must find a way across before nightfall.',
+    primarySkills: [
+      { skill: 'athletics', dc: 'moderate', text: 'You swim a line across or haul others through the current.' },
+      { skill: 'nature', dc: 'moderate', text: 'You read the water for a shallow crossing.' },
+    ],
+    secondarySkills: [{ skill: 'perception', dc: 'easy', text: 'You spot a fallen tree to use as a handhold. A +2 bonus to the next Athletics check.', maxSuccesses: 1 }],
+    success: 'The party crosses before dark.', failure: 'The party crosses, but each member loses a healing surge to the cold.',
+    flavor: 'Brown water churns where the bridge used to be.', sources: [{ book: 'Fixture Guide', page: 60 }], provenance },
+]
+
+for (const [dir, entries] of Object.entries({ monsters, traps, diseases, items, templates, themes, challenges })) {
   mkdirSync(join(out, dir), { recursive: true })
   for (const e of entries) writeFileSync(join(out, dir, `${e.id}.json`), JSON.stringify(e, null, 2) + '\n')
 }

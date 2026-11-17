@@ -10,14 +10,14 @@ import { dirname, join } from 'path'
 import type { Monster } from '@kit'
 import { checkMonsterBands, checkUnknowns, type Flag } from './bands'
 import {
-  Checker, diseaseShape, itemShape, monsterShape, templateShape, themeShape, trapShape, type Issue,
+  Checker, challengeShape, diseaseShape, itemShape, monsterShape, templateShape, themeShape, trapShape, type Issue,
 } from './shape'
 import { checkSpans } from './spans'
 
-export type ContentKind = 'monsters' | 'items' | 'traps' | 'diseases' | 'templates' | 'themes'
+export type ContentKind = 'monsters' | 'items' | 'traps' | 'diseases' | 'templates' | 'themes' | 'challenges'
 
 const SHAPES: Record<ContentKind, (c: Checker, e: unknown) => void> = {
-  monsters: monsterShape, items: itemShape, traps: trapShape, diseases: diseaseShape, templates: templateShape, themes: themeShape,
+  monsters: monsterShape, items: itemShape, traps: trapShape, diseases: diseaseShape, templates: templateShape, themes: themeShape, challenges: challengeShape,
 }
 
 export interface EntryResult {

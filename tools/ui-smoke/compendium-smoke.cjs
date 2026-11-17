@@ -370,8 +370,15 @@ app.whenReady().then(async () => {
     await until(() => document.querySelector('.compendium-preview .challenge-statblock')?.textContent.includes('Diplomacy (DC 12, moderate)'), 'the party-level DC')
     await sleep(300)
     await screenshot('out/compendium-challenge.png')
+    // A published one from the content pack (the fixture's generic "Ford the River"): listed with level "Party",
+    // previewed with its DCs at the party's level.
+    await search('Ford')
+    await until(() => [...document.querySelectorAll('.record-row')].some(r => r.textContent.includes('Ford the River') && r.textContent.includes('Party')), 'the published skill challenge')
+    await js(() => [...document.querySelectorAll('.record-row')].find(r => r.textContent.includes('Ford the River')).click())
+    await until(() => document.querySelector('.compendium-preview .challenge-statblock')?.textContent.includes('Athletics (DC 12, moderate)'), 'the published challenge at the party level')
+    await search('')
 
-    console.log('COMPENDIUM_SMOKE_OK: the entry controls in the stat block title bar (same-height icons), an editor popped out into an OS window (same controls, edits reach the entry, its own e key), the Library (new entry with no campaign open, listed in a campaign, Duplicate with its source, delete with a warning), sharing an entry with every campaign and back (references and working copy follow), the open creature as current_entry with agent edits reaching the open editor, the entry, and the preview (with comment markers), published trap preview, clone on first edit (lossless, focus kept), in-place edits with autosave, Custom listing, delete, new trap and disease saved by their first edit, item price sort, use filter and enhancement line, item clone with typed edits, template clone and new theme, a new skill challenge (following the party, a skill with its DC at the party level), creatures (published preview, art carried into a lossless copy, new creature); screenshots out/compendium-trap-edit.png, out/compendium-disease-edit.png')
+    console.log('COMPENDIUM_SMOKE_OK: the entry controls in the stat block title bar (same-height icons), an editor popped out into an OS window (same controls, edits reach the entry, its own e key), the Library (new entry with no campaign open, listed in a campaign, Duplicate with its source, delete with a warning), sharing an entry with every campaign and back (references and working copy follow), the open creature as current_entry with agent edits reaching the open editor, the entry, and the preview (with comment markers), published trap preview, clone on first edit (lossless, focus kept), in-place edits with autosave, Custom listing, delete, new trap and disease saved by their first edit, item price sort, use filter and enhancement line, item clone with typed edits, template clone and new theme, a new skill challenge (following the party, a skill with its DC at the party level) and a published one, creatures (published preview, art carried into a lossless copy, new creature); screenshots out/compendium-trap-edit.png, out/compendium-disease-edit.png')
     clearTimeout(timeout); finish(0)
   } catch (e) { console.error(e); clearTimeout(timeout); finish(1) }
 })
