@@ -9,6 +9,9 @@ import type { Encounter, EntityType } from '@common/types'
 import { ConfirmDialog } from '../shared/ConfirmDialog'
 import { Icon } from '../shared/Icon'
 import { PCListView } from './PCListView'
+import { groupVariants } from '@common/rules/encounter-variants'
+import { encounterFrame } from '@common/rules/rewards'
+import { partyLevel } from '@common/rules/party'
 
 interface Props {
   entityType: EntityType
@@ -39,6 +42,11 @@ export function EntityList({ entityType }: Props) {
   }
 
   const entities = entitiesMap[entityType] ?? []
+  // Encounters: one row per group of level variants, showing the variant for the party's level.
+  const currentPartyLevel = partyLevel(playerCharacters)
+  const groups = entityType === 'encounter' ? groupVariants(encounters, currentPartyLevel) : null
+  const rows = groups ? groups.map(g => g.shown) : entities
+  const variantsOfRow = (id: string) => groups?.find(g => g.shown.id === id)?.variants ?? []
 
   useHotkeys([
     { key: 'n', handler: () => handleCreate() },
@@ -95,7 +103,7 @@ export function EntityList({ entityType }: Props) {
         <p style={{ color: 'var(--muted)' }}>No {labels[entityType]?.toLowerCase()} yet.</p>
       ) : (
         <div role="list" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
-          {entities.map((e) => (
+          {rows.map((e) => (
             <div
               key={e.id}
               role="listitem"
@@ -118,13 +126,21 @@ export function EntityList({ entityType }: Props) {
                   cursor: 'pointer',
                 }}
               >
-                {e.name || 'Untitled'}
-                {entityType === 'encounter' && (e as Encounter).level != null && <span className="encounter-list-level" style={{ color: 'var(--muted)', marginLeft: 'var(--space-2)', fontSize: 'var(--font-size-sm)' }}>Level {(e as Encounter).level}</span>}
+                <span className="entity-name">{e.name || 'Untitled'}</span>
+                {entityType === 'encounter' && (e as Encounter).level != null && variantsOfRow(e.id).length < 2 && <span className="encounter-list-level" style={{ color: 'var(--muted)', marginLeft: 'var(--space-2)', fontSize: 'var(--font-size-sm)' }}>Level {(e as Encounter).level}</span>}
               </button>
+              {variantsOfRow(e.id).length > 1 && (
+                <span className="encounter-variant-chips" style={{ display: 'inline-flex', gap: 4, paddingRight: 'var(--space-2)' }}>
+                  {variantsOfRow(e.id).map(v => {
+                    const l = encounterFrame(v, currentPartyLevel)
+                    return <button key={v.id} className={`btn btn-sm${v.id === e.id ? ' btn-primary' : ''}`} onClick={() => navigateTo(v.id)} title={`Open the level ${l ?? '?'} variant`}>L{l ?? '?'}</button>
+                  })}
+                </span>
+              )}
               <button
                 onClick={(ev) => {
                   ev.stopPropagation()
-                  setPendingDelete({ id: e.id, name: e.name || 'Untitled' })
+                  setPendingDelete({ id: e.id, name: (e.name || 'Untitled') + (variantsOfRow(e.id).length > 1 ? ` (the level ${encounterFrame(e as Encounter, currentPartyLevel)} variant)` : '') })
                 }}
                 title="Delete"
                 aria-label="Delete"

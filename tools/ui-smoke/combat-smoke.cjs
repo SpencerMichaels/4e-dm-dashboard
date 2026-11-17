@@ -202,6 +202,24 @@ app.whenReady().then(async () => {
     if ((await js(() => window.api.entity.get('encounter', 'smoke-fight'))).level !== 6) throw new Error('The encounter level was not saved')
     await setInput('input[aria-label="Planned for party level"]', '')
     await until(() => !document.querySelector('.encounter-level-note'), 'the encounter back at the party level')
+    // A level variant: a copy two levels up, each creature row's level adjustment shifted by 2, in one group with the original.
+    await js(() => document.querySelector('button[aria-label="New level variant"]').click())
+    await until(() => !!document.querySelector('.encounter-variants input[aria-label="Variant level"]'), 'the variant form')
+    await setInput('.encounter-variants input[aria-label="Variant level"]', '6')
+    await js(() => [...document.querySelectorAll('.encounter-variants button')].find(b => b.textContent.trim() === 'Create').click())
+    await until(() => [...document.querySelectorAll('.encounter-variants button')].map(b => b.textContent.trim()).join() === 'L4 (party),L6', 'the variant tabs')
+    const fights = (await js(() => window.api.entity.list('encounter'))).filter(e => e.variantGroup === 'smoke-fight')
+    const original = fights.find(e => e.id === 'smoke-fight'), variant = fights.find(e => e.id !== 'smoke-fight')
+    if (fights.length !== 2 || original.level !== 4 || variant.level !== 6 || variant.creatures.some((c, i) => (c.levelAdjust ?? 0) !== (original.creatures[i].levelAdjust ?? 0) + 2))
+      throw new Error('The level variant was not made: ' + JSON.stringify(fights.map(e => ({ id: e.id, level: e.level, rows: e.creatures.map(c => c.levelAdjust) }))))
+    if (!(await js(() => window.api.entity.get('location', 'vault'))).encounterIds.includes(variant.id)) throw new Error('The variant is not linked to the location')
+    await screenshot('out/encounter-variant.png')
+    // The Encounters list shows the group once, with a tab per level.
+    await js(() => [...document.querySelectorAll('nav button')].find(b => b.textContent.trim().endsWith('Encounters')).click())
+    await until(() => [...document.querySelectorAll('.encounter-variant-chips button')].map(b => b.textContent).join() === 'L4,L6', 'the grouped encounter row')
+    await js(id => window.api.entity.delete('encounter', id), variant.id)
+    await js(() => [...document.querySelectorAll('*')].find(el => el.children.length === 0 && el.textContent.trim() === 'Smoke Fight').click())
+    await until(() => !!document.querySelector('input[aria-label="Planned for party level"]') && !document.querySelector('.encounter-variants'), 'the original without its variant')
 
     // Traps: rows with XP, and a trap row previews the trap stat block.
     // The location's Swinging Blade shows as a read-only row; the other two location traps are the encounter's own.
@@ -395,7 +413,7 @@ app.whenReady().then(async () => {
 
     const confirms = await js(() => window.__confirms)
     clearTimeout(timeout)
-    console.log('COMBAT_SMOKE_OK: a Library creature resolving live in an encounter row, legacy creature converted on open, encounter row preview (template, level adjustment), the session board and level warnings, combat start in main with kit combatants (elite captain, troll regeneration, grouped minions), combat panel, recharge prompt, live pinned card, location trap stat blocks and search, rewards (an encounter planned for a level, treasure added on a location, the Rewards page: the level\'s encounters and XP per PC against the next level, DMG slots for a party of one, meter, Suggest, found, RC rolls), location traps joining the encounter, encounter diseases, disease name in a power applied to a PC like a condition, the PCs library (search, sort, detail pane), PC lasting conditions (carried into combat, the encounter\'s on top on the Home board, disease stages, adding a condition), PC sheet import (row defenses, panel, PCs page), pinned cards popped out to an OS window and back, trap rows with XP and preview, hidden trap with initiative, triggered trap (Trigger, Disable), trap countermeasures from content-repo clauses (checks, action, part, strip actions, a skill challenge disabling the trap, logged), click-to-apply from effect clauses (a save ends both group highlighted and applied together); confirms: ' + confirms.length + '; screenshots out/home.png, out/pcs-levels.png, out/combat-encounter-preview.png, out/combat-panel.png, out/combat-trap.png, out/combat-trap-countermeasures.png, out/combat-save-group.png, out/location-traps.png, out/treasure-dmg.png, out/treasure-rc.png, out/combat-disease.png, out/pc-diseases.png, out/combat-pc-sheet.png, out/popout-pinned.png')
+    console.log('COMBAT_SMOKE_OK: a Library creature resolving live in an encounter row, legacy creature converted on open, encounter row preview (template, level adjustment), the session board and level warnings, combat start in main with kit combatants (elite captain, troll regeneration, grouped minions), combat panel, recharge prompt, live pinned card, location trap stat blocks and search, rewards (an encounter planned for a level, a level variant of it (grouped in the list), treasure added on a location, the Rewards page: the level\'s encounters and XP per PC against the next level, DMG slots for a party of one, meter, Suggest, found, RC rolls), location traps joining the encounter, encounter diseases, disease name in a power applied to a PC like a condition, the PCs library (search, sort, detail pane), PC lasting conditions (carried into combat, the encounter\'s on top on the Home board, disease stages, adding a condition), PC sheet import (row defenses, panel, PCs page), pinned cards popped out to an OS window and back, trap rows with XP and preview, hidden trap with initiative, triggered trap (Trigger, Disable), trap countermeasures from content-repo clauses (checks, action, part, strip actions, a skill challenge disabling the trap, logged), click-to-apply from effect clauses (a save ends both group highlighted and applied together); confirms: ' + confirms.length + '; screenshots out/home.png, out/pcs-levels.png, out/combat-encounter-preview.png, out/combat-panel.png, out/combat-trap.png, out/combat-trap-countermeasures.png, out/combat-save-group.png, out/location-traps.png, out/treasure-dmg.png, out/treasure-rc.png, out/combat-disease.png, out/pc-diseases.png, out/combat-pc-sheet.png, out/popout-pinned.png')
     finish(0)
   } catch (err) {
     console.error(err)

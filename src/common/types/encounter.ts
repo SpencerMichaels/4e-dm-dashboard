@@ -36,6 +36,8 @@ export interface Encounter {
   locationId?: string
   /** The party level this encounter is planned for (its level frame); without one, the party's current level. */
   level?: number
+  /** Level variants of one encounter (the same encounter for several party levels) share this id. */
+  variantGroup?: string
   backgroundImageId?: string  // encounter-specific background for player display
   tags: string[]
   createdAt: string

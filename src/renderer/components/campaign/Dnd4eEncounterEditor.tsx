@@ -15,6 +15,7 @@ import { findByRef, useTemplateCatalog } from '../creature/template-catalog'
 import { kitViewCreature } from '../creature/kit-view'
 import { EncounterTraps, trapKey, useTrapRows } from './EncounterTraps'
 import { TreasureSection } from '../treasure/TreasureSection'
+import { EncounterVariants } from './EncounterVariants'
 import { useTrap, useTraps } from '../trap/trap-refs'
 import { EncounterDiseases } from '../disease/disease-refs'
 import { contentText } from '@common/rules/diseases'
@@ -118,6 +119,8 @@ export function Dnd4eEncounterEditor({ encounter, onSave, creatures, onNavigate 
   const [renameValue, setRenameValue] = useState('')
   // Encounter row selection (click a row in the encounter list to preview it on the right)
   const [selectedRowKey, setSelectedRowKey] = useState<string | null>(null)
+  // The header's variant button opens the form for a level variant
+  const [variantFormOpen, setVariantFormOpen] = useState(false)
 
   // The Library's creatures (shared by every campaign): rows use them by libraryId, live.
   const libraryCreatures = useLibraryStore(s => s.creatures)
@@ -441,6 +444,10 @@ export function Dnd4eEncounterEditor({ encounter, onSave, creatures, onNavigate 
             onChange={e => save({ name: e.target.value })}
             placeholder="Encounter Name"
             style={{ color: 'inherit', width: 'auto', fieldSizing: 'content' as any }} />
+          <span className="sb-header-actions">
+            <button className="sb-icon-btn" onClick={() => setVariantFormOpen(o => !o)} aria-pressed={variantFormOpen} aria-label="New level variant"
+              title="Make a variant of this encounter for another party level"><Icon name="layers" /></button>
+          </span>
           {actualEL != null && (
             <span style={{ whiteSpace: 'nowrap' }}>Level {actualEL}</span>
           )}
@@ -466,6 +473,9 @@ export function Dnd4eEncounterEditor({ encounter, onSave, creatures, onNavigate 
             </span>
           )}
         </div>
+
+        <EncounterVariants encounter={encounter} frame={partyLevel} partyLevel={currentPartyLevel} formOpen={variantFormOpen}
+          onCloseForm={() => setVariantFormOpen(false)} onSave={save} />
 
         {/* Difficulty bar */}
         {partyReady && difficulty ? (

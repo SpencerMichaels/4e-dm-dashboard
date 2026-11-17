@@ -1,7 +1,10 @@
 import { LocationTraps } from './LocationTraps'
 import { TreasureSection } from '../treasure/TreasureSection'
 import { useState, useEffect } from 'react'
-import type { Location } from '@common/types'
+import type { Encounter, Location } from '@common/types'
+import { groupVariants } from '@common/rules/encounter-variants'
+import { encounterFrame } from '@common/rules/rewards'
+import { partyLevel } from '@common/rules/party'
 import { Icon } from '../shared/Icon'
 import { useCampaignStore } from '../../stores/campaign-store'
 import { useUiStore } from '../../stores/ui-store'
@@ -15,6 +18,7 @@ interface Props {
 export function LocationEditor({ locationId }: Props) {
   const [location, setLocation] = useState<Location | null>(null)
   const encounters = useCampaignStore((s) => s.encounters)
+  const playerCharacters = useCampaignStore((s) => s.playerCharacters)
   const { setView } = useUiStore()
   const [addingEncounter, setAddingEncounter] = useState(false)
 
@@ -46,25 +50,26 @@ export function LocationEditor({ locationId }: Props) {
   }
 
 
+  // Encounters by group of level variants: a group is linked, listed, and unlinked together.
+  const currentPartyLevel = partyLevel(playerCharacters)
   const linkedEncounters = (location.encounterIds ?? [])
     .map(id => encounters.find(e => e.id === id))
-    .filter(Boolean) as { id: string; name: string }[]
+    .filter((e): e is Encounter => !!e)
+  const linkedGroups = groupVariants(linkedEncounters, currentPartyLevel)
+  const unlinkedGroups = groupVariants(encounters.filter(e => !(location.encounterIds ?? []).includes(e.id)), currentPartyLevel)
 
-  const unlinkedEncounters = encounters.filter(e => !(location.encounterIds ?? []).includes(e.id))
-
-  const addEncounter = async (encounterId: string) => {
-    save({ ...location, encounterIds: [...(location.encounterIds ?? []), encounterId] })
-    // Also set the encounter's locationId so it can inherit the location's background
-    const enc = encounters.find(e => e.id === encounterId)
-    if (enc) await window.api.entity.save('encounter', { ...enc, locationId: location.id })
+  const addEncounters = async (group: Encounter[]) => {
+    save({ ...location, encounterIds: [...(location.encounterIds ?? []), ...group.map(e => e.id)] })
+    // Also set each encounter's locationId so it can inherit the location's background
+    for (const enc of group) await window.api.entity.save('encounter', { ...enc, locationId: location.id })
     setAddingEncounter(false)
   }
 
-  const removeEncounter = async (encounterId: string) => {
-    save({ ...location, encounterIds: (location.encounterIds ?? []).filter(id => id !== encounterId) })
-    // Clear the encounter's locationId
-    const enc = encounters.find(e => e.id === encounterId)
-    if (enc) await window.api.entity.save('encounter', { ...enc, locationId: undefined })
+  const removeEncounters = async (group: Encounter[]) => {
+    const ids = new Set(group.map(e => e.id))
+    save({ ...location, encounterIds: (location.encounterIds ?? []).filter(id => !ids.has(id)) })
+    // Clear each encounter's locationId
+    for (const enc of group) await window.api.entity.save('encounter', { ...enc, locationId: undefined })
   }
 
   const handleImageUpload = async () => {
@@ -178,9 +183,9 @@ export function LocationEditor({ locationId }: Props) {
       {/* Encounters */}
       <div style={{ marginBottom: 'var(--space-3)' }}>
         {sectionLabel('Encounters')}
-        {linkedEncounters.length > 0 && (
+        {linkedGroups.length > 0 && (
           <div role="list" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-1)', marginBottom: 'var(--space-2)' }}>
-            {linkedEncounters.map(enc => (
+            {linkedGroups.map(({ shown: enc, variants }) => (
               <div key={enc.id} role="listitem" style={{
                 display: 'flex', alignItems: 'center', gap: 'var(--space-2)',
                 padding: 'var(--space-2) var(--space-3)',
@@ -198,7 +203,11 @@ export function LocationEditor({ locationId }: Props) {
                   }}>
                   {enc.name}
                 </button>
-                <button onClick={() => removeEncounter(enc.id)} title="Unlink encounter" aria-label="Unlink encounter"
+                {variants.length > 1 && variants.map(v => {
+                  const l = encounterFrame(v, currentPartyLevel)
+                  return <button key={v.id} className={`btn btn-sm${v.id === enc.id ? ' btn-primary' : ''}`} onClick={() => setView({ type: 'encounter', encounterId: v.id })} title={`Open the level ${l ?? '?'} variant`}>L{l ?? '?'}</button>
+                })}
+                <button onClick={() => void removeEncounters(variants)} title={variants.length > 1 ? 'Unlink the encounter and its level variants' : 'Unlink encounter'} aria-label="Unlink encounter"
                   style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--muted)', fontSize: 'var(--font-size-xs)', padding: 2, display: 'inline-flex' }}>
                   <Icon name="x" />
                 </button>
@@ -208,11 +217,11 @@ export function LocationEditor({ locationId }: Props) {
         )}
         {addingEncounter ? (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-1)' }}>
-            {unlinkedEncounters.length === 0 ? (
+            {unlinkedGroups.length === 0 ? (
               <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--muted)' }}>No encounters available to link.</div>
             ) : (
-              unlinkedEncounters.map(enc => (
-                <button key={enc.id} onClick={() => addEncounter(enc.id)}
+              unlinkedGroups.map(({ shown: enc, variants }) => (
+                <button key={enc.id} onClick={() => void addEncounters(variants)}
                   style={{
                     textAlign: 'left', padding: 'var(--space-2) var(--space-3)',
                     background: 'var(--hover)', border: '1px solid var(--border)',
