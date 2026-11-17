@@ -61,3 +61,4 @@ export type EntityType =
   // Treasure (per level frame) and per-level plans
   | 'treasure'
   | 'level'
+  | 'quest'

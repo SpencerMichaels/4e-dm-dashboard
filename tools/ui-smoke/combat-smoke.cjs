@@ -166,6 +166,19 @@ app.whenReady().then(async () => {
     await until(() => Number(document.querySelector('.rewards-bar[aria-label="Experience"]')?.getAttribute('aria-valuenow')) > 0, 'the experience bar')
     const fightXp = (await js(() => window.api.combat.encounterXp()))['smoke-fight']
     if (await js(() => { const b = document.querySelector('.rewards-bar[aria-label="Experience"]'); return `${b.getAttribute('aria-valuenow')}/${b.getAttribute('aria-valuemax')}` }) !== `${fightXp}/1750`) throw new Error('The experience bar does not show the encounter XP per PC against the next level')
+    // A quest on the level: Major gives each PC one standard monster of its level, 175 XP at level 4 (DMG p. 122);
+    // its reward treasure is placed on it.
+    await js(() => [...document.querySelectorAll('.rewards-level .quest-section button')].find(b => b.textContent.trim() === '+ Quest').click())
+    await until(() => !!document.querySelector('.rewards-level .quest-row'), 'the new quest')
+    await setInput('.rewards-level .quest-row input[aria-label="Quest name"]', 'Find the idol')
+    await setInput('.rewards-level .quest-row select[aria-label="Quest kind"]', 'major')
+    await until(xp => document.querySelector('.rewards-bar[aria-label="Experience"]')?.getAttribute('aria-valuenow') === String(xp), 'the quest XP in the experience bar', fightXp + 175)
+    await js(() => [...document.querySelectorAll('.rewards-level .quest-row button')].find(b => b.textContent.trim().startsWith('Reward')).click())
+    await js(() => [...document.querySelectorAll('.rewards-level .quest-row-wrap .treasure-section button')].find(b => b.textContent.trim() === '+ Money').click())
+    await until(() => [...document.querySelectorAll('.rewards-level .quest-row button')].some(b => b.textContent.trim() === 'Reward (1)'), 'the quest reward')
+    const quest = (await js(() => window.api.entity.list('quest')))[0]
+    if (quest?.name !== 'Find the idol' || quest.kind !== 'major' || quest.level !== 4 || !(await treasures()).some(t => t.questId === quest.id)) throw new Error('The quest or its reward was not saved: ' + JSON.stringify(quest))
+    await js(() => [...document.querySelectorAll('.rewards-level .quest-row button')].find(b => b.textContent.trim().startsWith('Reward')).click())
     // Suggest fills the money parcels as printed; the fixture pack has no permanent level 6 item, so parcel 3 stays open.
     await js(() => [...document.querySelectorAll('.rewards-level button')].find(b => b.textContent.trim() === 'Suggest').click())
     try { await until(() => document.querySelectorAll('.treasure-slot .treasure-row').length === 5, 'the suggested money parcels') } catch (e) {
@@ -188,7 +201,8 @@ app.whenReady().then(async () => {
     const plan = await js(() => window.api.entity.get('level', '4'))
     await js(() => { Math.random = window.__random })
     if (plan?.treasure?.mode !== 'rc' || plan.treasure.rolled?.length !== 20 || plan.treasure.rolled.some(s => s.kind === 'item' ? s.itemLevel !== 8 || s.rarity !== 'rare' : s.gp !== 5 * 6 * 10 + 3 * 100 + 2 * 250)) throw new Error('The rolled plan was not saved: ' + JSON.stringify(plan))
-    if (await js(() => document.querySelectorAll('.treasure-others .treasure-row').length) !== 7) throw new Error('The DMG-slotted treasure is not listed outside the rolled slots')
+    // Seven from before the roll and the quest's reward (at this level, outside the slots).
+    if (await js(() => document.querySelectorAll('.treasure-others .treasure-row').length) !== 8) throw new Error('The DMG-slotted treasure is not listed outside the rolled slots')
     await sleep(300)
     await screenshot('out/treasure-rc.png')
 
@@ -420,7 +434,7 @@ app.whenReady().then(async () => {
 
     const confirms = await js(() => window.__confirms)
     clearTimeout(timeout)
-    console.log('COMBAT_SMOKE_OK: a Library creature resolving live in an encounter row, legacy creature converted on open, encounter row preview (template, level adjustment), the session board and level warnings, combat start in main with kit combatants (elite captain, troll regeneration, grouped minions), combat panel, recharge prompt, live pinned card, location trap stat blocks and search, rewards (an encounter planned for a level, a level variant of it (grouped in the list), treasure added on a location, the Rewards page: the level\'s encounters and XP per PC against the next level, DMG slots for a party of one, meter, Suggest, found, RC rolls), location traps joining the encounter, encounter diseases, disease name in a power applied to a PC like a condition, the PCs library (search, sort, detail pane), PC lasting conditions (carried into combat, the encounter\'s on top on the Home board, disease stages, adding a condition), PC sheet import (row defenses, panel, PCs page), pinned cards popped out to an OS window and back, trap rows with XP and preview, hidden trap with initiative, triggered trap (Trigger, Disable), trap countermeasures from content-repo clauses (checks, action, part, strip actions, a skill challenge disabling the trap, logged), click-to-apply from effect clauses (a save ends both group highlighted and applied together); confirms: ' + confirms.length + '; screenshots out/home.png, out/pcs-levels.png, out/combat-encounter-preview.png, out/combat-panel.png, out/combat-trap.png, out/combat-trap-countermeasures.png, out/combat-save-group.png, out/location-traps.png, out/treasure-dmg.png, out/treasure-rc.png, out/combat-disease.png, out/pc-diseases.png, out/combat-pc-sheet.png, out/popout-pinned.png')
+    console.log('COMBAT_SMOKE_OK: a Library creature resolving live in an encounter row, legacy creature converted on open, encounter row preview (template, level adjustment), the session board and level warnings, combat start in main with kit combatants (elite captain, troll regeneration, grouped minions), combat panel, recharge prompt, live pinned card, location trap stat blocks and search, rewards (an encounter planned for a level, a level variant of it (grouped in the list), a major quest with its XP and a reward treasure, treasure added on a location, the Rewards page: the level\'s encounters and XP per PC against the next level, DMG slots for a party of one, meter, Suggest, found, RC rolls), location traps joining the encounter, encounter diseases, disease name in a power applied to a PC like a condition, the PCs library (search, sort, detail pane), PC lasting conditions (carried into combat, the encounter\'s on top on the Home board, disease stages, adding a condition), PC sheet import (row defenses, panel, PCs page), pinned cards popped out to an OS window and back, trap rows with XP and preview, hidden trap with initiative, triggered trap (Trigger, Disable), trap countermeasures from content-repo clauses (checks, action, part, strip actions, a skill challenge disabling the trap, logged), click-to-apply from effect clauses (a save ends both group highlighted and applied together); confirms: ' + confirms.length + '; screenshots out/home.png, out/pcs-levels.png, out/combat-encounter-preview.png, out/combat-panel.png, out/combat-trap.png, out/combat-trap-countermeasures.png, out/combat-save-group.png, out/location-traps.png, out/treasure-dmg.png, out/treasure-rc.png, out/combat-disease.png, out/pc-diseases.png, out/combat-pc-sheet.png, out/popout-pinned.png')
     finish(0)
   } catch (err) {
     console.error(err)

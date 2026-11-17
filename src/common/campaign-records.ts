@@ -57,6 +57,7 @@ export const ENTITY_DIRS: Record<EntityType, string> = {
   theme: RECORD_STORAGE.theme.dir,
   treasure: 'treasure',
   level: 'levels',
+  quest: 'quests',
 }
 
 /** Where a campaign refers to each record type: encounter rows (and their templates and themes), traps, PC diseases, treasure items. */

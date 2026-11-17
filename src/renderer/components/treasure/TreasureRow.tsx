@@ -51,21 +51,22 @@ export function TreasureRow({ treasure, facts, showLevel, showPlace = true, slot
   )
 }
 
-/** Where a treasure is: unplaced, a location, or an encounter. */
+/** Where a treasure is: unplaced, a location, an encounter, or a quest's reward. */
 function PlacePicker({ treasure: t, onChange }: { treasure: Treasure; onChange: (patch: Partial<Treasure>) => void }) {
-  const { locations, encounters, placeOf } = usePlaces()
+  const { locations, encounters, quests, placeOf } = usePlaces()
   const place = placeOf(t)
-  const value = place ? `${place.kind === 'location' ? 'l' : 'e'}:${place.id}` : ''
+  const value = place ? `${place.kind[0]}:${place.id}` : ''
   return (
-    <select className="ghost" value={value} aria-label="Placed in" title="Where the party finds it"
+    <select className="ghost" value={value} aria-label="Placed in" title="Where the party finds it (a quest: its reward)"
       onChange={e => {
         const [kind, id] = e.target.value.split(':')
-        onChange({ locationId: kind === 'l' ? id : undefined, encounterId: kind === 'e' ? id : undefined })
+        onChange({ locationId: kind === 'l' ? id : undefined, encounterId: kind === 'e' ? id : undefined, questId: kind === 'q' ? id : undefined })
       }}
       style={{ ...small, maxWidth: 160, color: place ? 'inherit' : 'var(--muted)' }}>
       <option value="">Not placed</option>
       {locations.length > 0 && <optgroup label="Locations">{locations.map(l => <option key={l.id} value={`l:${l.id}`}>{l.name}</option>)}</optgroup>}
       {encounters.length > 0 && <optgroup label="Encounters">{encounters.map(e => <option key={e.id} value={`e:${e.id}`}>{e.name}</option>)}</optgroup>}
+      {quests.length > 0 && <optgroup label="Quest rewards">{quests.map(q => <option key={q.id} value={`q:${q.id}`}>{q.name}</option>)}</optgroup>}
     </select>
   )
 }

@@ -2,7 +2,7 @@
 // need around them (the party, where a treasure is placed).
 
 import { useMemo, useReducer, useRef } from 'react'
-import type { LevelPlan, Treasure, TreasureMode } from '@common/types'
+import type { EntityType, LevelPlan, Quest, Treasure, TreasureMode } from '@common/types'
 import { generateId } from '@common/utils/id'
 import { BASE_PARTY_SIZE } from '@common/rules/treasure'
 import { isActivePc, partyLevel } from '@common/rules/party'
@@ -35,34 +35,44 @@ export function useParty(): { level: number | undefined; size: number } {
   }, [pcs])
 }
 
-/** Where a treasure is, resolved: its location or encounter, or null (unplaced, or the place was deleted). */
+/** Where a treasure is, resolved: its location, encounter, or quest, or null (unplaced, or the place was deleted). */
 export function usePlaces() {
   const locations = useCampaignStore(s => s.locations)
   const encounters = useCampaignStore(s => s.encounters)
+  const quests = useCampaignStore(s => s.quests)
   return useMemo(() => {
-    const placeOf = (t: Treasure): { kind: 'location' | 'encounter'; id: string; name: string } | null => {
+    const placeOf = (t: Treasure): { kind: 'location' | 'encounter' | 'quest'; id: string; name: string } | null => {
       if (t.locationId) { const l = locations.find(x => x.id === t.locationId); if (l) return { kind: 'location', id: l.id, name: l.name } }
       if (t.encounterId) { const e = encounters.find(x => x.id === t.encounterId); if (e) return { kind: 'encounter', id: e.id, name: e.name } }
+      if (t.questId) { const q = quests.find(x => x.id === t.questId); if (q) return { kind: 'quest', id: q.id, name: q.name } }
       return null
     }
-    return { locations, encounters, placeOf }
-  }, [locations, encounters])
+    return { locations, encounters, quests, placeOf }
+  }, [locations, encounters, quests])
 }
 
 export const gp = (n: number) => `${Math.round(n).toLocaleString('en-US')} gp`
 
 /**
- * A treasure being edited in place: edits apply to the latest version at once and are saved whole, and
- * a broadcast older than the last edit is ignored, so quick edits to several fields never undo each other.
+ * A record being edited in place (a treasure, a quest): edits apply to the latest version at once and are
+ * saved whole, and a broadcast older than the last edit is ignored, so quick edits to several fields never
+ * undo each other.
  */
-export function useLiveTreasure(treasure: Treasure): [Treasure, (patch: Partial<Treasure>) => void] {
-  const latest = useRef(treasure)
+export function useLiveRecord<T extends { id: string; updatedAt: string }>(record: T, type: EntityType): [T, (patch: Partial<T>) => void] {
+  const latest = useRef(record)
   const [, rerender] = useReducer((n: number) => n + 1, 0)
-  if (treasure.updatedAt > latest.current.updatedAt || treasure.id !== latest.current.id) latest.current = treasure
-  const update = (patch: Partial<Treasure>) => {
+  if (record.updatedAt > latest.current.updatedAt || record.id !== latest.current.id) latest.current = record
+  const update = (patch: Partial<T>) => {
     latest.current = { ...latest.current, ...patch, updatedAt: now() }
     rerender()
-    void window.api.entity.save('treasure', latest.current as unknown as Record<string, unknown>)
+    void window.api.entity.save(type, latest.current as unknown as Record<string, unknown>)
   }
   return [latest.current, update]
+}
+
+export const useLiveTreasure = (t: Treasure) => useLiveRecord(t, 'treasure')
+
+export function createQuest(patch: Partial<Quest> & { level: number }): Promise<unknown> {
+  const q: Quest = { id: generateId(), name: 'New quest', kind: 'minor', createdAt: now(), updatedAt: now(), ...patch }
+  return window.api.entity.save('quest', q as unknown as Record<string, unknown>)
 }

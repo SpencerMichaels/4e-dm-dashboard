@@ -10,7 +10,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { Encounter, LevelPlan, Treasure, TreasureMode, TreasureSlot } from '@common/types'
 import { MODE_LABELS, planSlots, rollRcLevel, tallyTreasure, treasureBudget, treasureShare, type ItemFacts, type TreasureTally } from '@common/rules/treasure'
-import { encounterFrame, xpToNextLevel } from '@common/rules/rewards'
+import { encounterFrame, questXp, xpToNextLevel } from '@common/rules/rewards'
 import { useCampaignStore } from '../../stores/campaign-store'
 import { useLibraryStore } from '../../stores/library-store'
 import { useUiStore } from '../../stores/ui-store'
@@ -20,6 +20,7 @@ import { ItemSearch, randomItem, useItemChoices, useItemFacts } from '../treasur
 import { TreasureRow } from '../treasure/TreasureRow'
 import { createTreasure, gp, levelPlan, planMode, saveLevelPlan, saveTreasure, useParty, usePlaces } from '../treasure/treasure-data'
 import { RewardsMeter } from './RewardsMeter'
+import { QuestSection } from './Quests'
 import '../creature/statblock.css'
 
 const LIST_COLUMNS = 'max-content 1fr 1fr 1fr max-content'
@@ -29,7 +30,7 @@ interface LevelSummary {
   level: number
   plan: LevelPlan
   encounters: Encounter[]
-  /** XP of the level's encounters, all PCs together. */
+  /** XP of the level's encounters and quests, all PCs together. */
   xp: number
   slots: TreasureSlot[]
   budget: { items: number; gp: number }
@@ -58,6 +59,7 @@ export function RewardsView({ initialLevel }: { initialLevel?: number }) {
   const treasures = useCampaignStore(s => s.treasures)
   const plans = useCampaignStore(s => s.levelPlans)
   const encounters = useCampaignStore(s => s.encounters)
+  const quests = useCampaignStore(s => s.quests)
   const party = useParty()
   const facts = useItemFacts()
   const encounterXp = useEncounterXp()
@@ -66,7 +68,7 @@ export function RewardsView({ initialLevel }: { initialLevel?: number }) {
 
   const summaries = useMemo(() => {
     const frameOf = (e: Encounter) => encounterFrame(e, party.level)
-    const levels = new Set<number>([...treasures.map(t => t.level), ...plans.map(p => p.level), ...encounters.flatMap(e => frameOf(e) ?? []), level])
+    const levels = new Set<number>([...treasures.map(t => t.level), ...plans.map(p => p.level), ...encounters.flatMap(e => frameOf(e) ?? []), ...quests.map(q => q.level), level])
     if (party.level != null) levels.add(party.level)
     return [...levels].sort((a, b) => a - b).map((l): LevelSummary => {
       const plan = levelPlan(plans, l)
@@ -75,13 +77,13 @@ export function RewardsView({ initialLevel }: { initialLevel?: number }) {
       const fights = encounters.filter(e => frameOf(e) === l)
       return {
         level: l, plan, treasures: here, encounters: fights,
-        xp: fights.reduce((sum, e) => sum + (encounterXp[e.id] ?? 0), 0),
+        xp: fights.reduce((sum, e) => sum + (encounterXp[e.id] ?? 0), 0) + quests.filter(q => q.level === l).reduce((sum, q) => sum + questXp(q.kind, q.level, party.size), 0),
         slots: planSlots(mode, l, party.size, plan.treasure?.rolled),
         budget: treasureBudget(mode, l, party.size, plan.treasure?.rolled),
         tally: tallyTreasure(here, t => t.item ? facts(t.item) : undefined, t => !!placeOf(t)),
       }
     })
-  }, [treasures, plans, encounters, encounterXp, party, facts, placeOf, level])
+  }, [treasures, plans, encounters, quests, encounterXp, party, facts, placeOf, level])
   const current = summaries.find(s => s.level === level)!
 
   return (
@@ -94,7 +96,7 @@ export function RewardsView({ initialLevel }: { initialLevel?: number }) {
         <div className="sb-subheader" style={{ flexShrink: 0, minHeight: 18 }} aria-hidden />
         <div style={{ flex: 1, minHeight: 0, overflowY: 'auto' }}>
           <div className="sb-columns" style={{ gridTemplateColumns: LIST_COLUMNS }}>
-            <span>Level</span><span title="XP per PC from the level's encounters, of what the next level takes">XP per PC</span><span>Magic items</span><span>Monetary</span><span>Treasure</span>
+            <span>Level</span><span title="XP per PC from the level's encounters and quests, of what the next level takes">XP per PC</span><span>Magic items</span><span>Monetary</span><span>Treasure</span>
           </div>
           <div className="striped-rows" role="list">
             {summaries.map(s => {
@@ -179,6 +181,8 @@ function LevelPane({ summary: s, encounterXp, partySize, isPartyLevel, facts, on
       <RewardsMeter xp={need != null ? { perPc: s.xp / partySize, need } : undefined} tally={s.tally} budget={s.budget} budgetLabel={mode === 'free' ? 'DMG budget' : 'budget'} />
 
       <LevelEncounters level={s.level} encounters={s.encounters} encounterXp={encounterXp} partySize={partySize} />
+
+      <QuestSection level={s.level} />
 
       <div className="treasure-plan" style={{ borderTop: '1px solid var(--sb-separator)' }}>
         <div className="sb-row" style={{ gap: 8, alignItems: 'center', ...small }}>

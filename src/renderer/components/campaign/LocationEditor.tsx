@@ -1,5 +1,6 @@
 import { LocationTraps } from './LocationTraps'
 import { TreasureSection } from '../treasure/TreasureSection'
+import { QuestSection } from '../rewards/Quests'
 import { useState, useEffect } from 'react'
 import type { Encounter, Location } from '@common/types'
 import { groupVariants } from '@common/rules/encounter-variants'
@@ -179,6 +180,8 @@ export function LocationEditor({ locationId }: Props) {
       <LocationTraps traps={location.traps ?? []} onChange={traps => save({ ...location, traps: traps.length ? traps : undefined })} label={sectionLabel('Traps')} />
 
       <TreasureSection place={{ locationId: location.id }} label={sectionLabel('Treasure')} />
+
+      <QuestSection locationId={location.id} label={sectionLabel('Quests')} />
 
       {/* Encounters */}
       <div style={{ marginBottom: 'var(--space-3)' }}>

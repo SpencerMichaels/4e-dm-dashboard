@@ -165,6 +165,7 @@ const entityTypeToStoreKey: Record<EntityType, string> = {
   map: 'maps',
   treasure: 'treasures',
   level: 'levelPlans',
+  quest: 'quests',
   ...Object.fromEntries(Object.entries(RECORD_STORAGE).map(([type, s]) => [type, s.storeKey])) as Record<RecordType, string>,
 }
 
@@ -205,7 +206,7 @@ async function broadcastCampaignState(): Promise<void> {
   if (!campaignId) return
 
   // Broadcast a summary of current state to DM renderer
-  const [campaign, creatures, encounters, locations, maps, pcs, treasures, levelPlans, annotations, ...records] = await Promise.all([
+  const [campaign, creatures, encounters, locations, maps, pcs, treasures, levelPlans, quests, annotations, ...records] = await Promise.all([
     store.getActiveCampaign(),
     store.listEntities('creature'),
     store.listEntities('encounter'),
@@ -214,6 +215,7 @@ async function broadcastCampaignState(): Promise<void> {
     store.listEntities('player-character'),
     store.listEntities('treasure'),
     store.listEntities('level'),
+    store.listEntities('quest'),
     store.loadAnnotations(campaignId),
     ...RECORD_TYPES.map(type => store.listEntities(type)),
   ])
@@ -228,6 +230,7 @@ async function broadcastCampaignState(): Promise<void> {
     playerCharacters: pcs,
     treasures,
     levelPlans,
+    quests,
     annotations,
     ...Object.fromEntries(RECORD_TYPES.map((type, i) => [RECORD_STORAGE[type].storeKey, records[i]])),
   })

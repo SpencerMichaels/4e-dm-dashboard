@@ -21,9 +21,10 @@ export interface Treasure {
   money?: { text: string; gp: number }
   /** The level plan's slot this treasure fills (a TreasureSlot key). */
   slot?: string
-  /** Where it is placed: a location or an encounter (unplaced with neither). */
+  /** Where it is placed: a location, an encounter, or a quest's reward (unplaced with none). */
   locationId?: string
   encounterId?: string
+  questId?: string
   /** The party has found it. */
   found?: boolean
   createdAt: string
@@ -57,5 +58,26 @@ export interface LevelPlan {
     /** The RC treasures rolled for this level, as slots (DMG slots are derived from the level and party size). */
     rolled?: TreasureSlot[]
   }
+  updatedAt: string
+}
+
+/**
+ * A quest: an XP (and treasure) reward for reaching its goal, planned for a level like an encounter.
+ * Minor and Major are the books' kinds; Moderate is the RC's weightier minor quest (RC pp. 294-295).
+ */
+export type QuestKind = 'minor' | 'moderate' | 'major'
+
+export interface Quest {
+  id: string
+  name: string
+  kind: QuestKind
+  /** The quest's level, which is also its level frame (the party level it is planned for). */
+  level: number
+  /** Where it is set, if anywhere. */
+  locationId?: string
+  /** The party has completed it. */
+  done?: boolean
+  notes?: string
+  createdAt: string
   updatedAt: string
 }

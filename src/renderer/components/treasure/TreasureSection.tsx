@@ -1,4 +1,4 @@
-// The treasure placed in a location or an encounter: its rows (each with the party level it is planned
+// The treasure placed in a location, an encounter, or a quest (its reward): its rows (each with the party level it is planned
 // for), and adding an item or monetary treasure here. The same records the Rewards page budgets.
 
 import type { Treasure } from '@common/types'
@@ -9,7 +9,7 @@ import { ItemSearch, useItemFacts } from './item-refs'
 import { TreasureRow } from './TreasureRow'
 import { createTreasure, useParty } from './treasure-data'
 
-type Place = { locationId: string } | { encounterId: string }
+type Place = { locationId: string } | { encounterId: string } | { questId: string }
 
 /** `level`: the level frame new treasure here is planned for (an encounter's own level); default the party's level now. */
 export function TreasureSection({ place, label, encounterStyle, level: frame }: { place: Place; label?: React.ReactNode; encounterStyle?: boolean; level?: number }) {
@@ -18,7 +18,7 @@ export function TreasureSection({ place, label, encounterStyle, level: frame }: 
   const party = useParty()
   const setView = useUiStore(s => s.setView)
   const here = treasures
-    .filter(t => 'locationId' in place ? t.locationId === place.locationId : t.encounterId === place.encounterId)
+    .filter(t => 'locationId' in place ? t.locationId === place.locationId : 'encounterId' in place ? t.encounterId === place.encounterId : t.questId === place.questId)
     .sort((a, b) => a.level - b.level || a.createdAt.localeCompare(b.createdAt))
   const level = frame ?? party.level ?? 1
   const add = (patch: Partial<Treasure>) => void createTreasure(level, { ...patch, ...place })

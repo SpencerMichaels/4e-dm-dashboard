@@ -3,7 +3,8 @@
 // Encounters are planned for a party level (their level frame, `Encounter.level`); one without its own
 // level counts at the party's level now, as the encounter editor budgets it.
 
-import type { Encounter } from '../types'
+import type { Encounter, QuestKind } from '../types'
+import { monsterXp } from '@kit'
 
 /** Total XP to reach each level (PHB p. 29, RC p. 85). */
 export const ADVANCEMENT_XP: Record<number, number> = {
@@ -17,3 +18,18 @@ export const xpToNextLevel = (level: number): number | undefined => level >= 30 
 
 /** The level an encounter is planned for: its own, else the party's level now. */
 export const encounterFrame = (e: Pick<Encounter, 'level'>, partyLevel: number | undefined): number | undefined => e.level ?? partyLevel
+
+export const QUEST_KIND_LABELS: Record<QuestKind, string> = { minor: 'Minor', moderate: 'Moderate', major: 'Major' }
+
+/**
+ * A quest's XP for the whole party, priced in standard monsters of its level (DMG p. 120, RC p. 292):
+ * a major quest gives each PC one monster's XP, a whole encounter's worth (DMG p. 122, RC p. 294); a minor
+ * quest gives one monster's XP, shared (DMG p. 122, RC p. 294); a moderate quest is the RC's minor quest
+ * "to carry more weight": up to half a monster's XP to each PC (RC pp. 294-295).
+ */
+export function questXp(kind: QuestKind, level: number, partySize: number): number {
+  const monster = monsterXp(Math.min(30, Math.max(1, level)), 'standard')
+  if (kind === 'major') return monster * partySize
+  if (kind === 'moderate') return Math.round(monster / 2) * partySize
+  return monster
+}
