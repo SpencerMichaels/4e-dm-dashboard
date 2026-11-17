@@ -43,3 +43,21 @@ export const challengeXp = (c: Pick<SkillChallenge, 'level' | 'complexity'>) => 
 
 /** An encounter that is only a skill challenge (no creatures or traps), standing on its own. */
 export const isSkillChallenge = (e: Pick<Encounter, 'challenge' | 'creatures' | 'traps'>) => !!e.challenge && e.creatures.length === 0 && !e.traps?.length
+
+/**
+ * How a skill challenge ended, from its progress: success at its complexity's successes, failure at three
+ * failures (RC p. 158), or undefined while it runs. Either way the party completes it and earns its XP (RC p. 158).
+ */
+export function challengeOutcome(c: Pick<SkillChallenge, 'complexity' | 'successes' | 'failures'>): 'success' | 'failure' | undefined {
+  if ((c.successes ?? 0) >= challengeSuccesses(c.complexity)) return 'success'
+  if ((c.failures ?? 0) >= CHALLENGE_FAILURES) return 'failure'
+  return undefined
+}
+
+/** Counts one check (delta 1) or takes one back (-1); no new checks count once the challenge has ended. */
+export function recordChallengeCheck<C extends SkillChallenge>(c: C, outcome: 'success' | 'failure', delta: 1 | -1): C {
+  if (delta > 0 && challengeOutcome(c)) return c
+  const key = outcome === 'success' ? 'successes' : 'failures'
+  const n = Math.max(0, (c[key] ?? 0) + delta)
+  return { ...c, [key]: n || undefined }
+}

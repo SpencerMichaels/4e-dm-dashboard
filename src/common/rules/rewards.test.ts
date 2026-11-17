@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { ADVANCEMENT_XP, challengeSuccesses, challengeXp, encounterFrame, isSkillChallenge, questXp, xpToNextLevel } from './rewards'
+import type { SkillChallenge } from '../types'
+import { ADVANCEMENT_XP, challengeOutcome, challengeSuccesses, challengeXp, encounterFrame, isSkillChallenge, questXp, recordChallengeCheck, xpToNextLevel } from './rewards'
 
 describe('experience by level', () => {
   it('takes the Character Advancement table\'s steps (PHB p. 29, RC p. 85)', () => {
@@ -40,5 +41,24 @@ describe('skill challenges', () => {
     expect(isSkillChallenge(enc)).toBe(true)
     expect(isSkillChallenge({ ...enc, traps: [{ compendiumId: 't', count: 1 }] })).toBe(false)
     expect(isSkillChallenge({ creatures: [] })).toBe(false)
+  })
+})
+
+describe('running a skill challenge', () => {
+  it('ends at its successes or three failures, and counts no checks after (RC p. 158)', () => {
+    let c: SkillChallenge = { level: 3, complexity: 1 }
+    for (let i = 0; i < 3; i++) c = recordChallengeCheck(c, 'success', 1)
+    expect(challengeOutcome(c)).toBeUndefined()
+    c = recordChallengeCheck(c, 'failure', 1)
+    c = recordChallengeCheck(c, 'success', 1)
+    expect(c).toMatchObject({ successes: 4, failures: 1 })
+    expect(challengeOutcome(c)).toBe('success')
+    expect(recordChallengeCheck(c, 'failure', 1)).toBe(c)
+    // Taking one back reopens it; a count never goes below zero.
+    c = recordChallengeCheck(c, 'success', -1)
+    expect(challengeOutcome(c)).toBeUndefined()
+    expect(recordChallengeCheck({ level: 1, complexity: 2 } as SkillChallenge, 'failure', -1).failures).toBeUndefined()
+    const failed = [1, 2, 3].reduce(x => recordChallengeCheck(x, 'failure', 1), { level: 5, complexity: 5 } as SkillChallenge)
+    expect(challengeOutcome(failed)).toBe('failure')
   })
 })

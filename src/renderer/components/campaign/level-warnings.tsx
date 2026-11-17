@@ -9,7 +9,8 @@ import { Icon } from '../shared/Icon'
 // Tooltips stay short; for a PC two or more levels off, the books' fix is "Making Things Level" (DMG2 p.34).
 const name = (pc: PlayerCharacter) => pc.name || 'Unnamed Character'
 
-function WarningIcon({ icon, text }: { icon: string; text: string }) {
+/** A warning in 4ecb's style: a small icon in the warning color, its text in the tooltip. */
+export function WarningIcon({ icon, text }: { icon: string; text: string }) {
   return (
     <span className="level-warning" title={text} style={{ color: 'var(--warning)', display: 'inline-flex', flexShrink: 0 }}>
       <Icon name={icon} label={text} />

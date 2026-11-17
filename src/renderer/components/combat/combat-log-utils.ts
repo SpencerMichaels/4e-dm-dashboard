@@ -40,6 +40,8 @@ export function renderEvent(e: CombatEvent): string {
       return `${e.targetName} is delayed${d.by ? ` (${d.by})` : ''}`
     case 'countermeasure-check':
       return `${e.targetName}: ${d.by ?? 'check'} ${d.outcome === 'success' ? 'succeeded' : 'failed'}${d.count ? ` (${d.count})` : ''}`
+    case 'skill-challenge-check':
+      return `${e.targetName}: a ${d.outcome === 'success' ? 'success' : 'failure'}${d.count ? ` (${d.count})` : ''}${d.result ? `; the challenge ${d.result === 'success' ? 'succeeds' : 'fails'}` : ''}`
     default:
       return `${e.targetName}: ${e.type}`
   }
@@ -59,7 +61,7 @@ export function eventColor(type: CombatEvent['type']): string {
     case 'trap-triggered': return 'var(--warning)'
     case 'trap-disabled': return 'var(--success)'
     case 'trap-delayed': return 'var(--notify)'
-    case 'countermeasure-check': return ''
+    case 'countermeasure-check': case 'skill-challenge-check': return ''
     case 'turn-start': case 'turn-end': return ''
     default: return ''
   }

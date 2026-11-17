@@ -38,6 +38,9 @@ export interface SkillChallenge {
   level: number
   /** 1-5: 4, 6, 8, 10 or 12 successes before 3 failures (RC p. 159). */
   complexity: number
+  /** Progress while it runs: checks that succeeded and failed so far. */
+  successes?: number
+  failures?: number
   /** Primary skills, DCs, consequences: the DM's notes. */
   notes?: string
 }

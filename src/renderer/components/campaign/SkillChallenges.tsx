@@ -2,13 +2,16 @@
 // or standing on their own on a location ("a skill challenge to cross the bridge in B6"). A standalone
 // challenge is stored as an encounter holding only the challenge, so it has a level, variants, treasure,
 // XP on the Rewards page and a done flag like any encounter; the location page lists and edits it in place.
+// While one runs, ChallengeCounter counts its successes and failures (on the challenge, so the location
+// page, the encounter editor and the combat strip show the same count).
 
 import type { Encounter, Location, SkillChallenge } from '@common/types'
-import { challengeSuccesses, challengeXp, CHALLENGE_FAILURES, isSkillChallenge } from '@common/rules/rewards'
+import { challengeOutcome, challengeSuccesses, challengeXp, CHALLENGE_FAILURES, isSkillChallenge, recordChallengeCheck } from '@common/rules/rewards'
 import { generateId } from '@common/utils/id'
 import { useCampaignStore } from '../../stores/campaign-store'
 import { useUiStore } from '../../stores/ui-store'
 import { Icon } from '../shared/Icon'
+import { WarningIcon } from './level-warnings'
 import { useLiveRecord, useParty } from '../treasure/treasure-data'
 
 const small = { fontSize: 'var(--font-size-xs)' }
@@ -45,7 +48,11 @@ export function EncounterChallenge({ encounter, frame, save }: { encounter: Enco
   return (
     <div className="encounter-challenge" style={{ borderTop: '1px solid var(--sb-separator)' }}>
       <div className="sb-row" style={{ justifyContent: 'space-between', gap: 6 }}>
-        <b className="sb-label">Skill challenge</b>
+        <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+          <b className="sb-label">Skill challenge</b>
+          {c && !alone && c.complexity >= 3 && <WarningIcon icon="triangle-exclamation-point"
+            text={'Complexity 3 or higher in the midst of combat: not enough monsters to keep the characters busy, or the challenge takes too much of the party\'s attention (DMG2 ch. 3, In-Combat Challenges). In a fight, use 1 or 2 (RC p. 159).'} />}
+        </span>
         {c
           ? <button onClick={() => save({ challenge: undefined })} title="Remove the skill challenge" aria-label="Remove the skill challenge"
               style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--muted)', display: 'inline-flex' }}><Icon name="x" /></button>
@@ -53,6 +60,7 @@ export function EncounterChallenge({ encounter, frame, save }: { encounter: Enco
               title="A skill challenge during this encounter: complexity x a monster of its level in XP (RC pp. 157-159)">+ Skill challenge</button>}
       </div>
       {c && <ChallengeFields challenge={c} named={!alone} onChange={challenge => save({ challenge })} />}
+      {c && <ChallengeCounter challenge={c} onChange={challenge => save(alone ? { challenge, done: challengeDone(challenge, encounter.done) } : { challenge })} />}
     </div>
   )
 }
@@ -99,6 +107,46 @@ function LocationChallenge({ encounter, onRemove }: { encounter: Encounter; onRe
       </div>
       {/* Its level frame follows the challenge's level while it stands alone. */}
       <ChallengeFields challenge={c} named={false} onChange={challenge => update({ challenge, level: challenge.level })} />
+      <ChallengeCounter challenge={c} onChange={challenge => update({ challenge, done: challengeDone(challenge, e.done) })} />
     </div>
   )
 }
+
+/**
+ * Successes and failures while a challenge runs: click counts one, right click takes one back; it ends at
+ * its successes or three failures (RC p. 158). `onCheck` hears each check and how the challenge ended, if it did.
+ */
+export function ChallengeCounter({ challenge: c, onChange, onCheck }: {
+  challenge: SkillChallenge
+  onChange: (c: SkillChallenge) => void
+  onCheck?: (outcome: 'success' | 'failure', count: string, result: 'success' | 'failure' | undefined) => void
+}) {
+  const ended = challengeOutcome(c)
+  const goals = { success: challengeSuccesses(c.complexity), failure: CHALLENGE_FAILURES }
+  const count = (outcome: 'success' | 'failure', delta: 1 | -1) => {
+    const next = recordChallengeCheck(c, outcome, delta)
+    if (next === c) return
+    onChange(next)
+    if (delta > 0) onCheck?.(outcome, `${next[outcome === 'success' ? 'successes' : 'failures'] ?? 0}/${goals[outcome]}`, challengeOutcome(next))
+  }
+  const counter = (outcome: 'success' | 'failure', n: number, text: string) => (
+    <button className="btn btn-sm" disabled={!!ended && n < goals[outcome]} onClick={() => count(outcome, 1)}
+      onContextMenu={e => { e.preventDefault(); if (n > 0) count(outcome, -1) }}
+      title={`A ${outcome} (${goals[outcome]} ${outcome === 'success' ? 'succeed' : 'fail'} the challenge). Right click: take one back`}>
+      {text} {n}/{goals[outcome]}
+    </button>
+  )
+  return (
+    <div className="sb-row challenge-counter" style={{ display: 'flex', gap: 6, alignItems: 'center', ...small }}>
+      {counter('success', c.successes ?? 0, 'Successes')}
+      {counter('failure', c.failures ?? 0, 'Failures')}
+      {ended && <b className="challenge-result" style={{ color: ended === 'success' ? 'var(--success)' : 'var(--danger)' }}>{ended === 'success' ? 'Succeeded' : 'Failed'}</b>}
+      <span style={{ flex: 1 }} />
+      {(c.successes || c.failures) && <button className="btn btn-sm" onClick={() => onChange({ ...c, successes: undefined, failures: undefined })} title="Clear the count to run it again">Reset</button>}
+    </div>
+  )
+}
+
+/** A standalone challenge is done once it ends (XP either way, RC p. 158); a reset count clears that, otherwise the DM's mark stays. */
+const challengeDone = (c: SkillChallenge, done: boolean | undefined) =>
+  challengeOutcome(c) ? true : c.successes || c.failures ? done : undefined

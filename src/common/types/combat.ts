@@ -19,7 +19,7 @@ export type CombatEventType =
   | 'bloodied' | 'death'
   | 'turn-start' | 'turn-end'
   | 'attack-hit' | 'attack-miss'
-  | 'trap-triggered' | 'trap-disabled' | 'trap-delayed' | 'countermeasure-check'
+  | 'trap-triggered' | 'trap-disabled' | 'trap-delayed' | 'countermeasure-check' | 'skill-challenge-check'
 
 export interface CombatEvent {
   timestamp: number

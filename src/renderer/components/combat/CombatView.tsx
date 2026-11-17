@@ -21,6 +21,7 @@ import { AttackApplyPanel } from './AttackApplyPanel'
 import { ReadyActionDialog } from './ReadyActionDialog'
 import { EffectDialog } from './EffectDialog'
 import { TriggeredTraps } from './TriggeredTraps'
+import { CombatChallenge } from './CombatChallenge'
 import { checksText, type CountermeasureUse } from './TrapCountermeasures'
 import { recordCheck, STOPS_TRAP } from '@common/combat/countermeasures'
 import { Icon } from '../shared/Icon'
@@ -670,6 +671,8 @@ export function CombatView() {
           onToggleDisabled={toggleTrapDisabled}
           onCountermeasure={applyCountermeasure}
         />
+
+        <CombatChallenge combat={combat} addEvent={addEvent} />
 
         <div style={{ flex: '1 1 auto', minHeight: 200, overflow: 'auto' }}>
           <InitiativeList
