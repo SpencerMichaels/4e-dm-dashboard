@@ -22,7 +22,7 @@ export function TreasureRow({ treasure, facts, showLevel, showPlace = true, slot
 }) {
   const [t, update] = useLiveTreasure(treasure)
   return (
-    <div className="treasure-row sb-row" style={{ gap: 6, alignItems: 'center' }}>
+    <div className="treasure-row sb-row" style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
       <input type="checkbox" checked={!!t.found} onChange={e => update({ found: e.target.checked || undefined })}
         title="The party has found this" aria-label="Found" />
       {t.money ? <>

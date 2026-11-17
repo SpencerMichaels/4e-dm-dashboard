@@ -33,7 +33,7 @@ export function TreasureSection({ place, label, encounterStyle, level: frame }: 
   return (
     <div className="treasure-section" style={encounterStyle ? { borderTop: '1px solid var(--sb-separator)' } : { marginBottom: 'var(--space-3)' }}>
       {encounterStyle
-        ? <div className="sb-row" style={{ justifyContent: 'space-between', gap: 6 }}><b className="sb-label">Treasure</b>{controls}</div>
+        ? <div className="sb-row" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6 }}><b className="sb-label">Treasure</b>{controls}</div>
         : <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>{label}{controls}</div>}
       {here.map(t => <TreasureRow key={t.id} treasure={t} facts={t.item ? facts(t.item) : undefined} showLevel />)}
     </div>

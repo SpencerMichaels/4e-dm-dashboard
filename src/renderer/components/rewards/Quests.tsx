@@ -48,7 +48,7 @@ function QuestRow({ quest, partySize, showLevel, showLocation }: { quest: Quest;
   }
   return (
     <div className="quest-row-wrap">
-      <div className="quest-row sb-row" style={{ gap: 6, alignItems: 'center', ...small }}>
+      <div className="quest-row sb-row" style={{ display: 'flex', gap: 6, alignItems: 'center', ...small }}>
         <input type="checkbox" checked={!!q.done} onChange={e => update({ done: e.target.checked || undefined })} title="The party has completed this quest" aria-label="Done" />
         <input className="ghost" value={q.name} onChange={e => update({ name: e.target.value })} placeholder="Quest" aria-label="Quest name" style={{ ...small, flex: 1, minWidth: 0, fontWeight: 600 }} />
         <select className="ghost" value={q.kind} onChange={e => update({ kind: e.target.value as QuestKind })} aria-label="Quest kind" title={kindTitle[q.kind]} style={small}>

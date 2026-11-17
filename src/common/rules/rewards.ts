@@ -3,7 +3,7 @@
 // Encounters are planned for a party level (their level frame, `Encounter.level`); one without its own
 // level counts at the party's level now, as the encounter editor budgets it.
 
-import type { Encounter, QuestKind } from '../types'
+import type { Encounter, QuestKind, SkillChallenge } from '../types'
 import { monsterXp } from '@kit'
 
 /** Total XP to reach each level (PHB p. 29, RC p. 85). */
@@ -33,3 +33,13 @@ export function questXp(kind: QuestKind, level: number, partySize: number): numb
   if (kind === 'moderate') return Math.round(monster / 2) * partySize
   return monster
 }
+
+/** Successes a skill challenge of a complexity needs, before 3 failures (RC p. 159). */
+export const challengeSuccesses = (complexity: number) => 2 * Math.min(5, Math.max(1, complexity)) + 2
+export const CHALLENGE_FAILURES = 3
+
+/** A skill challenge's XP: as many standard monsters of its level as its complexity (RC pp. 293-294, DMG p. 121). */
+export const challengeXp = (c: Pick<SkillChallenge, 'level' | 'complexity'>) => Math.min(5, Math.max(1, c.complexity)) * monsterXp(Math.min(30, Math.max(1, c.level)), 'standard')
+
+/** An encounter that is only a skill challenge (no creatures or traps), standing on its own. */
+export const isSkillChallenge = (e: Pick<Encounter, 'challenge' | 'creatures' | 'traps'>) => !!e.challenge && e.creatures.length === 0 && !e.traps?.length

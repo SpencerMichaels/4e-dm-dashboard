@@ -98,5 +98,9 @@ describe('encounter XP', () => {
     expect(encounterXp(encounter, sources)).toBe(expected)
     expect(encounterXp(encounter, { ...sources, locationTraps: [{ compendiumId: 'trap40' }, { trapId: 'pit' }] }))
       .toBe(expected + sources.publishedTrap('trap40')!.xp)
+    // A skill challenge in the encounter adds complexity x a standard monster of its level (RC p. 293).
+    expect(encounterXp({ ...encounter, challenge: { level: 7, complexity: 3 } }, sources)).toBe(expected + 900)
+    // Standing alone, a challenge doesn't take its location's traps.
+    expect(encounterXp({ ...encounter, creatures: [], traps: [], challenge: { level: 7, complexity: 3 } }, { ...sources, locationTraps: [{ compendiumId: 'trap40' }] })).toBe(900)
   })
 })

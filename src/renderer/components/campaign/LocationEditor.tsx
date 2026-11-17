@@ -1,6 +1,8 @@
 import { LocationTraps } from './LocationTraps'
 import { TreasureSection } from '../treasure/TreasureSection'
 import { QuestSection } from '../rewards/Quests'
+import { LocationChallenges } from './SkillChallenges'
+import { isSkillChallenge } from '@common/rules/rewards'
 import { useState, useEffect } from 'react'
 import type { Encounter, Location } from '@common/types'
 import { groupVariants } from '@common/rules/encounter-variants'
@@ -55,9 +57,9 @@ export function LocationEditor({ locationId }: Props) {
   const currentPartyLevel = partyLevel(playerCharacters)
   const linkedEncounters = (location.encounterIds ?? [])
     .map(id => encounters.find(e => e.id === id))
-    .filter((e): e is Encounter => !!e)
+    .filter((e): e is Encounter => !!e && !isSkillChallenge(e))
   const linkedGroups = groupVariants(linkedEncounters, currentPartyLevel)
-  const unlinkedGroups = groupVariants(encounters.filter(e => !(location.encounterIds ?? []).includes(e.id)), currentPartyLevel)
+  const unlinkedGroups = groupVariants(encounters.filter(e => !(location.encounterIds ?? []).includes(e.id) && !isSkillChallenge(e)), currentPartyLevel)
 
   const addEncounters = async (group: Encounter[]) => {
     save({ ...location, encounterIds: [...(location.encounterIds ?? []), ...group.map(e => e.id)] })
@@ -182,6 +184,8 @@ export function LocationEditor({ locationId }: Props) {
       <TreasureSection place={{ locationId: location.id }} label={sectionLabel('Treasure')} />
 
       <QuestSection locationId={location.id} label={sectionLabel('Quests')} />
+
+      <LocationChallenges location={location} label={sectionLabel('Skill challenges')} onLocation={patch => save({ ...location, ...patch })} />
 
       {/* Encounters */}
       <div style={{ marginBottom: 'var(--space-3)' }}>

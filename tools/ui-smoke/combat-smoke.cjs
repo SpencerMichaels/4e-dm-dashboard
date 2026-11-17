@@ -4,7 +4,7 @@
 // render offscreen. Run with `npm run test:combat:ui` after `npm run build`.
 process.env.FOUR_E_HIDDEN_WINDOWS = '1'
 const { app, BrowserWindow } = require('electron')
-const { mkdtempSync, mkdirSync, writeFileSync, readFileSync, existsSync } = require('fs')
+const { mkdtempSync, mkdirSync, writeFileSync, readFileSync, existsSync, readdirSync } = require('fs')
 const { tmpdir } = require('os')
 const { join, resolve } = require('path')
 const root = mkdtempSync(join(tmpdir(), '4e-combat-ui-'))
@@ -152,6 +152,19 @@ app.whenReady().then(async () => {
     const lantern = placed.find(t => t.item?.compendiumId === 'wondrous9001')
     if (placed.length !== 2 || !lantern || lantern.level !== 4 || lantern.item.itemLevel !== 4 || placed.some(t => t.locationId !== 'vault') || !placed.some(t => t.money?.text === 'a silver idol' && t.money.gp === 250))
       throw new Error('Location treasure was not saved: ' + JSON.stringify(placed))
+    // A skill challenge on the location, standing on its own: an encounter holding only the challenge, linked to the location.
+    await js(() => [...document.querySelectorAll('.location-challenges button')].find(b => b.textContent.trim() === '+ Skill challenge').click())
+    await until(() => !!document.querySelector('.location-challenge'), 'the new skill challenge')
+    await setInput('.location-challenge input[aria-label="Skill challenge name"]', 'Cross the bridge')
+    await setInput('.location-challenge select[aria-label="Skill challenge complexity"]', '3')
+    await until(() => document.querySelector('.location-challenge')?.textContent.includes('525 XP'), 'the challenge XP (three level 4 monsters)')
+    await sleep(300)
+    const bridge = (await js(() => window.api.entity.list('encounter'))).find(e => e.name === 'Cross the bridge')
+    if (!bridge || bridge.creatures.length || bridge.challenge?.complexity !== 3 || bridge.challenge.level !== 4 || bridge.locationId !== 'vault' || !(await js(() => window.api.entity.get('location', 'vault'))).encounterIds.includes(bridge.id))
+      throw new Error('The skill challenge was not saved on the location: ' + JSON.stringify(bridge))
+    // The location's Encounters list leaves it out; it has its own section.
+    if (await js(() => [...document.querySelectorAll('[role="listitem"]')].some(r => r.textContent.includes('Cross the bridge')))) throw new Error('The skill challenge is listed with the location\'s encounters')
+    await screenshot('out/location-challenge.png')
     await js(() => [...document.querySelectorAll('nav button')].find(b => b.textContent.trim().endsWith('Rewards')).click())
     await until(() => document.querySelector('.rewards-level-row[aria-selected="true"]')?.textContent.startsWith('Level 4 (party)'), 'the Rewards page at the party level')
     // DMG parcels for one PC (DMG p. 125): parcel 3 (a level 6 item) and parcels 6-10 (420 + 280 + 280 + 140 + 90 gp).
@@ -161,11 +174,11 @@ app.whenReady().then(async () => {
     // The location's treasure shows here, placed in its location.
     if (!await js(() => [...document.querySelectorAll('.treasure-others .treasure-row')].some(r => r.textContent.includes('Lantern of Paths') && r.querySelector('select[aria-label="Placed in"]').selectedOptions[0].textContent === 'Smoke Vault'))) throw new Error('The location treasure is not on the Rewards page')
     // The level's encounters: Smoke Fight has no level of its own, so it counts at the party's level; the XP bar
-    // compares its XP per PC (one PC) with the 1,750 XP from level 4 to 5 (PHB p. 29).
+    // compares its XP per PC (one PC), with the bridge challenge's 525, with the 1,750 XP from level 4 to 5 (PHB p. 29).
     await until(() => [...document.querySelectorAll('.level-encounter-row')].some(r => r.textContent.includes('Smoke Fight (party level)')), "the level's encounters")
     await until(() => Number(document.querySelector('.rewards-bar[aria-label="Experience"]')?.getAttribute('aria-valuenow')) > 0, 'the experience bar')
-    const fightXp = (await js(() => window.api.combat.encounterXp()))['smoke-fight']
-    if (await js(() => { const b = document.querySelector('.rewards-bar[aria-label="Experience"]'); return `${b.getAttribute('aria-valuenow')}/${b.getAttribute('aria-valuemax')}` }) !== `${fightXp}/1750`) throw new Error('The experience bar does not show the encounter XP per PC against the next level')
+    const fightXp = (await js(() => window.api.combat.encounterXp()))['smoke-fight'] + 525
+    await until(want => { const b = document.querySelector('.rewards-bar[aria-label="Experience"]'); return `${b.getAttribute('aria-valuenow')}/${b.getAttribute('aria-valuemax')}` === want }, 'the encounters\' XP per PC against the next level in the experience bar', `${fightXp}/1750`)
     // A quest on the level: Major gives each PC one standard monster of its level, 175 XP at level 4 (DMG p. 122);
     // its reward treasure is placed on it.
     await js(() => [...document.querySelectorAll('.rewards-level .quest-section button')].find(b => b.textContent.trim() === '+ Quest').click())
@@ -183,7 +196,9 @@ app.whenReady().then(async () => {
     await js(() => [...document.querySelectorAll('.rewards-level button')].find(b => b.textContent.trim() === 'Suggest').click())
     try { await until(() => document.querySelectorAll('.treasure-slot .treasure-row').length === 5, 'the suggested money parcels') } catch (e) {
       // Main's records against the page's, to tell a lost save from a stale page.
-      throw new Error(e.message.split('\n')[0] + '; main has ' + JSON.stringify((await treasures()).map(t => t.slot ?? t.money?.text ?? t.item?.compendiumId)) + ', the page ' + JSON.stringify(await js(() => [...document.querySelectorAll('.treasure-slot')].map(s => s.dataset.slot + (s.querySelector('.treasure-row') ? '+' : '')))))
+      const dir = join(root, 'user', 'campaigns', campaignId, 'treasure')
+      const files = readdirSync(dir).map(n => n + ' ' + readFileSync(join(dir, n), 'utf8').replace(/\s+/g, ' ').slice(0, 160))
+      throw new Error(e.message.split('\n')[0] + '; files ' + JSON.stringify(files) + '; main has ' + JSON.stringify((await treasures()).map(t => t.slot ?? t.money?.text ?? t.item?.compendiumId)) + ', the page ' + JSON.stringify(await js(() => [...document.querySelectorAll('.treasure-slot')].map(s => s.dataset.slot + (s.querySelector('.treasure-row') ? '+' : '')))))
     }
     if (await meter() !== '1/1,1460/1210') throw new Error('The meter does not count the suggested parcels: ' + await meter())
     await js(() => document.querySelector('.treasure-others .treasure-row input[aria-label="Found"]').click())
@@ -217,6 +232,7 @@ app.whenReady().then(async () => {
     for (const text of ['Drillmaster', 'Sweeping Cut', 'Level 6']) if (!preview.includes(text)) throw new Error(`Row preview is missing "${text}"`)
     await screenshot('out/combat-encounter-preview.png')
     if (!await js(() => document.querySelector('.treasure-section .sb-label')?.textContent === 'Treasure')) throw new Error('The encounter editor has no Treasure section')
+    if (!await js(() => [...document.querySelectorAll('.encounter-challenge button')].some(b => b.textContent.trim() === '+ Skill challenge'))) throw new Error('The encounter editor has no Skill challenge section')
     // The encounter's own level (its level frame) sets its budget; the party's level shows beside it when they differ.
     await setInput('input[aria-label="Planned for party level"]', '6')
     await until(() => document.querySelector('.encounter-level-note')?.textContent === '(the party is level 4)', 'the party level note')
@@ -438,13 +454,13 @@ app.whenReady().then(async () => {
     for (let i = 0; i < 30 && !(await js(() => window.api.entity.get('encounter', 'smoke-fight'))).done; i++) await sleep(100)
     if (!(await js(() => window.api.entity.get('encounter', 'smoke-fight'))).done) throw new Error('Ending the combat did not mark its encounter done')
     await js(() => [...document.querySelectorAll('nav button')].find(b => b.textContent.trim().endsWith('Rewards')).click())
-    await until(() => document.querySelector('.level-encounter-row input[aria-label="Done"]')?.checked, 'the done encounter on the Rewards page')
+    await until(() => [...document.querySelectorAll('.level-encounter-row')].find(r => r.textContent.includes('Smoke Fight'))?.querySelector('input[aria-label="Done"]').checked, 'the done encounter on the Rewards page')
     await sleep(500) // let the page paint before the frame is taken
     await screenshot('out/rewards-earned.png')
 
     const confirms = await js(() => window.__confirms)
     clearTimeout(timeout)
-    console.log('COMBAT_SMOKE_OK: a Library creature resolving live in an encounter row, legacy creature converted on open, encounter row preview (template, level adjustment), the session board and level warnings, combat start in main with kit combatants (elite captain, troll regeneration, grouped minions), combat panel, recharge prompt, live pinned card, location trap stat blocks and search, rewards (an encounter planned for a level, a level variant of it (grouped in the list), a major quest with its XP and a reward treasure, ending a combat marking its encounter done (earned XP), treasure added on a location, the Rewards page: the level\'s encounters and XP per PC against the next level, DMG slots for a party of one, meter, Suggest, found, RC rolls), location traps joining the encounter, encounter diseases, disease name in a power applied to a PC like a condition, the PCs library (search, sort, detail pane), PC lasting conditions (carried into combat, the encounter\'s on top on the Home board, disease stages, adding a condition), PC sheet import (row defenses, panel, PCs page), pinned cards popped out to an OS window and back, trap rows with XP and preview, hidden trap with initiative, triggered trap (Trigger, Disable), trap countermeasures from content-repo clauses (checks, action, part, strip actions, a skill challenge disabling the trap, logged), click-to-apply from effect clauses (a save ends both group highlighted and applied together); confirms: ' + confirms.length + '; screenshots out/home.png, out/pcs-levels.png, out/combat-encounter-preview.png, out/combat-panel.png, out/combat-trap.png, out/combat-trap-countermeasures.png, out/combat-save-group.png, out/location-traps.png, out/treasure-dmg.png, out/treasure-rc.png, out/combat-disease.png, out/pc-diseases.png, out/combat-pc-sheet.png, out/popout-pinned.png')
+    console.log('COMBAT_SMOKE_OK: a Library creature resolving live in an encounter row, legacy creature converted on open, encounter row preview (template, level adjustment), the session board and level warnings, combat start in main with kit combatants (elite captain, troll regeneration, grouped minions), combat panel, recharge prompt, live pinned card, location trap stat blocks and search, rewards (an encounter planned for a level, a level variant of it (grouped in the list), a major quest with its XP and a reward treasure, ending a combat marking its encounter done (earned XP), a skill challenge on a location (its own encounter, counted on Rewards), treasure added on a location, the Rewards page: the level\'s encounters and XP per PC against the next level, DMG slots for a party of one, meter, Suggest, found, RC rolls), location traps joining the encounter, encounter diseases, disease name in a power applied to a PC like a condition, the PCs library (search, sort, detail pane), PC lasting conditions (carried into combat, the encounter\'s on top on the Home board, disease stages, adding a condition), PC sheet import (row defenses, panel, PCs page), pinned cards popped out to an OS window and back, trap rows with XP and preview, hidden trap with initiative, triggered trap (Trigger, Disable), trap countermeasures from content-repo clauses (checks, action, part, strip actions, a skill challenge disabling the trap, logged), click-to-apply from effect clauses (a save ends both group highlighted and applied together); confirms: ' + confirms.length + '; screenshots out/home.png, out/pcs-levels.png, out/combat-encounter-preview.png, out/combat-panel.png, out/combat-trap.png, out/combat-trap-countermeasures.png, out/combat-save-group.png, out/location-traps.png, out/treasure-dmg.png, out/treasure-rc.png, out/combat-disease.png, out/pc-diseases.png, out/combat-pc-sheet.png, out/popout-pinned.png')
     finish(0)
   } catch (err) {
     console.error(err)

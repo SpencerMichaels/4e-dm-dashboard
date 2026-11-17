@@ -10,7 +10,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { Encounter, LevelPlan, Treasure, TreasureMode, TreasureSlot } from '@common/types'
 import { MODE_LABELS, planSlots, rollRcLevel, tallyTreasure, treasureBudget, treasureShare, type ItemFacts, type TreasureTally } from '@common/rules/treasure'
-import { encounterFrame, questXp, xpToNextLevel } from '@common/rules/rewards'
+import { encounterFrame, isSkillChallenge, questXp, xpToNextLevel } from '@common/rules/rewards'
 import { useCampaignStore } from '../../stores/campaign-store'
 import { useLibraryStore } from '../../stores/library-store'
 import { useUiStore } from '../../stores/ui-store'
@@ -260,7 +260,7 @@ function LevelEncounters({ level, encounters, encounterXp, partySize }: { level:
               <button className="sb-row-button" onClick={() => setView({ type: 'encounter', encounterId: e.id })}
                 title={e.level == null ? 'No level of its own: counted at the party\'s level' : undefined}
                 style={{ display: 'flex', gap: 'var(--space-2)' }}>
-                <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis' }}>{e.name || 'Untitled'}{e.level == null ? ' (party level)' : ''}</span>
+                <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis' }}>{e.name || 'Untitled'}{isSkillChallenge(e) ? ' (skill challenge)' : ''}{e.level == null ? ' (party level)' : ''}</span>
                 {location && <span style={{ color: 'var(--muted)' }}>{location.name}</span>}
                 <span style={{ color: 'var(--muted)', whiteSpace: 'nowrap' }}>{xp != null ? `${xp.toLocaleString('en-US')} XP (${Math.round(xp / partySize).toLocaleString('en-US')} each)` : ''}</span>
               </button>

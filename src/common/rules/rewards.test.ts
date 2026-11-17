@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { ADVANCEMENT_XP, encounterFrame, questXp, xpToNextLevel } from './rewards'
+import { ADVANCEMENT_XP, challengeSuccesses, challengeXp, encounterFrame, isSkillChallenge, questXp, xpToNextLevel } from './rewards'
 
 describe('experience by level', () => {
   it('takes the Character Advancement table\'s steps (PHB p. 29, RC p. 85)', () => {
@@ -27,5 +27,18 @@ describe('quest XP', () => {
     expect(questXp('minor', 1, 5) / 5).toBe(20)
     // Moderate: half a 1st-level monster to each PC, 50 XP (RC p. 295).
     expect(questXp('moderate', 1, 5) / 5).toBe(50)
+  })
+})
+
+describe('skill challenges', () => {
+  it('needs 4-12 successes before 3 failures and is worth complexity x a standard monster (RC pp. 159, 293-294)', () => {
+    expect([1, 2, 3, 4, 5].map(challengeSuccesses)).toEqual([4, 6, 8, 10, 12])
+    // A 7th-level challenge of complexity 3 counts as three 7th-level threats, 900 XP (RC p. 293).
+    expect(challengeXp({ level: 7, complexity: 3 })).toBe(900)
+    expect(challengeXp({ level: 30, complexity: 5 })).toBe(95000)
+    const enc = { creatures: [], challenge: { level: 3, complexity: 1 } }
+    expect(isSkillChallenge(enc)).toBe(true)
+    expect(isSkillChallenge({ ...enc, traps: [{ compendiumId: 't', count: 1 }] })).toBe(false)
+    expect(isSkillChallenge({ creatures: [] })).toBe(false)
   })
 })

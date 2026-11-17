@@ -16,6 +16,8 @@ import { kitViewCreature } from '../creature/kit-view'
 import { EncounterTraps, trapKey, useTrapRows } from './EncounterTraps'
 import { TreasureSection } from '../treasure/TreasureSection'
 import { EncounterVariants } from './EncounterVariants'
+import { EncounterChallenge } from './SkillChallenges'
+import { challengeXp, isSkillChallenge } from '@common/rules/rewards'
 import { useTrap, useTraps } from '../trap/trap-refs'
 import { EncounterDiseases } from '../disease/disease-refs'
 import { contentText } from '@common/rules/diseases'
@@ -157,7 +159,9 @@ export function Dnd4eEncounterEditor({ encounter, onSave, creatures, onNavigate 
   // Traps noted on the encounter's location join its combat too (once; the encounter's own row wins).
   const locations = useCampaignStore(s => s.locations)
   const location = encounter.locationId ? locations.find(l => l.id === encounter.locationId) : undefined
-  const locationTraps = useMemo(() => (location?.traps ?? []).filter(r => !(encounter.traps ?? []).some(t => trapKey(t) === trapKey(r))), [location, encounter.traps])
+  // (Not for a skill challenge standing on its own: no fight, so its location's traps don't join it.)
+  const alone = isSkillChallenge(encounter)
+  const locationTraps = useMemo(() => alone ? [] : (location?.traps ?? []).filter(r => !(encounter.traps ?? []).some(t => trapKey(t) === trapKey(r))), [alone, location, encounter.traps])
   const allTraps = useMemo<EncounterTrap[]>(() => [...(encounter.traps ?? []), ...locationTraps.map(r => ({ ...r, count: 1 }))], [encounter.traps, locationTraps])
   const trapRows = useTrapRows(allTraps)
   // Where the encounter's diseases come from: its creatures (as adjusted) and its traps.
@@ -189,8 +193,10 @@ export function Dnd4eEncounterEditor({ encounter, onSave, creatures, onNavigate 
     }
     // Traps count like monsters of their level and rank (their XP is printed).
     for (const et of allTraps) xp += (trapRows.find(r => r.key === trapKey(et))?.xp ?? 0) * et.count
+    // A skill challenge counts as complexity x a standard monster of its level (RC p. 293).
+    if (encounter.challenge) xp += challengeXp(encounter.challenge)
     return xp
-  }, [encounter.creatures, allTraps, resolveInfo, trapRows])
+  }, [encounter.creatures, encounter.challenge, allTraps, resolveInfo, trapRows])
 
   // Actual encounter level from creatures currently added
   const actualEL = partyReady && totalXP > 0 ? encounterLevel(totalXP, partySize!) : undefined
@@ -775,6 +781,7 @@ export function Dnd4eEncounterEditor({ encounter, onSave, creatures, onNavigate 
           location={location && locationTraps.length ? { name: location.name, traps: locationTraps } : undefined}
           selectedKey={selectedTrapKey}
           onSelect={key => { setSelectedTrapKey(key); if (key) { setSelectedRowKey(null); setPreviewId(null); setPreviewCreature(null) } }} />
+        <EncounterChallenge encounter={encounter} frame={partyLevel} save={save} />
         <EncounterDiseases sources={diseaseSources} />
         <TreasureSection place={{ encounterId: encounter.id }} level={partyLevel} encounterStyle />
 

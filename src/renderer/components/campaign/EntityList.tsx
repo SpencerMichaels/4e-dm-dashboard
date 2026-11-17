@@ -10,7 +10,7 @@ import { ConfirmDialog } from '../shared/ConfirmDialog'
 import { Icon } from '../shared/Icon'
 import { PCListView } from './PCListView'
 import { groupVariants } from '@common/rules/encounter-variants'
-import { encounterFrame } from '@common/rules/rewards'
+import { encounterFrame, isSkillChallenge } from '@common/rules/rewards'
 import { partyLevel } from '@common/rules/party'
 
 interface Props {
@@ -127,6 +127,7 @@ export function EntityList({ entityType }: Props) {
                 }}
               >
                 <span className="entity-name">{e.name || 'Untitled'}</span>
+                {entityType === 'encounter' && isSkillChallenge(e as Encounter) && <span className="encounter-list-kind" style={{ color: 'var(--muted)', marginLeft: 'var(--space-2)', fontSize: 'var(--font-size-sm)' }}>Skill challenge</span>}
                 {entityType === 'encounter' && (e as Encounter).level != null && variantsOfRow(e.id).length < 2 && <span className="encounter-list-level" style={{ color: 'var(--muted)', marginLeft: 'var(--space-2)', fontSize: 'var(--font-size-sm)' }}>Level {(e as Encounter).level}</span>}
               </button>
               {variantsOfRow(e.id).length > 1 && (

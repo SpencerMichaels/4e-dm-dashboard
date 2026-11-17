@@ -7,6 +7,7 @@ import type { Monster, MonsterTemplate, MonsterTheme, Trap } from '@kit'
 import type { CampaignRecord, CombatantState, CompendiumAnnotation, CreatureRecord, Encounter, EncounterCreature, EncounterRowPreview, EncounterTrap, Location, TrapRef } from '@common/types'
 import { generateId } from '@common/utils/id'
 import { adjustMonster, templateAllowed } from '@common/rules/adjust-monster'
+import { challengeXp, isSkillChallenge } from '@common/rules/rewards'
 import { getKitEntry, publishedTemplateList, publishedThemeList } from '../compendium/kit'
 import { getActiveCampaignId, getEntity, listEntities, loadAnnotations } from '../data/campaign-store'
 import { listLibrary } from '../data/library-store'
@@ -102,11 +103,13 @@ export function encounterTrapRows(encounter: Encounter, locationTraps: TrapRef[]
 }
 
 
-/** An encounter's XP: each creature row's adjusted monster's, and each of its traps' (its own and its location's), times the row's count. */
+/** An encounter's XP: each creature row's adjusted monster's and each of its traps' (its own and its location's), times the row's count, and its skill challenge's. */
 export function encounterXp(encounter: Encounter, s: EncounterSources): number {
   let xp = 0
   for (const ec of encounter.creatures) xp += (resolveRow(ec, s)?.monster.xp ?? 0) * ec.count
-  for (const et of encounterTrapRows(encounter, s.locationTraps ?? [])) xp += (rowTrap(et, s)?.xp ?? 0) * et.count
+  // A skill challenge standing on its own is no fight: its location's traps don't join it.
+  for (const et of encounterTrapRows(encounter, isSkillChallenge(encounter) ? [] : s.locationTraps ?? [])) xp += (rowTrap(et, s)?.xp ?? 0) * et.count
+  if (encounter.challenge) xp += challengeXp(encounter.challenge)
   return xp
 }
 function trapCombatants(encounter: Encounter, s: EncounterSources): CombatantState[] {
