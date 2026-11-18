@@ -5,6 +5,7 @@ import { Icon } from '../shared/Icon'
 import { usageTone, normalizeDamage, type DamagePart } from './dnd4e-utils'
 import { tint, withAlpha } from '../../utils/color'
 import { Annotation } from './annotations'
+import { DragGrip, moveWithin, useDragReorder, type DragReorder } from '../shared/drag-reorder'
 
 export type { DamagePart } from './dnd4e-utils'
 
@@ -91,23 +92,14 @@ export function PowerEntryEditor({ entries, onChange, config, level, statBlock }
   const grouped = config.useGroupedActions ?? false
   const update = (idx: number, patch: Partial<PowerEntry>) => onChange(entries.map((e, i) => i === idx ? { ...e, ...patch } : e))
   const remove = (idx: number) => onChange(entries.filter((_, i) => i !== idx))
-  const move = (idx: number, dir: -1 | 1) => {
-    const j = idx + dir
-    if (j < 0 || j >= entries.length) return
-    const arr = [...entries]
-    ;[arr[idx], arr[j]] = [arr[j], arr[idx]]
-    onChange(arr)
-  }
-
   // Attack bonus tables from config — used for inline quick-fill buttons on powers
   const atkBonusTables = config.attackBonusTables ?? []
 
-  // Group by entry type for display (only in complex mode)
-  const traits = entries.map((e, i) => ({ e, i })).filter(({ e }) => e.entryType === 'trait')
-  const auras = entries.map((e, i) => ({ e, i })).filter(({ e }) => e.entryType === 'aura')
-  const usageOrder: Record<string, number> = { 'at-will': 0, 'encounter': 1, 'recharge': 2, 'recharge-bloodied': 2 }
+  // Powers in their stored (printed) order; moves reorder them among themselves, never past other kinds.
   const actions = entries.map((e, i) => ({ e, i })).filter(({ e }) => e.entryType === 'action')
-    .sort((a, b) => (usageOrder[a.e.usage] ?? 3) - (usageOrder[b.e.usage] ?? 3))
+  const slots = actions.map(({ i }) => i)
+  const moveTo = (from: number, to: number) => onChange(moveWithin(entries, slots, from, to))
+  const drag = useDragReorder(actions.length, moveTo)
 
   if (!grouped) {
     // Non-grouped layout
@@ -136,11 +128,11 @@ export function PowerEntryEditor({ entries, onChange, config, level, statBlock }
         <AddButton label={config.usageTypes ? 'power' : 'action'} onClick={() => onChange([emptyPower(config, 'action'), ...entries])} />
       </div>
 
-      {actions.map(({ e, i }) => (
+      {actions.map(({ e, i }, pos) => (
         <div key={i}>
-          <FullPowerRow entry={e} idx={i} config={config} level={level} statBlock={statBlock}
+          <FullPowerRow entry={e} idx={i} pos={pos} drag={drag} config={config} level={level} statBlock={statBlock}
             atkBonusTables={atkBonusTables}
-            onUpdate={update} onRemove={remove} onMove={move} />
+            onUpdate={update} onRemove={remove} onMove={dir => moveTo(pos, pos + dir)} />
         </div>
       ))}
     </div>
@@ -151,6 +143,8 @@ export function PowerEntryEditor({ entries, onChange, config, level, statBlock }
 
 function SimpleAttackRow({ entry: e, idx, config, level, atkBonusTables, onUpdate, onRemove }: {
   entry: PowerEntry; idx: number; config: CreatureBuilderConfig; level?: number
+  /** Its position among the powers shown, and their drag reordering. */
+  pos: number; drag?: DragReorder
   atkBonusTables: { key: string; label: string; table: { [level: number]: Record<string, number> } }[]
   onUpdate: (i: number, p: Partial<PowerEntry>) => void; onRemove: (i: number) => void
 }) {
@@ -277,12 +271,14 @@ export function AuraRow({ entry: e, idx, onUpdate, onRemove }: {
   )
 }
 
-function FullPowerRow({ entry: e, idx, config, level, statBlock, atkBonusTables, onUpdate, onRemove, onMove }: {
+function FullPowerRow({ entry: e, idx, pos, drag, config, level, statBlock, atkBonusTables, onUpdate, onRemove, onMove }: {
   entry: PowerEntry; idx: number; config: CreatureBuilderConfig; level?: number
+  /** Its position among the powers shown, and their drag reordering. */
+  pos: number; drag?: DragReorder
   statBlock?: Record<string, unknown>
   atkBonusTables: { key: string; label: string; table: { [level: number]: Record<string, number> } }[]
   onUpdate: (i: number, p: Partial<PowerEntry>) => void
-  onRemove: (i: number) => void; onMove: (i: number, dir: -1 | 1) => void
+  onRemove: (i: number) => void; onMove: (dir: -1 | 1) => void
 }) {
   const [focusField, setFocusField] = useState<string | null>(null)
   const autoFocusRef = useCallback((el: HTMLInputElement | HTMLTextAreaElement | null) => {
@@ -311,14 +307,15 @@ function FullPowerRow({ entry: e, idx, config, level, statBlock, atkBonusTables,
 
   const dragBtnStyle = { color: 'var(--muted)', padding: '0', lineHeight: 1, fontSize: '10px', display: 'block' }
 
+  const row = drag?.row(pos)
   return (
-    <div style={{ display: 'flex', fontSize: 'var(--font-size-xs)', lineHeight: 1.5, marginBottom: 2 }}>
+    <div ref={row?.ref} style={{ display: 'flex', fontSize: 'var(--font-size-xs)', lineHeight: 1.5, marginBottom: 2, ...row?.style }}>
       <Annotation anchor={{ kind: 'entry', entry: e }} />
       {/* Reorder controls — left gutter */}
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-start', padding: '4px 3px 0', gap: 1, opacity: 0.5, minWidth: 14 }}>
-        <button onClick={() => onMove(idx, -1)} style={dragBtnStyle} title="Move up" aria-label="Move up"><Icon name="chevron-up" size={10} /></button>
-        <span style={{ cursor: 'grab', color: 'var(--muted)', display: 'inline-flex' }} title="Drag to reorder"><Icon name="grip-vertical" size={10} /></span>
-        <button onClick={() => onMove(idx, 1)} style={dragBtnStyle} title="Move down" aria-label="Move down"><Icon name="chevron-down" size={10} /></button>
+        <button onClick={() => onMove(-1)} style={dragBtnStyle} title="Move up" aria-label="Move up"><Icon name="chevron-up" size={10} /></button>
+        <DragGrip drag={drag} index={pos} />
+        <button onClick={() => onMove(1)} style={dragBtnStyle} title="Move down" aria-label="Move down"><Icon name="chevron-down" size={10} /></button>
       </div>
 
       {/* Card content */}

@@ -221,7 +221,7 @@ Plan: [docs/shared-library-plan.md](docs/shared-library-plan.md) (2026-11-14). A
 - [ ] Campaign export (later): bundle referenced Library entries and their art; on import they become entries of the imported campaign (references rewritten to campaign ids), never of the importing DM's Library (handling of entries their Library already has: TBD, see the plan)
 
 ## UI
-- [ ] Implement actual drag-and-drop reordering for powers, traits, and auras (currently only arrow buttons; the drag handle ⠿ is visual-only)
+- [x] Drag-and-drop reordering (2026-11-17, `shared/drag-reorder.tsx`): the grip between the up/down buttons drags powers, traits and auras in the creature editor and the kit statblocks, and the kit statblocks' other lists (trap detection and countermeasures, challenge skills, disease stages); pointer events (inputs in the rows, pop-out windows), Escape cancels, moves stay among entries of one kind. Powers show in stored (printed) order in the creature editor and viewer (no usage sort)
 - [ ] Add smooth reorder/add/remove animations for power/trait/aura lists (FLIP technique or View Transitions API)
 
 ## New features

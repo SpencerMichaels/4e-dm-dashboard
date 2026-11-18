@@ -128,9 +128,8 @@ export function Dnd4eCreatureViewer({ creature, tooltip: tip, compendiumId: comp
     : null
   const traitEntries = actions.filter(a => a.entryType === 'trait')
   const auraEntries = actions.filter(a => a.entryType === 'aura')
+  // Powers in their stored (printed) order, as the editor shows and reorders them.
   const powerEntries = actions.filter(a => a.entryType === 'action')
-  const usageOrder: Record<string, number> = { 'at-will': 0, 'encounter': 1, 'recharge': 2, 'recharge-bloodied': 2, 'daily': 3 }
-  powerEntries.sort((a, b) => (usageOrder[a.usage] ?? 3) - (usageOrder[b.usage] ?? 3))
 
   return (
     <div className="stat-block-4e" style={{ fontSize: 12, lineHeight: 1.5 }}>

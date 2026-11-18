@@ -301,6 +301,35 @@ app.whenReady().then(async () => {
     const heights = await js(() => [...document.querySelectorAll('.compendium-preview .sb-header-actions > *')].map(e => Math.round(e.getBoundingClientRect().height)))
     if (heights.length !== 4 || new Set(heights).size !== 1) throw new Error('Title bar controls (chip, pop out, edit, menu) differ in height: ' + JSON.stringify(heights))
 
+    // Drag to reorder: a new power goes on top; dragging Bite's grip above it saves Bite first, and the
+    // viewer shows powers in that stored order.
+    await js(() => [...document.querySelectorAll('.compendium-preview button')].find(b => b.textContent.trim() === '+ power').click())
+    for (let i = 0; i < 30 && (await records('creature')).find(r => r.id === sewer.id)?.content.powers.length !== 2; i++) await sleep(100)
+    await js(() => { const i = document.querySelector('.compendium-preview input[placeholder="Power name"]'); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(i, 'Gnaw'); i.dispatchEvent(new Event('input', { bubbles: true })) })
+    for (let i = 0; i < 30 && (await records('creature')).find(r => r.id === sewer.id)?.content.powers[0]?.name !== 'Gnaw'; i++) await sleep(100)
+    const dragged = await js(async () => {
+      const names = () => [...document.querySelectorAll('.compendium-preview input[placeholder="Power name"]')].map(i => i.value)
+      const before = names()
+      // The powers column is the editor's last stat block.
+      const grips = [...[...document.querySelectorAll('.compendium-preview .stat-block-4e')].pop().querySelectorAll('.drag-grip')]
+      if (grips.length !== 2) return { grips: grips.length }
+      const grip = grips[grips.length - 1]
+      const first = document.querySelector('.compendium-preview input[placeholder="Power name"]').getBoundingClientRect()
+      const at = (type, y) => grip.dispatchEvent(new PointerEvent(type, { bubbles: true, button: 0, pointerId: 7, clientX: 0, clientY: y }))
+      at('pointerdown', grip.getBoundingClientRect().top)
+      await new Promise(r => setTimeout(r, 50))
+      at('pointermove', first.top - 2)
+      await new Promise(r => setTimeout(r, 50))
+      const line = [...document.querySelectorAll('.compendium-preview div')].some(d => d.style.boxShadow.includes('inset'))
+      at('pointerup', first.top - 2)
+      await new Promise(r => setTimeout(r, 50))
+      return { before, line, after: names() }
+    })
+    if (JSON.stringify(dragged.before) !== JSON.stringify(['Gnaw', 'Bite']) || !dragged.line) throw new Error('Drag setup or drop line wrong: ' + JSON.stringify(dragged))
+    for (let i = 0; i < 30 && (await records('creature')).find(r => r.id === sewer.id)?.content.powers[0]?.name !== 'Bite'; i++) await sleep(100)
+    const powerOrder = (await records('creature')).find(r => r.id === sewer.id).content.powers.map(p => p.name)
+    if (JSON.stringify(powerOrder) !== JSON.stringify(['Bite', 'Gnaw'])) throw new Error('Dragging Bite above Gnaw saved ' + JSON.stringify(powerOrder) + ' (editor: ' + JSON.stringify(dragged.after) + ')')
+
     // Pop out while editing: the editor moves into an OS window of its own, with the same controls, and stays editable.
     const before = new Set(BrowserWindow.getAllWindows())
     await headerButton('Pop out')

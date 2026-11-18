@@ -6,6 +6,7 @@ import type { CSSProperties, ReactNode } from 'react'
 import type { Line } from '@kit'
 import { TagInput } from '@renderer/components/shared/TagInput'
 import { Icon } from '../shared/Icon'
+import { DragGrip, type DragReorder } from '../shared/drag-reorder'
 
 interface Base { placeholder?: string; className?: string; style?: CSSProperties; label?: string }
 
@@ -67,10 +68,13 @@ export function Add({ onClick, children }: { onClick?: () => void; children: Rea
 }
 
 /** Up/down reorder controls for list entries, shown only while editing. */
-export function Move({ index, length, move }: { index: number; length: number; move?: (from: number, to: number) => void }) {
+export function Move({ index, length, move, drag }: { index: number; length: number; move?: (from: number, to: number) => void
+  /** The list's drag reordering (`useDragReorder`), for a grip between the buttons. */
+  drag?: DragReorder }) {
   if (!move) return null
-  return <span className="sb-move" style={{ display: 'inline-flex', flexDirection: 'column', opacity: 0.5, marginRight: 2 }}>
+  return <span className="sb-move" style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'center', opacity: 0.5, marginRight: 2 }}>
     <button type="button" aria-label="Move up" disabled={index === 0} onClick={() => move(index, index - 1)} title="Move up" style={{ ...small, display: 'inline-flex' }}><Icon name="chevron-up" size={10} /></button>
+    <DragGrip drag={drag} index={index} />
     <button type="button" aria-label="Move down" disabled={index === length - 1} onClick={() => move(index, index + 1)} title="Move down" style={{ ...small, display: 'inline-flex' }}><Icon name="chevron-down" size={10} /></button>
   </span>
 }

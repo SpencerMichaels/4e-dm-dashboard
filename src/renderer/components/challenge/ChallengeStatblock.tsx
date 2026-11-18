@@ -10,6 +10,7 @@ import { partyLevel } from '@common/rules/party'
 import { useCampaignStore } from '../../stores/campaign-store'
 import { Annotation } from '../creature/annotations'
 import { Add, Choice, listOps, Move, Num, Prose, Remove, Text } from '../statblock/fields'
+import { useDragReorder } from '../shared/drag-reorder'
 import { RecordHeaderActions } from '../shared/record-header'
 import '../creature/statblock.css'
 
@@ -78,6 +79,7 @@ function Section({ label, value, placeholder, onChange, anchor }: { label: strin
 function Skills({ label, skills, level, onChange }: { label: string; skills: ChallengeSkill[]; level: number; onChange?: (v: ChallengeSkill[]) => void }) {
   const edit = !!onChange
   const ops = listOps(skills, onChange)
+  const drag = useDragReorder(skills.length, ops.move)
   if (!edit && !skills.length) return null
   return <div className="sb-section challenge-skills">
     <div className="sb-row"><b className="sb-label">{label}</b></div>
@@ -88,8 +90,8 @@ function Skills({ label, skills, level, onChange }: { label: string; skills: Cha
         for (const key of Object.keys(patch) as (keyof ChallengeSkill)[]) if (next[key] === undefined) delete next[key]
         ops.set!(i, next)
       })
-      return <div key={i} className="sb-row challenge-skill" style={{ alignItems: 'baseline', flexWrap: 'nowrap', paddingLeft: 8 }}>
-        <Move index={i} length={skills.length} move={ops.move} />
+      return <div key={i} ref={drag?.row(i).ref} className="sb-row challenge-skill" style={{ alignItems: 'baseline', flexWrap: 'nowrap', paddingLeft: 8, ...drag?.row(i).style }}>
+        <Move index={i} length={skills.length} move={ops.move} drag={drag} />
         <span style={{ flex: 1 }}>
           {edit ? <>
             <Text value={k.skill} placeholder="Skill" label="Skill" onChange={v => setK!({ skill: v })} />

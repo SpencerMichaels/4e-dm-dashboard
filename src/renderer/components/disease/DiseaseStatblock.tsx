@@ -4,6 +4,7 @@ import type { Attack, Disease, Power } from '@kit'
 import { Annotation } from '../creature/annotations'
 import { KitPowers } from '../statblock/KitPowers'
 import { Add, Choice, LineText, listOps, Move, Num, Prose, Remove, Text } from '../statblock/fields'
+import { useDragReorder } from '../shared/drag-reorder'
 import { RecordHeaderActions } from '../shared/record-header'
 import '../creature/statblock.css'
 
@@ -25,6 +26,7 @@ export function DiseaseStatblock({ disease: d, onChange }: { disease: Disease; o
     onChange(next)
   })
   const stages = listOps(d.stages, set && (v => set('stages', v)))
+  const dragStages = useDragReorder(d.stages.length, stages.move)
   const endurance = d.endurance
   const setEndurance = set && ((patch: Partial<Disease['endurance']>) => {
     const next = { ...endurance, ...patch }
@@ -56,8 +58,8 @@ export function DiseaseStatblock({ disease: d, onChange }: { disease: Disease; o
     </div>}
 
     <div className="sb-section">
-      {d.stages.map((s, i) => <div key={i} className="sb-row" style={{ alignItems: 'baseline', flexWrap: 'nowrap' }}>
-        <Move index={i} length={d.stages.length} move={stages.move} />
+      {d.stages.map((s, i) => <div key={i} ref={dragStages?.row(i).ref} className="sb-row" style={{ alignItems: 'baseline', flexWrap: 'nowrap', ...dragStages?.row(i).style }}>
+        <Move index={i} length={d.stages.length} move={stages.move} drag={dragStages} />
         <span style={{ flex: 1 }}>
           <b className="sb-label">Stage {edit ? <Num value={s.stage} min={0} label="Stage" onChange={stage => stages.set!(i, { ...s, stage: stage ?? 0 })} /> : s.stage}</b>
           {(STAGE_LABELS[s.stage] || s.final) && !edit && <span style={{ color: 'var(--text-secondary)' }}> ({s.final ? 'Final State' : STAGE_LABELS[s.stage]})</span>}

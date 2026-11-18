@@ -1,6 +1,7 @@
 import { useRef, useEffect, useCallback, useState, useSyncExternalStore } from 'react'
 import type { Creature, CreatureBuilderConfig } from '@common/types'
 import { PowerEntryEditor, TraitRow, AuraRow, emptyPower } from './PowerEntryEditor'
+import { DragGrip, moveWithin, useDragReorder } from '../shared/drag-reorder'
 import type { PowerEntry } from './PowerEntryEditor'
 import { TagInput } from '@renderer/components/shared/TagInput'
 import { Icon } from '../shared/Icon'
@@ -471,13 +472,13 @@ export function Dnd4eCreatureDetails({ creature, onSave: save, config, compact, 
           u('actions', updated)
         }
         const removeAction = (idx: number) => u('actions', actions.filter((_, i) => i !== idx))
-        const moveAction = (idx: number, dir: -1 | 1) => {
-          const j = idx + dir
-          if (j < 0 || j >= actions.length) return
-          const arr = [...actions]
-          ;[arr[idx], arr[j]] = [arr[j], arr[idx]]
-          u('actions', arr)
-        }
+        // Moves stay among entries of the same kind (traits among traits, auras among auras).
+        const traitSlots = traitEntries.map(({ i }) => i)
+        const auraSlots = auraEntries.map(({ i }) => i)
+        const moveTrait = (from: number, to: number) => u('actions', moveWithin(actions, traitSlots, from, to))
+        const moveAura = (from: number, to: number) => u('actions', moveWithin(actions, auraSlots, from, to))
+        const dragTraits = useDragReorder(traitEntries.length, moveTrait)
+        const dragAuras = useDragReorder(auraEntries.length, moveAura)
         const addEntry = (type: PowerEntry['entryType']) => u('actions', [emptyPower(actionConfig, type), ...actions])
         const gutterBtn = { color: 'var(--muted)', padding: '0', lineHeight: 1, fontSize: '10px', display: 'block' as const }
         const addBtn = { color: 'var(--muted)', border: '1px dashed var(--border)', borderRadius: 'var(--radius-sm)', padding: '0 4px', background: 'transparent', cursor: 'pointer' }
@@ -496,12 +497,12 @@ export function Dnd4eCreatureDetails({ creature, onSave: save, config, compact, 
             </div>
             {traitEntries.length > 0 && (
               <div style={{ marginTop: 4 }}>
-                {traitEntries.map(({ e, i }) => (
-                  <div key={i}  style={{ display: 'flex' }}>
+                {traitEntries.map(({ e, i }, pos) => (
+                  <div key={i} ref={dragTraits?.row(pos).ref} style={{ display: 'flex', ...dragTraits?.row(pos).style }}>
                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-start', padding: '4px 3px 0', gap: 1, opacity: 0.5, minWidth: 14 }}>
-                      <button onClick={() => moveAction(i, -1)} style={gutterBtn} title="Move up" aria-label="Move up"><Icon name="chevron-up" size={10} /></button>
-                      <span style={{ cursor: 'grab', color: 'var(--muted)', display: 'inline-flex' }} title="Drag to reorder"><Icon name="grip-vertical" size={10} /></span>
-                      <button onClick={() => moveAction(i, 1)} style={gutterBtn} title="Move down" aria-label="Move down"><Icon name="chevron-down" size={10} /></button>
+                      <button onClick={() => moveTrait(pos, pos - 1)} style={gutterBtn} title="Move up" aria-label="Move up"><Icon name="chevron-up" size={10} /></button>
+                      <DragGrip drag={dragTraits} index={pos} />
+                      <button onClick={() => moveTrait(pos, pos + 1)} style={gutterBtn} title="Move down" aria-label="Move down"><Icon name="chevron-down" size={10} /></button>
                     </div>
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <TraitRow entry={e} idx={i} onUpdate={updateAction} onRemove={removeAction} />
@@ -513,12 +514,12 @@ export function Dnd4eCreatureDetails({ creature, onSave: save, config, compact, 
             )}
             {auraEntries.length > 0 && (
               <div style={{ marginTop: 4 }}>
-                {auraEntries.map(({ e, i }) => (
-                  <div key={i}  style={{ display: 'flex' }}>
+                {auraEntries.map(({ e, i }, pos) => (
+                  <div key={i} ref={dragAuras?.row(pos).ref} style={{ display: 'flex', ...dragAuras?.row(pos).style }}>
                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-start', padding: '4px 3px 0', gap: 1, opacity: 0.5, minWidth: 14 }}>
-                      <button onClick={() => moveAction(i, -1)} style={gutterBtn} title="Move up" aria-label="Move up"><Icon name="chevron-up" size={10} /></button>
-                      <span style={{ cursor: 'grab', color: 'var(--muted)', display: 'inline-flex' }} title="Drag to reorder"><Icon name="grip-vertical" size={10} /></span>
-                      <button onClick={() => moveAction(i, 1)} style={gutterBtn} title="Move down" aria-label="Move down"><Icon name="chevron-down" size={10} /></button>
+                      <button onClick={() => moveAura(pos, pos - 1)} style={gutterBtn} title="Move up" aria-label="Move up"><Icon name="chevron-up" size={10} /></button>
+                      <DragGrip drag={dragAuras} index={pos} />
+                      <button onClick={() => moveAura(pos, pos + 1)} style={gutterBtn} title="Move down" aria-label="Move down"><Icon name="chevron-down" size={10} /></button>
                     </div>
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <AuraRow entry={e} idx={i} onUpdate={updateAction} onRemove={removeAction} />

@@ -4,6 +4,7 @@ import { monsterXp, type DamageModifier, type Defense, type Line, type Trap } fr
 import { Annotation } from '../creature/annotations'
 import { KitPowers, KitTraits } from '../statblock/KitPowers'
 import { Add, Choice, LineText, listOps, Move, Num, Prose, Remove, Tags, Text } from '../statblock/fields'
+import { useDragReorder } from '../shared/drag-reorder'
 import { RecordHeaderActions } from '../shared/record-header'
 import '../creature/statblock.css'
 
@@ -28,6 +29,8 @@ export function TrapStatblock({ trap: t, onChange }: { trap: Trap; onChange?: (n
   const setRanked = onChange && ((level: number, rank: Trap['rank']) => onChange({ ...t, level, rank, xp: t.xp === monsterXp(t.level, t.rank) ? monsterXp(level, rank) : t.xp }))
   const detect = listOps(t.detect, set && (v => set('detect', v)))
   const counters = listOps(t.countermeasures, set && (v => set('countermeasures', v)))
+  const dragDetect = useDragReorder(t.detect.length, detect.move)
+  const dragCounters = useDragReorder(t.countermeasures.length, counters.move)
   const resist = listOps(t.resist, set && (v => set('resist', v)))
   const defenses = t.defenses ?? {}
   const hasStats = edit || t.initiative !== undefined || t.hp !== undefined || t.hpText || DEFENSES.some(d => defenses[d] !== undefined) || t.speed
@@ -65,8 +68,8 @@ export function TrapStatblock({ trap: t, onChange }: { trap: Trap; onChange?: (n
         <div className="sb-row"><b className="sb-label">{skill}</b></div>
         {checks.map((d, i) => <div key={i} className="sb-row" style={{ paddingLeft: 8, alignItems: 'baseline', flexWrap: 'nowrap' }}><span>✦</span><span>{[d.dc !== null ? `DC ${d.dc}` : '', d.text].filter(Boolean).join(': ')}</span></div>)}
       </div>)}
-      {edit && t.detect.map((d, i) => <div key={i} className="sb-row" style={{ alignItems: 'baseline', flexWrap: 'nowrap' }}>
-        <Move index={i} length={t.detect.length} move={detect.move} />
+      {edit && t.detect.map((d, i) => <div key={i} ref={dragDetect?.row(i).ref} className="sb-row" style={{ alignItems: 'baseline', flexWrap: 'nowrap', ...dragDetect?.row(i).style }}>
+        <Move index={i} length={t.detect.length} move={detect.move} drag={dragDetect} />
         <span style={{ flex: 1 }}>
           <b className="sb-label"><Text value={d.skill} placeholder="Skill" label="Skill" onChange={detect.set && (skill => detect.set!(i, { ...d, skill }))} /></b>{' '}
           {edit ? <>DC <Num value={d.dc ?? undefined} placeholder="none" label="DC" onChange={dc => detect.set!(i, { ...d, dc: dc ?? null })} />: </> : d.dc !== null ? `DC ${d.dc}: ` : ''}
@@ -114,8 +117,8 @@ export function TrapStatblock({ trap: t, onChange }: { trap: Trap; onChange?: (n
 
     {(edit || t.countermeasures.length > 0) && <div className="sb-section">
       <div className="sb-row" style={{ fontWeight: 700 }}>Countermeasures</div>
-      {t.countermeasures.map((c, i) => <div key={i} className="sb-row sb-anchored" style={{ paddingLeft: 16, alignItems: 'baseline', flexWrap: 'nowrap' }}>
-        <Move index={i} length={t.countermeasures.length} move={counters.move} />
+      {t.countermeasures.map((c, i) => <div key={i} ref={dragCounters?.row(i).ref} className="sb-row sb-anchored" style={{ paddingLeft: 16, alignItems: 'baseline', flexWrap: 'nowrap', ...dragCounters?.row(i).style }}>
+        <Move index={i} length={t.countermeasures.length} move={counters.move} drag={dragCounters} />
         <span>✦</span> <LineText line={c} placeholder="How characters can stop or avoid it" onChange={counters.set && (line => counters.set!(i, line))} />
         <Remove label="Remove countermeasure" onClick={counters.remove && (() => counters.remove!(i))} />
         <Annotation anchor={{ kind: 'entry', entry: { entryType: 'countermeasure', label: `Countermeasure ${i + 1}`, _draftNode: node(c) } }} />

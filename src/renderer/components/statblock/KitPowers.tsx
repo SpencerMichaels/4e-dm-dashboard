@@ -13,6 +13,7 @@ import { Annotation } from '../creature/annotations'
 import { powerEditorConfig } from '../creature/power-config'
 import { useUiStore } from '../../stores/ui-store'
 import { Add, LineText, listOps, Move, Num, Remove, Tags, Text } from './fields'
+import { useDragReorder, type DragReorder } from '../shared/drag-reorder'
 
 const node = (v: object) => (v as { _draftNode?: string })._draftNode
 
@@ -48,8 +49,10 @@ export function KitTraits({ traits, auras, onTraits, onAuras }: {
 }) {
   const t = listOps(traits, onTraits)
   const a = listOps(auras ?? [], onAuras)
-  const row = <T extends Trait>(x: T, i: number, ops: ReturnType<typeof listOps<any>>, kind: 'trait' | 'aura', length: number) => <div key={i} className="sb-trait" style={{ position: 'relative', display: 'flex' }}>
-    <Move index={i} length={length} move={ops.move} />
+  const dragTraits = useDragReorder(traits.length, t.move)
+  const dragAuras = useDragReorder(auras?.length ?? 0, a.move)
+  const row = <T extends Trait>(x: T, i: number, ops: ReturnType<typeof listOps<any>>, kind: 'trait' | 'aura', length: number, drag?: DragReorder) => <div key={i} className="sb-trait" {...drag?.row(i)} style={{ position: 'relative', display: 'flex', ...drag?.row(i).style }}>
+    <Move index={i} length={length} move={ops.move} drag={drag} />
     <div style={{ flex: 1, minWidth: 0 }}>
       {ops.set ? <div style={{ padding: '4px 8px', fontSize: 'var(--font-size-xs)' }}>
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 4, flexWrap: 'wrap' }}>
@@ -72,7 +75,7 @@ export function KitTraits({ traits, auras, onTraits, onAuras }: {
       <Add onClick={t.add && (() => t.add!({ name: '', keywords: [], text: { text: '', clauses: [] } }, 0))}>Trait</Add>
       {auras && <Add onClick={a.add && (() => a.add!({ name: '', keywords: [], range: 1, text: { text: '', clauses: [] } }, 0))}>Aura</Add>}
     </div>}
-    {traits.map((x, i) => row(x, i, t, 'trait', traits.length))}
-    {(auras ?? []).map((x, i) => row(x, i, a, 'aura', auras!.length))}
+    {traits.map((x, i) => row(x, i, t, 'trait', traits.length, dragTraits))}
+    {(auras ?? []).map((x, i) => row(x, i, a, 'aura', auras!.length, dragAuras))}
   </>
 }
